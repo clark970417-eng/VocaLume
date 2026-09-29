@@ -1,4 +1,4 @@
-> **Latest public preview: 4.3.0 (publishing).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
+> **Latest public preview: [4.3.0](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.3.0).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
 
 # VocaLume
 
