@@ -67,7 +67,7 @@ test.describe('App launch', () => {
 
   test('should display the settings panel heading', async () => {
     const heading = settingsWindow.locator('h1')
-    await expect(heading).toHaveText('live-translate')
+    await expect(heading).toHaveText('VocaLume')
   })
 
   test('should show status text', async () => {

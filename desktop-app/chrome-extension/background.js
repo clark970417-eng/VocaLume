@@ -1,5 +1,5 @@
 /**
- * Service worker background script for the Live Translate Chrome extension.
+ * Service worker background script for the VocaLume Chrome extension.
  *
  * Responsibilities:
  * - Obtain a tab capture stream ID via chrome.tabCapture.getMediaStreamId()

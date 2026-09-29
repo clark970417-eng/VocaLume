@@ -15,7 +15,7 @@ test('the runtime list covers every file the extension manifest and pages load',
 });
 
 test('a session log without its end line is reported as a session that died',()=>{
- assert.equal(sessionLogEnded('=== live-translate Session Log ===\nDate: 2026/9/13 1:03:26\n'),false);
+ assert.equal(sessionLogEnded('=== VocaLume Session Log ===\nDate: 2026/9/13 1:03:26\n'),false);
  assert.equal(sessionLogEnded('=== log ===\n========\nSession ended: 1:03:10\nDuration: 0m 40s\n'),true);
 });
 
@@ -26,7 +26,7 @@ test('memory counters parse from vm_stat and memory_pressure output',()=>{
 });
 
 test('only crash reports from involved processes are listed, by name',()=>{
- assert.ok(RELEVANT_CRASH.test('Japanese Live Translate-2026-09-13-010203.ips'));
+ assert.ok(RELEVANT_CRASH.test('VocaLume-2026-09-13-010203.ips'));
  assert.ok(RELEVANT_CRASH.test('Opera-2026-09-13.ips'));
  assert.equal(RELEVANT_CRASH.test('Discord-2026-09-13.ips'),false);
 });

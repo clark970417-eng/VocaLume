@@ -1,5 +1,5 @@
 appId: org.jtl.desktop
-productName: Japanese Live Translate
+productName: VocaLume
 directories:
   buildResources: build
 files:
@@ -22,7 +22,7 @@ asarUnpack:
 publish:
   provider: github
   owner: clark970417-eng
-  repo: japanese-live-translator-extension
+  repo: VocaLume
 mac:
   target:
     - target: dmg
@@ -44,7 +44,7 @@ mac:
   # CI overrides this to true after verifying all Apple signing secrets.
   notarize: false
   extendInfo:
-    NSMicrophoneUsageDescription: "live-translate needs microphone access for real-time speech recognition and translation."
+    NSMicrophoneUsageDescription: "VocaLume needs microphone access for real-time speech recognition and translation."
 win:
   target:
     - target: nsis

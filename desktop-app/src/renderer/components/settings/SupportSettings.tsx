@@ -2,9 +2,9 @@ import React, { useState } from 'react'
 import { Section } from './Section'
 
 const links = {
-  bug: 'https://github.com/clark970417-eng/japanese-live-translator-extension/issues/new?template=bug-report.yml',
-  translation: 'https://github.com/clark970417-eng/japanese-live-translator-extension/issues/new?template=translation-quality.yml',
-  privacy: 'https://github.com/clark970417-eng/japanese-live-translator-extension/blob/main/PRIVACY.md'
+  bug: 'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
+  translation: 'https://github.com/clark970417-eng/VocaLume/issues/new?template=translation-quality.yml',
+  privacy: 'https://github.com/clark970417-eng/VocaLume/blob/main/PRIVACY.md'
 }
 
 const actionStyle: React.CSSProperties = {

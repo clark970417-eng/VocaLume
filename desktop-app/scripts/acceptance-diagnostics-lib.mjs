@@ -35,7 +35,7 @@ export const freePercent = pressure => Number(/free percentage: (\d+)%/.exec(pre
 
 /** Only crash reports from processes this run can involve, by file name. The
  * report contents are never read. */
-export const RELEVANT_CRASH = /^(Japanese Live Translate|Electron|Opera|node|python3?|slm-worker)/i
+export const RELEVANT_CRASH = /^(VocaLume|Japanese Live Translate|Electron|Opera|node|python3?|slm-worker)/i
 
 /** Summarize pasted popup health dumps: each is the JSON the extension returns
  * for `{ type: 'health' }`. */

@@ -2,6 +2,14 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.3.0 - 2026-09-29
+
+### VocaLume branding
+
+- Renamed the desktop application, browser extensions, release packages, documentation, and GitHub repository to **VocaLume**.
+- Kept the existing application ID, storage path, encryption key, native messaging identity, and plugin manifest filename for upgrade compatibility.
+- Updated in-app support, privacy, update, and release links to the renamed repository.
+
 ## 4.2.2 - 2026-09-22
 
 ### Quieter website translation

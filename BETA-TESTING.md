@@ -4,7 +4,7 @@ This preview is intended for people who agree to test unfinished software and re
 
 ## Download and install
 
-Download the package for your computer and `japanese-live-translator-extension.zip` from the repository's **Releases** page.
+Download the package for your computer and `vocalume-extension.zip` from the repository's **Releases** page.
 
 ### Verify the download
 
@@ -18,7 +18,7 @@ Each release includes `SHA256SUMS.txt` and `release-manifest.json`. Verify the i
 ### macOS
 
 1. Choose the Apple Silicon package for M-series Macs or the Intel package for Intel Macs.
-2. Drag **Japanese Live Translate** into Applications.
+2. Drag **VocaLume** into Applications.
 3. If macOS blocks the first launch, open **System Settings → Privacy & Security**, confirm that the app came from this project, and choose **Open Anyway**.
 4. Grant microphone or screen/audio permission only when you use that feature.
 
@@ -29,7 +29,7 @@ Each release includes `SHA256SUMS.txt` and `release-manifest.json`. Verify the i
 
 ### Browser extension
 
-1. Unzip `japanese-live-translator-extension.zip`.
+1. Unzip `vocalume-extension.zip`.
 2. Open `opera://extensions`, `chrome://extensions`, or `edge://extensions`.
 3. Turn on Developer mode, choose **Load unpacked**, and select the unzipped folder.
 4. Keep the desktop app open when using desktop recognition or local writing translation.

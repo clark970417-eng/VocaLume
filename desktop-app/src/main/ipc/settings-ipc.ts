@@ -19,10 +19,10 @@ const _log = createLogger('ipc:settings')
 /** Register settings persistence IPC handlers */
 export function registerSettingsIpc(ctx: AppContext): void {
   const supportUrls = new Set([
-    'https://github.com/clark970417-eng/japanese-live-translator-extension/issues/new?template=bug-report.yml',
-    'https://github.com/clark970417-eng/japanese-live-translator-extension/issues/new?template=translation-quality.yml',
-    'https://github.com/clark970417-eng/japanese-live-translator-extension/blob/main/PRIVACY.md',
-    'https://github.com/clark970417-eng/japanese-live-translator-extension/releases'
+    'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
+    'https://github.com/clark970417-eng/VocaLume/issues/new?template=translation-quality.yml',
+    'https://github.com/clark970417-eng/VocaLume/blob/main/PRIVACY.md',
+    'https://github.com/clark970417-eng/VocaLume/releases'
   ])
 
   ipcMain.handle('open-support-url', async (_event, url: unknown) => {
@@ -35,7 +35,7 @@ export function registerSettingsIpc(ctx: AppContext): void {
     if (!ctx.mainWindow) return { error: 'No main window' }
     const result = await dialog.showSaveDialog(ctx.mainWindow, {
       title: 'Export diagnostics',
-      defaultPath: `japanese-live-translate-diagnostics-${Date.now()}.json`,
+      defaultPath: `vocalume-diagnostics-${Date.now()}.json`,
       filters: [{ name: 'JSON', extensions: ['json'] }]
     })
     if (result.canceled || !result.filePath) return { canceled: true }

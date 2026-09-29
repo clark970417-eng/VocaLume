@@ -1,6 +1,6 @@
 # Privacy notice for preview builds
 
-Japanese Live Translate does not automatically post messages. Writing translation inserts a reviewable draft; the user decides whether to submit it.
+VocaLume does not automatically post messages. Writing translation inserts a reviewable draft; the user decides whether to submit it.
 
 ## Data processed locally
 

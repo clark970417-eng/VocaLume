@@ -163,7 +163,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
   return (
     <div style={shellStyle}>
       <header style={headerStyle}>
-        <h2 style={titleStyle}>Welcome to live-translate</h2>
+        <h2 style={titleStyle}>Welcome to VocaLume</h2>
         <p style={subtitleStyle}>
           Three quick steps to set up local-first translation. Skip anything you do not need.
         </p>
@@ -211,7 +211,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
           number={2}
           title="Quality Upgrade"
           subtitle={`Kotoba Whisper + HY-MT1.5 1.8B (${formatSize(TIER2_TOTAL_MB)})`}
-          description="Higher-accuracy Japanese-optimized speech-to-text and translation. Downloads in the background — live-translate switches to high-quality mode automatically when ready."
+          description="Higher-accuracy Japanese-optimized speech-to-text and translation. Downloads in the background — VocaLume switches to high-quality mode automatically when ready."
           status={download.status}
           progress={download.progress}
           isDownloading={download.status === 'downloading-tier2'}
@@ -220,7 +220,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
         >
           {download.tier2Ready && (
             <p style={readyStyle}>
-              Full-quality models ready. live-translate will use them on the next session.
+              Full-quality models ready. VocaLume will use them on the next session.
             </p>
           )}
           {download.status === 'downloading-tier2' && !download.tier2Ready && (

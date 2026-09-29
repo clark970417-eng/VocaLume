@@ -109,7 +109,7 @@ function SettingsPanel(): React.JSX.Element {
 
   return (
     <div style={containerStyle}>
-      <h1 style={titleStyle}>live-translate</h1>
+      <h1 style={titleStyle}>VocaLume</h1>
 
       {disabled && (
         <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', padding: '8px 12px', background: '#1e293b', borderRadius: '6px' }}>

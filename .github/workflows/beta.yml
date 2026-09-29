@@ -20,7 +20,7 @@ jobs:
       - name: Package Chromium extension
         run: |
           mkdir -p beta
-          zip -r beta/japanese-live-translator-extension.zip \
+          zip -r beta/vocalume-extension.zip \
             manifest.json background.js offscreen.html offscreen.js audio-worklet.js \
             speech-worker.js vad-worker.js whisper-runtime.js desktop-worker.js native-client.mjs \
             capture-status.mjs cue-cursor.mjs recording-queue.mjs streaming.mjs token-stream.mjs \
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: browser-extension
-          path: beta/japanese-live-translator-extension.zip
+          path: beta/vocalume-extension.zip
 
   desktop:
     strategy:
@@ -132,6 +132,6 @@ jobs:
             gh release create "${GITHUB_REF_NAME}" beta/* \
               --repo "${GITHUB_REPOSITORY}" \
               --prerelease \
-              --title "Japanese Live Translate ${GITHUB_REF_NAME}" \
+              --title "VocaLume ${GITHUB_REF_NAME}" \
               --notes-file beta-notes.md
           fi

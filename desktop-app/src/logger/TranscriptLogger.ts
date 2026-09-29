@@ -34,7 +34,7 @@ export class TranscriptLogger {
   /** Write session header */
   startSession(engineMode: string): void {
     const header = [
-      `=== live-translate Session Log ===`,
+      `=== VocaLume Session Log ===`,
       `Date: ${this.sessionStartTime.toLocaleDateString('ja-JP')} ${this.sessionStartTime.toLocaleTimeString('ja-JP')}`,
       `Engine: ${engineMode}`,
       `${'='.repeat(40)}`,

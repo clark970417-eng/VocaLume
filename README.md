@@ -1,6 +1,6 @@
-> **Latest public preview: [4.2.2](https://github.com/clark970417-eng/japanese-live-translator-extension/releases/tag/beta-v4.2.2).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
+> **Latest public preview: 4.3.0 (publishing).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
 
-# Japanese Live Caption Translator
+# VocaLume
 
 ![Extension icon](./icon-preview.png)
 
@@ -12,14 +12,13 @@ bridge. This integration preserves the extension's page translation, Japanese
 reply drafts, caption modes and visual controls. See the integration notes for
 the implemented path, tests and remaining limits.
 
-Current release notes: [4.2.2 — quieter per-site translation](CHANGELOG.md#422---2026-09-22). Historical verification reports remain in [`docs/retests`](docs/retests/).
+Current release notes: [4.3.0 — VocaLume branding](CHANGELOG.md#430---2026-09-29). Historical verification reports remain in [`docs/retests`](docs/retests/).
 
-## What's new in 4.2.2
+## What's new in 4.3.0
 
-- YouTube, Twitch, X, TikTok, Bilibili, Facebook, and Instagram keep automatic dedicated translation.
-- Other websites are quiet by default and can be enabled one hostname at a time from the extension popup.
-- ChatGPT and similar conversation pages no longer receive translations under user messages unless explicitly enabled.
-- Search, login, password, email, phone, and URL fields remain excluded from the general writing control.
+- Renamed the product, desktop app, browser extension, packages, and repository to **VocaLume**.
+- Preserved existing settings, downloaded models, native-host identity, and plugin compatibility across the rename.
+- General websites remain quiet by default; dedicated translation sites keep their existing behavior.
 
 ## Project overview
 
@@ -58,7 +57,7 @@ This is windowed incremental recognition rather than a stateful streaming acoust
 
 ### Public beta
 
-Download the desktop package for your operating system and the browser extension ZIP from [GitHub Releases](https://github.com/clark970417-eng/japanese-live-translator-extension/releases). These preview packages are not code-signed, so read the operating-system-specific instructions and security explanation in [BETA-TESTING.md](BETA-TESTING.md) before opening them.
+Download the desktop package for your operating system and the browser extension ZIP from [GitHub Releases](https://github.com/clark970417-eng/VocaLume/releases). These preview packages are not code-signed, so read the operating-system-specific instructions and security explanation in [BETA-TESTING.md](BETA-TESTING.md) before opening them.
 
 Every release includes SHA-256 checksums and a build provenance manifest. The desktop app supports Stable and Beta update channels; unsigned builds open the verified GitHub download page instead of attempting an unsafe silent replacement. See the [release and rollback guide](RELEASE.md) for recovery instructions.
 

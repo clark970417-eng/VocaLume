@@ -1,5 +1,5 @@
 /**
- * Popup script for the Live Translate Chrome extension.
+ * Popup script for the VocaLume Chrome extension.
  *
  * Handles user interaction for starting/stopping tab audio capture
  * and displays meeting platform detection.

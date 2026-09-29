@@ -28,7 +28,7 @@ let currentStatus: UpdateStatus = { state: 'idle' }
 let checkTimer: ReturnType<typeof setInterval> | null = null
 let automaticUpdaterAvailable = false
 
-const RELEASES_API = 'https://api.github.com/repos/clark970417-eng/japanese-live-translator-extension/releases'
+const RELEASES_API = 'https://api.github.com/repos/clark970417-eng/VocaLume/releases'
 
 interface GitHubRelease {
   tag_name: string
@@ -41,7 +41,7 @@ async function checkGitHubRelease(ctx: AppContext): Promise<void> {
   const channel = store.get('updateChannel') || 'stable'
   sendStatus(ctx, { state: 'checking', currentVersion: app.getVersion(), channel, installMode: 'browser' })
   const response = await fetch(RELEASES_API, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Japanese-Live-Translate' }
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'VocaLume' }
   })
   if (!response.ok) throw new Error(`GitHub update check returned ${response.status}`)
   const releases = await response.json() as GitHubRelease[]

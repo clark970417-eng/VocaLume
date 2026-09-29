@@ -19,7 +19,7 @@ import { compareRuntime, freePercent, RELEVANT_CRASH, sessionLogEnded, summarize
 const repo = resolve(fileURLToPath(new URL('../..', import.meta.url)))
 const home = homedir()
 const INSTALLED_EXTENSION = join(home, 'Downloads/youtube-translator-extension')
-const INSTALLED_APP = join(home, 'Applications/Japanese Live Translate.app')
+const INSTALLED_APP = join(home, 'Applications/VocaLume.app')
 const DESKTOP_LOGS = join(home, 'Library/Application Support/live-translate/logs')
 const HOST_LOG = join(home, 'Library/Application Support/JapaneseLiveCaption/app.log')
 const CRASH_DIR = join(home, 'Library/Logs/DiagnosticReports')
@@ -38,7 +38,7 @@ function snapshot() {
   const plist = tryRun('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleShortVersionString', join(INSTALLED_APP, 'Contents/Info.plist')]).trim()
   const processes = tryRun('ps', ['-axo', 'pid=,rss=,comm=']).trim().split('\n')
     .map(line => line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)).filter(Boolean)
-    .filter(([, , , comm]) => /Japanese Live Translate|Opera|slm-worker|mlx-whisper-bridge|python3/.test(comm))
+    .filter(([, , , comm]) => /VocaLume|Japanese Live Translate|Opera|slm-worker|mlx-whisper-bridge|python3/.test(comm))
     .map(([, pid, rss, comm]) => ({ pid: Number(pid), rssMB: Math.round(Number(rss) / 1024), process: comm.split('/').at(-1) }))
   return {
     at: new Date().toISOString(),

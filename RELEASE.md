@@ -1,8 +1,8 @@
 # Release and rollback guide
 
-The latest public preview is **beta-v4.2.2**. Major supported platforms translate automatically; other websites are opt-in per hostname so ordinary chats and documents remain untouched. See [CHANGELOG.md](CHANGELOG.md) for the complete user-facing summary.
+The latest public preview is **beta-v4.3.0**. Major supported platforms translate automatically; other websites are opt-in per hostname so ordinary chats and documents remain untouched. See [CHANGELOG.md](CHANGELOG.md) for the complete user-facing summary.
 
-Japanese Live Translate uses two release channels:
+VocaLume uses two release channels:
 
 - **Beta** tags use `beta-vX.Y.Z`. They are public previews and may be unsigned.
 - **Stable** tags use `vX.Y.Z`. Stable automation requires configured Apple and Windows signing credentials and stops before publishing when either is missing.
