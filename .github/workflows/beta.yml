@@ -23,7 +23,7 @@ jobs:
           zip -r beta/vocalume-extension.zip \
             manifest.json background.js offscreen.html offscreen.js audio-worklet.js \
             speech-worker.js vad-worker.js whisper-runtime.js desktop-worker.js native-client.mjs \
-            capture-status.mjs cue-cursor.mjs recording-queue.mjs streaming.mjs token-stream.mjs \
+            capture-status.mjs cue-cursor.mjs recording-queue.mjs streaming.mjs stream-core.mjs token-stream.mjs preview-budget.mjs \
             translation-policy.mjs streamer-vocabulary.js streamer-vocabulary.mjs popup.html popup.js popup.css content.js content.css \
             x-content.js x-content.css social-content.js social-content.css \
             caption-window.js caption-window.css icons vendor ort

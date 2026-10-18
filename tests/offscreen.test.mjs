@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import {SpeechResultFilter,cleanText} from '../stream-core.mjs';
 import {Agreement,DecodeQueue,Measurements} from '../streaming.mjs';
+import {PreviewBudget} from '../preview-budget.mjs';
 test('real controller forwards partial before final and rejects partial after seek/reset',async()=>{
  let listener;const workers=[],messages=[];
  class Worker{constructor(url){this.url=url;workers.push(this);}postMessage(){}terminate(){}}
@@ -12,7 +13,7 @@ test('real controller forwards partial before final and rejects partial after se
  const track={stop(){}};
  const chrome={runtime:{sendMessage:async m=>messages.push(m),onMessage:{addListener:f=>listener=f}}};
  const src=fs.readFileSync(new URL('../offscreen.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{chrome,Worker,AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,Date,performance,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}});
+ vm.runInNewContext(src,{chrome,Worker,AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,PreviewBudget,Date,performance,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}});
  const call=m=>new Promise(r=>listener(m,{},r));
  await call({type:'offscreen-start',session:'one',streamId:'test'});
  const asr=workers.find(w=>w.url.startsWith('speech')),vad=workers.find(w=>w.url.startsWith('vad'));
@@ -37,7 +38,7 @@ for(const mode of ['browser','desktop']) test(`recording retries retained audio 
  const track={stop(){}};
  const chrome={runtime:{sendMessage:async m=>messages.push(m),onMessage:{addListener:f=>listener=f}}};
  const src=fs.readFileSync(new URL('../offscreen.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{chrome,Worker,DesktopWorker:class extends Worker{constructor(){super('speech-desktop');}},AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,Date,performance,setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval:()=>1,clearInterval(){}});
+ vm.runInNewContext(src,{chrome,Worker,DesktopWorker:class extends Worker{constructor(){super('speech-desktop');}},AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,PreviewBudget,Date,performance,setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length;},clearTimeout(){},setInterval:()=>1,clearInterval(){}});
  const call=m=>new Promise(r=>listener(m,{},r));
  await call({type:'offscreen-start',session:'one',streamId:'test',recording:true,mode});
  const asr=workers.find(w=>w.url.startsWith('speech')),vad=workers.find(w=>w.url.startsWith('vad'));
@@ -82,7 +83,7 @@ for(const failedDelivery of [false,true]) test(`stop drains queued speech and fi
  const track={stop(){stopped++;}};
  const chrome={runtime:{sendMessage:async m=>{messages.push(m);if(m.type==='speech-result'&&m.final){delivering++;if(delivering===3){await new Promise(r=>releaseDelivery=r);if(failedDelivery)throw new Error('connection lost');}}return {ok:true};},onMessage:{addListener:f=>listener=f}}};
  const src=fs.readFileSync(new URL('../offscreen.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{chrome,Worker,AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,Date,performance,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}});
+ vm.runInNewContext(src,{chrome,Worker,AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,PreviewBudget,Date,performance,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}});
  const call=m=>new Promise(r=>listener(m,{},r));
  await call({type:'offscreen-start',session:'drain',streamId:'test',recording:true});
  const asr=workers[1],vad=workers[0];

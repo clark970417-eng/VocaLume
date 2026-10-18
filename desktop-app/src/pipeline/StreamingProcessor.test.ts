@@ -3,6 +3,31 @@ import { EventEmitter } from 'events'
 import { StreamingProcessor, type StreamingDeps } from './StreamingProcessor'
 import { LocalAgreement } from './LocalAgreement'
 import { ContextBuffer } from './ContextBuffer'
+import * as pressure from '../main/performance-state'
+
+it('leaves idle time after slow previews while final sentences bypass thermal admission', async () => {
+  vi.useFakeTimers()
+  const policy = vi.spyOn(pressure, 'performanceState').mockReturnValue({thermalState:'serious',speedLimit:100,previewFloorMs:1500,previewDutyCycle:.4,previewsPaused:false,coolingDown:false})
+  const stt = vi.fn(async () => {await new Promise(resolve=>setTimeout(resolve,2000));return {text:'今日は配信しません。',language:'ja'}})
+  const extraDraft = vi.fn()
+  const processor = new StreamingProcessor({
+    emitter:new EventEmitter(),agreement:new LocalAgreement(),contextBuffer:new ContextBuffer(),
+    getSTTEngine:()=>({processAudio:stt}),getDraftSTTEngine:()=>({processAudio:extraDraft}),
+    getTranslator:()=>({id:'hunyuan-mt-15',translate:async()=> '今天不直播。'}),getGlossary:()=>[],
+    getSimulMtConfig:()=>({enabled:false,waitK:3}),resolveTargetLanguage:()=> 'zh',incrementProcessing(){},decrementProcessing(){}
+  } as unknown as StreamingDeps)
+  try {
+    const first=processor.processStreaming(new Float32Array(16000),16000)
+    await vi.advanceTimersByTimeAsync(2000);expect((await first)?.sourceText).toBe('今日は配信しません。')
+    expect(await processor.processStreaming(new Float32Array(32000),16000)).toBeNull()
+    expect(stt).toHaveBeenCalledOnce();expect(extraDraft).not.toHaveBeenCalled()
+    policy.mockReturnValue({thermalState:'critical',speedLimit:100,previewFloorMs:2500,previewDutyCycle:.25,previewsPaused:true,coolingDown:false})
+    expect(await processor.processStreaming(new Float32Array(48000),16000)).toBeNull()
+    const final=processor.finalizeStreaming(new Float32Array(64000),16000)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect((await final)?.translatedText).toBe('今天不直播。');expect(stt).toHaveBeenCalledTimes(2)
+  } finally {processor.reset();policy.mockRestore();vi.useRealTimers()}
+})
 
 it('does not publish an old interim translation after the segment is finalized', async () => {
   vi.useFakeTimers()

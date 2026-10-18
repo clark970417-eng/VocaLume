@@ -2,6 +2,18 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.4.3 - 2026-10-18
+
+### Reduce sustained recognition load
+
+- Leave actual idle time after slow rolling recognition instead of immediately starting the next decode when the old start-based interval has elapsed.
+- Remove the 2.5-second preview cadence ceiling. Adapt optional recognition to observed service time, thermal state and CPU speed limits on the desktop and browser paths.
+- Prioritize accepted final sentences and pause speculative drafts at critical OS pressure. Full source audio and final translation remain in order; optional extra draft recognition and preview diarization pause while warm.
+- Recover gradually after cooling, at one step per 30 seconds, rather than immediately restoring full-rate work on a nominal reading.
+- Show skipped drafts, cooling recovery and paused previews in extension diagnostics.
+- Include all statically imported runtime modules in the beta extension archive and verify that dependency list.
+- Keep the same recognition and translation models. See [thermal behavior and limits](docs/thermal-performance.md) and [verification](docs/retests/4.4.3.md).
+
 ## 4.4.2 - 2026-10-18
 
 ### Creator greetings

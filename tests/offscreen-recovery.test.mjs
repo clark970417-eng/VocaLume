@@ -4,9 +4,10 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import {SpeechResultFilter,cleanText} from '../stream-core.mjs';
 import {Agreement,DecodeQueue,Measurements} from '../streaming.mjs';
+import {PreviewBudget} from '../preview-budget.mjs';
 
 function harness(){
- let listener,capture;const speech=[],workers=[],messages=[],timers=[];
+ let listener,capture,now=0;const speech=[],workers=[],messages=[],timers=[];
  class Worker{constructor(url){this.url=url;this.posts=[];workers.push(this);}postMessage(m){this.posts.push(m);}terminate(){this.terminated=true;}}
  class DesktopWorker extends Worker{constructor(){super('speech-desktop');speech.push(this);}}
  class AudioContext{constructor(){this.sampleRate=48000;this.audioWorklet={addModule:async()=>{}};}resume(){}createMediaStreamSource(){return {connect(){},disconnect(){}};}close(){return Promise.resolve();}}
@@ -15,11 +16,41 @@ function harness(){
  const chrome={runtime:{sendMessage:async m=>{messages.push(m);return {ok:true};},onMessage:{addListener:f=>listener=f}}};
  const timeout=(fn,ms)=>{const timer={fn,ms,cleared:false};timers.push(timer);return timer;};
  const src=fs.readFileSync(new URL('../offscreen.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{chrome,Worker,DesktopWorker,AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,Date,performance,setTimeout:timeout,clearTimeout:t=>{if(t)t.cleared=true;},setInterval:()=>1,clearInterval(){}});
+ vm.runInNewContext(src,{chrome,Worker,DesktopWorker,AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,PreviewBudget,Date,performance:{now:()=>now},setTimeout:timeout,clearTimeout:t=>{if(t)t.cleared=true;},setInterval:()=>1,clearInterval(){}});
  const call=m=>new Promise(r=>listener(m,{},r));
  const fire=ms=>{const t=timers.find(x=>x.ms===ms&&!x.cleared&&!x.fired);assert.ok(t,`missing ${ms} ms timer`);t.fired=true;t.fn();};
- return {call,fire,speech,workers,messages,get capture(){return capture;}};
+ return {call,fire,speech,workers,messages,advance:ms=>{now+=ms;},get capture(){return capture;}};
 }
+
+test('slow and hot workers skip queued previews but decode every accepted final in order',async()=>{
+ const h=harness();await h.call({type:'offscreen-start',session:'thermal',streamId:'test',mode:'desktop'});
+ const vad=h.workers.find(w=>w.url.startsWith('vad')),worker=h.speech[0];
+ vad.onmessage({data:{type:'ready'}});worker.onmessage({data:{type:'ready'}});
+ const job=(id,final=false)=>({id,utteranceId:id,epoch:0,final,audio:new Float32Array(16000),audioEndAt:Date.now(),speechAt:Date.now()-1000});
+ vad.onmessage({data:{type:'segment',job:job(1)}});
+ vad.onmessage({data:{type:'segment',job:job(2)}});
+ h.advance(5000);await worker.onmessage({data:{type:'result',id:1,text:'草稿'}});
+ assert.equal(worker.posts.filter(m=>m.type==='decode').length,1,'no immediate second decode after slow inference');
+ vad.onmessage({data:{type:'segment',job:job(3,true)}});
+ vad.onmessage({data:{type:'segment',job:job(4,true)}});
+ vad.onmessage({data:{type:'segment',job:job(5)}});
+ h.advance(1000);await worker.onmessage({data:{type:'result',id:3,performance:{previewsPaused:true,previewDutyCycle:.25}}});
+ assert.equal(worker.posts.at(-1).id,4,'critical temperature never blocks the next final');
+ await worker.onmessage({data:{type:'result',id:4,performance:{previewsPaused:true}}});
+ assert.deepEqual(worker.posts.filter(m=>m.type==='decode').map(m=>m.id),[1,3,4]);
+ await h.call({type:'offscreen-stop'});
+});
+
+test('skipping a browser preview immediately drains the final behind it without another VAD tick',async()=>{
+ const h=harness();await h.call({type:'offscreen-start',session:'browser',streamId:'test',mode:'browser'});
+ const vad=h.workers.find(w=>w.url.startsWith('vad')),worker=h.workers.find(w=>w.url.startsWith('speech-worker'));
+ vad.onmessage({data:{type:'ready'}});worker.onmessage({data:{type:'ready'}});
+ const job=(id,final=false)=>({id,utteranceId:id,epoch:0,final,audio:new Float32Array(16000),audioEndAt:Date.now(),speechAt:Date.now()-1000});
+ for(const j of [job(1),job(2),job(3,true)])vad.onmessage({data:{type:'segment',job:j}});
+ h.advance(5000);await worker.onmessage({data:{type:'result',id:1,text:''}});
+ assert.deepEqual(worker.posts.filter(m=>m.type==='decode').map(m=>m.id),[1,3]);
+ await h.call({type:'offscreen-stop'});
+});
 
 test('two separated desktop deaths recover with backoff, a third stops, and manual Start resets the budget',async()=>{
  const h=harness();

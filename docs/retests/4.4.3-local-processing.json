@@ -1,0 +1,154 @@
+{
+  "device": "Apple M5 MacBook Air, 16GB, macOS 26",
+  "baselineCommit": "c6b9f1aa60edd623eab78ff82ef9b1870bfb031d",
+  "fixture": "tests/japanese-fixture.wav",
+  "fixtureSha256": "9509e4d83358abda97b1b7c4b7ab38fbcf937c1f0ea7386ba8fbbd21a668acde",
+  "recognition": "mlx-community/whisper-large-v3-turbo",
+  "translation": "HY-MT1.5-1.8B-Q4_K_M",
+  "method": "Two repetitions per build, real-time 500ms input ticks, warmed real engines, injected serious policy; no concurrent build/test processes during these two runs. Other user apps remained open.",
+  "before": {
+    "wallMs": 31770,
+    "actualThermalState": "fair",
+    "policyThermalState": "serious (injected)",
+    "calls": [
+      {
+        "stage": "preview",
+        "audioSeconds": 0.5,
+        "ms": 1271
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 2.5,
+        "ms": 1674
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 4.5,
+        "ms": 2723
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 7.5,
+        "ms": 1649
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 9.5,
+        "ms": 2335
+      },
+      {
+        "stage": "final",
+        "audioSeconds": 10.7223125,
+        "ms": 1723
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 0.5,
+        "ms": 554
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 2,
+        "ms": 2460
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 4.5,
+        "ms": 797
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 6.5,
+        "ms": 1115
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 8,
+        "ms": 929
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 10,
+        "ms": 528
+      },
+      {
+        "stage": "final",
+        "audioSeconds": 10.7223125,
+        "ms": 744
+      }
+    ],
+    "rows": [
+      {
+        "source": "皆さん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "各位，大家好。今天就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。感謝大家的參與，謝謝大家。"
+      },
+      {
+        "source": "皆さん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "各位，大家好。今天就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。感謝大家的參與，謝謝大家。"
+      }
+    ]
+  },
+  "after": {
+    "wallMs": 36030,
+    "actualThermalState": "fair",
+    "policyThermalState": "serious (injected)",
+    "calls": [
+      {
+        "stage": "preview",
+        "audioSeconds": 0.5,
+        "ms": 1570
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 4.5,
+        "ms": 833
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 7,
+        "ms": 778
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 9,
+        "ms": 1654
+      },
+      {
+        "stage": "final",
+        "audioSeconds": 10.7223125,
+        "ms": 1141
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 0.5,
+        "ms": 515
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 2,
+        "ms": 3139
+      },
+      {
+        "stage": "preview",
+        "audioSeconds": 10,
+        "ms": 3947
+      },
+      {
+        "stage": "final",
+        "audioSeconds": 10.7223125,
+        "ms": 4059
+      }
+    ],
+    "rows": [
+      {
+        "source": "皆さん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "各位，大家好。今天就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。感謝大家的參與，謝謝大家。"
+      },
+      {
+        "source": "皆さん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "各位，大家好。今天就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。感謝大家的參與，謝謝大家。"
+      }
+    ]
+  },
+  "limits": "Sequential small sample; not a temperature, power, long-duration or end-to-end browser benchmark. Actual OS thermal state was fair. No claim of lower overall latency."
+}

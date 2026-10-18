@@ -1,4 +1,5 @@
 import { performanceState } from '../main/performance-state'
+import { PreviewBudget } from '../../../preview-budget.mjs'
 import type { EventEmitter } from 'events'
 import type {
   TranslationResult,
@@ -58,7 +59,7 @@ export interface StreamingDeps {
  * Extracted from TranslationPipeline to isolate streaming-specific logic.
  */
 export class StreamingProcessor {
-  private lastPreviewAt = 0
+  private readonly previewBudget = new PreviewBudget()
   private finalTail: Promise<unknown> = Promise.resolve()
   private finalGeneration = 0
   private lastFinalTimestamp = 0
@@ -168,6 +169,18 @@ export class StreamingProcessor {
     pending?.()
   }
 
+  private async recognize(stt: STTEngine, audio: Float32Array, sampleRate: number, evidence?: SpeechEvidence) {
+    const started = performance.now()
+    try { return await stt.processAudio(audio, sampleRate, evidence) }
+    finally { this.previewBudget.complete(performance.now() - started, performance.now()) }
+  }
+
+  private currentSpeaker(): DiarizationResult | null {
+    // Paused speaker analysis must not present a previous speaker as current.
+    if (performanceState().previewDutyCycle < 0.85) this.lastDiarizationResult = null
+    return this.lastDiarizationResult
+  }
+
   async processStreaming(
     audioBuffer: Float32Array,
     sampleRate: number,
@@ -178,9 +191,9 @@ export class StreamingProcessor {
     // Drop chunk if another streaming call is in-flight — acceptable because
     // the rolling buffer re-sends accumulated audio on the next interval (#103)
     if (this.streamingLock) return null
-    const floor = performanceState().previewFloorMs
-    if (floor && performance.now() - this.lastPreviewAt < floor) return null
-    this.lastPreviewAt = performance.now()
+    // A complete sentence waiting for translation has priority over another
+    // speculative decode of the rolling buffer. Accepted finals are retained.
+    if (this.pendingFinals || this.previewBudget.remainingMs(performance.now(), performanceState()) > 0) return null
 
     this.deps.incrementProcessing()
     const revision = ++this.recognitionRevision
@@ -189,19 +202,20 @@ export class StreamingProcessor {
     const utterance = this.utteranceGeneration
     try {
       // Fire draft STT in parallel for fast interim results (#536)
-      const draftSttEngine = this.deps.getDraftSTTEngine?.()
+      const pressure = performanceState()
+      const draftSttEngine = pressure.previewDutyCycle < 0.85 ? null : this.deps.getDraftSTTEngine?.()
       if (draftSttEngine) {
         this.runDraftStt(draftSttEngine, audioBuffer, sampleRate, revision)
       }
 
       // Fire diarization in parallel with STT (#549)
-      const diarizer = this.deps.getDiarizer?.()
+      const diarizer = pressure.previewDutyCycle < 0.85 ? null : this.deps.getDiarizer?.()
       if (diarizer) {
         this.runDiarization(diarizer, audioBuffer, sampleRate)
       }
 
       const t0 = performance.now()
-      const sttResult = await sttEngine.processAudio(audioBuffer, sampleRate, evidence)
+      const sttResult = await this.recognize(sttEngine, audioBuffer, sampleRate, evidence)
       if (!this.isCurrentGeneration(gen, utterance)) return null
       const sttMs = (performance.now() - t0).toFixed(0)
       if (!sttResult || !sttResult.text.trim()) {
@@ -330,6 +344,7 @@ export class StreamingProcessor {
         }
       }
 
+      const speaker = this.currentSpeaker()
       const interimResult: TranslationResult = {
         sourceText: fullSourceText,
         confirmedText: agreement.confirmedText,
@@ -339,9 +354,9 @@ export class StreamingProcessor {
         targetLanguage: targetLang,
         timestamp: Date.now(),
         isInterim: true,
-        ...(this.lastDiarizationResult && {
-          speakerLabel: this.lastDiarizationResult.speakerLabel,
-          speakerIndex: this.lastDiarizationResult.speakerIndex
+        ...(speaker && {
+          speakerLabel: speaker.speakerLabel,
+          speakerIndex: speaker.speakerIndex
         })
       }
 
@@ -382,7 +397,7 @@ export class StreamingProcessor {
     if (this.translateDebounceTimer) { clearTimeout(this.translateDebounceTimer); this.translateDebounceTimer = null }
     let handedOff = false
     try {
-      const sttResult = await stt.processAudio(audioChunk, sampleRate, evidence)
+      const sttResult = await this.recognize(stt, audioChunk, sampleRate, evidence)
       if (!this.isCurrentGeneration(gen, utterance) || finalGeneration !== this.finalGeneration) return null
       if (!sttResult?.text.trim()) {
         this.deps.agreement.reset()
@@ -393,7 +408,7 @@ export class StreamingProcessor {
       const targetLanguage = this.deps.resolveTargetLanguage(sttResult.language)
       const translator = this.deps.getTranslator()
       const glossary = this.deps.getGlossary().map(entry => ({ ...entry }))
-      const speaker = this.lastDiarizationResult
+      const speaker = this.currentSpeaker()
       const reused = this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === sourceText
         ? this.lastTranslatedConfirmed : ''
       const valid = (): boolean => finalGeneration === this.finalGeneration &&
@@ -474,7 +489,7 @@ export class StreamingProcessor {
     if (this.translateDebounceTimer) { clearTimeout(this.translateDebounceTimer); this.translateDebounceTimer = null }
 
     try {
-      const sttResult = await sttEngine.processAudio(audioChunk, sampleRate, evidence)
+      const sttResult = await this.recognize(sttEngine, audioChunk, sampleRate, evidence)
       if (!this.isCurrentGeneration(gen, utterance)) return null
       if (!sttResult || !sttResult.text.trim()) {
         this.deps.agreement.reset()
@@ -537,6 +552,7 @@ export class StreamingProcessor {
       this.clauseTranslationInFlight = false
       this.debouncedTranslationInFlight = false
 
+      const speaker = this.currentSpeaker()
       const result: TranslationResult = {
         sourceText: agreement.confirmedText,
         translatedText,
@@ -546,9 +562,9 @@ export class StreamingProcessor {
         isInterim: false,
         confidence: sttResult.confidence,
         ...(translationStage && { translationStage }),
-        ...(this.lastDiarizationResult && {
-          speakerLabel: this.lastDiarizationResult.speakerLabel,
-          speakerIndex: this.lastDiarizationResult.speakerIndex
+        ...(speaker && {
+          speakerLabel: speaker.speakerLabel,
+          speakerIndex: speaker.speakerIndex
         })
       }
 
