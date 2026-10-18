@@ -43,6 +43,20 @@ it('translates known greetings without a GPU call and preserves names in longer 
   expect(pool.sendRequest.mock.calls[0][0]).toMatchObject({ text: 'こんにちは、鹿乃まほろです。今日はゲームします。' })
 })
 
+it('uses exact game names cheaply and forwards only applicable contextual terms', async () => {
+  const {pool}=fakePool()
+  const engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  await expect(engine.translate('ピカチュウ','ja','zh')).resolves.toBe('皮卡丘')
+  await expect(engine.translate('皮卡丘','zh','ja')).resolves.toBe('ピカチュウ')
+  expect(pool.sendRequest).not.toHaveBeenCalled()
+  await engine.initialize()
+  pool.sendRequest.mockResolvedValue('翻譯')
+  await engine.translate('VALORANTでリコイル制御を練習','ja','zh')
+  expect(pool.sendRequest.mock.calls.at(-1)?.[0]).toMatchObject({context:{glossary:[{source:'VALORANT',target:'特戰英豪'},{source:'リコイル制御',target:'壓槍'}]}})
+  await engine.translate('皮卡丘','zh','ja',{previousSegments:[],glossary:[{source:'皮卡丘',target:'ピカちゃん'}]})
+  expect(pool.sendRequest.mock.calls.at(-1)?.[0]).toMatchObject({context:{glossary:[{source:'皮卡丘',target:'ピカちゃん'}]}})
+})
+
 it('respects custom terminology, cancellation and the reverse translation direction', async () => {
   const { pool } = fakePool()
   const engine = new HunyuanMT2Translator({ pool: pool as unknown as WorkerPool })

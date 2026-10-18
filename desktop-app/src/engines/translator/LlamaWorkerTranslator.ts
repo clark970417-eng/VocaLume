@@ -5,6 +5,7 @@ import type { WorkerInitOptions } from '../../main/worker-pool'
 import { workerPool, WorkerTerminatedError, type WorkerPool } from '../../main/worker-pool'
 import { createLogger } from '../../main/logger'
 import { greetingTranslation, normalizeGreetingSource } from '../../../../streamer-vocabulary.mjs'
+import { gameTermTranslation, selectGameTerminology } from '../../../../game-vocabulary.mjs'
 
 export interface GGUFVariantConfig {
   filename: string
@@ -113,10 +114,11 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     this.initialized = true
   }
 
-  private serialContext(context?: TranslateContext): Omit<TranslateContext, 'signal' | 'onPartial'> | undefined {
-    if (!context) return undefined
-    const {signal: _signal, onPartial: _onPartial, ...value} = context
-    return value
+  private serialContext(text: string, from: Language, to: Language, context?: TranslateContext): Omit<TranslateContext, 'signal' | 'onPartial'> | undefined {
+    const terms = selectGameTerminology(text, from, to, context?.glossary)
+    if (!context && !terms.length) return undefined
+    const {signal: _signal, onPartial: _onPartial, ...value} = context || {previousSegments: []}
+    return { ...value, previousSegments: value.previousSegments || [], ...(terms.length && {glossary:[...(context?.glossary || []), ...terms]}) }
   }
 
   protected get workerOptions(): WorkerInitOptions {
@@ -126,6 +128,12 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   async translate(text: string, from: Language, to: Language, context?: TranslateContext): Promise<string> {
     if (!text.trim()) return ''
     if (from === to) return text
+    context?.signal?.throwIfAborted()
+    this.interruption.signal.throwIfAborted()
+    if (!context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) {
+      const term = gameTermTranslation(text, from, to)
+      if (term) return term
+    }
     // User terminology wins. Otherwise known standalone greetings need no GPU
     // inference, and a longer opening is normalized without touching names.
     if (from === 'ja' && to === 'zh' && !context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) {
@@ -141,7 +149,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
 
     const t0 = performance.now()
     const result = await this.pool.sendRequest(
-      { type: 'translate', text, from, to, context: this.serialContext(context) },
+      { type: 'translate', text, from, to, context: this.serialContext(text, from, to, context) },
       'translate', this.workerOptions, this.requestSignal(context?.signal), context?.onPartial
     )
     const ms = performance.now() - t0
@@ -163,7 +171,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     }
 
     return this.pool.sendRequest(
-      { type: 'translate-incremental', text, previousOutput, from, to, context: this.serialContext(context) },
+      { type: 'translate-incremental', text, previousOutput, from, to, context: this.serialContext(text, from, to, context) },
       'translate-incremental', this.workerOptions, this.requestSignal(context?.signal)
     )
   }
@@ -197,7 +205,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
 
     const t0 = performance.now()
     const result = await this.pool.sendRequest(
-      { type: 'translate-ssbd', text, previousOutput, from, to, context: this.serialContext(context) },
+      { type: 'translate-ssbd', text, previousOutput, from, to, context: this.serialContext(text, from, to, context) },
       'translate-ssbd', this.workerOptions, this.requestSignal(context?.signal)
     )
     const ms = performance.now() - t0
@@ -234,7 +242,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
 
     const t0 = performance.now()
     const result = await this.pool.sendRequest(
-      { type: 'translate-simulmt', text, previousOutput, from, to, isRevision, context: this.serialContext(context) },
+      { type: 'translate-simulmt', text, previousOutput, from, to, isRevision, context: this.serialContext(text, from, to, context) },
       'translate-simulmt', this.workerOptions, this.requestSignal(context?.signal)
     )
     const ms = performance.now() - t0

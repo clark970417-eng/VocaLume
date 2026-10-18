@@ -2,6 +2,17 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.4.4 - 2026-10-18
+
+### Contextual game vocabulary
+
+- Add 78 Japanese / Taiwan Traditional Chinese term pairs: Pokémon names and mechanics, game titles, common shooter vocabulary, VALORANT weapons and agents, and Apex items and characters.
+- Translate exact unambiguous names without model inference. Sentences retain negation and other content; they are not replaced by dictionary entries.
+- Select at most eight matching, longest-first term hints. Ambiguous terms require the corresponding game's context, and katakana boundaries prevent ダウン from matching ダウンロード.
+- Pass contextual hints through local Llama translation modes and configured browser chat-model providers. Plain machine-translation APIs do not accept these sentence hints.
+- Preserve explicit terminology supplied in the desktop translation context. Keep existing creator greetings and thermal scheduling.
+- See [the vocabulary and sources](docs/game-vocabulary.md) and [verification](docs/retests/4.4.4.md).
+
 ## 4.4.3 - 2026-10-18
 
 ### Reduce sustained recognition load

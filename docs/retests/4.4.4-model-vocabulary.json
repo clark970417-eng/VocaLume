@@ -1,0 +1,132 @@
+{
+  "model": "HY-MT1.5-1.8B Q4_K_M",
+  "scope": "18 authored text examples; warmed local inference; no native-speaker blind scoring; not a broad accuracy or latency benchmark",
+  "cases": [
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "色違いのイーブイを捕まえたけど、ピカチュウはまだ捕まえていません。",
+      "translated": "雖然抓到了異色伊布，但皮卡丘還沒有被抓到。",
+      "ms": 358
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "VALORANTでヴァンダルのリコイル制御を練習したい。",
+      "translated": "我想在 VALORANT 遊戲中練習暴徒的壓槍技巧。",
+      "ms": 367
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "Apexでシールドバッテリーを使ったけど、味方はまだダウンしています。",
+      "translated": "在 Apex 中使用護盾電池，但是我的同伴仍然倒地了。",
+      "ms": 323
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "色違いの服を買った。",
+      "translated": "我買了顏色不一的衣服。",
+      "ms": 179
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "寶可夢的皮卡丘還沒進化，伊布是異色的。",
+      "translated": "ポケモンのピカチュウはまだ進化していません。イーブイは色違いです。",
+      "ms": 494
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "特戰英豪我想用暴徒練壓槍。",
+      "translated": "VALORANTでヴァンダルとリコイル制御を練習したいです。",
+      "ms": 406
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "Apex我沒有護盾電池，隊友倒地了。",
+      "translated": "Apex、私にはシールドバッテリーがない。仲間がダウンした。",
+      "ms": 404
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "媽媽倒地送醫了。",
+      "translated": "お母さんが倒れて病院に運ばれました。",
+      "ms": 278
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "ポケモンのピカチュウとイーブイを育てています。カビゴンはまだ捕まえていません。リザードンに進化させたいけど、今日は対戦しません。",
+      "translated": "我正在培育寶可夢中的皮卡丘和伊布。卡比獸還沒有被抓到呢。我想要將它進化為噴火龍，但今天不會進行對戰。",
+      "ms": 698
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "VALORANTのファントムはまだ買わない方がいいですか？",
+      "translated": "特戰英豪的幻象還是不要購買比較好嗎？",
+      "ms": 333
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "Apexをダウンロードしただけで、まだ試合はしていません。",
+      "translated": "僅僅是下載了 Apex，但我還沒有進行任何遊戲對戰呢。",
+      "ms": 347
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "Apex 英雄我還沒擊倒敵人，也沒有護盾電池。",
+      "translated": "Apex Legendsでは、まだ敵をノックダウンしておらず、シールドバッテリーもありません。",
+      "ms": 537
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "コイキングをギャラドスに進化させました。",
+      "translated": "我們將鯉魚王進化為暴鯉龍了。",
+      "ms": 333
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "イーブイをニンフィアに進化させたくありません。",
+      "translated": "我不想把伊布進化成仙子伊布。",
+      "ms": 249
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "不要把伊布進化成仙子伊布。",
+      "translated": "イーブイをニンフィアに進化させないでください。",
+      "ms": 378
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "コダックのフィルムを買った。",
+      "translated": "我購買了柯達的膠片。",
+      "ms": 239
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "ポケモンのサンダースとブースターが好きです。",
+      "translated": "我喜歡寶可夢中的雷伊布和火伊布。",
+      "ms": 325
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "不要把伊布進化成雷伊布或火伊布。",
+      "translated": "イーブイをサンダースに進化させたり、ブースターに変えたりしないでください。",
+      "ms": 460
+    }
+  ]
+}
