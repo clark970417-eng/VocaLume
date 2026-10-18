@@ -6,7 +6,7 @@ let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget
 const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
 const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
 const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
-const matchesLanguage=(text,lang)=>languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text);
+const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
 const cache = new Map();
 const inFlight = new Map();
 const translationQueue = [];

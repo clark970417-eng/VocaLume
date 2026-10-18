@@ -30,6 +30,35 @@ it('does not acquire the worker after an interrupt that arrived before the load 
   expect(pool.acquire).not.toHaveBeenCalled()
 })
 
+it('translates known greetings without a GPU call and preserves names in longer input', async () => {
+  const { pool } = fakePool()
+  const engine = new HunyuanMT2Translator({ pool: pool as unknown as WorkerPool })
+  await expect(engine.translate('こんまほ', 'ja', 'zh')).resolves.toBe('你好！')
+  await expect(engine.translate('おつかの～🐾', 'ja', 'zh')).resolves.toBe('辛苦了～🐾')
+  expect(pool.acquire).not.toHaveBeenCalled()
+  expect(pool.sendRequest).not.toHaveBeenCalled()
+  await engine.initialize()
+  pool.sendRequest.mockResolvedValueOnce('你好，鹿乃まほろ今天要玩遊戲。')
+  await engine.translate('こんまほ、鹿乃まほろです。今日はゲームします。', 'ja', 'zh')
+  expect(pool.sendRequest.mock.calls[0][0]).toMatchObject({ text: 'こんにちは、鹿乃まほろです。今日はゲームします。' })
+})
+
+it('respects custom terminology, cancellation and the reverse translation direction', async () => {
+  const { pool } = fakePool()
+  const engine = new HunyuanMT2Translator({ pool: pool as unknown as WorkerPool })
+  await engine.initialize()
+  pool.sendRequest.mockResolvedValueOnce('自訂招呼')
+  await engine.translate('こんまほ', 'ja', 'zh', { previousSegments: [], glossary: [{ source:'こんまほ',target:'自訂招呼' }] })
+  expect(pool.sendRequest.mock.calls[0][0]).toMatchObject({ text:'こんまほ' })
+  pool.sendRequest.mockResolvedValueOnce('こんばんは')
+  await engine.translate('晚上好', 'zh', 'ja')
+  expect(pool.sendRequest.mock.calls[1][0]).toMatchObject({ text:'晚上好',from:'zh',to:'ja' })
+  const cancelled = new AbortController(); cancelled.abort(new Error('Cancelled'))
+  await expect(engine.translate('こんまほ','ja','zh',{signal:cancelled.signal,previousSegments:[]})).rejects.toThrow('Cancelled')
+  engine.interrupt('Stopped')
+  await expect(engine.translate('こんまほ','ja','zh')).rejects.toBeInstanceOf(WorkerTerminatedError)
+})
+
 it('passes an interruption signal to acquire, so an acquire still waiting in the pool gives up', async () => {
   const { pool } = fakePool()
   let seen: AbortSignal | undefined

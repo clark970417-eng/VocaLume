@@ -2,6 +2,16 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.4.2 - 2026-10-18
+
+### Creator greetings
+
+- Recognize eight creator-specific Japanese greetings, including こんまほ / konmaho and おつかの / otsukano supplied by the user, with case, width, katakana, elongation and emoji handling.
+- Translate standalone greetings without model inference; normalize only an opening greeting in a longer Japanese sentence, retaining its remaining content and names.
+- Recognize standalone romanized greetings in Japanese-reading website adapters. Preserve ordinary English, unknown name combinations, questions, quoted expressions, hashtags and handles for normal translation.
+- Keep Chinese-to-Japanese writing in standard Japanese rather than inventing a creator catchphrase. Desktop personal terminology overrides the built-in greeting translation.
+- Share one catalogue between the extension and local desktop translator. See [the vocabulary and sources](docs/streamer-vocabulary.md).
+
 ## 4.4.1 - 2026-10-18
 
 ### Faster local written drafts

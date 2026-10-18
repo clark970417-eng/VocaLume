@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VocaLume — Multilingual Captions",
-  "version": "4.4.1",
+  "version": "4.4.2",
   "description": "Multilingual live captions plus page, chat, comment and typing translation across the web.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -44,6 +44,7 @@
         "https://www.youtube.com/*"
       ],
       "js": [
+        "streamer-vocabulary.js",
         "caption-window.js",
         "content.js"
       ],
@@ -62,6 +63,7 @@
         "https://www.twitter.com/*"
       ],
       "js": [
+        "streamer-vocabulary.js",
         "caption-window.js",
         "x-content.js"
       ],
@@ -82,6 +84,7 @@
         "https://m.twitch.tv/*"
       ],
       "js": [
+        "streamer-vocabulary.js",
         "caption-window.js",
         "social-content.js"
       ],
@@ -112,6 +115,7 @@
         "https://m.twitch.tv/*"
       ],
       "js": [
+        "streamer-vocabulary.js",
         "caption-window.js",
         "social-content.js"
       ],

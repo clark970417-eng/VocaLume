@@ -1,3 +1,5 @@
+import {greetingTranslation,normalizeGreetingSource,creatorNames} from './streamer-vocabulary.mjs';
+export {normalizeGreetingSource};
 // Exact whole-message entries only: never replace fragments in a longer sentence.
 const jaPhrases = new Map([
  ['こんにちは','你好！'],['みなさん、こんにちは','大家好！'],['皆さんこんにちは','大家好！'],
@@ -40,7 +42,7 @@ const zhPhrases = new Map([
  ['恭喜通關','クリアおめでとうございます！']
 ]);
 const phraseKey = text => text.trim().replace(/[。.!！]+$/u,'');
-export function phraseTranslation(text,direction){return (direction==='ja-zh'?jaPhrases:zhPhrases).get(phraseKey(text));}
+export function phraseTranslation(text,direction){return (direction==='ja-zh'?greetingTranslation(text):undefined)??(direction==='ja-zh'?jaPhrases:zhPhrases).get(phraseKey(text));}
 export const viewerPrompt = `You are a professional Traditional Chinese to Japanese translator. Translate the ENTIRE input faithfully. This is translation, NOT summarization: retain EVERY clause, reason, plan, contrast, uncertainty and negation. Do not omit information to make a shorter or cuter message.
 The writer is a viewer replying to a Japanese VTuber, game streamer or cosplayer. Use natural, gently cute but polite Japanese. Prefer soft です/ます, ですね and ますね, while allowing short warm exclamations and gentle ね/〜. Do not mechanically force every sentence into formal honorifics. Thanks may use ありがとう or ありがとうございます; avoid business language such as 承知いたしました. Cute means natural warmth, not intimacy. Preserve who does each action: if the viewer goes to sleep, do not tell the streamer to sleep. Keep names, numbers and emoji unchanged. Never add affection, promises, praise, hearts, gender, nicknames, requests or greetings that are absent in the input. Avoid business honorifics, baby talk and forced slang.
 Use 配信 for livestream, アーカイブ for a saved broadcast, リアタイ for watching live, 衣装 for cosplay outfit and お写真 for photos. Use these only if the corresponding meaning is in the input. Preserve supplied 8888/w/ww and emoji; do not invent catchphrases or nickname prefixes. Use standard Japanese spelling (体力, 音楽). Translate compliments about sound as pleasant/beautiful, not merely audible. Do not infer an account launch or return from an ambiguous mention.
@@ -56,7 +58,8 @@ export function validateTranslation(value,direction,source=''){
  if(!text || /<think>|```|^(?:Translation|翻譯|译文)\s*[:：]/iu.test(text))throw new Error('翻譯服務回傳格式不正確');
  if(direction==='ja-zh'){
   // These proper names legitimately retain kana in a Chinese sentence.
-  const body=text.replace(/鹿乃まほろ|ミリプロ/g,'');
+  let body=text.replace(/鹿乃まほろ|ミリプロ/g,'');
+  for(const name of creatorNames)if(source.includes(name))body=body.replaceAll(name,'');
   if(!/[\u3400-\u9fff]/u.test(body)||/[\u3040-\u30ff]/u.test(body))throw new Error('翻譯服務未回傳繁體中文');
  } else if(!/[\u3040-\u30ff]/u.test(text))throw new Error('翻譯服務未回傳日文');
  if(source && text.length>Math.max(100,source.length*5))throw new Error('翻譯回應過長，請重試');

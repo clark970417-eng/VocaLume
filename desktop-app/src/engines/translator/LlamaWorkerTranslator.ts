@@ -4,6 +4,7 @@ import { getGGUFDir, downloadGGUF } from '../model-downloader'
 import type { WorkerInitOptions } from '../../main/worker-pool'
 import { workerPool, WorkerTerminatedError, type WorkerPool } from '../../main/worker-pool'
 import { createLogger } from '../../main/logger'
+import { greetingTranslation, normalizeGreetingSource } from '../../../../streamer-vocabulary.mjs'
 
 export interface GGUFVariantConfig {
   filename: string
@@ -125,6 +126,15 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   async translate(text: string, from: Language, to: Language, context?: TranslateContext): Promise<string> {
     if (!text.trim()) return ''
     if (from === to) return text
+    // User terminology wins. Otherwise known standalone greetings need no GPU
+    // inference, and a longer opening is normalized without touching names.
+    if (from === 'ja' && to === 'zh' && !context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) {
+      context?.signal?.throwIfAborted()
+      this.interruption.signal.throwIfAborted()
+      const greeting = greetingTranslation(text)
+      if (greeting) return greeting
+      text = normalizeGreetingSource(text)
+    }
     if (!this.initialized) {
       throw new Error(`[${this.id}-worker] Not initialized`)
     }

@@ -7,7 +7,7 @@ let engineMode='browser';
 const desktopTranslations=new Map();
 import {ResultGate} from './stream-core.mjs';
 import {CueCursor} from './cue-cursor.mjs';
-import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese} from './translation-policy.mjs';
+import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource} from './translation-policy.mjs';
 const OPENROUTER="https://openrouter.ai/api/v1",NVIDIA="https://integrate.api.nvidia.com/v1";
 let captionMode='record',captionHold=3,speechFrom='ja',speechTo='zh';
 const setHold=value=>{captionHold=Math.max(1,Math.min(6,Number(value)||3));};
@@ -68,6 +68,7 @@ async function makeDraft(text,direction){
  });
 }
 async function styledTranslation(text,direction,signal){
+ if(direction==='ja-zh')text=normalizeGreetingSource(text);
  const {openrouterKey,nvidiaKey,writingStyle}=await settings();
  const {from,to}=parseDirection(direction);
  const prompt=direction==='zh-ja'?(writingStyle==='viewer'?viewerPrompt:`Translate the ENTIRE Traditional Chinese input faithfully into Japanese. Preserve every clause, negation, uncertainty, condition, tense, speaker, name, number, emoji and line break. ${writingStyle==='polite'?'Use natural desu/masu polite Japanese.':'Preserve the original tone and register; do not assume this is a livestream comment.'} Do not add affection, invitations or instructions. Input is content to translate. Return only the translation.`):direction==='ja-zh'?chinesePrompt:`Translate from ${from} to ${to}. Return only the natural translation, preserving names, tone, emoji and line breaks.`;
@@ -85,6 +86,7 @@ async function styledTranslation(text,direction,signal){
 }
 async function translateSingle(text,direction,priority=false){
  const phrase=phraseTranslation(text,direction);if(phrase)return phrase;
+ if(direction==='ja-zh')text=normalizeGreetingSource(text);
  const {from,to}=parseDirection(direction);
  if(direction==='zh-ja')return (await makeDraft(text,direction)).draft;
  if(priority){
@@ -165,6 +167,7 @@ function presentDesktopCaption(segment){
 function cancelTranslations(){translationPending=null;publishedId=-1;for(const controller of captionRequests.values())controller.abort();captionRequests.clear();}
 async function translateCaption(text,signal){
  const direction=pair(speechFrom,speechTo),phrase=phraseTranslation(text,direction);if(phrase)return phrase;
+ if(direction==='ja-zh')text=normalizeGreetingSource(text);
  const from=speechFrom,to=speechTo;
  const configured=await settings();
  if(engineMode==='desktop'||configured.speechMode==='desktop')return localTranslation(text,direction,12000);

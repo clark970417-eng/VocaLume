@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {isStandaloneGreeting} from '../streamer-vocabulary.mjs';
 
 const source=fs.readFileSync(new URL('../social-content.js',import.meta.url),'utf8');
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
@@ -39,9 +40,16 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
  const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(){} apply(){}}};window.top=window;
  const chrome={runtime:{lastError:null,onMessage:{addListener(){}},sendMessage(message,reply){requests.push({message,reply});}},
   storage:{local:{get:()=>Promise.resolve({websiteTextEnabled:true,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(){}}}};
- vm.runInNewContext(source,{window,document,location:{hostname},chrome,MutationObserver:class{observe(){}},setTimeout:fn=>{fn();return 1;},setInterval(){},Event:class{},InputEvent:class{}});
+ vm.runInNewContext(source,{VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{observe(){}},setTimeout:fn=>{fn();return 1;},setInterval(){},Event:class{},InputEvent:class{}});
  return {requests,translationLines,controls,box};
 }
+
+test('romanized creator greetings are recognized in Twitch chat without treating ordinary English as Japanese',async()=>{
+ const node=text=>({textContent:text,innerText:text,children:[],isConnected:true,querySelector(){return null;},querySelectorAll(){return [];},closest:()=>null,parentElement:{querySelector:()=>null},insertAdjacentElement(){}});
+ const t=setup('www.twitch.tv',[node('Konmaho!'),node('This is konmahogany wood')]);await settle();
+ const requests=t.requests.filter(r=>r.message.type==='translate');
+ assert.equal(requests.length,1);assert.equal(requests[0].message.text,'Konmaho!');
+});
 
 test('social live chat limits restored history and starts newest messages first',async()=>{
  const nodes=Array.from({length:40},(_,index)=>({textContent:`新しいコメント${index}です`,innerText:`新しいコメント${index}です`,isConnected:true,

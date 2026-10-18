@@ -1,4 +1,4 @@
-> **Latest public preview: [4.4.1](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.4.1).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
+> **Latest public preview: [4.4.2](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.4.2).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
 
 # VocaLume
 
@@ -12,9 +12,11 @@ bridge. This integration preserves the extension's page translation, Japanese
 reply drafts, caption modes and visual controls. See the integration notes for
 the implemented path, tests and remaining limits.
 
-Current release notes: [4.4.1 — ordered local Japanese / Chinese captions](CHANGELOG.md#441---2026-10-18). Verification scope and remaining limits: [4.4.1 checks](docs/retests/4.4.1.md). Historical reports remain in [`docs/retests`](docs/retests/).
+Current release notes: [4.4.2 — creator greetings](CHANGELOG.md#442---2026-10-18). Verification scope and remaining limits: [4.4.2 checks](docs/retests/4.4.2.md) and [4.4.1 caption checks](docs/retests/4.4.1.md). Historical reports remain in [`docs/retests`](docs/retests/).
 
-## What's new in 4.4.1
+## What's new in 4.4.2
+
+- Recognize [creator greetings](docs/streamer-vocabulary.md), such as こんまほ / konmaho and おつかの / otsukano, without a model request for standalone messages.
 
 - Japanese source drafts update while local translation waits for the completed sentence.
 - Single-pair captions retain the previous sentence until its translation is shown; four-entry captions keep filling their matching rows.
