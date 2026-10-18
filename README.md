@@ -1,4 +1,4 @@
-> **Latest public preview: [4.4.0](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.4.0).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
+> **Latest public preview: [4.4.1](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.4.1).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
 
 # VocaLume
 
@@ -12,13 +12,14 @@ bridge. This integration preserves the extension's page translation, Japanese
 reply drafts, caption modes and visual controls. See the integration notes for
 the implemented path, tests and remaining limits.
 
-Current release notes: [4.4.0 — ordered local Japanese / Chinese captions](CHANGELOG.md#440---2026-10-18). Verification scope and remaining limits: [4.4.0 checks](docs/retests/4.4.0.md). Historical reports remain in [`docs/retests`](docs/retests/).
+Current release notes: [4.4.1 — ordered local Japanese / Chinese captions](CHANGELOG.md#441---2026-10-18). Verification scope and remaining limits: [4.4.1 checks](docs/retests/4.4.1.md). Historical reports remain in [`docs/retests`](docs/retests/).
 
-## What's new in 4.4.0
+## What's new in 4.4.1
 
 - Japanese source drafts update while local translation waits for the completed sentence.
 - Single-pair captions retain the previous sentence until its translation is shown; four-entry captions keep filling their matching rows.
 - Breathing-pause handling, adaptive recognition cadence, and OS thermal feedback reduce unnecessary repeated work.
+- Local Chinese-to-Japanese drafts default to the smaller caption model; the extension offers an optional quality model.
 - Chinese-to-Japanese writing supports natural, livestream-viewer and polite styles; X supports Tab to translate and insert an unchanged draft for review.
 - Native messaging recovers text requests once and repairs stale VocaLume launch paths.
 

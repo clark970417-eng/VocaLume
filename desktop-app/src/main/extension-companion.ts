@@ -172,7 +172,7 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
       for (;;) {
         const newline = buffer.indexOf('\n'); if (newline < 0) break
         const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1)
-        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; segment?: string; final?: boolean; speechSeconds?: unknown; sourceLanguage?: string; targetLanguage?: string }
+        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; sourceLanguage?: string; targetLanguage?: string }
         try { m = JSON.parse(line) } catch { send({ ok: false, error: 'Invalid request' }); continue }
         if (!m || typeof m !== 'object') { send({ ok: false, error: 'Invalid request' }); continue }
         const audioPriority = ['decode', 'init', 'stop'].includes(m.op || '')
@@ -263,7 +263,9 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
               const writingStyle = m.writingStyle === 'viewer' || m.writingStyle === 'polite' ? m.writingStyle : 'general'
               const isDraft = from === 'zh' && to === 'ja'
               const captionMode = modeOf(store.get('translationEngine'))
-              const requestedMode = isDraft && !pipeline.running ? modeOf(store.get('draftTranslationEngine')) : captionMode
+              // Fast drafts reuse the caption model, avoiding a cold 7B load.
+              // Clients without the new option keep their saved model preference.
+              const requestedMode = isDraft && m.quality !== 'fast' && !pipeline.running ? modeOf(store.get('draftTranslationEngine')) : captionMode
               // A draft on a model the captions do not use will occupy the shared
               // worker with a load that captions would otherwise have to wait for.
               const displacesCaptions = isDraft && requestedMode !== captionMode

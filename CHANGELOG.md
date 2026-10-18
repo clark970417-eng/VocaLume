@@ -2,6 +2,16 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.4.1 - 2026-10-18
+
+### Faster local written drafts
+
+- Default Chinese-to-Japanese drafts to the caption model so the first reply does not silently load the larger 7B draft model.
+- Add a fast / quality model choice in the extension. Quality uses the desktop draft-model preference while idle; active captions keep their model to avoid hardware contention.
+- Isolate cached drafts by model choice and writing style, so switching settings takes effect immediately.
+- Use VocaLume in native application menus while preserving the existing settings and model directory.
+- Include all ordered-caption, native recovery, terminology and original-icon changes from 4.4.0.
+
 ## 4.4.0 - 2026-10-18
 
 ### Ordered local Japanese / Chinese captions

@@ -46,8 +46,20 @@ test('local text drafts do not initialize speech capture or promise verified sty
  const result=await new Promise(resolve=>listener({type:'make-draft',text:'今天不能待到結束'},{},resolve));
  assert.equal(result.ok,true);
  assert.deepEqual(calls.map(c=>c.op),['translate']);
+ assert.equal(calls[0].data.quality,'fast');
  assert.match(result.text.mode,/請確認語氣/);
  assert.equal(result.text.draft,'今日は終わりまでいられない。');
+});
+test('changing local draft quality bypasses both caches without starting capture',async()=>{
+ let listener,writingQuality;const calls=[];
+ const chrome={storage:{local:{get:async()=>({speechMode:'desktop',writingQuality})}},tabs:{onRemoved:{addListener(){}}},runtime:{onMessage:{addListener:f=>listener=f}}};
+ class NativeClient {async request(op,data){calls.push({op,data});return {text:data.quality==='quality'?'今日は最後まで見られません。':'今日は最後までいられない。'};}}
+ const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ vm.runInNewContext(src,{NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,...policy,Date});
+ const call=()=>new Promise(resolve=>listener({type:'translate',direction:'zh-ja',text:'今天不能待到結束'},{},resolve));
+ const fast=await call();assert.equal(fast.ok,true);assert.equal(fast.text,'今日は最後までいられない。');
+ writingQuality='quality';const quality=await call();assert.equal(quality.ok,true);assert.equal(quality.text,'今日は最後まで見られません。');
+ assert.deepEqual(calls.map(c=>[c.op,c.data.quality]),[['translate','fast'],['translate','quality']]);
 });
 test('rate-limited browser drafts fall back to the local translator',async()=>{
  let listener;const calls=[];

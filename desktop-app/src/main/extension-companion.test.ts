@@ -273,14 +273,19 @@ it('uses the draft model only while no caption session is running', async () => 
   })
   const send = (message: object): void => { socket.write(JSON.stringify(message) + '\n') }
   try {
+    // Fast requests avoid loading the saved large draft model on first use.
+    send({ id: 0, op: 'translate', direction: 'zh-ja', text: '謝謝你', quality: 'fast' })
+    await vi.waitFor(() => expect(messages.some(m => m.id === 0 && m.ok)).toBe(true))
+    expect((messages.find(m => m.id === 0)?.result as { text: string }).text).toBe('こんにちは')
+
     // No caption session yet: the draft model is allowed.
-    send({ id: 1, op: 'translate', direction: 'zh-ja', text: '謝謝你' })
+    send({ id: 1, op: 'translate', direction: 'zh-ja', text: '謝謝你', quality: 'quality' })
     await vi.waitFor(() => expect(messages.some(m => m.id === 1 && m.ok)).toBe(true))
     expect((messages.find(m => m.id === 1)?.result as { text: string }).text).toBe('新しいモデル')
 
     // While captions run, a draft must not swap the shared worker's model.
     pipeline.running = true
-    send({ id: 2, op: 'translate', direction: 'zh-ja', text: '謝謝你' })
+    send({ id: 2, op: 'translate', direction: 'zh-ja', text: '謝謝你', quality: 'quality' })
     await vi.waitFor(() => expect(messages.some(m => m.id === 2 && m.ok)).toBe(true))
     expect((messages.find(m => m.id === 2)?.result as { text: string }).text).toBe('こんにちは')
   } finally {

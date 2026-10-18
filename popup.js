@@ -77,3 +77,5 @@ $('#desktopSettings').onclick=async()=>{try{await send({type:'desktop-settings'}
 
 chrome.storage.local.get('writingStyle').then(s=>$('#writingStyle').value=s.writingStyle||'general');
 $('#writingStyle').onchange=()=>chrome.storage.local.set({writingStyle:$('#writingStyle').value});
+chrome.storage.local.get('writingQuality').then(s=>$('#writingQuality').value=s.writingQuality==='quality'?'quality':'fast');
+$('#writingQuality').onchange=()=>chrome.storage.local.set({writingQuality:$('#writingQuality').value});

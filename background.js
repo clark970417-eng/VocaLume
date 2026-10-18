@@ -16,7 +16,7 @@ const fresh=item=>item&&!item.expired&&Date.now()/1000<(item.expiresAt??item.upd
 const items=[];let running=false,lastError="",captureTabId=null,drainingSession=null,stopPromise=null;
 const LANGUAGE_CODES=new Set(['ja','en','zh','ko','es','fr','de','pt','it','ru','th','vi','id','ar']);
 const languageDefaults={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
-const settings=()=>chrome.storage.local.get(["openrouterKey","nvidiaKey","speechMode","subtitleSettings","languageSettings","writingStyle"]);
+const settings=()=>chrome.storage.local.get(["openrouterKey","nvidiaKey","speechMode","subtitleSettings","languageSettings","writingStyle","writingQuality"]);
 const pair=(from,to)=>`${from}-${to}`;
 function parseDirection(direction){const [from,to]=String(direction||'').split('-');if(!LANGUAGE_CODES.has(from)||!LANGUAGE_CODES.has(to)||from===to)throw new Error('不支援這組語言');return {from,to};}
 async function languageSettings(){const saved=(await chrome.storage.local.get('languageSettings')).languageSettings||{};return {...languageDefaults,...saved};}
@@ -40,9 +40,10 @@ async function freeTranslate(text,from,to,signal){
 }
 const textMemo=new TranslationMemo();
 async function localTranslation(text,direction,timeout=60000){
- const style=(await settings()).writingStyle||'general';
- const key=direction+':'+style+':'+text.trim();const cached=desktopTranslations.get(key);if(cached)return cached;
- const result=await desktop.request('translate',{text,direction,writingStyle:style},timeout);
+ const configured=await settings(),style=configured.writingStyle||'general';
+ const quality=direction==='zh-ja'&&configured.writingQuality==='quality'?'quality':'fast';
+ const key=direction+':'+style+':'+quality+':'+text.trim();const cached=desktopTranslations.get(key);if(cached)return cached;
+ const result=await desktop.request('translate',{text,direction,writingStyle:style,quality},timeout);
  const translated=checkedTranslation(result.text,direction,text);if(!translated)throw new Error('翻譯回應為空');
  desktopTranslations.set(key,translated);if(desktopTranslations.size>200)desktopTranslations.delete(desktopTranslations.keys().next().value);
  return translated;
@@ -54,7 +55,7 @@ async function makeDraft(text,direction){
  const {from,to}=parseDirection(direction);
  const phrase=phraseTranslation(text,direction);if(phrase)return {draft:phrase,mode:'校對短句'};
  const configured=await settings();
- const key=`draft:${direction}:${configured.writingStyle||'general'}:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${text}`;
+ const key=`draft:${direction}:${configured.writingStyle||'general'}:${configured.writingQuality||'fast'}:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${text}`;
  return textMemo.run(key,async()=>{
   const local=async timeout=>({draft:await localTranslation(text,direction,timeout),mode:'本機翻譯草稿 · 請確認語氣'});
   if(configured.speechMode==='desktop'){try{return await local(60000);}catch(_error){/* Continue through independent fallbacks. */}}
@@ -99,7 +100,8 @@ async function translateSingle(text,direction,priority=false){
 async function translate(text,direction,priority=false){
  parseDirection(direction);if(typeof text!=='string'||!text.trim()||text.length>3000)throw new Error('請輸入 1–3000 字');
  text=text.trim();
- return textMemo.run(direction+':'+priority+':'+text,async()=>{
+ const configured=direction==='zh-ja'?await settings():{};
+ return textMemo.run(direction+':'+priority+':'+(configured.writingStyle||'general')+':'+(configured.writingQuality||'fast')+':'+text,async()=>{
   const chunks=splitTranslationText(text);
   if(chunks.length===1)return translateSingle(text,direction,priority);
   const translated=new Array(chunks.length);let cursor=0;

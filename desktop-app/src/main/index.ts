@@ -55,6 +55,11 @@ import { startOnboardingDownload, isTier1Ready, isTier2Ready } from './onboardin
 import type { STTEngine, TranslatorEngine, E2ETranslationEngine, TranslationResult } from '../engines/types'
 import type { WhisperVariant } from '../engines/model-downloader'
 
+// Keep existing settings/models while using the public name in native menus.
+const legacyUserData = app.getPath('userData')
+app.setName('VocaLume')
+app.setPath('userData', legacyUserData)
+
 const log = createLogger('main')
 
 // Shared state — getter/setter backed so closures never hold stale references (#429)
