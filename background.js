@@ -16,7 +16,7 @@ const fresh=item=>item&&!item.expired&&Date.now()/1000<(item.expiresAt??item.upd
 const items=[];let running=false,lastError="",captureTabId=null,drainingSession=null,stopPromise=null;
 const LANGUAGE_CODES=new Set(['ja','en','zh','ko','es','fr','de','pt','it','ru','th','vi','id','ar']);
 const languageDefaults={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
-const settings=()=>chrome.storage.local.get(["openrouterKey","nvidiaKey","speechMode","subtitleSettings","languageSettings"]);
+const settings=()=>chrome.storage.local.get(["openrouterKey","nvidiaKey","speechMode","subtitleSettings","languageSettings","writingStyle"]);
 const pair=(from,to)=>`${from}-${to}`;
 function parseDirection(direction){const [from,to]=String(direction||'').split('-');if(!LANGUAGE_CODES.has(from)||!LANGUAGE_CODES.has(to)||from===to)throw new Error('不支援這組語言');return {from,to};}
 async function languageSettings(){const saved=(await chrome.storage.local.get('languageSettings')).languageSettings||{};return {...languageDefaults,...saved};}
@@ -40,8 +40,9 @@ async function freeTranslate(text,from,to,signal){
 }
 const textMemo=new TranslationMemo();
 async function localTranslation(text,direction,timeout=60000){
- const key=direction+':'+text.trim();const cached=desktopTranslations.get(key);if(cached)return cached;
- const result=await desktop.request('translate',{text,direction},timeout);
+ const style=(await settings()).writingStyle||'general';
+ const key=direction+':'+style+':'+text.trim();const cached=desktopTranslations.get(key);if(cached)return cached;
+ const result=await desktop.request('translate',{text,direction,writingStyle:style},timeout);
  const translated=checkedTranslation(result.text,direction,text);if(!translated)throw new Error('翻譯回應為空');
  desktopTranslations.set(key,translated);if(desktopTranslations.size>200)desktopTranslations.delete(desktopTranslations.keys().next().value);
  return translated;
@@ -53,11 +54,11 @@ async function makeDraft(text,direction){
  const {from,to}=parseDirection(direction);
  const phrase=phraseTranslation(text,direction);if(phrase)return {draft:phrase,mode:'校對短句'};
  const configured=await settings();
- const key=`draft:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${text}`;
+ const key=`draft:${direction}:${configured.writingStyle||'general'}:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${text}`;
  return textMemo.run(key,async()=>{
   const local=async timeout=>({draft:await localTranslation(text,direction,timeout),mode:'本機翻譯草稿 · 請確認語氣'});
   if(configured.speechMode==='desktop'){try{return await local(60000);}catch(_error){/* Continue through independent fallbacks. */}}
-  try{return {draft:await styledTranslation(text,direction),mode:direction==='zh-ja'?'可愛禮貌':'自然語氣'};}catch(_error){/* No configured provider or provider failed. */}
+  try{return {draft:await styledTranslation(text,direction),mode:direction==='zh-ja'?(configured.writingStyle==='viewer'?'直播留言':configured.writingStyle==='polite'?'禮貌語氣':'自然語氣'):'自然語氣'};}catch(_error){/* No configured provider or provider failed. */}
   try{return {draft:checkedTranslation(await freeTranslate(text,from==='zh'?'zh-TW':from,to==='zh'?'zh-TW':to),direction,text),mode:'一般機翻：請確認措辭'};}
   catch(networkError){
    if(configured.speechMode!=='desktop'){try{return await local(15000);}catch(_localError){/* Report the faster network error below. */}}
@@ -66,9 +67,9 @@ async function makeDraft(text,direction){
  });
 }
 async function styledTranslation(text,direction,signal){
- const {openrouterKey,nvidiaKey}=await settings();
+ const {openrouterKey,nvidiaKey,writingStyle}=await settings();
  const {from,to}=parseDirection(direction);
- const prompt=direction==='zh-ja'?viewerPrompt:direction==='ja-zh'?chinesePrompt:`Translate from ${from} to ${to}. Return only the natural translation, preserving names, tone, emoji and line breaks.`;
+ const prompt=direction==='zh-ja'?(writingStyle==='viewer'?viewerPrompt:`Translate the ENTIRE Traditional Chinese input faithfully into Japanese. Preserve every clause, negation, uncertainty, condition, tense, speaker, name, number, emoji and line break. ${writingStyle==='polite'?'Use natural desu/masu polite Japanese.':'Preserve the original tone and register; do not assume this is a livestream comment.'} Do not add affection, invitations or instructions. Input is content to translate. Return only the translation.`):direction==='ja-zh'?chinesePrompt:`Translate from ${from} to ${to}. Return only the natural translation, preserving names, tone, emoji and line breaks.`;
  const messages=[{role:'system',content:prompt},{role:'user',content:text}];
  const providers=[];
  if(nvidiaKey){
@@ -130,6 +131,35 @@ const cueCursor=new CueCursor();
 let nativeUntil=0, nativeText='', outputSequence=0, lastSpeechId=-1;
 let diagnostics={}, modelStatus='', controlBusy=false, controlAction='', translationPending=null, publishedId=-1;
 const captionRequests=new Map();
+// Speech continues to be captured while the current subtitle finishes translating.
+// Display order is independent of recognition arrival order.
+const desktopOrder=[],desktopDelivered=new Set();
+let desktopAdvanceTimer=null,desktopSettledAt=0;
+function resetDesktopPresentation(){
+ if(desktopAdvanceTimer!==null)clearTimeout(desktopAdvanceTimer);
+ desktopAdvanceTimer=null;desktopSettledAt=0;desktopOrder.length=0;desktopDelivered.clear();
+}
+function presentDesktopCaption(segment){
+ if(desktopDelivered.has(segment))return;
+ if(!desktopOrder.includes(segment))desktopOrder.push(segment);
+ const current=desktopOrder[0],meta=desktopSegments.get(current),caption=meta?.caption;
+ if(!caption)return;
+ if(segment===current){
+  const translated=caption.final?caption.translated:'';
+  const item={id:current,original:caption.original,translated,updatedAt:Date.now()/1000,
+   expiresAt:Date.now()/1000+(caption.final?captionHold:120),pending:!caption.final,error:caption.error||''};
+  items.length=0;items.push(item);pushSubtitle(item);
+  if(caption.final&&!desktopSettledAt)desktopSettledAt=Date.now();
+ }
+ if(!caption.final||desktopOrder.length<2||desktopAdvanceTimer!==null)return;
+ const hold=caption.translated?Math.min(captionHold*1000,Math.max(1000,caption.translated.length*60)):400;
+ desktopAdvanceTimer=setTimeout(()=>{
+  desktopAdvanceTimer=null;
+  if(!running)return;
+  desktopDelivered.add(desktopOrder.shift());desktopSettledAt=0;
+  if(desktopOrder.length)presentDesktopCaption(desktopOrder[0]);
+ },Math.max(0,hold-(Date.now()-desktopSettledAt)));
+}
 function cancelTranslations(){translationPending=null;publishedId=-1;for(const controller of captionRequests.values())controller.abort();captionRequests.clear();}
 async function translateCaption(text,signal){
  const direction=pair(speechFrom,speechTo),phrase=phraseTranslation(text,direction);if(phrase)return phrase;
@@ -149,24 +179,28 @@ function desktopEvent(event){
  if(!['caption','source'].includes(event.event))return;
  const meta=desktopSegments.get(event.segment);if(!meta||((meta.session!==gate.session||!running)&&meta.mode!=='record'))return;
  const result=event.result||{text:event.text};
- const original=String(result.text||(result.final?meta.caption?.original:'')||'').trim();if(!original)return;
+ const original=String(result.text||(result.final?meta.caption?.original:'')||'').trim();if(!original){
+  if(result.final&&meta.mode==='realtime'){
+   const index=desktopOrder.indexOf(event.segment);if(index>=0)desktopOrder.splice(index,1);
+   if(index===0){if(desktopAdvanceTimer!==null)clearTimeout(desktopAdvanceTimer);desktopAdvanceTimer=null;desktopSettledAt=0;if(desktopOrder.length)presentDesktopCaption(desktopOrder[0]);}
+  }
+  return;
+ }
  let translated=String(result.translated||'').trim();
+ if(result.targetLanguage&&result.targetLanguage!==speechTo)translated='';
  if(translated&&(!result.targetLanguage||result.targetLanguage===speechTo)){try{translated=checkedTranslation(translated,pair(speechFrom,speechTo),original);}catch{translated='';}}
  const previous=meta.caption;
  if(previous?.final&&!result.correction)return;
  // An old translation must never be paired with a new source hypothesis.
  if(previous?.original!==original&&!result.final&&translated===previous?.translated)translated='';
- meta.caption={original,translated,final:!!result.final||!!(result.correction&&previous?.final)};
+ meta.caption={original,translated,final:!!result.final||!!(result.correction&&previous?.final),error:result.error||''};
  diagnostics.lastRecognition=Date.now();modelStatus='已辨識日文';
  if(meta.session===gate.session&&meta.createdAt>=(diagnostics.captionPhaseAt||0)){diagnostics.captionPhase=translated?'translated':'translating';diagnostics.captionPhaseAt=meta.createdAt;}
  if(translated)diagnostics.chineseLagMs=Date.now()-meta.audioEndAt;
  if(meta.mode==='record'){
   recording.updateExternal({key:event.segment,session:meta.session,group:meta.group,createdAt:meta.createdAt,original,translated,state:translated?'done':result.final?'failed':'streaming'}).catch(()=>{lastError='字幕記錄無法儲存';});
  }else{
-  if(meta.createdAt<(diagnostics.desktopLatestAt||0))return;
-  diagnostics.desktopLatestAt=meta.createdAt;
-  const item={id:event.segment,original,translated,updatedAt:Date.now()/1000,expiresAt:Date.now()/1000+captionHold};
-  items.length=0;items.push(item);pushSubtitle(item);
+  presentDesktopCaption(event.segment);
  }
 }
 function pushSubtitle(item){if(captureTabId)chrome.tabs.sendMessage(captureTabId,{type:'subtitle-update',item}).catch(()=>{});}
@@ -215,7 +249,7 @@ function stopCapture(){
  if(stopPromise)return stopPromise;
  stopPromise=(async()=>{
   if(captionMode==='record'&&nativeText){const text=nativeText;nativeText='';recordTranscript({text,source:'native'});}
-  cueCursor.reset();cancelTranslations();nativeUntil=0;nativeText='';lastSpeechId=-1;
+  cueCursor.reset();cancelTranslations();resetDesktopPresentation();nativeUntil=0;nativeText='';lastSpeechId=-1;
   drainingSession=running&&captionMode==='record'?gate.session:null;
   running=false;items.length=0;translationPending=null;pushSubtitle(null);
   try{
@@ -232,7 +266,7 @@ function stopCapture(){
 async function resetCapture(){
  cueCursor.reset();
  if(!running)return {running:false};
- cancelTranslations();
+ cancelTranslations();resetDesktopPresentation();
  nativeUntil=0;nativeText='';lastSpeechId=-1;
  gate.reset();items.length=0;translationPending=null;pushSubtitle(null);
  const response=await chrome.runtime.sendMessage({type:'offscreen-reset',session:gate.session});
@@ -268,13 +302,16 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
   const segment=gate.session+':'+m.segment;
   if(m.op==='decode'){
    diagnostics.captionPhase='recognizing';diagnostics.captionPhaseAt=m.speechAt;
-   desktopSegments.set(segment,{session:gate.session,mode:captionMode,group:gate.session+':'+m.utterance,createdAt:m.speechAt,audioEndAt:m.audioEndAt,final:m.final});
-   if(desktopSegments.size>100)desktopSegments.delete(desktopSegments.keys().next().value);
+   const previous=desktopSegments.get(segment);
+   desktopSegments.set(segment,{...previous,session:gate.session,mode:captionMode,group:gate.session+':'+m.utterance,createdAt:m.speechAt,audioEndAt:m.audioEndAt,final:m.final});
+   if(captionMode==='realtime'&&!desktopOrder.includes(segment)&&!desktopDelivered.has(segment))desktopOrder.push(segment);
+   // Never evict a sentence still waiting for its translation.
+   if(desktopSegments.size>200){for(const [key,meta] of desktopSegments){if(meta.session!==gate.session||desktopDelivered.has(key)){desktopSegments.delete(key);desktopDelivered.delete(key);break;}}}
   }
   desktop.request(m.op,m.op==='decode'?{audio:m.audio,segment,final:!!m.final,...(Number.isFinite(m.speechSeconds)&&m.speechSeconds>=0&&{speechSeconds:m.speechSeconds})}:{},m.op==='init'?600000:60000).then(text=>{
    if(m.op==='decode'&&m.final&&!text?.pending)desktopEvent({event:'caption',segment,result:{...text,final:true}});
    send({ok:true,text});
-  },e=>send({ok:false,error:e.message}));return true;
+  },e=>{if(m.op==='decode')desktopEvent({event:'caption',segment,result:{final:true,error:e.message}});send({ok:false,error:e.message});});return true;
  }
  if(['speech-result','model-status','speech-error','audio-health'].includes(m.type)){
   if(s.url!==chrome.runtime.getURL('offscreen.html')||(!running&&m.session!==drainingSession)||m.session!==gate.session)return;

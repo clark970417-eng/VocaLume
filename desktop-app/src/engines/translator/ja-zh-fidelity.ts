@@ -23,8 +23,10 @@ const TERM_GUIDANCE: Array<[RegExp, string]> = [
   [/課金しなくても/, '課金しなくても是「不課金也可以」，不要寫成「不付課金」'],
 ]
 
+const documentContext = (source: string): boolean => /図書館|公文書|博物館|歴史資料|研究資料|新聞|折り紙|ハサミ/.test(source)
+
 export function buildJaZhFidelityGuidance(source: string): string {
-  const rules = TERM_GUIDANCE.filter(([pattern]) => pattern.test(source)).map(([, rule]) => rule)
+  const rules = TERM_GUIDANCE.filter(([pattern, rule]) => pattern.test(source) && !(documentContext(source) && /アーカイブ|切り抜き/.test(rule))).map(([, rule]) => rule)
   if (/(?:らしい|そうです(?:よ)?|とのこと(?:です)?)(?:[。！？!?]|$)/.test(source)) {
     rules.push('句尾是傳聞語氣，譯文要明確保留「聽說」或「據說」')
   }
@@ -48,12 +50,12 @@ export function finishJaZhTranslation(source: string, output: string): string {
   if (/クールタイム/.test(source)) {
     result = result.replace(/(?:技能的)?有效時間/g, '冷卻時間')
   }
-  if (/アーカイブ公開後/.test(source)) {
+  if (!documentContext(source) && /アーカイブ公開後/.test(source)) {
     result = result.replace(/(?:資源)?被?歸檔後|(?:資源|檔案)(?:被)?公開(?:之)?後/g, '直播存檔公開後')
-  } else if (/アーカイブ/.test(source)) {
+  } else if (!documentContext(source) && /アーカイブ/.test(source)) {
     result = result.replace(/檔案館|歸檔檔案|(?<!直播)存檔|檔案/g, '直播存檔')
   }
-  if (/切り抜き/.test(source)) {
+  if (!documentContext(source) && /切り抜き/.test(source)) {
     result = result.replace(/切り抜き(?:處理)?|切斷處理|切斷|裁切處理/g, '剪輯')
   }
   if (/音がずれ/.test(source)) {

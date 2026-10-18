@@ -16,6 +16,20 @@ except ImportError:
 
 SUPPORT = Path.home() / 'Library/Application Support/JapaneseLiveCaption'
 
+def app_executable():
+    """Recover a stale registration after an app rename or reinstall."""
+    candidates = []
+    try:
+        candidates.append(Path(json.loads((SUPPORT / 'app.json').read_text())['executable']))
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    for folder in [Path('/Applications'), Path.home() / 'Applications']:
+        candidates.append(folder / 'VocaLume.app/Contents/MacOS/VocaLume')
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    raise RuntimeError('VocaLume app was moved or removed. Install VocaLume in Applications and open it once.')
+
 def main():
     traditional = OpenCC('s2twp') if OpenCC else None
     connection = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -23,9 +37,9 @@ def main():
     try:
         connection.connect(path)
     except OSError:
-        config = json.loads((SUPPORT / 'app.json').read_text())
+        executable = app_executable()
         with (SUPPORT / 'app.log').open('ab') as log:
-            subprocess.Popen([config['executable'], '--jtl-companion'], stdin=subprocess.DEVNULL,
+            subprocess.Popen([executable, '--jtl-companion'], stdin=subprocess.DEVNULL,
                              stdout=log, stderr=log, start_new_session=True)
         deadline = time.monotonic() + 30
         while True:

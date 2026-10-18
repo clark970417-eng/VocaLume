@@ -1,7 +1,8 @@
+import { updatePerformanceState } from './performance-state'
 import { isUiTest } from './ui-test-mode'
 import { initAutoUpdater } from './auto-updater'
 import type { Language } from '../engines/types'
-import { app, protocol, net, powerSaveBlocker } from 'electron'
+import { app, protocol, net, powerSaveBlocker, powerMonitor } from 'electron'
 import { bindPipelineActivity } from './pipeline-activity'
 import { initMain as initAudioLoopback } from 'electron-audio-loopback'
 import { TranslationPipeline } from '../pipeline/TranslationPipeline'
@@ -306,6 +307,11 @@ initAudioLoopback()
 
 if (!app.requestSingleInstanceLock()) app.quit()
 app.whenReady().then(async () => {
+  if (process.platform === 'darwin') updatePerformanceState({ thermalState: powerMonitor.getCurrentThermalState() })
+  powerMonitor.on('thermal-state-change', details => updatePerformanceState({ thermalState: details.state }))
+  // Electron 33 omits this documented event from its overloads.
+  const monitorEvents = powerMonitor as NodeJS.EventEmitter
+  monitorEvents.on('speed-limit-change', (details: { limit: number }) => updatePerformanceState({ speedLimit: details.limit }))
   if (process.argv.includes('--jtl-companion') && !store.get('hasCompletedSetup')) {
     store.set('isFirstRun', false)
     store.set('sourceLanguage', 'ja')

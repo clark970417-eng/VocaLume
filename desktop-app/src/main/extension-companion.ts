@@ -1,6 +1,7 @@
+import { performanceState } from './performance-state'
 /** Private local adapter for the existing browser UI; uses the production pipeline. */
 import { createServer, type Server, type Socket } from 'net'
-import { mkdirSync, chmodSync, existsSync, unlinkSync } from 'fs'
+import { mkdirSync, chmodSync, existsSync, unlinkSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
 import { join, posix } from 'path'
 import { createHash } from 'crypto'
@@ -37,6 +38,10 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
   const dir = directory || join(homedir(), 'Library/Application Support/JapaneseLiveCaption')
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   if (process.platform !== 'win32') chmodSync(dir, 0o700)
+  // Refresh the native launch path after installation, rename or upgrade.
+  if (process.platform === 'darwin' && process.execPath.includes('.app/Contents/MacOS/')) {
+    writeFileSync(join(dir, 'app.json'), JSON.stringify({ executable: process.execPath }), { mode: 0o600 })
+  }
   const path = companionEndpoint(dir)
   if (process.platform !== 'win32' && existsSync(path)) unlinkSync(path)
   let owned = false
@@ -88,22 +93,22 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
     }
     /** Terminology is chosen from the whole comment, so a clause retranslated
      * during repair keeps the meaning the full sentence established. */
-    const draftWith = (engine: HunyuanMT2Translator | HunyuanMT15Translator, comment: string) => {
+    const draftWith = (engine: HunyuanMT2Translator | HunyuanMT15Translator, comment: string, writingStyle?: 'general' | 'viewer' | 'polite') => {
       const glossary = selectDraftTerminology(comment)
       return (text: string, signal?: AbortSignal): Promise<string> =>
-        engine.translate(text, 'zh', 'ja', { signal, previousSegments: [], glossary })
+        engine.translate(text, 'zh', 'ja', { signal, previousSegments: [], glossary, writingStyle })
     }
     /** Answer a draft request later, on the caption model, behind any audio work
      * already queued. Scheduled as its own task: awaiting it from inside the
      * current task would deadlock the serial scheduler. */
-    const deferDraft = (id: number | undefined, text: string, mode: LocalMode): void => {
+    const deferDraft = (id: number | undefined, text: string, mode: LocalMode, writingStyle?: 'general' | 'viewer' | 'polite'): void => {
       pending++
       void queue.run(false, async fallbackPreempt => {
         try {
           if (closed) return
           const small = await translatorFor(mode)
           await small.initialize()
-          const draft = await translateWrittenDraft(text, draftWith(small, text), fallbackPreempt)
+          const draft = await translateWrittenDraft(text, draftWith(small, text, writingStyle), fallbackPreempt)
           send({ id, ok: true, result: { ...draft, fallbackModel: true } })
         } catch (error) {
           send({ id, ok: false, error: error instanceof Error ? error.message : String(error) })
@@ -167,7 +172,7 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
       for (;;) {
         const newline = buffer.indexOf('\n'); if (newline < 0) break
         const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1)
-        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; segment?: string; final?: boolean; speechSeconds?: unknown; sourceLanguage?: string; targetLanguage?: string }
+        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; segment?: string; final?: boolean; speechSeconds?: unknown; sourceLanguage?: string; targetLanguage?: string }
         try { m = JSON.parse(line) } catch { send({ ok: false, error: 'Invalid request' }); continue }
         if (!m || typeof m !== 'object') { send({ ok: false, error: 'Invalid request' }); continue }
         const audioPriority = ['decode', 'init', 'stop'].includes(m.op || '')
@@ -255,6 +260,7 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
               // while no caption session is running. The shared worker unloads
               // one model to load another, and measuring that swap against live
               // audio put caption round trips above 20 s.
+              const writingStyle = m.writingStyle === 'viewer' || m.writingStyle === 'polite' ? m.writingStyle : 'general'
               const isDraft = from === 'zh' && to === 'ja'
               const captionMode = modeOf(store.get('translationEngine'))
               const requestedMode = isDraft && !pipeline.running ? modeOf(store.get('draftTranslationEngine')) : captionMode
@@ -270,12 +276,12 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                   // being released, before this listener existed.
                   if (preempt.aborted) interrupt()
                   await large.initialize()
-                  result = await translateWrittenDraft(m.text, draftWith(large, m.text), preempt)
+                  result = await translateWrittenDraft(m.text, draftWith(large, m.text, writingStyle), preempt)
                 } catch (error) {
                   if (!preempt.aborted) throw error
                   // The large model produced nothing before captions needed the
                   // hardware. Finish this draft on the caption model after them.
-                  deferDraft(m.id, m.text, captionMode)
+                  deferDraft(m.id, m.text, captionMode, writingStyle)
                   deferred = true
                 } finally {
                   preempt.removeEventListener('abort', interrupt)
@@ -286,11 +292,11 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                 const active = await translatorFor(isDraft ? (displacesCaptions ? captionMode : requestedMode) : requestedMode)
                 await active.initialize()
                 result = isDraft
-                  ? await translateWrittenDraft(m.text, draftWith(active, m.text), preempt)
+                  ? await translateWrittenDraft(m.text, draftWith(active, m.text, writingStyle), preempt)
                   : { text: await active.translate(m.text, from, to) }
               }
             } else throw new Error('Unsupported operation')
-            if (!deferred) send({ id: m.id, ok: true, result })
+            if (!deferred) send({ id: m.id, ok: true, result: m.op === 'decode' ? { ...(result as object), performance: performanceState() } : result })
           } catch (error) {
             if (m.op === 'init' && ownsSession) { ownsSession = false; ctx.extensionConnected = false }
             send({ id: m.id, ok: false, error: error instanceof Error ? error.message : String(error) })

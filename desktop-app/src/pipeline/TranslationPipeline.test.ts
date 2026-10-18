@@ -303,3 +303,23 @@ it('invalidates completed translations after a glossary update, including an old
     await pipeline.process(new Float32Array(16000),16000);expect(calls).toBe(3)
   } finally {await pipeline.dispose()}
 })
+
+it('local Japanese/Chinese captions show source previews but translate the complete sentence once', async () => {
+  const pipeline = new TranslationPipeline()
+  const stt = new MockSTT('stt', { text: '今日は行けません。', language: 'ja', isFinal: true } as STTResult)
+  const translator = new MockTranslator('hunyuan-mt-15')
+  pipeline.registerSTT('stt', () => stt)
+  pipeline.registerTranslator('hunyuan-mt-15', () => translator)
+  await pipeline.switchEngine({ mode: 'cascade', sttEngineId: 'stt', translatorEngineId: 'hunyuan-mt-15' })
+  pipeline.setLanguageConfig('ja', 'zh')
+  await pipeline.start()
+  try {
+    const preview = await pipeline.processStreaming(new Float32Array(16000), 16000)
+    await new Promise(resolve => setTimeout(resolve, 300))
+    expect(preview?.sourceText).toContain('今日は')
+    expect(preview?.translatedText).toBe('')
+    expect(translator.translateCalls).toHaveLength(0)
+    await pipeline.finalizeStreaming(new Float32Array(24000), 16000)
+    expect(translator.translateCalls).toEqual(['今日は行けません。'])
+  } finally { await pipeline.dispose() }
+})

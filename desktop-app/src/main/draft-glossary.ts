@@ -58,7 +58,8 @@ const STOP_UPDATING_REQUEST = /(?:不要|別再|別|不准)停更/g
 
 /** Terminology for one written draft, chosen from what the comment says. */
 export function selectDraftTerminology(source: string): GlossaryEntry[] {
-  const terms: GlossaryEntry[] = [...DRAFT_ZH_JA_GLOSSARY]
+  const streamContext = /直播|主播|開台|頻道|配信|YouTube|VTuber|實況/i.test(source)
+  const terms: GlossaryEntry[] = DRAFT_ZH_JA_GLOSSARY.filter(term => !['訂閱', '剪輯'].includes(term.source) || streamContext)
 
   if (source.includes('存檔')) {
     const archive = score(source, ARCHIVE_EVIDENCE), save = score(source, SAVE_EVIDENCE)

@@ -1,3 +1,4 @@
+import { japaneseChineseInstruction, type WritingStyle } from './japanese-chinese-prompt'
 import { boundedTranslation, TranslationCancelledError } from './bounded-translation'
 /**
  * UtilityProcess worker for SLM inference via node-llama-cpp.
@@ -45,6 +46,7 @@ type WorkerInboundMessage =
   | { type: 'dispose' }
 
 interface TranslateContextPayload {
+  writingStyle?: WritingStyle
   previousSegments?: Array<{ source: string; translated: string }>
   glossary?: Array<{ source: string; target: string }>
 }
@@ -246,14 +248,7 @@ function buildTranslationPrompt(
     if (isChinese) {
       const targetZh = LANG_NAMES_ZH[to] ?? to
       if (from === 'zh' && to === 'ja') {
-        const terms: Array<[string, string]> = [
-          ['好聽', '素敵'], ['歌聲', '歌声'], ['辛苦了', 'お疲れさまでした'],
-          ['排程', 'スケジュール'], ['了解', '了解です'], ['直播', '配信'],
-          ['沒辦法', 'できません'], ['不能待到結束', '最後までいられません'],
-          ['不一定能來', '来られるとは限りません'], ['補精神', '元気をチャージ'],
-        ]
-        const glossary = terms.filter(([source]) => text.includes(source) && !translateContext?.glossary?.some(entry => entry.source === source)).map(([source, target]) => `${source} 翻译成 ${target}`).join('\n')
-        return `${contextSection}时态参考：未来无法参加用「明日は参加できません」，昨天未能参加用「昨日は参加できませんでした」。不要输出这些参考句。\n${glossary ? '参考下面的翻译：\n' + glossary + '\n\n' : ''}将以下文本翻译为日语，这是观众写给主播的留言，使用自然亲切、有礼貌的语气。保持留言者视角，不把个人计划改为邀请或命令。完整保留原意、时态、否定、称呼和表情。只输出译文，不要额外解释：\n\n${text}`
+        return contextSection + japaneseChineseInstruction(from, to, translateContext?.writingStyle, text) + text
       }
       const terms = to === 'zh' && /配信|クリア/.test(text) ? '在直播或游戏语境中，配信译为直播，クリア译为通关。' : ''
       const fidelity = to === 'zh' && from === 'ja' ? buildJaZhFidelityGuidance(text) : ''

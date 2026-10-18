@@ -21,3 +21,21 @@ test('late caption events remain observable after a decode response',async()=>{
  receive({event:'caption',segment:'one',result:{text:'魚',translated:'魚'}});
  assert.equal(events.length,1);assert.equal(client.pending.size,0);client.close();
 });
+
+test('a text request retries once on a fresh host, but never retries a logical error',async()=>{
+ const ports=[];
+ const runtime={lastError:{message:'Native host has exited.'},connectNative(){
+  const port={onMessage:{addListener:f=>port.receive=f},onDisconnect:{addListener:f=>port.died=f},disconnect(){},postMessage(m){port.sent=m;}};
+  ports.push(port);return port;
+ }};
+ const client=new NativeClient(runtime),reply=client.request('translate',{text:'今日は',direction:'ja-zh'},2000);
+ ports[0].died();
+ await new Promise(resolve=>setTimeout(resolve,240));
+ assert.equal(ports.length,2);
+ ports[0].receive({id:ports[0].sent.id,ok:true,result:{text:'stale'}});
+ ports[1].receive({id:ports[1].sent.id,ok:true,result:{text:'今天'}});
+ assert.equal((await reply).text,'今天');
+ const logical=client.request('translate');
+ ports[1].receive({id:ports[1].sent.id,ok:false,error:'Invalid text'});
+ await assert.rejects(logical,/Invalid text/);assert.equal(ports.length,2);client.close();
+});

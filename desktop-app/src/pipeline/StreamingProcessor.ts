@@ -1,3 +1,4 @@
+import { performanceState } from '../main/performance-state'
 import type { EventEmitter } from 'events'
 import type {
   TranslationResult,
@@ -57,6 +58,7 @@ export interface StreamingDeps {
  * Extracted from TranslationPipeline to isolate streaming-specific logic.
  */
 export class StreamingProcessor {
+  private lastPreviewAt = 0
   private finalTail: Promise<unknown> = Promise.resolve()
   private finalGeneration = 0
   private lastFinalTimestamp = 0
@@ -176,6 +178,9 @@ export class StreamingProcessor {
     // Drop chunk if another streaming call is in-flight — acceptable because
     // the rolling buffer re-sends accumulated audio on the next interval (#103)
     if (this.streamingLock) return null
+    const floor = performanceState().previewFloorMs
+    if (floor && performance.now() - this.lastPreviewAt < floor) return null
+    this.lastPreviewAt = performance.now()
 
     this.deps.incrementProcessing()
     const revision = ++this.recognitionRevision
@@ -218,7 +223,12 @@ export class StreamingProcessor {
       const translator = this.deps.getTranslator()
       const useSimulMt = simulMtConfig.enabled && translator?.translateSimulMt
 
-      if (useSimulMt) {
+      const completeSentenceOnly = ['hunyuan-mt', 'hunyuan-mt-15', 'hunyuan-mt-2'].includes(translator?.id || '') &&
+        ['ja', 'zh'].includes(sttResult.language) && ['ja', 'zh'].includes(targetLang)
+      if (completeSentenceOnly) {
+        // A fast source draft is useful; repeatedly translating unfinished
+        // Japanese/Chinese consumes GPU time and can reverse a later negation.
+      } else if (useSimulMt) {
         // SimulMT mode (#550): translate at clause boundaries using KV cache reuse
         this.handleSimulMtStreaming(
           fullSourceText,
@@ -481,7 +491,9 @@ export class StreamingProcessor {
       const translator = this.deps.getTranslator()
 
       const simulMtConfig = this.deps.getSimulMtConfig()
-      const useSimulMt = simulMtConfig.enabled && translator?.translateSimulMt
+      const useSimulMt = simulMtConfig.enabled && translator?.translateSimulMt &&
+        !(['hunyuan-mt', 'hunyuan-mt-15', 'hunyuan-mt-2'].includes(translator.id) &&
+          ['ja', 'zh'].includes(sttResult.language) && ['ja', 'zh'].includes(targetLang))
 
       let translatedText = ''
       let translationStage: 'simulmt-revised' | undefined

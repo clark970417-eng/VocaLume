@@ -2,6 +2,25 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.4.0 - 2026-10-18
+
+### Ordered local Japanese / Chinese captions
+
+- Keep recognized source drafts visible while translating completed sentences once on local HY-MT engines.
+- Preserve sentence order in single-pair mode, including late translations and out-of-order completion; four-entry mode continues filling matching rows.
+- Tolerate short breathing pauses; use recognition punctuation and hanging-clause evidence to choose a longer pause before finalization. This remains a heuristic, not perfect semantic sentence detection.
+- Retain completed desktop audio in single-pair mode and adapt preview frequency to measured processing time and OS thermal / CPU speed-limit signals.
+
+### Written translation and native recovery
+
+- Add natural, livestream-viewer and polite Chinese-to-Japanese writing styles in the extension. General writing no longer assumes the reader is a streamer.
+- Restrict ambiguous platform terminology to matching contexts and isolate memoized drafts by language pair and writing style.
+- Restore Tab translation in X composers, protect edits made during translation and leave submission to the user.
+- Recover text requests once after a native-host disconnect and repair stale application launch registrations after a rename or reinstall.
+- Recover an inaccessible external Whisper cache into a VocaLume-owned local cache; preserve that working local cache when the external disk returns.
+- Package the original blue/green speech-bubble and orange-waveform icon for macOS and Windows.
+- Keep all product names and package names as VocaLume. Legacy native identity and storage directories remain compatible with existing profiles.
+
 ## 4.3.0 - 2026-09-29
 
 ### VocaLume branding

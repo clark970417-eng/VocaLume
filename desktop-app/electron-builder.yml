@@ -24,6 +24,7 @@ publish:
   owner: clark970417-eng
   repo: VocaLume
 mac:
+  icon: build/icon.icns
   target:
     - target: dmg
       arch:

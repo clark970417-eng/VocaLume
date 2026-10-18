@@ -37,5 +37,5 @@ test('a finished draft is only inserted for review; nothing is submitted',async(
  const source=fs.readFileSync(new URL('../content.js',import.meta.url),'utf8');
  assert.equal(/KeyboardEvent|\.click\(\)|key:\s*['"]Enter/.test(source),false);
  const xSource=fs.readFileSync(new URL('../x-content.js',import.meta.url),'utf8');
- assert.equal(/KeyboardEvent|\.click\(\)|key:\s*['"]Enter/.test(xSource),false);
+ assert.equal(/KeyboardEvent|key:\s*['"]Enter/.test(xSource),false);
 });

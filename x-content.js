@@ -1,5 +1,6 @@
 // X uses a separate script so YouTube's player and composer stay independent.
 (() => {
+  if(window.__jtlX)return;window.__jtlX=true;
   let websiteTextEnabled=false, textEpoch=0;
   let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
   const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
@@ -15,7 +16,7 @@
   function message(payload) {
     return new Promise((resolve, reject) => chrome.runtime.sendMessage(payload, reply => {
       if (chrome.runtime.lastError || !reply?.ok) {
-        reject(new Error(reply?.error || '請先啟動桌面的「啟動即時字幕」'));
+        reject(new Error(reply?.error || chrome.runtime.lastError?.message || '請先開啟 VocaLume App'));
       } else resolve(reply.text);
     }));
   }
@@ -58,7 +59,7 @@
     const preview = document.createElement('textarea');
     preview.setAttribute('aria-label', '日文留言草稿，可修改');
     preview.hidden = true;
-    let source = '';
+    let source = '', applyAfterTranslation=false;
     const apply = button('放入留言框', () => {
       if (!box.isConnected || read(box) !== source) {
         status.textContent = '原文已修改，請重新翻譯，避免覆蓋新內容。';
@@ -98,9 +99,18 @@
         preview.hidden = false;
         apply.hidden = false;
         status.textContent = `${result.mode}。可以修改草稿，再放入留言框。`;
+        if(applyAfterTranslation)apply.click();
       } catch (error) { status.textContent = error.message; }
-      finally { translate.disabled = false; }
+      finally { translate.disabled = false;applyAfterTranslation=false; }
     });
+    // Tab translates the focused draft and replaces it only if it is unchanged.
+    // Enter/posting always remains a separate action. IME and Shift+Tab pass through.
+    box.addEventListener('keydown',event=>{
+      if(!websiteTextEnabled||!controls.isConnected||event.key!=='Tab'||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||!matchesLanguage(read(box),languageSettings.typeSource))return;
+      event.preventDefault();event.stopPropagation();
+      if(!translate.disabled){applyAfterTranslation=true;translate.click();}
+    });
+    translate.setAttribute('title','Tab：翻譯並放入留言框；確認後自行送出');
     translate.setAttribute('aria-label', '中文翻成日文草稿');
     translate.classList.add('jtl-x-language');
     controls.append(translate, status, preview, apply);
@@ -111,10 +121,11 @@
   }
 
   function addPost(text) {
-    if (posts.get(text)?.isConnected) return;
+    const existing=posts.get(text);
+    if(existing?.isConnected){if(text.nextElementSibling!==existing)text.insertAdjacentElement('afterend',existing);return;}
     if (!matchesLanguage(read(text), languageSettings.readSource)) return;
     const controls = document.createElement('div');
-    controls.className = 'jtl-x-controls';
+    controls.className = 'jtl-x-controls';controls.jtlSource=text;
     const result = document.createElement('div');
     result.setAttribute('role', 'status');
     const translate = button(`${langLabel(languageSettings.readSource)}/${langLabel(languageSettings.readTarget)}`, async () => {
@@ -229,6 +240,7 @@
   }
 
   function scan() {
+    document.querySelectorAll('.jtl-x-controls').forEach(control=>{if(control.jtlSource&&!control.jtlSource.isConnected)control.remove();});
     if(websiteTextEnabled){
     document.querySelectorAll('[contenteditable="true"][data-testid^="tweetTextarea_"], [data-testid^="tweetTextarea_"] [contenteditable="true"]').forEach(addComposer);
     document.querySelectorAll('[data-testid="tweetText"]').forEach(addPost);

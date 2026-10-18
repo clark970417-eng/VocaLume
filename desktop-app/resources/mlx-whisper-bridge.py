@@ -16,13 +16,42 @@ import os
 import numpy as np
 import contextlib
 import wave
+from pathlib import Path
 
 whisper_model = None
 whisper_processor = None
 
+def configure_model_cache():
+    """A moved external cache must not prevent this app from starting."""
+    home = Path(os.environ.get('HF_HOME', str(Path.home() / '.cache/huggingface')))
+    hub = Path(os.environ.get('HF_HUB_CACHE', os.environ.get('HUGGINGFACE_HUB_CACHE', str(home / 'hub'))))
+    local_home = Path.home() / ('Library/Caches/VocaLume' if sys.platform == 'darwin' else '.cache/vocalume') / 'huggingface'
+    # Once recovered locally, keep that cache even when an old external drive returns.
+    if (local_home / 'hub').is_dir():
+        home, hub = local_home, local_home / 'hub'
+        os.environ['HF_HOME'] = str(home)
+        os.environ['HF_HUB_CACHE'] = str(hub)
+        os.environ['HUGGINGFACE_HUB_CACHE'] = str(hub)
+    try:
+        hub.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryFile(dir=hub):
+            pass
+        return hub
+    except OSError:
+        base = Path.home() / ('Library/Caches/VocaLume' if sys.platform == 'darwin' else '.cache/vocalume')
+        home = base / 'huggingface'
+        hub = home / 'hub'
+        hub.mkdir(parents=True, exist_ok=True)
+        os.environ['HF_HOME'] = str(home)
+        os.environ['HF_HUB_CACHE'] = str(hub)
+        os.environ['HUGGINGFACE_HUB_CACHE'] = str(hub)
+        print('Model cache unavailable; using VocaLume local cache: ' + str(hub), file=sys.stderr)
+        return hub
+
 def init_model(model_name="mlx-community/whisper-large-v3-turbo"):
     global whisper_model, whisper_processor
     try:
+        configure_model_cache()
         import mlx_whisper
         whisper_model = model_name
         # Resolve/download weights and compile kernels before reporting ready.

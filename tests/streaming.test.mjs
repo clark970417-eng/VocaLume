@@ -56,3 +56,16 @@ test('latency measurements are bounded and report distributions',()=>{
  const m=new Measurements();for(let i=0;i<200;i++)m.add('decode',i);
  assert.equal(m.summary().decode.count,120);assert.ok(m.summary().decode.p95>180);
 });
+
+test('sentence mode joins breathing pauses and waits longer after a hanging clause',()=>{
+ const w=new SpeechWindows();w.sentenceMode=true;w.maxSamples=320000;
+ const frame=new Float32Array(512);const output=[];
+ for(let i=0;i<35;i++){const j=w.push(frame,.9);if(j)output.push(j);}
+ for(let i=0;i<24;i++){const j=w.push(frame,0);if(j)output.push(j);}
+ assert.equal(output.some(j=>j.final),false,'768 ms breathing pause keeps the utterance open');
+ for(let i=0;i<20;i++)w.push(frame,.9);
+ w.hint('そう思うけど。',w.utterance);
+ for(let i=0;i<30;i++)assert.notEqual(w.push(frame,0)?.final,true);
+ w.hint('そう思います。',w.utterance);
+ assert.equal(w.push(frame,0)?.final,true);
+});

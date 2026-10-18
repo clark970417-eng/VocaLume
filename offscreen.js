@@ -49,7 +49,7 @@ function decode(s,job){
  if(job.epoch!==s.epoch||(s.recording&&!s.desktop&&!job.final))return;
  if(!s.ready){if(s.recording||s.desktop){try{s.queue.push(job);}catch(error){send(s,'speech-error',{error:error.message});stop();}}return;}
  if(s.busy){try{s.queue.push(job);}catch(error){send(s,'speech-error',{error:error.message});stop();}return;}
- if(!s.recording&&Date.now()-job.audioEndAt>4000){s.expired++;return;}
+ if(!s.recording&&!s.desktop&&Date.now()-job.audioEndAt>4000){s.expired++;return;}
  s.busy=job;s.started=performance.now();s.metrics.add('queueMs',Date.now()-job.audioEndAt);
  s.timeout=setTimeout(()=>restartWorker(s,'辨識逾時'),s.desktop?60000:15000);
  const audio=job.audio.slice();s.worker.postMessage({type:'decode',id:job.id,audio,segment:s.epoch+':'+job.id,utterance:s.epoch+':'+job.utteranceId,final:job.final,speechSeconds:job.speechSeconds,speechAt:job.speechAt,audioEndAt:job.audioEndAt},[audio.buffer]);
@@ -58,7 +58,7 @@ function drainVad(s){
  if(s.vadBusy||!s.vadReady)return;
  const audio=s.vadQueue.shift();if(!audio){flushVad(s);return;}
  s.vadBusy=true;s.vadTimeout=setTimeout(()=>{if(active===s){send(s,'speech-error',{error:'人聲偵測無回應，請重新開始'});stop();}},5000);
- s.vad.postMessage({type:'audio',audio,epoch:s.epoch,interval:Math.max(.5,Math.min(1.2,s.decodeMs/1000))},[audio.buffer]);
+ s.vad.postMessage({type:'audio',audio,epoch:s.epoch,interval:Math.max(.5,(s.performance?.previewFloorMs||0)/1000,Math.min(2.5,(s.cadenceMs||s.decodeMs)*1.15/1000+s.queue.jobs.length*.15))},[audio.buffer]);
 }
 function sample(s,data){
  if(active!==s||s.inputFlushed)return;
@@ -101,8 +101,10 @@ function initializeWorker(s){
    return;
   }
   if(data.type!=='result')return;
-  clearTimeout(s.timeout);s.decodeMs=performance.now()-s.started;s.metrics.add('decodeMs',s.decodeMs);
+  clearTimeout(s.timeout);s.decodeMs=performance.now()-s.started;s.cadenceMs=.75*(s.cadenceMs||s.decodeMs)+.25*s.decodeMs;s.metrics.add('decodeMs',s.decodeMs);
+  if(data.performance)s.performance=data.performance;
   const job=s.busy;
+  if(job&&data.text)s.vad?.postMessage({type:'transcript',epoch:s.epoch,utteranceId:job.utteranceId,text:data.text});
   if(job&&job.epoch===s.epoch&&!s.nativeUntil&&(s.recording||Date.now()-job.audioEndAt<5000)){
    if(s.desktop&&data.text&&s.lastId!==job.id){s.lastId=job.id;s.metrics.add('firstJapaneseMs',Date.now()-job.speechAt);s.metrics.add('audioLagMs',Date.now()-job.audioEndAt);}
    const text=s.desktop?null:s.filter.accept(data.text,job);
@@ -133,7 +135,7 @@ function initializeVad(s){
  s.vad.postMessage({type:'init',epoch:s.epoch,origin:Date.now(),rate:s.context.sampleRate,desktop:s.desktop});
 }
 async function start(m){
- stop();const s=active={session:m.session,epoch:0,ready:false,vadReady:false,restarts:0,restartTimer:null,frames:0,level:0,decodeMs:500,recording:Boolean(m.recording),queue:new DecodeQueue({retainFinals:Boolean(m.recording),retainInterim:m.mode==='desktop',coalesceFinals:Boolean(m.recording)&&m.mode==='desktop'}),vadQueue:[],filter:new SpeechResultFilter(),agreement:new Agreement(),metrics:new Measurements(),expired:0,rejected:0,overruns:0};
+ stop();const s=active={session:m.session,epoch:0,ready:false,vadReady:false,restarts:0,restartTimer:null,frames:0,level:0,decodeMs:500,recording:Boolean(m.recording),queue:new DecodeQueue({retainFinals:Boolean(m.recording)||m.mode==='desktop',retainInterim:m.mode==='desktop',coalesceFinals:Boolean(m.recording)&&m.mode==='desktop'}),vadQueue:[],filter:new SpeechResultFilter(),agreement:new Agreement(),metrics:new Measurements(),expired:0,rejected:0,overruns:0};
  try{
   s.desktop=m.mode==='desktop';
   s.stream=await navigator.mediaDevices.getUserMedia({audio:{mandatory:{chromeMediaSource:'tab',chromeMediaSourceId:m.streamId}},video:false});
@@ -143,7 +145,7 @@ async function start(m){
   s.node=new AudioWorkletNode(s.context,'subtitle-capture');s.node.port.onmessage=e=>{if(e.data?.type==='flushed')finishInput(s);else sample(s,e.data);};s.source.connect(s.node);s.node.connect(s.context.destination);
   s.stream.getAudioTracks()[0].onended=()=>{if(active===s){send(s,'speech-error',{error:'分頁音訊已中斷，請重新開始'});stop();}};
   initializeVad(s);initializeWorker(s);
-  s.monitor=setInterval(()=>send(s,'audio-health',{frames:s.frames,level:s.level,ready:s.ready&&s.vadReady,model:s.model,dtype:s.dtype,probability:s.probability||0,busy:Boolean(s.busy),decodeMs:Math.round(s.decodeMs),metrics:s.metrics.summary(),dropped:s.queue.dropped,expired:s.expired,rejected:s.rejected,overruns:s.overruns,queueDepth:s.queue.jobs.length}),1000);
+  s.monitor=setInterval(()=>send(s,'audio-health',{frames:s.frames,level:s.level,ready:s.ready&&s.vadReady,model:s.model,dtype:s.dtype,probability:s.probability||0,busy:Boolean(s.busy),decodeMs:Math.round(s.decodeMs),metrics:s.metrics.summary(),dropped:s.queue.dropped,expired:s.expired,rejected:s.rejected,overruns:s.overruns,cadenceMs:Math.round(s.cadenceMs||500),performance:s.performance,queueDepth:s.queue.jobs.length}),1000);
   send(s,'model-status',{text:'正在載入人聲與辨識模型…'});
  }catch(error){send(s,'speech-error',{error:error.message});stop();throw error;}
 }

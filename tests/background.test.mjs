@@ -86,9 +86,9 @@ test('multi-line chat translates at most two chunks concurrently and rejoins the
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
  vm.runInNewContext(src,{NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,URLSearchParams,AbortSignal,AbortController,Date,console});
  const reply=new Promise(resolve=>listener({type:'translate',text:'最初の行です\n二番目の行です\n最後の行です',direction:'ja-zh'}, {},resolve));
- for(let i=0;i<8;i++)await Promise.resolve();
+ for(let i=0;i<20;i++)await Promise.resolve();
  assert.deepEqual(pending.map(item=>item.text),['最初の行です','二番目の行です']);
- pending[0].resolve({text:'第一行。'});for(let i=0;i<8;i++)await Promise.resolve();
+ pending[0].resolve({text:'第一行。'});for(let i=0;i<20;i++)await Promise.resolve();
  assert.equal(pending[2].text,'最後の行です');
  pending[1].resolve({text:'第二行。'});pending[2].resolve({text:'最後一行。'});
  assert.equal((await reply).text,'第一行。第二行。最後一行。');

@@ -27,7 +27,15 @@ export class SpeechGain {
 }
 export class SpeechWindows {
  constructor(){this.reset();}
- reset(){this.pre=[];this.parts=[];this.samples=0;this.clock=0;this.onset=0;this.silent=0;this.voiced=0;this.confident=0;this.active=false;this.id=0;this.lastEmission=0;this.overlap=false;this.utterance=0;}
+ reset(){this.pre=[];this.parts=[];this.samples=0;this.clock=0;this.onset=0;this.silent=0;this.voiced=0;this.confident=0;this.active=false;this.id=0;this.lastEmission=0;this.overlap=false;this.utterance=0;this.sentenceComplete=false;}
+ hint(text,utteranceId){
+  if(!this.active||utteranceId!==this.utterance)return;
+  // A recognizer's period alone is weak evidence. Japanese hanging particles
+  // and Chinese continuation words need the longer pause even with punctuation.
+  const value=String(text||'').trim();
+  const unfinished=/(?:けど|けれど|から|ので|のに|とか|という|って|でも|そして|それで|如果|因為|但是|然後|雖然|所以|而且)[、，,。.!！?？\s]*$/u;
+  this.sentenceComplete=/[。！？.!?][」』”"]?$/.test(value)&&!unfinished.test(value);
+ }
  finish(){
   if(!this.active)return null;
   this.active=false;
@@ -49,7 +57,7 @@ export class SpeechWindows {
    // The first cadence starts at acoustic onset, not after VAD activation.
    // Otherwise the two-frame onset confirmation is added to the configured
    // preview delay and a nominal 500 ms preview arrives closer to 600 ms.
-   this.lastEmission=this.speechStart;this.overlap=false;
+   this.lastEmission=this.speechStart;this.overlap=false;this.sentenceComplete=false;
    return null;
   }
   this.parts.push(frame);this.samples+=n;
@@ -57,7 +65,8 @@ export class SpeechWindows {
   // Speech at the onset probability, which the companion's outro check was calibrated on.
   if(probability>=.30)this.confident+=n;
   this.silent=speech?0:this.silent+n;
-  const ended=this.silent>=9216, cut=this.samples>=(this.maxSamples||80000);
+  const pause=this.sentenceMode?(this.sentenceComplete?14400:22400):9216;
+  const ended=this.silent>=pause, cut=this.samples>=(this.maxSamples||80000);
   const speechSamples=this.clock-this.speechStart;
   // Clear speech can produce a useful rolling hypothesis at 500 ms. Keep the
   // former 650 ms guard for weak/noisy input, where an early Whisper pass tends

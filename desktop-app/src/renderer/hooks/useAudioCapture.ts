@@ -361,7 +361,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         // Override with more sensitive thresholds for real-time translation
         positiveSpeechThreshold: 0.25,
         negativeSpeechThreshold: 0.1,
-        redemptionMs: 600,
+        redemptionMs: 1400,
         minSpeechMs: 250,
         // AudioWorklet runs audio processing off the main thread (replaces deprecated ScriptProcessor)
         processorType: 'AudioWorklet',

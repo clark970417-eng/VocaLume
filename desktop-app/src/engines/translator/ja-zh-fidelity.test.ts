@@ -32,3 +32,10 @@ describe('Japanese to Traditional Chinese fidelity', () => {
     expect(finishJaZhTranslation('いや、それはちょっと違うというか', '不，那有點不一樣吧。')).toBe('不，那有點不一樣，該怎麼說……')
   })
 })
+
+// Page reading also handles ordinary archives and physical paper clippings.
+it('does not force explicit document contexts into livestream terminology', () => {
+  expect(buildJaZhFidelityGuidance('図書館のアーカイブを調べます。')).not.toContain('直播存檔')
+  expect(finishJaZhTranslation('図書館のアーカイブを調べます。', '我會查閱圖書館的檔案。')).toBe('我會查閱圖書館的檔案。')
+  expect(finishJaZhTranslation('新聞の切り抜きです。', '這是報紙的剪報。')).toBe('這是報紙的剪報。')
+})
