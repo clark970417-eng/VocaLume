@@ -1,6 +1,7 @@
 (() => {
 if(window.__jtlV3)return;window.__jtlV3=true;
 let translated = new WeakMap();
+const lineOwners = new WeakMap();
 let websiteTextEnabled=false, textEpoch=0, contextInvalid=false;
 let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
 const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
@@ -67,17 +68,24 @@ async function translateElement(element, className, priority = false, queueOrder
   const epoch=textEpoch;
   const text = element.textContent.trim();
   if (!text || !matchesLanguage(text,languageSettings.readSource)) return false;
-  if (translated.get(element) === text) return true;
-  translated.set(element, text);
   const anchor = className === "jtl-title" ? (element.closest("h1") || element) : element;
   let line = anchor.parentElement?.querySelector(`:scope > .${className}`);
+  if (translated.get(element) === text && line) return true;
+  translated.set(element, text);
   if (!line) {
     line = document.createElement("div");
     line.className = className;
     anchor.insertAdjacentElement("afterend", line);
   }
+  const owner = {};
+  lineOwners.set(line, owner);
+  const ownsLine = () => lineOwners.get(line) === owner;
+  const discard = () => {
+    if (translated.get(element) === text) translated.delete(element);
+    if (ownsLine()) line.remove();
+  };
   line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯中…`;
-  const valid=()=>websiteTextEnabled&&epoch===textEpoch&&element.isConnected&&element.textContent.trim()===text;
+  const valid=()=>ownsLine()&&websiteTextEnabled&&epoch===textEpoch&&element.isConnected&&element.textContent.trim()===text;
   try {
     let result;
     try { result = await requestTranslation(text, direction('read'), priority, queueOrder, valid); }
@@ -86,14 +94,14 @@ async function translateElement(element, className, priority = false, queueOrder
       line.textContent = "中：第一次失敗，正在重試…";
       result = await requestTranslation(text, direction('read'), true, (queueOrder??0)+1000000, valid);
     }
-    if (!valid() || !result) {translated.delete(element);line.remove();return false;}
+    if (!valid() || !result) {discard();return false;}
     line.textContent = `${langLabel(languageSettings.readTarget)}：${result}`;
     return true;
   } catch (error) {
     // Keep the failed source marked after the one bounded retry. Otherwise our
     // own status DOM mutation starts another scan and creates an endless loop.
     if (valid()) line.textContent = "中：翻譯失敗，請稍後重新整理再試";
-    else { translated.delete(element); line.remove(); }
+    else discard();
     return false;
   }
 }
@@ -110,6 +118,7 @@ function scan() {
       "h1.ytd-watch-metadata"
     ].map(selector=>document.querySelector(selector)).find(element=>matchesLanguage(element?.textContent||"",languageSettings.readSource));
     const titleLines = [...document.querySelectorAll(".jtl-title")];
+    if (!title) titleLines.forEach(line => line.remove());
     titleLines.slice(1).forEach(line => line.remove());
     titleLines.forEach(line => { if (!line.textContent.trim()) line.remove(); });
     translateElement(title, "jtl-title", true);
@@ -308,7 +317,7 @@ scan();
 if (window.top === window) {
  pollTimer=setInterval(pollSubtitles,700);
  nativeTimer=setInterval(readNativeCaption,350);
- const reset=()=>{pollEpoch++;lastNativeCaption='';nativeChangedAt=0;lastSubtitleKey='';renderSubtitle(null);runtimeMessage({type:'subtitle-reset'}).catch(()=>{});};
+ const reset=()=>{textEpoch++;translated=new WeakMap();document.querySelectorAll('.jtl-title').forEach(line=>line.remove());pollEpoch++;lastNativeCaption='';nativeChangedAt=0;lastSubtitleKey='';renderSubtitle(null);runtimeMessage({type:'subtitle-reset'}).catch(()=>{});};
  document.addEventListener('yt-navigate-start',reset);
  document.addEventListener('seeking',event=>{if(event.target.tagName==='VIDEO')reset();},true);
 }

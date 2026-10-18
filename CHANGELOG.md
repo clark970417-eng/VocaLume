@@ -2,6 +2,16 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.4.5 - 2026-10-18
+
+### YouTube navigation and recycled translations
+
+- Remove the previous video's translated title when the current title no longer matches the reading language, including Japanese-to-Chinese video navigation.
+- Give each translation request ownership of its display line so a late, older result cannot overwrite or remove a newer translation on a recycled node.
+- Restore translations when a heading returns after its translation line was removed.
+- Handle X draft translation at window capture before document/editor shortcut handlers, avoiding a conflicting Tab handler in the tested profile. IME, modified Tab and unrelated editors retain normal behavior.
+- See [verification](docs/retests/4.4.5.md).
+
 ## 4.4.4 - 2026-10-18
 
 ### Contextual game vocabulary

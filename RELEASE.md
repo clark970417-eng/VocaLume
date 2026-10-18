@@ -1,6 +1,6 @@
 # Release and rollback guide
 
-The latest public preview is **beta-v4.4.4**. Major supported platforms translate automatically; other websites are opt-in per hostname so ordinary chats and documents remain untouched. See [CHANGELOG.md](CHANGELOG.md) for the complete user-facing summary.
+The latest public preview is **beta-v4.4.5**. Major supported platforms translate automatically; other websites are opt-in per hostname so ordinary chats and documents remain untouched. See [CHANGELOG.md](CHANGELOG.md) for the complete user-facing summary.
 
 VocaLume uses two release channels:
 

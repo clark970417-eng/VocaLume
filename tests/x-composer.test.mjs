@@ -33,3 +33,16 @@ test('Tab translates the focused X composer, preserves edits and never posts',as
  await new Promise(resolve=>setImmediate(resolve));assert.equal(box.textContent,'還有新內容');
  keydown({key:'Tab',isComposing:true,preventDefault(){throw Error('IME must pass through');}});
 });
+
+
+test('X capture shortcut reaches only its own mounted editor before competing handlers',()=>{
+ const box={}, child={}, unrelated={};let count=0,received;
+ const composers=new WeakMap([[box,{isConnected:true,translateKey:event=>{count++;received=event;}}]]);
+ const start=source.indexOf('  function dispatchComposerKey');
+ const end=source.indexOf('  // Run before document/editor',start);
+ const dispatch=vm.runInNewContext(source.slice(start,end)+'\ndispatchComposerKey',{composers});
+ const event={composedPath:()=>[child,box]};dispatch(event);
+ assert.equal(count,1);assert.equal(received,event);
+ dispatch({composedPath:()=>[unrelated]});assert.equal(count,1);
+ composers.get(box).isConnected=false;dispatch(event);assert.equal(count,1);
+});

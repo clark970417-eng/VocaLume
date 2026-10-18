@@ -180,3 +180,30 @@ test('a title node rebuilt while translation is pending can be retried',async()=
  assert.equal(t.requests.length,1,'the cached result should be reused without a second network request');
  assert.equal(t.title.lines.find(line=>!line.removed).textContent,'中：新的直播');
 });
+
+
+test('a Japanese title is removed when a reused heading changes to Chinese',async()=>{
+ const t=setup(false,{selector:'#above-the-fold #title h1',text:'日本語の配信です'});await settle();
+ t.requests[0].reply({ok:true,text:'日文直播'});await settle();
+ t.title.textContent='中文影片標題';t.scan();await settle();
+ assert.equal(t.title.lines.filter(l=>!l.removed).length,0);
+});
+
+test('a slower old translation cannot remove or overwrite a newer reused line',async()=>{
+ const t=setup(false,{selector:'#above-the-fold #title h1',text:'古い配信です'});await settle();
+ t.title.textContent='新しい配信です';t.scan();await settle();
+ t.requests[1].reply({ok:true,text:'新的直播'});await settle();
+ t.requests[0].reply({ok:true,text:'舊的直播'});await settle();
+ assert.equal(t.title.lines.find(l=>!l.removed).textContent,'中：新的直播');
+ t.scan();await settle();assert.equal(t.requests.length,2);
+});
+
+
+test('a title translated before a language change is restored when it returns',async()=>{
+ const t=setup(false,{selector:'#above-the-fold #title h1',text:'日本語の配信です'});await settle();
+ t.requests[0].reply({ok:true,text:'日文直播'});await settle();
+ t.title.textContent='中文影片';t.scan();await settle();
+ t.title.textContent='日本語の配信です';t.scan();await settle();
+ assert.equal(t.title.lines.find(l=>!l.removed).textContent,'中：日文直播');
+ assert.equal(t.requests.length,1);
+});

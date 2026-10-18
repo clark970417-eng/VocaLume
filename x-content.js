@@ -8,6 +8,16 @@
   const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
   const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
   const composers = new WeakMap();
+  function dispatchComposerKey(event) {
+    const path = event.composedPath?.() || [event.target];
+    for (const node of path) {
+      const controls = composers.get(node);
+      if (controls?.isConnected) { controls.translateKey?.(event); return; }
+    }
+  }
+  // Run before document/editor capture handlers from other page integrations.
+  // Only consume the explicit translation shortcut in our mounted composers.
+  window.addEventListener('keydown', dispatchComposerKey, true);
   const posts = new WeakMap();
   let panel,captionBox;
   let listening = false;
@@ -105,11 +115,12 @@
     });
     // Tab translates the focused draft and replaces it only if it is unchanged.
     // Enter/posting always remains a separate action. IME and Shift+Tab pass through.
-    box.addEventListener('keydown',event=>{
+    controls.translateKey = event=>{
       if(!websiteTextEnabled||!controls.isConnected||event.key!=='Tab'||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||!matchesLanguage(read(box),languageSettings.typeSource))return;
-      event.preventDefault();event.stopPropagation();
+      event.preventDefault();event.stopImmediatePropagation?.();event.stopPropagation();
       if(!translate.disabled){applyAfterTranslation=true;translate.click();}
-    });
+    };
+    box.addEventListener('keydown',controls.translateKey);
     translate.setAttribute('title','Tab：翻譯並放入留言框；確認後自行送出');
     translate.setAttribute('aria-label', '中文翻成日文草稿');
     translate.classList.add('jtl-x-language');
