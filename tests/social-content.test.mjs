@@ -7,8 +7,8 @@ import {isStandaloneGreeting} from '../streamer-vocabulary.mjs';
 const source=fs.readFileSync(new URL('../social-content.js',import.meta.url),'utf8');
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
-function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false){
- const requests=[];
+function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={}){
+ const requests=[], selectors=[];
  const translationLines=[];
  const controls=[];
  const japanese=japaneseOverride||{textContent:'配信ありがとう',innerText:'配信ありがとう',children:[],isConnected:true,
@@ -27,6 +27,8 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   querySelector(){return null;},remove(){this.isConnected=false;}});
  const document={documentElement:{},body:{append(node){node.isConnected=true;if(node.className==='jtl-social-controls')controls.push(node);}},
   querySelectorAll(selector){
+   selectors.push(selector);
+   if(hostname.endsWith('discord.com')&&selector==='[id^="message-content-"]')return Array.isArray(japanese)?japanese:[japanese];
    if(!semanticOnly&&(selector.includes('danmaku-content')||selector.includes('chat-message')||selector.includes('chat-line-message-body')||
       ((hostname.includes('facebook')||hostname.includes('instagram'))&&selector.includes('[dir="auto"]'))||
       (hostname==='example.com'&&(selector.includes('comment')||selector.includes('role="article"')))))return Array.isArray(japanese)?japanese:[japanese];
@@ -39,9 +41,9 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   createElement:makeElement,addEventListener(){},createRange:()=>({selectNodeContents(){}})};
  const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(){} apply(){}}};window.top=window;
  const chrome={runtime:{lastError:null,onMessage:{addListener(){}},sendMessage(message,reply){requests.push({message,reply});}},
-  storage:{local:{get:()=>Promise.resolve({websiteTextEnabled:true,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(){}}}};
+  storage:{local:{get:()=>Promise.resolve({websiteTextEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(){}}}};
  vm.runInNewContext(source,{VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{observe(){}},setTimeout:fn=>{fn();return 1;},setInterval(){},Event:class{},InputEvent:class{}});
- return {requests,translationLines,controls,box};
+ return {requests,translationLines,controls,box,selectors};
 }
 
 test('romanized creator greetings are recognized in Twitch chat without treating ordinary English as Japanese',async()=>{
@@ -183,4 +185,25 @@ test('all-sites manifest uses the general adapter without double-injecting on de
  assert.equal(general.all_frames,true);
  assert.ok(general.exclude_matches.includes('https://www.youtube.com/*'));
  assert.ok(general.exclude_matches.includes('https://*.tiktok.com/*'));
+});
+
+
+test('Discord translates the complete Korean message body, not its channel or metadata',async()=>{
+ const body={textContent:'안녕하세요.\n오늘도 감사합니다.',innerText:'안녕하세요.\n오늘도 감사합니다.',children:[{textContent:'안녕하세요.'},{textContent:'오늘도 감사합니다.'}],isConnected:true,
+  closest:()=>null,querySelector:()=>null,
+  querySelectorAll:()=>{throw Error('must keep the complete Discord message, not choose a leaf');},
+  parentElement:{querySelector:()=>null},insertAdjacentElement(){}};
+ const t=setup('discord.com',body,null,false,false,{readSource:'ko',readTarget:'zh'});await settle();
+ const requests=t.requests.filter(r=>r.message.type==='translate');
+ assert.equal(requests.length,1);
+ assert.equal(requests[0].message.direction,'ko-zh');
+ assert.equal(requests[0].message.text,'안녕하세요. 오늘도 감사합니다.');
+ assert.ok(!t.selectors.some(s=>s.includes('h1')||s.includes('aria-live')||s==='[role="log"]'));
+ requests[0].reply({ok:true,text:'你好。今天也謝謝你。'});await settle();
+});
+
+test('Discord leaves Korean messages alone when the reader explicitly selected Japanese',async()=>{
+ const body={textContent:'안녕하세요',innerText:'안녕하세요',isConnected:true,closest:()=>null,querySelectorAll(){return[];}};
+ const t=setup('discord.com',body);await settle();
+ assert.equal(t.requests.filter(r=>r.message.type==='translate').length,0);
 });

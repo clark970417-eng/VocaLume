@@ -10,10 +10,17 @@
     : host.endsWith('twitch.tv') ? 'twitch'
     : host.endsWith('facebook.com') ? 'facebook'
     : host.endsWith('instagram.com') ? 'instagram'
+    : (host === 'discord.com' || host.endsWith('.discord.com') || host === 'discordapp.com' || host.endsWith('.discordapp.com')) ? 'discord'
     : 'generic';
   const dedicatedSite = site !== 'generic';
 
   const configs = {
+    discord: {
+      // Channel headings, usernames, roles and live announcers are not messages.
+      title: [],
+      text: ['[id^="message-content-"]'],
+      composer: ['[role="textbox"][data-slate-editor="true"]', 'main [role="textbox"][contenteditable="true"]']
+    },
     bilibili: {
       title: ['h1.video-title', 'h1[title]', '.video-title', '.live-title', '.room-title'],
       text: [
@@ -134,7 +141,7 @@
   const clean = value => String(value || '').replace(/\s+/g, ' ').trim();
 
   function messageTextNode(node) {
-    if (!node?.querySelectorAll) return node;
+    if (!node?.querySelectorAll || site === 'discord') return node;
     const explicit = node.querySelector?.([
       '[data-e2e="message-text"]', '[class*="CommentContent"]', '[class*="CommentText"]',
       '.danmaku-content', '.reply-content', '.sub-reply-content'
@@ -383,7 +390,7 @@
     // Hashed classes change frequently on both sites. ARIA live regions are a
     // stable semantic contract, so scan their smallest Japanese leaves as a
     // fallback when product-specific selectors no longer match.
-    const semanticMessages = [...document.querySelectorAll('[role="log"], [aria-live="polite"], [aria-live="assertive"]')]
+    const semanticMessages = site === 'discord' ? [] : [...document.querySelectorAll('[role="log"], [aria-live="polite"], [aria-live="assertive"]')]
       .flatMap(region => [...region.querySelectorAll('span,p,div')])
       .filter(element => {
         const text = clean(element.innerText || element.textContent);

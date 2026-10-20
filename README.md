@@ -2,6 +2,8 @@
 
 # VocaLume
 
+Browser patch **4.4.6** adds Discord message translation; it works with desktop **4.4.5**. See [verification and language settings](docs/retests/4.4.6-extension.md). The public preview installer link above remains 4.4.5.
+
 ![Extension icon](./icon-preview.png)
 
 A local-first desktop app and Chromium extension for multilingual live captions, website translation, and reviewable translated replies. It can caption audio from the active browser tab and translate visible titles, comments, posts, and live chat without automatically submitting anything.

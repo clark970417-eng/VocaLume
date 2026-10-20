@@ -2,6 +2,12 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## Extension 4.4.6 - 2026-10-20
+
+- Add dedicated Discord message-body selection. Translate complete multi-line messages below each message instead of channel titles, usernames, role labels or live-region announcements.
+- Enable Discord as a dedicated site and show it in the extension's supported-site hint. The selected reading language still controls which messages translate.
+- This browser-only patch is compatible with desktop 4.4.5; the desktop app and public 4.4.5 installers are unchanged.
+
 ## 4.4.5 - 2026-10-18
 
 ### YouTube navigation and recycled translations

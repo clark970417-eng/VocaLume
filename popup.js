@@ -40,7 +40,7 @@ loadTranslationStatus();
 chrome.storage.local.get('websiteTextEnabled').then(s=>$('#websiteText').checked=s.websiteTextEnabled!==false);
 $('#websiteText').onchange=()=>chrome.storage.local.set({websiteTextEnabled:$('#websiteText').checked});
 
-const dedicatedHosts=['youtube.com','x.com','twitter.com','bilibili.com','tiktok.com','twitch.tv','facebook.com','instagram.com'];
+const dedicatedHosts=['youtube.com','x.com','twitter.com','bilibili.com','tiktok.com','twitch.tv','facebook.com','instagram.com','discord.com','discordapp.com'];
 const isDedicatedHost=host=>dedicatedHosts.some(domain=>host===domain||host.endsWith('.'+domain));
 let currentSiteHost='';
 async function loadCurrentSiteAccess(){
