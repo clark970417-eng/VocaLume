@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current source **4.4.8** reduces duplicate local translation work in the desktop app and extension, and keeps website text translation **off until you opt in**. See [measured scope](docs/retests/4.4.8.md) and [Discord settings](docs/retests/4.4.6-extension.md). The public preview installer link above remains 4.4.5; no 4.4.8 installer release has been published.
+Current extension source **4.4.9** organizes the popup into **Read / Write / Listen / Settings**, with guided actions, automatic saving and one-click language swaps. Website text translation stays **off until you opt in**. See the [popup guide](docs/extension-guide.md) and [verification](docs/retests/4.4.9-extension.md). Desktop source remains **4.4.8**, including [duplicate-request speed improvements](docs/retests/4.4.8.md). Public preview downloads above remain **4.4.5**; these newer source changes have not been published as installer releases.
 
 ![Extension icon](./icon-preview.png)
 

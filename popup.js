@@ -1,81 +1,346 @@
-import {captureStatus} from "./capture-status.mjs";
-const $=s=>document.querySelector(s);
-const languageOptions=[['ja','日本語'],['en','English'],['zh','繁體中文'],['ko','한국어'],['es','Español'],['fr','Français'],['de','Deutsch'],['pt','Português'],['it','Italiano'],['ru','Русский'],['th','ไทย'],['vi','Tiếng Việt'],['id','Bahasa Indonesia'],['ar','العربية']];
-const languageDefaults={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
-const languageIds=Object.keys(languageDefaults);
-for(const id of languageIds.filter(id=>id!=='syncTextLanguages')){const select=$('#'+id);for(const [value,label] of languageOptions)select.add(new Option(label,value));}
-async function loadLanguages(){const saved=(await chrome.storage.local.get('languageSettings')).languageSettings||{};const value={...languageDefaults,...saved};for(const id of languageIds){if(id==='syncTextLanguages')$('#'+id).checked=Boolean(value[id]);else $('#'+id).value=value[id];}applySync();}
-function applySync(){const synced=$('#syncTextLanguages').checked;$('#typeSource').disabled=synced;$('#typeTarget').disabled=synced;if(synced){$('#typeSource').value=$('#readTarget').value;$('#typeTarget').value=$('#readSource').value;}}
-async function saveLanguages(){applySync();const value={};for(const id of languageIds)value[id]=id==='syncTextLanguages'?$('#'+id).checked:$('#'+id).value;if(value.readSource===value.readTarget||value.typeSource===value.typeTarget||value.speechSource===value.speechTarget){$('#languageStatus').textContent='來源和目標語言不能相同。';return;}await chrome.storage.local.set({languageSettings:value});$('#languageStatus').textContent='已套用；網站文字立即更新，語音設定於下次開始時生效。';}
-for(const id of languageIds)$('#'+id).addEventListener('change',saveLanguages);
-$('#extensionVersion').textContent='v'+chrome.runtime.getManifest().version;
-chrome.storage.local.get('speechMode').then(s=>$('#engineMode').value=s.speechMode==='desktop'?'desktop':'browser');
-$('#engineMode').onchange=()=>chrome.storage.local.set({speechMode:$('#engineMode').value});
-const defaults={japaneseColor:"#ffffff",chineseColor:"#ffffff",fontSize:22,showOutline:true,outlineColor:"#000000",outlineWidth:1,captionOpacity:100,backgroundColor:"#000000",backgroundOpacity:60,position:6,holdSeconds:3,captionMode:'realtime'};
-const send=m=>new Promise((resolve,reject)=>chrome.runtime.sendMessage(m,r=>chrome.runtime.lastError||!r?.ok?reject(new Error(r?.error||"無法連線")):resolve(r.text)));
-const controls=["japaneseColor","chineseColor","fontSize","showOutline","outlineColor","outlineWidth","position","holdSeconds","captionMode","backgroundColor","backgroundOpacity","captionOpacity"];
-function values(){return Object.fromEntries(controls.map(id=>[id,id==="showOutline"?$("#"+id).checked:["fontSize","outlineWidth","position","holdSeconds","backgroundOpacity","captionOpacity"].includes(id)?Number($("#"+id).value):$("#"+id).value]))}
-function paintLabels(){const preview=$("#captionPreview"),outline=$("#showOutline").checked&&Number($("#outlineWidth").value)>0,color=$("#outlineColor").value;preview.style.backgroundColor=$("#backgroundColor").value+Math.round(Number($("#backgroundOpacity").value)*2.55).toString(16).padStart(2,"0");$("#outlineColor").disabled=!$("#showOutline").checked;$("#outlineWidth").disabled=!$("#showOutline").checked;preview.style.webkitTextStroke=outline?`0.4px ${color}`:"0 transparent";preview.style.textShadow=outline?`0 0 2px ${color}`:"none";preview.style.opacity=Number($("#captionOpacity").value)/100;preview.style.fontSize=Math.min(26,Number($("#fontSize").value))+"px";$("#previewJa").style.color=$("#japaneseColor").value;$("#previewZh").style.color=$("#chineseColor").value;$("#captionOpacityValue").textContent=`${$("#captionOpacity").value}%`;$("#backgroundOpacityValue").textContent=`${$("#backgroundOpacity").value}%`;$("#holdSecondsValue").textContent=`${$("#holdSeconds").value} 秒`;$("#fontSizeValue").textContent=`${$("#fontSize").value} px`;$("#outlineWidthValue").textContent=`${$("#outlineWidth").value} px`}
-async function saveSettings(){await chrome.storage.local.set({subtitleSettings:values()});paintLabels()}
-async function loadSettings(){let {subtitleSettings={},captionStyleV34}=await chrome.storage.local.get(["subtitleSettings","captionStyleV34"]);if(!captionStyleV34){subtitleSettings={...subtitleSettings,fontSize:22,japaneseColor:"#ffffff",chineseColor:"#ffffff",outlineWidth:1,backgroundColor:"#000000",backgroundOpacity:60};await chrome.storage.local.set({subtitleSettings,captionStyleV34:true});}const value={...defaults,...subtitleSettings};controls.forEach(id=>{if(id==="showOutline")$("#"+id).checked=Boolean(value[id]);else $("#"+id).value=value[id]});paintLabels()}
+import {captureStatus} from './capture-status.mjs';
 
-async function refresh(){try{const d=await send({type:"health"});$("#status").textContent=d.lastError?`提示：${d.lastError}`:captureStatus(d);$('#recordingStatus').textContent=`等待翻譯 ${d.recordingPending||0} 句 · 失敗 ${d.recordingFailed||0} 句`;const x=d.diagnostics||{};const metric=name=>{const m=x.metrics?.[name];return m?`${m.p50} / ${m.p95} ms`:'尚無資料';};$("#diagnostics").textContent=`音訊：${x.frames||0} 區塊\n音量 RMS：${(x.level||0).toFixed(5)}\nVAD 樣本（最多 120）：${x.metrics?.vadMs?.count||0}\n辨識模型：${x.model||"—"} ${x.dtype||""}\n人聲機率：${Math.round((x.probability||0)*100)}%\n模型：${x.ready?'就緒':'尚未就緒'}\n單段處理（桌面模式含翻譯）：${x.decodeMs||0} ms\n翻譯：${x.translationMs||0} ms\n音訊結束到中文：${x.chineseLagMs||0} ms\n首段暫定文字 P50/P95：${metric('firstTokenMs')}\n首段處理完成 P50/P95：${metric('firstJapaneseMs')}\n單段處理 P50/P95：${metric('decodeMs')}\n排隊 P50/P95：${metric('queueMs')}\n節能調整：${x.performance?.thermalState||'unknown'}${x.performance?.coolingDown?'（冷卻恢復中）':''} · ${x.performance?.previewsPaused?'暫停草稿，優先完成句子':`草稿間隔 ${x.cadenceMs||500} ms`}\n節能略過草稿：${x.previewsSkipped||0}\n待處理：${x.queueDepth||0}\n略過過期音訊：${x.dropped||0}\n不可靠結果：${x.rejected||0}\n音訊重同步：${x.overruns||0}`;$("#start").disabled=d.running||d.controlBusy||d.draining;$("#stop").disabled=!d.running||d.controlBusy}catch(e){$("#status").textContent=e.message}}
-controls.forEach(id=>$("#"+id).addEventListener("input",saveSettings));
-$("#reset").onclick=async()=>{controls.forEach(id=>{if(id==="showOutline")$("#"+id).checked=defaults[id];else $("#"+id).value=defaults[id]});await saveSettings()};
-$("#start").onclick=async()=>{$("#status").textContent="正在擷取聲音…";$("#start").disabled=true;try{const[tab]=await chrome.tabs.query({active:true,currentWindow:true});if(!tab?.id)throw new Error("請先選擇影片分頁");await send({type:"subtitle-control",action:"start",tabId:tab.id});await refresh()}catch(e){$("#status").textContent=`提示：${e.message}`}};
-$("#stop").onclick=async()=>{await send({type:"subtitle-control",action:"stop"});refresh()};
-loadSettings();loadLanguages();refresh();setInterval(refresh,1500);
-async function loadTranslationStatus(){
- const values=await chrome.storage.local.get(['nvidiaKey','openrouterKey']);
- for(const id of ['nvidiaKey','openrouterKey'])$('#'+id).placeholder=values[id]?'已儲存（留空保留）':'尚未設定';
+const $ = selector => document.querySelector(selector);
+const $$ = selector => [...document.querySelectorAll(selector)];
+const panels = ['read', 'write', 'speech', 'settings'];
+const languageOptions = [
+  ['ja', '日文'], ['en', '英文'], ['zh', '繁體中文'], ['ko', '韓文'],
+  ['es', '西班牙文'], ['fr', '法文'], ['de', '德文'], ['pt', '葡萄牙文'],
+  ['it', '義大利文'], ['ru', '俄文'], ['th', '泰文'], ['vi', '越南文'],
+  ['id', '印尼文'], ['ar', '阿拉伯文'],
+];
+const languageLabel = value => languageOptions.find(([code]) => code === value)?.[1] || value;
+const languageDefaults = {readSource: 'ja', readTarget: 'zh', typeSource: 'zh', typeTarget: 'ja', speechSource: 'ja', speechTarget: 'zh', syncTextLanguages: true};
+const languageIds = Object.keys(languageDefaults);
+const defaults = {japaneseColor: '#ffffff', chineseColor: '#ffffff', fontSize: 22, showOutline: true, outlineColor: '#000000', outlineWidth: 1, captionOpacity: 100, backgroundColor: '#000000', backgroundOpacity: 60, position: 6, holdSeconds: 3, captionMode: 'realtime'};
+const controls = Object.keys(defaults);
+const numericControls = ['fontSize', 'outlineWidth', 'position', 'holdSeconds', 'backgroundOpacity', 'captionOpacity'];
+const dedicatedHosts = ['youtube.com', 'x.com', 'twitter.com', 'bilibili.com', 'tiktok.com', 'twitch.tv', 'facebook.com', 'instagram.com', 'discord.com', 'discordapp.com'];
+const isDedicatedHost = host => dedicatedHosts.some(domain => host === domain || host.endsWith('.' + domain));
+let currentSiteHost = '';
+let supportedTab = false;
+let initialized = false;
+let navigated = false;
+let healthReady = false;
+let lastHealth = {};
+let refreshing = false;
+let pendingAction = '';
+let actionError = '';
+let connectionError = '';
+
+function feedback(message, state = 'saved') {
+  $('#languageStatus').textContent = message;
+  $('footer').dataset.state = state;
 }
-$('#saveTranslation').onclick=async()=>{
- const values={};for(const id of ['nvidiaKey','openrouterKey']){const value=$('#'+id).value.trim();if(value)values[id]=value;}
- await chrome.storage.local.set(values);
- for(const id of ['nvidiaKey','openrouterKey'])$('#'+id).value='';
- $('#translationStatus').textContent='已儲存。下一次翻譯會使用新設定。';await loadTranslationStatus();
-};
-loadTranslationStatus();
-
-chrome.storage.local.get('websiteTextOptInEnabled').then(s=>$('#websiteText').checked=s.websiteTextOptInEnabled === true);
-$('#websiteText').onchange=()=>chrome.storage.local.set({websiteTextOptInEnabled:$('#websiteText').checked});
-
-const dedicatedHosts=['youtube.com','x.com','twitter.com','bilibili.com','tiktok.com','twitch.tv','facebook.com','instagram.com','discord.com','discordapp.com'];
-const isDedicatedHost=host=>dedicatedHosts.some(domain=>host===domain||host.endsWith('.'+domain));
-let currentSiteHost='';
-async function loadCurrentSiteAccess(){
- const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
- let url;
- try{url=new URL(tab?.url||'');}catch{return;}
- if(!['http:','https:'].includes(url.protocol))return;
- currentSiteHost=url.hostname.toLowerCase();
- const section=$('#currentSiteSection'),toggle=$('#currentSiteTranslation');section.hidden=false;
- if(isDedicatedHost(currentSiteHost)){
-  $('#currentSiteLabel').textContent='此網站使用專用翻譯規則';
-  $('#currentSiteHint').textContent='需先開啟上方「網站文字翻譯」，此網站才會使用專用規則。';
-  toggle.checked=true;toggle.disabled=true;
-  return;
- }
- const {genericSiteAccess={}}=await chrome.storage.local.get('genericSiteAccess');
- $('#currentSiteLabel').textContent=`在 ${currentSiteHost} 啟用文字翻譯`;
- $('#currentSiteHint').textContent='一般網站預設關閉，避免聊天、文件或搜尋頁被自動翻譯。';
- toggle.checked=genericSiteAccess[currentSiteHost]===true;
+function listen(selector, event, callback) {
+  $(selector).addEventListener(event, (...args) => {
+    Promise.resolve().then(() => callback(...args)).catch(error => feedback(`尚未完成：${error.message}`, 'error'));
+  });
 }
-$('#currentSiteTranslation').onchange=async()=>{
- if(!currentSiteHost||isDedicatedHost(currentSiteHost))return;
- const {genericSiteAccess={}}=await chrome.storage.local.get('genericSiteAccess');
- const next={...genericSiteAccess};
- if($('#currentSiteTranslation').checked)next[currentSiteHost]=true;else delete next[currentSiteHost];
- await chrome.storage.local.set({genericSiteAccess:next});
-};
-loadCurrentSiteAccess();
+async function savePreferences(values, message = '已儲存設定') {
+  await chrome.storage.local.set(values);
+  feedback(message);
+}
+function send(message) {
+  return new Promise((resolve, reject) => chrome.runtime.sendMessage(message, reply => {
+    const error = chrome.runtime.lastError?.message || (!reply?.ok && reply?.error);
+    if (error || !reply?.ok) reject(new Error(error || '無法連線，請重新開啟擴充功能再試'));
+    else resolve(reply.text);
+  }));
+}
 
-$('#exportRecording').onclick=async()=>{const entries=await send({type:'recording-export'});const text=entries.map(e=>new Date(e.createdAt).toLocaleString()+'\n'+e.original+'\n'+(e.translated||'[尚未翻譯]')).join('\n\n');const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='字幕記錄.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
-$('#retryRecording').onclick=async()=>{await send({type:'recording-retry'});refresh();};
+function showPanel(name, {focus = false, remember = true} = {}) {
+  const selected = panels.includes(name) ? name : 'read';
+  for (const panel of panels) {
+    const active = panel === selected;
+    $(`#panel-${panel}`).hidden = !active;
+    $(`#tab-${panel}`).setAttribute('aria-selected', String(active));
+    $(`#tab-${panel}`).tabIndex = active ? 0 : -1;
+  }
+  $('#textControls').hidden = !['read', 'write'].includes(selected);
+  $('.workspace').scrollTop = 0;
+  if (focus) $(`#tab-${selected}`).focus();
+  if (remember) {
+    navigated = true;
+    chrome.storage.local.set({popupPanel: selected}).catch(() => feedback('無法記住目前分頁，請稍後再試', 'error'));
+  }
+}
+for (const tab of $$('[role="tab"]')) {
+  tab.addEventListener('click', () => showPanel(tab.dataset.panel));
+  tab.addEventListener('keydown', event => {
+    const index = panels.indexOf(tab.dataset.panel);
+    const next = {ArrowRight: (index + 1) % panels.length, ArrowLeft: (index + panels.length - 1) % panels.length, Home: 0, End: panels.length - 1}[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    showPanel(panels[next], {focus: true});
+  });
+}
+listen('#goWriting', 'click', () => showPanel('write', {focus: true}));
+listen('#openAppearance', 'click', () => {
+  showPanel('settings', {focus: true});
+  $('#appearance').open = true;
+});
 
-$('#desktopSettings').onclick=async()=>{try{await send({type:'desktop-settings'});}catch(e){$('#status').textContent=e.message;}};
+for (const id of languageIds.filter(id => id !== 'syncTextLanguages')) {
+  for (const [value, label] of languageOptions) $('#' + id).add(new Option(label, value));
+}
+function applySync() {
+  const synced = $('#syncTextLanguages').checked;
+  $('#typeSource').disabled = synced;
+  $('#typeTarget').disabled = synced;
+  $('[data-swap="type"]').disabled = synced;
+  if (synced) {
+    $('#typeSource').value = $('#readTarget').value;
+    $('#typeTarget').value = $('#readSource').value;
+  }
+  $('#syncSummary').textContent = synced
+    ? `閱讀 ${languageLabel($('#readSource').value)} → ${languageLabel($('#readTarget').value)}，留言自動反向`
+    : '已分開設定，可自行選擇留言語言';
+  $('#writingOptions').hidden = $('#typeSource').value !== 'zh' || $('#typeTarget').value !== 'ja';
+}
+async function saveLanguages() {
+  applySync();
+  const value = Object.fromEntries(languageIds.map(id => [id, id === 'syncTextLanguages' ? $('#' + id).checked : $('#' + id).value]));
+  const invalid = [];
+  for (const [prefix, label] of [['read', '讀取文字'], ['type', '輸入留言'], ['speech', '語音字幕']]) {
+    const same = value[prefix + 'Source'] === value[prefix + 'Target'];
+    for (const suffix of ['Source', 'Target']) $('#' + prefix + suffix).setAttribute('aria-invalid', String(same));
+    if (same) invalid.push(label);
+  }
+  if (invalid.length) {
+    feedback(`${invalid.join('、')}的兩種語言須不同，尚未儲存。`, 'error');
+    return;
+  }
+  await savePreferences({languageSettings: value}, '語言已儲存；語音於下次開始時套用');
+}
+for (const id of languageIds) listen('#' + id, 'change', saveLanguages);
+for (const button of $$('[data-swap]')) {
+  button.addEventListener('click', () => {
+    if (button.disabled || !initialized) return;
+    const prefix = button.dataset.swap;
+    const source = $('#' + prefix + 'Source');
+    const target = $('#' + prefix + 'Target');
+    [source.value, target.value] = [target.value, source.value];
+    saveLanguages().catch(error => feedback(`語言尚未儲存：${error.message}`, 'error'));
+  });
+}
 
-chrome.storage.local.get('writingStyle').then(s=>$('#writingStyle').value=s.writingStyle||'general');
-$('#writingStyle').onchange=()=>chrome.storage.local.set({writingStyle:$('#writingStyle').value});
-chrome.storage.local.get('writingQuality').then(s=>$('#writingQuality').value=s.writingQuality==='quality'?'quality':'fast');
-$('#writingQuality').onchange=()=>chrome.storage.local.set({writingQuality:$('#writingQuality').value});
+function renderTextAccess() {
+  const enabled = $('#websiteText').checked;
+  const dedicated = isDedicatedHost(currentSiteHost);
+  $('#textToggleHint').textContent = enabled ? '已開啟 · 讀取文字與留言翻譯' : '關閉中 · 不會自動翻譯網站文字';
+  $('#currentSiteSection').hidden = false;
+  $('#currentSiteControl').hidden = !supportedTab || dedicated;
+  $('#currentSiteTranslation').disabled = !supportedTab || dedicated;
+  $('#currentSiteLabel').textContent = `允許 ${currentSiteHost} 翻譯`;
+  $('#currentSiteHint').textContent = !supportedTab
+    ? '請先打開要翻譯的網站，再點 VocaLume。'
+    : dedicated ? `${currentSiteHost.replace(/^www\./, '')} · 支援此網站${enabled ? '' : '，開啟上方開關即可使用'}`
+    : '此網站需另外允許，避免不需要的頁面被翻譯。';
+  $('#writingHint').textContent = !enabled ? '先開啟上方「網站文字翻譯」，留言框才會出現翻譯按鈕。'
+    : !supportedTab ? '請回到網站的留言框使用。'
+    : !dedicated && !$('#currentSiteTranslation').checked ? '還需開啟上方的網站開關，才能在此頁翻譯留言。'
+    : '適用於網站中可辨識的留言框；不會自動送出訊息。';
+}
+async function loadCurrentSiteAccess() {
+  const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+  let url;
+  try { url = new URL(tab?.url || ''); } catch { /* Internal pages have no usable URL. */ }
+  supportedTab = Boolean(url && ['http:', 'https:'].includes(url.protocol));
+  currentSiteHost = supportedTab ? url.hostname.toLowerCase() : '';
+  const {genericSiteAccess = {}} = await chrome.storage.local.get('genericSiteAccess');
+  $('#currentSiteTranslation').checked = supportedTab && (isDedicatedHost(currentSiteHost) || genericSiteAccess[currentSiteHost] === true);
+  renderTextAccess();
+  renderSpeech();
+}
+listen('#websiteText', 'change', async () => {
+  const chosen = $('#websiteText').checked;
+  try { await savePreferences({websiteTextOptInEnabled: chosen}, chosen ? '網站文字翻譯已開啟' : '網站文字翻譯已關閉；語音字幕不受影響'); }
+  catch (error) { $('#websiteText').checked = !chosen; throw error; }
+  finally { renderTextAccess(); }
+});
+listen('#currentSiteTranslation', 'change', async () => {
+  if (!currentSiteHost || isDedicatedHost(currentSiteHost)) return;
+  const chosen = $('#currentSiteTranslation').checked;
+  try {
+    const {genericSiteAccess = {}} = await chrome.storage.local.get('genericSiteAccess');
+    const next = {...genericSiteAccess};
+    if (chosen) next[currentSiteHost] = true;
+    else delete next[currentSiteHost];
+    await savePreferences({genericSiteAccess: next});
+  } catch (error) { $('#currentSiteTranslation').checked = !chosen; throw error; }
+  finally { renderTextAccess(); }
+});
+
+function subtitleValues() {
+  return Object.fromEntries(controls.map(id => [id, id === 'showOutline' ? $('#' + id).checked : numericControls.includes(id) ? Number($('#' + id).value) : $('#' + id).value]));
+}
+function paintLabels() {
+  const value = subtitleValues();
+  const preview = $('#captionPreview');
+  const outline = value.showOutline && value.outlineWidth > 0;
+  preview.style.backgroundColor = value.backgroundColor + Math.round(value.backgroundOpacity * 2.55).toString(16).padStart(2, '0');
+  $('#outlineColor').disabled = !value.showOutline;
+  $('#outlineWidth').disabled = !value.showOutline;
+  preview.style.webkitTextStroke = outline ? `0.4px ${value.outlineColor}` : '0 transparent';
+  preview.style.textShadow = outline ? `0 0 2px ${value.outlineColor}` : 'none';
+  preview.style.opacity = value.captionOpacity / 100;
+  preview.style.fontSize = Math.min(26, value.fontSize) + 'px';
+  $('#previewJa').style.color = value.japaneseColor;
+  $('#previewZh').style.color = value.chineseColor;
+  for (const [id, suffix] of [['captionOpacity', '%'], ['backgroundOpacity', '%'], ['holdSeconds', ' 秒'], ['fontSize', ' px'], ['outlineWidth', ' px']]) $('#' + id + 'Value').textContent = value[id] + suffix;
+}
+async function saveSettings() {
+  paintLabels();
+  await savePreferences({subtitleSettings: subtitleValues()});
+}
+for (const id of controls) listen('#' + id, 'input', saveSettings);
+listen('#reset', 'click', async () => {
+  for (const id of controls) {
+    if (id === 'showOutline') $('#' + id).checked = defaults[id];
+    else $('#' + id).value = defaults[id];
+  }
+  await saveSettings();
+});
+
+function renderEngine() {
+  const desktop = $('#engineMode').value === 'desktop';
+  $('#engineHint').textContent = desktop ? '需先安裝 VocaLume 桌面程式；開始時會自動啟動。' : '首次使用需下載辨識模型；文字翻譯需要網路連線。';
+  $('#desktopSettings').hidden = !desktop;
+}
+listen('#engineMode', 'change', async () => {
+  renderEngine();
+  await savePreferences({speechMode: $('#engineMode').value}, '翻譯方式已儲存；下次開始時套用');
+});
+for (const id of ['writingStyle', 'writingQuality']) listen('#' + id, 'change', () => savePreferences({[id]: $('#' + id).value}));
+
+function renderSpeech() {
+  const d = lastHealth;
+  const busy = Boolean(pendingAction || d.controlBusy || d.draining);
+  const error = actionError || connectionError || d.lastError;
+  const starting = pendingAction === 'start' && d.controlBusy && d.controlAction === 'start'
+    ? captureStatus(d).replace(/^●\s*/, '') : '正在啟動字幕…';
+  const message = pendingAction ? (pendingAction === 'start' ? starting : '正在停止收音…')
+    : error ? `提示：${error}`
+    : !supportedTab && !d.running && !d.draining ? '請回到影片或直播分頁，再開啟 VocaLume。'
+    : !healthReady ? '正在確認字幕狀態…'
+    : captureStatus(d).replace(/^●\s*/, '').replaceAll('日文', '原文').replaceAll('中文', '譯文');
+  $('#status').textContent = message;
+  $('#captureDot').dataset.state = error ? 'error' : d.running || busy ? 'active' : 'idle';
+  $('#start').disabled = !initialized || !healthReady || !supportedTab || Boolean(d.running) || busy;
+  $('#start').textContent = pendingAction === 'start' || (d.controlBusy && d.controlAction === 'start') ? '正在啟動…' : d.running ? '語音字幕運行中' : d.draining ? '正在完成剩餘字幕…' : '開始語音字幕';
+  $('#stop').hidden = !d.running && !busy;
+  $('#stop').disabled = !d.running || busy;
+  $('#retryRecording').disabled = !(d.recordingFailed > 0) || Boolean(d.controlBusy);
+  $('#recordingStatus').textContent = `等待翻譯 ${d.recordingPending || 0} 句 · 失敗 ${d.recordingFailed || 0} 句`;
+}
+function renderDiagnostics(d) {
+  const x = d.diagnostics || {};
+  const metric = name => { const m = x.metrics?.[name]; return m ? `${m.p50} / ${m.p95} ms` : '尚無資料'; };
+  $('#diagnostics').textContent = `音訊：${x.frames || 0} 區塊\n音量 RMS：${(x.level || 0).toFixed(5)}\nVAD 樣本（最多 120）：${x.metrics?.vadMs?.count || 0}\n辨識模型：${x.model || '—'} ${x.dtype || ''}\n人聲機率：${Math.round((x.probability || 0) * 100)}%\n模型：${x.ready ? '就緒' : '尚未就緒'}\n單段處理（桌面模式含翻譯）：${x.decodeMs || 0} ms\n翻譯：${x.translationMs || 0} ms\n音訊結束到譯文：${x.chineseLagMs || 0} ms\n首段暫定文字 P50/P95：${metric('firstTokenMs')}\n首段處理完成 P50/P95：${metric('firstJapaneseMs')}\n單段處理 P50/P95：${metric('decodeMs')}\n排隊 P50/P95：${metric('queueMs')}\n節能調整：${x.performance?.thermalState || 'unknown'}${x.performance?.coolingDown ? '（冷卻恢復中）' : ''} · ${x.performance?.previewsPaused ? '暫停草稿，優先完成句子' : `草稿間隔 ${x.cadenceMs || 500} ms`}\n節能略過草稿：${x.previewsSkipped || 0}\n待處理：${x.queueDepth || 0}\n略過過期音訊：${x.dropped || 0}\n不可靠結果：${x.rejected || 0}\n音訊重同步：${x.overruns || 0}${d.lastError ? '\n最近錯誤：' + d.lastError : ''}`;
+}
+async function refresh() {
+  if (refreshing) return;
+  refreshing = true;
+  try {
+    lastHealth = await send({type: 'health'});
+    healthReady = true;
+    connectionError = '';
+    renderDiagnostics(lastHealth);
+  } catch (error) { connectionError = error.message; }
+  finally { refreshing = false; renderSpeech(); }
+}
+async function controlSpeech(action) {
+  if (pendingAction) return;
+  pendingAction = action;
+  actionError = '';
+  renderSpeech();
+  try {
+    if (action === 'start') {
+      const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+      if (!tab?.id || !/^https?:\/\//.test(tab.url || '')) throw new Error('請先回到影片或直播分頁');
+      await send({type: 'subtitle-control', action, tabId: tab.id});
+    } else await send({type: 'subtitle-control', action});
+  } catch (error) { actionError = error.message; }
+  finally { pendingAction = ''; await refresh(); renderSpeech(); }
+}
+listen('#start', 'click', () => controlSpeech('start'));
+listen('#stop', 'click', () => controlSpeech('stop'));
+listen('#desktopSettings', 'click', async () => {
+  actionError = '';
+  try { await send({type: 'desktop-settings'}); feedback('已開啟桌面設定'); }
+  catch (error) { actionError = error.message; }
+  renderSpeech();
+});
+
+async function loadTranslationStatus() {
+  const values = await chrome.storage.local.get(['nvidiaKey', 'openrouterKey']);
+  for (const id of ['nvidiaKey', 'openrouterKey']) $('#' + id).placeholder = values[id] ? '已儲存（留空保留）' : '尚未設定';
+}
+listen('#saveTranslation', 'click', async () => {
+  const values = {};
+  for (const id of ['nvidiaKey', 'openrouterKey']) {
+    const value = $('#' + id).value.trim();
+    if (value) values[id] = value;
+  }
+  await savePreferences(values);
+  for (const id of ['nvidiaKey', 'openrouterKey']) $('#' + id).value = '';
+  $('#translationStatus').textContent = '已儲存。下次翻譯會使用新設定。';
+  await loadTranslationStatus();
+});
+listen('#exportRecording', 'click', async () => {
+  const entries = await send({type: 'recording-export'});
+  if (!entries.length) { $('#recordingFeedback').textContent = '還沒有字幕記錄，開始語音字幕後即可累積。'; return; }
+  const text = entries.map(entry => new Date(entry.createdAt).toLocaleString() + '\n' + entry.original + '\n' + (entry.translated || '[尚未翻譯]')).join('\n\n');
+  const url = URL.createObjectURL(new Blob([text], {type: 'text/plain;charset=utf-8'}));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'VocaLume 字幕記錄.txt';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $('#recordingFeedback').textContent = `已匯出 ${entries.length} 句字幕。`;
+});
+listen('#retryRecording', 'click', async () => {
+  await send({type: 'recording-retry'});
+  $('#recordingFeedback').textContent = '已重新加入翻譯佇列。';
+  await refresh();
+});
+
+async function initialize() {
+  $('#extensionVersion').textContent = 'v' + chrome.runtime.getManifest().version;
+  const saved = await chrome.storage.local.get(['languageSettings', 'subtitleSettings', 'captionStyleV34', 'speechMode', 'writingStyle', 'writingQuality', 'websiteTextOptInEnabled', 'popupPanel']);
+  const languages = {...languageDefaults, ...saved.languageSettings};
+  for (const id of languageIds) {
+    if (id === 'syncTextLanguages') $('#' + id).checked = Boolean(languages[id]);
+    else $('#' + id).value = languageOptions.some(([code]) => code === languages[id]) ? languages[id] : languageDefaults[id];
+  }
+  applySync();
+  let subtitleSettings = saved.subtitleSettings || {};
+  if (!saved.captionStyleV34) {
+    subtitleSettings = {...subtitleSettings, fontSize: 22, japaneseColor: '#ffffff', chineseColor: '#ffffff', outlineWidth: 1, backgroundColor: '#000000', backgroundOpacity: 60};
+    await chrome.storage.local.set({subtitleSettings, captionStyleV34: true});
+  }
+  const subtitles = {...defaults, ...subtitleSettings};
+  for (const id of controls) {
+    if (id === 'showOutline') $('#' + id).checked = Boolean(subtitles[id]);
+    else $('#' + id).value = subtitles[id];
+  }
+  paintLabels();
+  $('#websiteText').checked = saved.websiteTextOptInEnabled === true;
+  $('#engineMode').value = saved.speechMode === 'desktop' ? 'desktop' : 'browser';
+  $('#writingStyle').value = ['general', 'viewer', 'polite'].includes(saved.writingStyle) ? saved.writingStyle : 'general';
+  $('#writingQuality').value = saved.writingQuality === 'quality' ? 'quality' : 'fast';
+  renderEngine();
+  if (!navigated) showPanel(saved.popupPanel, {remember: false});
+  await Promise.all([loadCurrentSiteAccess(), loadTranslationStatus(), refresh()]);
+  initialized = true;
+  $('#controls').disabled = false;
+  $('main').setAttribute('aria-busy', 'false');
+  renderSpeech();
+  feedback('設定會自動儲存', 'idle');
+}
+initialize().catch(error => {
+  feedback(`無法讀取設定，請重新開啟：${error.message}`, 'error');
+  $('main').setAttribute('aria-busy', 'false');
+});
+setInterval(refresh, 1500);

@@ -2,6 +2,15 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## Extension 4.4.9 - 2026-10-25
+
+- Replace the long popup with four task tabs: Read text, Write replies, Listen to audio and Settings. Keep navigation and save feedback visible while advanced controls scroll.
+- Add guided reply steps, clear opt-in/site-access status, one-click language swaps, and an explanation of synchronized reading/writing directions. Preserve the existing 14 languages, preferences and manual text opt-in.
+- Put speech start/stop controls above the fold, retain model-loading progress, and keep failed actions visible and retryable. Preserve complete-sentence captions and pending translations after stopping capture.
+- Group caption appearance, optional cloud keys and diagnostics under Settings. Label original/translated text colors independently of the selected language; keep outline and background controls separate.
+- Add keyboard tab navigation, labeled controls, persistent task selection, and empty transcript guidance. See the [quick guide](docs/extension-guide.md) and [verification](docs/retests/4.4.9-extension.md).
+- This is an extension-only update. Desktop remains 4.4.8; public preview installers remain 4.4.5.
+
 ## 4.4.8 - 2026-10-25
 
 - Coalesce identical local translation requests. Completed results are reused for five minutes in a bounded, memory-only desktop cache; language direction, model options, writing style, full text and terminology remain part of the key.
