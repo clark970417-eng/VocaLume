@@ -38,3 +38,31 @@ it('accepts bounded capture evidence and ignores invalid or missing window metad
  for(const speechEndSample of [NaN,-1,0,24001,1.5])expect(speechEvidenceFor(1,1.5,{segment:'1:1',speechEndSample})).toEqual({speechSeconds:1})
  expect(speechEvidenceFor(2,1.5,{segment:'1:1',speechEndSample:16000})).toBeUndefined()
 })
+
+it('reuses an exact repeated speech window without requiring more quiet audio',()=>{
+ const cache=new RecognitionCheckpoint(), speech=audio.slice(0,16000)
+ cache.remember(speech,16000,evidence,result,'ja:terms1')
+ expect(cache.reuse(speech.slice(),16000,evidence,'ja:terms1')?.text).toBe(result.text)
+ expect(cache.reuse(speech,16000,evidence,'ja:terms2')).toBeNull()
+ expect(cache.reuse(speech,16000,{...evidence,captureStartSample:512},'ja:terms1')).toBeNull()
+ // One unfinished hypothesis cannot substitute for a final decode.
+ expect(cache.reuse(audio,16000,evidence,'ja:terms1')).toBeNull()
+})
+
+it('reuses two agreeing speech hypotheses only after verified quiet and unchanged evidence',()=>{
+ const cache=new RecognitionCheckpoint(), speech=audio.slice(0,16000)
+ cache.remember(speech,16000,evidence,result)
+ const moreSpeech=speech.slice();moreSpeech[500]=.2
+ cache.remember(moreSpeech,16000,evidence,result)
+ const padded=new Float32Array(24000);padded.set(moreSpeech)
+ // An edited prefix is not a second hypothesis on the same captured speech.
+ expect(cache.reuse(padded,16000,evidence)).toBeNull()
+ cache.remember(moreSpeech,16000,evidence,result)
+ expect(cache.reuse(padded,16000,evidence)?.text).toBe(result.text)
+ expect(cache.reuse(padded.slice(0,18000),16000,evidence)).toBeNull()
+ padded.fill(.02,18000,18512)
+ expect(cache.reuse(padded,16000,evidence)).toBeNull()
+ padded.fill(0,18000,18512)
+ expect(cache.reuse(padded,16000,{...evidence,speechEndSample:18512})).toBeNull()
+ expect(cache.reuse(padded,16000,{...evidence,speechSeconds:1.032})).toBeNull()
+})

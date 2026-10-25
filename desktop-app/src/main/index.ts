@@ -1,4 +1,5 @@
 import { updatePerformanceState } from './performance-state'
+import { bindMemoryPressure } from './memory-pressure'
 import { isUiTest } from './ui-test-mode'
 import { initAutoUpdater } from './auto-updater'
 import type { Language } from '../engines/types'
@@ -65,9 +66,11 @@ const log = createLogger('main')
 // Shared state — getter/setter backed so closures never hold stale references (#429)
 const ctx = createAppContext()
 let releasePipelineActivity: (() => void) | undefined
+let releaseMemoryPressure: (() => void) | undefined
 
 async function initPipeline(): Promise<void> {
   releasePipelineActivity?.()
+  releaseMemoryPressure?.()
   // Remove all event listeners and dispose previous pipeline to prevent
   // listener accumulation on reinitialization (#383, #428)
   if (ctx.pipeline) {
@@ -78,6 +81,7 @@ async function initPipeline(): Promise<void> {
 
   ctx.pipeline = new TranslationPipeline()
   releasePipelineActivity = bindPipelineActivity(ctx.pipeline, powerSaveBlocker)
+  releaseMemoryPressure = bindMemoryPressure(ctx.pipeline, memoryPressure => updatePerformanceState({ memoryPressure }))
 
   // Register STT engines
   ctx.pipeline.registerSTT('whisper-local', () => new WhisperLocalEngine({
@@ -454,6 +458,7 @@ app.on('before-quit', (event) => {
   ;(async () => {
     try {
       releasePipelineActivity?.()
+      releaseMemoryPressure?.()
       cleanupDisplayHandlers?.()
       cleanupDisplayHandlers = null
       cleanupShortcuts?.()

@@ -239,6 +239,7 @@ export class TranslationPipeline extends EventEmitter {
     this.translationCache.clear()
     this.streaming.resetSourceContext()
     this.glossary = glossary.map(entry => ({ ...entry }))
+    this.engineManager.sttEngine?.setVocabularyHints?.(this.glossary.map(entry => entry.source))
     this.adaptiveRouter.setGlossary(glossary)
   }
 
@@ -349,6 +350,7 @@ export class TranslationPipeline extends EventEmitter {
       await this.engineManager.disposeEngines()
       await this.engineManager.initializeEngines(config, this)
       this.engineManager.sttEngine?.setLanguage?.(this.sourceLanguage)
+      this.engineManager.sttEngine?.setVocabularyHints?.(this.glossary.map(entry => entry.source))
 
       // Initialize draft STT if enabled (#536)
       if (this.draftSttEnabled) {

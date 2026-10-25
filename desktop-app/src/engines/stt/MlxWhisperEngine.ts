@@ -8,6 +8,7 @@ import type { STTEngine, STTResult, Language, SourceLanguage, SpeechEvidence } f
 import { ALL_LANGUAGES } from '../types'
 import { SubprocessBridge, type SpawnConfig, type InitResult, getEnrichedPath, resolveBridgeScript } from '../SubprocessBridge'
 import { MLX_MODULE_PROBE } from './mlx-module-probe'
+import { boundedRecognitionVocabulary } from './recognition-vocabulary'
 import { MLX_WHISPER_TRANSCRIBE_TIMEOUT_MS, MLX_WHISPER_INIT_TIMEOUT_MS, PYTHON_IMPORT_CHECK_TIMEOUT_MS } from '../constants'
 
 export class MlxWhisperEngine extends SubprocessBridge implements STTEngine {
@@ -16,6 +17,7 @@ export class MlxWhisperEngine extends SubprocessBridge implements STTEngine {
   readonly isOffline = true
 
   private language?: Language
+  private vocabulary: string[] = []
   private model: string
   private onProgress?: (message: string) => void
   private lifecycle = 0
@@ -35,6 +37,10 @@ export class MlxWhisperEngine extends SubprocessBridge implements STTEngine {
 
   setLanguage(language: SourceLanguage): void {
     this.language = language === 'auto' ? undefined : language
+  }
+
+  setVocabularyHints(terms: readonly string[]): void {
+    this.vocabulary = boundedRecognitionVocabulary(terms)
   }
 
   protected getLogPrefix(): string {
@@ -99,17 +105,22 @@ export class MlxWhisperEngine extends SubprocessBridge implements STTEngine {
     }
 
     const lifecycle = this.lifecycle
-    const tempPath = join(tmpdir(), `mlx-whisper-${randomUUID()}.wav`)
+    // Live windows are bounded at 12 s / 16 kHz. Send the same PCM16 bytes
+    // directly instead of writing and deleting a WAV on the swap-heavy disk.
+    // Longer file inputs retain the existing file path to bound IPC payloads.
+    const inline = audioChunk.length <= 320_000
+    const tempPath = inline ? undefined : join(tmpdir(), `mlx-whisper-${randomUUID()}.wav`)
     try {
-      writeWav(tempPath, audioChunk, sampleRate)
+      if (tempPath) writeWav(tempPath, audioChunk, sampleRate)
 
       let result: Record<string, unknown>
       try {
         result = await this.sendCommand({
           action: 'transcribe',
-          audio_path: tempPath,
+          ...(tempPath ? { audio_path: tempPath } : { audio_pcm16: encodePCM16(audioChunk).toString('base64') }),
           sample_rate: sampleRate,
-          language: this.language
+          language: this.language,
+          ...(this.language === 'ja' && this.vocabulary.length ? { initial_prompt: this.vocabulary.join('、') } : {})
         })
       } catch (err) {
         // Timeout or bridge error — return null per interface contract
@@ -155,9 +166,19 @@ export class MlxWhisperEngine extends SubprocessBridge implements STTEngine {
         timestamp: Date.now()
       }
     } finally {
-      try { unlinkSync(tempPath) } catch (e) { this.log.warn('Failed to delete temp file:', e) }
+      if (tempPath) try { unlinkSync(tempPath) } catch (e) { this.log.warn('Failed to delete temp file:', e) }
     }
   }
+}
+
+/** Keep quantization byte-identical to the former WAV transport. */
+function encodePCM16(samples: Float32Array): Buffer {
+  const pcm = Buffer.alloc(samples.length * 2)
+  for (let i = 0; i < samples.length; i++) {
+    const sample = Math.max(-1, Math.min(1, samples[i]))
+    pcm.writeInt16LE(Math.round(sample * 32767), i * 2)
+  }
+  return pcm
 }
 
 /** Find a python3 binary that has mlx_whisper installed */
@@ -221,11 +242,7 @@ function writeWav(path: string, samples: Float32Array, sampleRate: number): void
   buffer.write('data', 36)
   buffer.writeUInt32LE(dataSize, 40)
 
-  // Convert Float32 [-1, 1] to Int16
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]))
-    buffer.writeInt16LE(Math.round(s * 32767), 44 + i * 2)
-  }
+  encodePCM16(samples).copy(buffer, 44)
 
   writeFileSync(path, buffer)
 }

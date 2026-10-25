@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 Python subprocess bridge for mlx-whisper STT.
-Receives PCM audio data via stdin (as raw bytes), outputs JSON results via stdout.
+Receives line-delimited JSON audio requests, outputs JSON results via stdout.
 
 Protocol:
-  Input (one per line): JSON {"action": "transcribe", "audio_path": "/tmp/audio.pcm", "sample_rate": 16000}
+  Input: {"action": "transcribe", "audio_pcm16": "<base64 mono PCM16>", "sample_rate": 16000}
+  Legacy/file input: {"action": "transcribe", "audio_path": "/tmp/audio.wav"}
   Input: {"action": "init", "model": "mlx-community/whisper-large-v3-turbo"}
   Input: {"action": "dispose"}
   Output: JSON {"text": "...", "language": "ja"} or {"error": "..."}
@@ -16,6 +17,7 @@ import os
 import numpy as np
 import contextlib
 import wave
+import base64
 from pathlib import Path
 
 whisper_model = None
@@ -66,7 +68,7 @@ def init_model(model_name="mlx-community/whisper-large-v3-turbo"):
         whisper_model = None
         output({"error": str(e)})
 
-def transcribe(audio_path, sample_rate=16000, language=None):
+def transcribe(audio_path=None, sample_rate=16000, language=None, initial_prompt=None, audio_pcm16=None):
     global whisper_model
     if not whisper_model:
         output({"error": "Model not initialized"})
@@ -74,25 +76,38 @@ def transcribe(audio_path, sample_rate=16000, language=None):
 
     try:
         import mlx_whisper
-        # The native engine already writes mono PCM16 WAV. Decode it directly;
-        # a packaged app must not depend on ffmpeg being present in shell PATH.
-        with wave.open(audio_path, 'rb') as audio_file:
-            if audio_file.getnchannels() != 1 or audio_file.getsampwidth() != 2:
-                raise ValueError('Expected mono PCM16 WAV')
-            rate = audio_file.getframerate()
-            audio = np.frombuffer(audio_file.readframes(audio_file.getnframes()), dtype='<i2').astype(np.float32) / 32768.0
-        if rate != 16000:
+        # Short live audio stays in memory. Longer file input and older clients
+        # keep the WAV path, without an ffmpeg dependency in a packaged app.
+        if audio_pcm16 is not None:
+            if not isinstance(audio_pcm16, str) or len(audio_pcm16) > 853336:
+                raise ValueError('Invalid PCM payload')
+            pcm = base64.b64decode(audio_pcm16, validate=True)
+            if len(pcm) > 640000 or len(pcm) % 2 or type(sample_rate) is not int or not 1 <= sample_rate <= 192000:
+                raise ValueError('Invalid PCM format')
+            rate = sample_rate
+            audio = np.frombuffer(pcm, dtype='<i2').astype(np.float32) / 32768.0
+        else:
+            with wave.open(audio_path, 'rb') as audio_file:
+                if audio_file.getnchannels() != 1 or audio_file.getsampwidth() != 2:
+                    raise ValueError('Expected mono PCM16 WAV')
+                rate = audio_file.getframerate()
+                audio = np.frombuffer(audio_file.readframes(audio_file.getnframes()), dtype='<i2').astype(np.float32) / 32768.0
+        if len(audio) and rate != 16000:
             audio = np.interp(np.arange(round(len(audio) * 16000 / rate)) * rate / 16000,
                               np.arange(len(audio)), audio).astype(np.float32)
         if not len(audio) or float(np.max(np.abs(audio))) < 0.00003:
             output({"text": "", "language": "ja"})
             return
         with contextlib.redirect_stdout(sys.stderr):
+            # The caller supplies a short vocabulary list, never previous
+            # Chinese captions. Other languages and auto detection stay unbiased.
+            hints = {"initial_prompt": initial_prompt} if language == 'ja' and isinstance(initial_prompt, str) and len(initial_prompt) <= 128 else {}
             result = mlx_whisper.transcribe(
                 audio, path_or_hf_repo=whisper_model,
                 language=language, condition_on_previous_text=False,
                 temperature=0, verbose=False,
                 sample_len=min(448, max(48, int(len(audio) / 16000 * 24) + 24)),
+                **hints,
             )
 
         segments = result.get("segments", [])
@@ -130,7 +145,7 @@ def main():
             if action == "init":
                 init_model(msg.get("model", "mlx-community/whisper-large-v3-turbo"))
             elif action == "transcribe":
-                transcribe(msg["audio_path"], msg.get("sample_rate", 16000), msg.get("language"))
+                transcribe(msg.get("audio_path"), msg.get("sample_rate", 16000), msg.get("language"), msg.get("initial_prompt"), msg.get("audio_pcm16"))
             elif action == "dispose":
                 output({"disposed": True})
                 sys.exit(0)

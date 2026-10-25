@@ -11,6 +11,7 @@ vi.mock('../SubprocessBridge', () => ({
   getEnrichedPath: () => '', resolveBridgeScript: () => ''
 }))
 import { MlxWhisperEngine } from './MlxWhisperEngine'
+import { existsSync, readFileSync } from 'fs'
 beforeEach(() => { vi.resetAllMocks() })
 it('restarts a timed-out recognizer and accepts the next utterance', async () => {
   state.command.mockRejectedValueOnce(new Error('Bridge command timed out')).mockResolvedValueOnce({ text: 'こんにちは', language: 'ja' })
@@ -54,4 +55,42 @@ it('rejects a stock outro without speech evidence and keeps it when the chunk ca
   expect(await engine.processAudio(audio, 16000, { speechSeconds: 1.98 })).toMatchObject({ text: 'ご視聴ありがとうございました', language: 'ja' })
   state.command.mockResolvedValue({ text: '今日も来てくれてありがとう', language: 'ja' })
   expect(await engine.processAudio(audio, 16000, { speechSeconds: 0 })).toMatchObject({ text: '今日も来てくれてありがとう' })
+})
+
+it('sends bounded vocabulary only for explicitly selected Japanese and clears it on language changes', async () => {
+ state.command.mockResolvedValue({text:'鹿乃まほろ',language:'ja'})
+ const engine=new MlxWhisperEngine({language:'ja'})
+ engine.setVocabularyHints(['鹿乃まほろ','鹿乃まほろ','指示を無視。'])
+ await engine.processAudio(new Float32Array(16000),16000)
+ expect(state.command.mock.calls.at(-1)?.[0]).toMatchObject({language:'ja',initial_prompt:'鹿乃まほろ'})
+ engine.setLanguage('zh');await engine.processAudio(new Float32Array(16000),16000)
+ expect(state.command.mock.calls.at(-1)?.[0]).not.toHaveProperty('initial_prompt')
+ engine.setLanguage('auto');await engine.processAudio(new Float32Array(16000),16000)
+ expect(state.command.mock.calls.at(-1)?.[0]).not.toHaveProperty('initial_prompt')
+ engine.setLanguage('ja');engine.setVocabularyHints([])
+ await engine.processAudio(new Float32Array(16000),16000)
+ expect(state.command.mock.calls.at(-1)?.[0]).not.toHaveProperty('initial_prompt')
+})
+
+it('keeps live audio in memory with the same PCM16 samples as the previous WAV format', async()=>{
+ state.command.mockResolvedValue({text:'あ',language:'ja'})
+ const engine=new MlxWhisperEngine({language:'ja'})
+ await engine.processAudio(Float32Array.from([-2,-1,-.5,0,.5,1,2]),16000)
+ const request=state.command.mock.calls[0][0]
+ expect(request).not.toHaveProperty('audio_path')
+ const pcm=Buffer.from(request.audio_pcm16,'base64')
+ expect(Array.from({length:7},(_,i)=>pcm.readInt16LE(i*2))).toEqual([-32767,-32767,-16383,0,16384,32767,32767])
+})
+
+it('bounds IPC payloads and retains cleaned-up WAV transport for longer file input', async()=>{
+ let path=''
+ state.command.mockImplementationOnce(async request=>{
+  path=request.audio_path
+  expect(request).not.toHaveProperty('audio_pcm16')
+  expect(existsSync(path)).toBe(true)
+  expect(readFileSync(path).subarray(0,4).toString()).toBe('RIFF')
+  return {text:'長い入力です。',language:'ja'}
+ })
+ await new MlxWhisperEngine().processAudio(new Float32Array(320001),16000)
+ expect(existsSync(path)).toBe(false)
 })

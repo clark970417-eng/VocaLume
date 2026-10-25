@@ -100,6 +100,8 @@ export interface SpeechEvidence {
 export interface STTEngine {
   /** Apply a known source language, or restore automatic detection. */
   setLanguage?(language: SourceLanguage): void
+  /** Short source-language terms, not generated translations or instructions. */
+  setVocabularyHints?(terms: readonly string[]): void
   readonly id: string
   readonly name: string
   readonly isOffline: boolean

@@ -1,0 +1,483 @@
+{
+  "baseline": "c899041340781361675021e5078a77d7c4e2340d",
+  "candidate": "4.5.3",
+  "fixture": "tests/japanese-fixture.wav",
+  "recognition": {
+    "before": [
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "initializationMs": 2598.164625
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "creator",
+        "reference": "こんまほ。鹿乃まほろです。今日は一緒にゲームを楽しみましょう。",
+        "source": "コンマホ、カノマホローです。今日は一緒にゲームを楽しみましょう。",
+        "durationMs": 413.64350000000013,
+        "audioSeconds": 5.01075,
+        "characterErrorRate": 0.35714285714285715,
+        "sha256": "96cd78e222f0bb7be182e79200d654fdc84c607bb1c715db7f13ca3e76750df5",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "pokemon",
+        "reference": "ポケモンのニャオハを進化させます。まだ色違いではありません。",
+        "source": "ポケモンのニャオハを進化させますまだ色違いではありません",
+        "durationMs": 398.4110410000003,
+        "audioSeconds": 4.7241875,
+        "characterErrorRate": 0,
+        "sha256": "39c8257277cc06354a40ab8b7b93f078d43b4043c85657cbb10b0bc7f632d982",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "shooter",
+        "reference": "ヴァンダルをリロードします。スパイクはまだ設置しません。",
+        "source": "バンダルをリロードします。スパイクはまだ設置しません。",
+        "durationMs": 382.2455839999998,
+        "audioSeconds": 4.043,
+        "characterErrorRate": 0.07692307692307693,
+        "sha256": "063d257e4ad1fc017bc97c3d9ca0b86a608bd32d6fe76e4cb6445f376d7493b4",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "negative",
+        "reference": "赤いボタンは押さないでください。右ではなく左です。",
+        "source": "赤いボタンは押さないでください。右ではなく左です。",
+        "durationMs": 381.705833,
+        "audioSeconds": 3.9248125,
+        "characterErrorRate": 0,
+        "sha256": "29352e4d27526c155285423473f7de7054e027ee2cecfa63da48a2e3e8d02648",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "schedule",
+        "reference": "明日は配信しません。来週の金曜日に変更です。",
+        "source": "明日は配信しません。来週の金曜日に変更です。",
+        "durationMs": 381.5942500000001,
+        "audioSeconds": 4.2619375,
+        "characterErrorRate": 0,
+        "sha256": "12cd56b8b1dae4d9d468795060cce4decb4b5acd5589472baa17428a67680fd8",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "fish",
+        "reference": "こんにちは。今日は魚が逃げてしまいました。来てくれてありがとうございます。",
+        "source": "こんにちは。今日は魚が逃げてしまいました。来てくれてありがとうございます。",
+        "durationMs": 377.0884589999996,
+        "audioSeconds": 6.00925,
+        "characterErrorRate": 0,
+        "sha256": "afbc8c053c38ed6f51cce64e84d9309a46c28372926b52597907459b28c88150",
+        "synthetic": true
+      }
+    ],
+    "after": [
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "initializationMs": 3054.872
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "creator",
+        "reference": "こんまほ。鹿乃まほろです。今日は一緒にゲームを楽しみましょう。",
+        "source": "コンまほ、鹿乃まほろです。今日は一緒にゲームを楽しみましょう。",
+        "durationMs": 441.407792,
+        "audioSeconds": 5.01075,
+        "characterErrorRate": 0.07142857142857142,
+        "sha256": "96cd78e222f0bb7be182e79200d654fdc84c607bb1c715db7f13ca3e76750df5",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "pokemon",
+        "reference": "ポケモンのニャオハを進化させます。まだ色違いではありません。",
+        "source": "ポケモンのニャオハを進化させますまだ色違いではありません",
+        "durationMs": 403.81424999999945,
+        "audioSeconds": 4.7241875,
+        "characterErrorRate": 0,
+        "sha256": "39c8257277cc06354a40ab8b7b93f078d43b4043c85657cbb10b0bc7f632d982",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "shooter",
+        "reference": "ヴァンダルをリロードします。スパイクはまだ設置しません。",
+        "source": "ヴァンダルをリロードします。スパイクはまだ設置しません。",
+        "durationMs": 410.1642920000004,
+        "audioSeconds": 4.043,
+        "characterErrorRate": 0,
+        "sha256": "063d257e4ad1fc017bc97c3d9ca0b86a608bd32d6fe76e4cb6445f376d7493b4",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "negative",
+        "reference": "赤いボタンは押さないでください。右ではなく左です。",
+        "source": "赤いボタンは押さないでください。右ではなく左です。",
+        "durationMs": 393.78399999999965,
+        "audioSeconds": 3.9248125,
+        "characterErrorRate": 0,
+        "sha256": "29352e4d27526c155285423473f7de7054e027ee2cecfa63da48a2e3e8d02648",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "schedule",
+        "reference": "明日は配信しません。来週の金曜日に変更です。",
+        "source": "明日は配信しません。来週の金曜日に変更です。",
+        "durationMs": 388.80454199999986,
+        "audioSeconds": 4.2619375,
+        "characterErrorRate": 0,
+        "sha256": "12cd56b8b1dae4d9d468795060cce4decb4b5acd5589472baa17428a67680fd8",
+        "synthetic": true
+      },
+      {
+        "model": "mlx-community/whisper-large-v3-turbo",
+        "id": "fish",
+        "reference": "こんにちは。今日は魚が逃げてしまいました。来てくれてありがとうございます。",
+        "source": "こんにちは。今日は魚が逃げてしまいました。来てくれてありがとうございます。",
+        "durationMs": 430.2614999999996,
+        "audioSeconds": 6.00925,
+        "characterErrorRate": 0,
+        "sha256": "afbc8c053c38ed6f51cce64e84d9309a46c28372926b52597907459b28c88150",
+        "synthetic": true
+      }
+    ]
+  },
+  "captions": {
+    "before_nominal": {
+      "summary": {
+        "durationMs": 39754.705708,
+        "asrCalls": 60,
+        "asrMs": 23218.124294999987,
+        "translationCalls": 6,
+        "translationMs": 1367.4063329999917,
+        "finals": 6,
+        "failed": 0
+      },
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまいます。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。",
+          "endToChineseMs": 1030.227499999999,
+          "atMs": 9158.229917
+        },
+        {
+          "cue": 2,
+          "source": "来てくれてありがとうございます",
+          "translated": "謝謝您的到來",
+          "endToChineseMs": 0.44979200000125275,
+          "atMs": 12128.450583
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有魚兒要逃走了。",
+          "endToChineseMs": 1001.6752500000002,
+          "atMs": 21801.676
+        },
+        {
+          "cue": 5,
+          "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+          "translated": "魚兒逃走了。謝謝你們的到來。",
+          "endToChineseMs": 263.07391700000153,
+          "atMs": 25063.074500000002
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有魚兒要逃走了。",
+          "endToChineseMs": 527.1974999999948,
+          "atMs": 34575.198292
+        },
+        {
+          "cue": 8,
+          "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+          "translated": "魚兒逃走了。謝謝你們的到來。",
+          "endToChineseMs": 4.3081249999959255,
+          "atMs": 38052.309417
+        }
+      ],
+      "performance": [
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    },
+    "after_nominal": {
+      "summary": {
+        "durationMs": 39745.861042000004,
+        "asrCalls": 54,
+        "asrMs": 21256.353000000014,
+        "translationCalls": 6,
+        "translationMs": 1581.3378770000054,
+        "finals": 6,
+        "failed": 0
+      },
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまいます。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。",
+          "endToChineseMs": 1078.7750000000015,
+          "atMs": 9206.778917
+        },
+        {
+          "cue": 2,
+          "source": "来てくれてありがとうございます",
+          "translated": "謝謝您的到來",
+          "endToChineseMs": 6.595375000000786,
+          "atMs": 12134.597417
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有魚兒要逃走了。",
+          "endToChineseMs": 1079.2763750000013,
+          "atMs": 21879.2775
+        },
+        {
+          "cue": 5,
+          "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+          "translated": "魚兒逃走了。謝謝你們的到來。",
+          "endToChineseMs": 304.5427920000002,
+          "atMs": 25104.543792
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有魚兒要逃走了。",
+          "endToChineseMs": 564.5396669999973,
+          "atMs": 34612.541708000004
+        },
+        {
+          "cue": 8,
+          "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+          "translated": "魚兒逃走了。謝謝你們的到來。",
+          "endToChineseMs": 0.8529580000031274,
+          "atMs": 38048.854542
+        }
+      ],
+      "performance": [
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    },
+    "before_warming": {
+      "summary": {
+        "durationMs": 39747.920916999996,
+        "asrCalls": 46,
+        "asrMs": 20234.311669000002,
+        "translationCalls": 5,
+        "translationMs": 2034.755374999997,
+        "finals": 6,
+        "failed": 0
+      },
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまいました。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。",
+          "endToChineseMs": 1520.4319590000014,
+          "atMs": 10192.434167
+        },
+        {
+          "cue": 2,
+          "source": "来てくれてありがとうございます。",
+          "translated": "謝謝你們的到來。",
+          "endToChineseMs": 192.68008399999962,
+          "atMs": 11936.681292000001
+        },
+        {
+          "cue": 3,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有魚兒要逃走了。",
+          "endToChineseMs": 1285.714,
+          "atMs": 22085.714709
+        },
+        {
+          "cue": 4,
+          "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+          "translated": "魚兒逃走了。謝謝你們的到來。",
+          "endToChineseMs": 707.320584000001,
+          "atMs": 25507.321542
+        },
+        {
+          "cue": 6,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有魚兒要逃走了。",
+          "endToChineseMs": 717.9045419999966,
+          "atMs": 34765.905667
+        },
+        {
+          "cue": 7,
+          "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+          "translated": "魚兒逃走了。謝謝你們的到來。",
+          "endToChineseMs": 111.58308399999805,
+          "atMs": 38159.58425
+        }
+      ],
+      "performance": [
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    },
+    "after_fair": {
+      "summary": {
+        "durationMs": 39746.812042,
+        "asrCalls": 36,
+        "asrMs": 14909.246169999999,
+        "translationCalls": 2,
+        "translationMs": 880.3952489999992,
+        "finals": 6,
+        "failed": 0
+      },
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1225.6908749999993,
+          "atMs": 6057.694124999999
+        },
+        {
+          "cue": 2,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 865.4378749999996,
+          "atMs": 11777.438458999997
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 628.8840839999975,
+          "atMs": 18708.88525
+        },
+        {
+          "cue": 5,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 408.43495899999834,
+          "atMs": 24568.440209
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 614.6317090000011,
+          "atMs": 31942.632208999996
+        },
+        {
+          "cue": 8,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 524.8099999999977,
+          "atMs": 37932.811334
+        }
+      ],
+      "performance": [
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    }
+  }
+}

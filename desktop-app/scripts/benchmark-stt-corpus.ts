@@ -33,7 +33,7 @@ function readPCM(wav:Buffer):Float32Array {
 app.whenReady().then(async()=>{
  const keepAwake=powerSaveBlocker.start('prevent-app-suspension')
  const results:unknown[]=[]
- const cases=JSON.parse(readFileSync(CORPUS_MANIFEST,'utf8')) as Array<{id:string;text:string}>
+ const cases=JSON.parse(readFileSync(CORPUS_MANIFEST,'utf8')) as Array<{id:string;text:string;terms?:string[]}>
  try {
   for(const model of (process.env.CORPUS_MODELS||'mlx-community/whisper-base-mlx,mlx-community/whisper-small-mlx,mlx-community/whisper-large-v3-turbo').split(',')) {
    const engine=new MlxWhisperEngine({model,language:'ja'})
@@ -43,6 +43,7 @@ app.whenReady().then(async()=>{
     for(const c of cases) {
      if(!/^[a-z0-9_-]+$/.test(c.id))throw new Error('Invalid corpus id')
      const wav=readFileSync(join(CORPUS_AUDIO_DIR,c.id+'.wav')),pcm=readPCM(wav)
+     engine.setVocabularyHints?.(c.terms || [])
      const start=performance.now();const result=await engine.processAudio(pcm,16000)
      const durationMs=performance.now()-start,source=result?.text||''
      const row={model,id:c.id,reference:c.text,source,durationMs,audioSeconds:pcm.length/16000,

@@ -33,3 +33,16 @@ it('restarts recovery after pressure rises again and ignores invalid samples', (
   expect(monitor.snapshot(30_001)).toMatchObject({ thermalState: 'nominal', speedLimit: 100 })
   expect(monitor.snapshot(59_000).previewFloorMs).toBe(900)
 })
+
+it('uses the stronger memory/thermal signal and recovers gradually without reading old swap totals',()=>{
+ const monitor=new PerformanceMonitor()
+ monitor.update({thermalState:'nominal',memoryPressure:'warning'},0)
+ expect(monitor.snapshot(0)).toMatchObject({memoryPressure:'warning',previewFloorMs:1500,previewsPaused:false})
+ monitor.update({memoryPressure:'critical'},1)
+ expect(monitor.snapshot(1).previewsPaused).toBe(true)
+ monitor.update({memoryPressure:'nominal'},2)
+ expect(monitor.snapshot(29_999).previewsPaused).toBe(true)
+ expect(monitor.snapshot(90_001)).toMatchObject({previewsPaused:false,previewFloorMs:0})
+ monitor.update({thermalState:'serious',memoryPressure:'nominal'},90_002)
+ expect(monitor.snapshot(90_002).previewFloorMs).toBe(1500)
+})

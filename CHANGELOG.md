@@ -2,6 +2,15 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.3 - 2026-10-25
+
+- Reuse identical recognized audio within a cue and conservatively reuse quiet tails, with context, PCM and speech-evidence guards. Preserve accepted final sentences when optional drafts are throttled.
+- Add bounded Japanese recognition vocabulary for personal terms and relevant streamer/game names; keep auto-detection and other source languages unprompted.
+- Send short MLX audio in memory with the same PCM16 samples as the previous temporary WAV transport; retain file transport for large inputs.
+- Reduce optional draft work under measured memory pressure and expose memory status in extension diagnostics. Preserve existing thermal protection and gradual recovery.
+- Keep capture waiting, silence thresholds, model choices and translation settings unchanged. See [measurements, tests and limits](docs/retests/4.5.3.md); reduced processing does not imply a guaranteed end-to-end latency gain.
+- Public preview installer assets remain 4.4.5; 4.5.3 is the current source and local installation.
+
 ## 4.5.2 - 2026-10-25
 
 - Answer a small allowlist of standalone Japanese replies without local model inference, while respecting cancellation and custom terminology. Ambiguous replies such as `大丈夫` and `やばい`, names, quotations and longer sentences remain on the model path.

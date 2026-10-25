@@ -2,6 +2,7 @@ import { performanceState } from '../main/performance-state'
 import { PreviewBudget } from '../../../preview-budget.mjs'
 import { completeSentence } from '../../../sentence-boundary.mjs'
 import { RecognitionCheckpoint } from './RecognitionCheckpoint'
+import { recognitionVocabulary } from '../engines/stt/recognition-vocabulary'
 import { JapaneseCaptionContext } from './JapaneseCaptionContext'
 import { SpeechToneAnalyzer } from './SpeechToneAnalyzer'
 import { applySpeechTone, laughterMarker, type SpeechToneMode } from './SpeechTone'
@@ -69,6 +70,8 @@ export interface StreamingDeps {
 export class StreamingProcessor {
   private readonly previewBudget = new PreviewBudget()
   private readonly recognitionCheckpoint = new RecognitionCheckpoint()
+  private recognitionSource = ''
+  private recognitionContextRevision = 0
   private readonly japaneseContext = new JapaneseCaptionContext()
   private readonly toneAnalyzer = new SpeechToneAnalyzer()
   private preparation?: {
@@ -153,7 +156,12 @@ export class StreamingProcessor {
 
   stopToneAnalysis(): void { this.toneAnalyzer.dispose() }
 
-  resetSourceContext(): void { this.japaneseContext.reset() }
+  resetSourceContext(): void {
+    this.japaneseContext.reset()
+    this.recognitionSource = ''
+    this.recognitionContextRevision++
+    this.recognitionCheckpoint.clear()
+  }
 
   private beginTone(audio: Float32Array, sampleRate: number) {
     const mode = this.deps.getSpeechToneMode?.() || 'off'
@@ -181,6 +189,7 @@ export class StreamingProcessor {
 
   private resetUtterance(): void {
     this.recognitionCheckpoint.clear()
+    this.recognitionSource = ''
     this.preparation?.controller.abort()
     this.preparation = undefined
     this.preparedThisCue = false
@@ -222,6 +231,13 @@ export class StreamingProcessor {
     pending?.()
   }
 
+  private recognitionKey(stt: STTEngine): string {
+    const language = this.deps.getSourceLanguage?.() || 'auto'
+    const vocabulary = language === 'ja' ? recognitionVocabulary(this.deps.getGlossary().map(term => term.source), this.recognitionSource) : []
+    stt.setVocabularyHints?.(vocabulary)
+    return JSON.stringify([stt.id, language, vocabulary, this.recognitionContextRevision])
+  }
+
   private async recognize(stt: STTEngine, audio: Float32Array, sampleRate: number, evidence?: SpeechEvidence) {
     const started = performance.now()
     try { return await stt.processAudio(audio, sampleRate, evidence) }
@@ -244,7 +260,9 @@ export class StreamingProcessor {
     // Drop chunk if another streaming call is in-flight — acceptable because
     // the rolling buffer re-sends accumulated audio on the next interval (#103)
     if (this.streamingLock) return null
-    const checkpoint = this.recognitionCheckpoint.reuse(audioBuffer, sampleRate, evidence)
+    const recognitionKey = this.recognitionKey(sttEngine)
+    const recognitionContextRevision = this.recognitionContextRevision
+    const checkpoint = this.recognitionCheckpoint.reuse(audioBuffer, sampleRate, evidence, recognitionKey)
     // A complete sentence waiting for translation has priority over another
     // speculative decode of the rolling buffer. Accepted finals are retained.
     if (this.pendingFinals || (!checkpoint && this.previewBudget.remainingMs(performance.now(), performanceState()) > 0)) return null
@@ -279,7 +297,10 @@ export class StreamingProcessor {
         this.resetUtterance()
         return null
       }
-      this.recognitionCheckpoint.remember(audioBuffer, sampleRate, evidence, sttResult)
+      if (recognitionContextRevision === this.recognitionContextRevision) {
+        if (!checkpoint) this.recognitionCheckpoint.remember(audioBuffer, sampleRate, evidence, sttResult, recognitionKey)
+        this.recognitionSource = sttResult.language === 'ja' ? sttResult.text.slice(-120) : ''
+      }
       this.primaryRevision = revision
       log.info(`STT: ${sttMs}ms → "${sttResult.text}" [${sttResult.language}]`)
 
@@ -456,7 +477,8 @@ export class StreamingProcessor {
     let handedOff = false
     const tone = this.beginTone(audioChunk, sampleRate)
     try {
-      let sttResult = this.recognitionCheckpoint.reuse(audioChunk, sampleRate, evidence) ||
+      const recognitionKey = this.recognitionKey(stt)
+      let sttResult = this.recognitionCheckpoint.reuse(audioChunk, sampleRate, evidence, recognitionKey) ||
         await this.recognize(stt, audioChunk, sampleRate, evidence)
       const nonverbal = !sttResult?.text.trim()
       if (!sttResult?.text.trim()) sttResult = this.toneOnly(tone)
@@ -591,7 +613,8 @@ export class StreamingProcessor {
 
     const tone = this.beginTone(audioChunk, sampleRate)
     try {
-      let sttResult = this.recognitionCheckpoint.reuse(audioChunk, sampleRate, evidence) ||
+      const recognitionKey = this.recognitionKey(sttEngine)
+      let sttResult = this.recognitionCheckpoint.reuse(audioChunk, sampleRate, evidence, recognitionKey) ||
         await this.recognize(sttEngine, audioChunk, sampleRate, evidence)
       const nonverbal = !sttResult?.text.trim()
       if (!sttResult?.text.trim()) sttResult = this.toneOnly(tone)

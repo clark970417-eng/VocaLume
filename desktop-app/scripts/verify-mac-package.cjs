@@ -21,7 +21,7 @@ for (const match of html.matchAll(/(?:src|href)="(\.\/assets\/[^"?#]+)"/g)) {
 }
 const version = JSON.parse(asar.extractFile(archive, 'package.json')).version
 assert.equal(version, JSON.parse(fs.readFileSync('package.json')).version)
-assert(fs.existsSync(path.join(resources, 'bridge-scripts/mlx-whisper-bridge.py')))
+assert.deepEqual(fs.readFileSync(path.join(resources, 'bridge-scripts/mlx-whisper-bridge.py')), fs.readFileSync('resources/mlx-whisper-bridge.py'), 'Recognition bridge mismatch')
 const vadDir = path.join(resources, 'app.asar.unpacked/out/renderer/vad')
 for (const file of ['silero_vad_v5.onnx', 'vad.worklet.bundle.min.js', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) {
   const asset = path.join(vadDir, file)
