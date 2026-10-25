@@ -1,3 +1,9 @@
+## Extension 4.4.7 - 2026-10-25
+
+- Website text translation now requires explicit opt-in in the popup, including dedicated social sites. New and existing installations start off until the user chooses to enable it; the choice persists.
+- Turning text translation off also hides typing controls, without starting or stopping speech captions.
+- Desktop remains 4.4.5. Automated extension checks passed; Opera reload could not be verified because the computer-use service disconnected.
+
 # Changelog
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.

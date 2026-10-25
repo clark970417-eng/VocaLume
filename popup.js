@@ -37,8 +37,8 @@ $('#saveTranslation').onclick=async()=>{
 };
 loadTranslationStatus();
 
-chrome.storage.local.get('websiteTextEnabled').then(s=>$('#websiteText').checked=s.websiteTextEnabled!==false);
-$('#websiteText').onchange=()=>chrome.storage.local.set({websiteTextEnabled:$('#websiteText').checked});
+chrome.storage.local.get('websiteTextOptInEnabled').then(s=>$('#websiteText').checked=s.websiteTextOptInEnabled === true);
+$('#websiteText').onchange=()=>chrome.storage.local.set({websiteTextOptInEnabled:$('#websiteText').checked});
 
 const dedicatedHosts=['youtube.com','x.com','twitter.com','bilibili.com','tiktok.com','twitch.tv','facebook.com','instagram.com','discord.com','discordapp.com'];
 const isDedicatedHost=host=>dedicatedHosts.some(domain=>host===domain||host.endsWith('.'+domain));
@@ -52,7 +52,7 @@ async function loadCurrentSiteAccess(){
  const section=$('#currentSiteSection'),toggle=$('#currentSiteTranslation');section.hidden=false;
  if(isDedicatedHost(currentSiteHost)){
   $('#currentSiteLabel').textContent='此網站使用專用翻譯規則';
-  $('#currentSiteHint').textContent='主要影音與社群網站會自動啟用。';
+  $('#currentSiteHint').textContent='需先開啟上方「網站文字翻譯」，此網站才會使用專用規則。';
   toggle.checked=true;toggle.disabled=true;
   return;
  }

@@ -1,7 +1,7 @@
 // X uses a separate script so YouTube's player and composer stay independent.
 (() => {
   if(window.__jtlX)return;window.__jtlX=true;
-  let websiteTextEnabled=false, textEpoch=0;
+  let websiteTextOptInEnabled=false, textEpoch=0;
   let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
   const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
@@ -103,7 +103,7 @@
       status.textContent = '翻譯中…';
       try {
         const result = await message({type: 'make-draft', text: source, direction: direction('type')});
-        if (!websiteTextEnabled || epoch !== textEpoch || !box.isConnected || !controls.isConnected) return;
+        if (!websiteTextOptInEnabled || epoch !== textEpoch || !box.isConnected || !controls.isConnected) return;
         if(read(box)!==source){status.textContent='原文已修改，請重新翻譯';return;}
         preview.value = result.draft;
         preview.hidden = false;
@@ -116,7 +116,7 @@
     // Tab translates the focused draft and replaces it only if it is unchanged.
     // Enter/posting always remains a separate action. IME and Shift+Tab pass through.
     controls.translateKey = event=>{
-      if(!websiteTextEnabled||!controls.isConnected||event.key!=='Tab'||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||!matchesLanguage(read(box),languageSettings.typeSource))return;
+      if(!websiteTextOptInEnabled||!controls.isConnected||event.key!=='Tab'||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||!matchesLanguage(read(box),languageSettings.typeSource))return;
       event.preventDefault();event.stopImmediatePropagation?.();event.stopPropagation();
       if(!translate.disabled){applyAfterTranslation=true;translate.click();}
     };
@@ -252,21 +252,21 @@
 
   function scan() {
     document.querySelectorAll('.jtl-x-controls').forEach(control=>{if(control.jtlSource&&!control.jtlSource.isConnected)control.remove();});
-    if(websiteTextEnabled){
+    if(websiteTextOptInEnabled){
     document.querySelectorAll('[contenteditable="true"][data-testid^="tweetTextarea_"], [data-testid^="tweetTextarea_"] [contenteditable="true"]').forEach(addComposer);
     document.querySelectorAll('[data-testid="tweetText"]').forEach(addPost);
     }
     syncSpacePanel();
   }
   function setWebsiteText(enabled){
-    websiteTextEnabled=enabled;textEpoch++;
+    websiteTextOptInEnabled=enabled;textEpoch++;
     if(!enabled)document.querySelectorAll('.jtl-x-controls').forEach(el=>el.remove());
     scan();
   }
-  chrome.storage.local.get(['websiteTextEnabled','languageSettings']).then(s=>{languageSettings={...languageSettings,...(s.languageSettings||{})};setWebsiteText(s.websiteTextEnabled!==false);});
+  chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings']).then(s=>{languageSettings={...languageSettings,...(s.languageSettings||{})};setWebsiteText(s.websiteTextOptInEnabled === true);});
   chrome.storage.onChanged.addListener((changes,area)=>{
-    if(area==='local'&&changes.websiteTextEnabled)setWebsiteText(changes.websiteTextEnabled.newValue!==false);
-    if(area==='local'&&changes.languageSettings){languageSettings={...languageSettings,...changes.languageSettings.newValue};document.querySelectorAll('.jtl-x-controls').forEach(el=>el.remove());setWebsiteText(websiteTextEnabled);}
+    if(area==='local'&&changes.websiteTextOptInEnabled)setWebsiteText(changes.websiteTextOptInEnabled.newValue === true);
+    if(area==='local'&&changes.languageSettings){languageSettings={...languageSettings,...changes.languageSettings.newValue};document.querySelectorAll('.jtl-x-controls').forEach(el=>el.remove());setWebsiteText(websiteTextOptInEnabled);}
   });
   chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.subtitleSettings)captionBox?.controller.apply(changes.subtitleSettings.newValue);});
   let scheduled = false;
@@ -275,7 +275,7 @@
     scheduled = true;
     setTimeout(() => { scheduled = false; scan(); }, 400);
   }).observe(document.documentElement, {subtree: true, childList: true, attributes: true, attributeFilter: ["contenteditable"]});
-  document.addEventListener("focusin", () => { if (websiteTextEnabled) scan(); });
+  document.addEventListener("focusin", () => { if (websiteTextOptInEnabled) scan(); });
   scan();
   setInterval(poll, 1000);
 })();

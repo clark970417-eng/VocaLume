@@ -21,7 +21,7 @@ test('Tab translates the focused X composer, preserves edits and never posts',as
  const document={body:{},createRange:()=>({selectNodeContents(){}}),execCommand:(_,__,value)=>{box.textContent=value;return true;},createElement:tag=>({tagName:tag,hidden:false,children:[],classList:{add(){}},setAttribute(){},append(...children){this.children.push(...children);}})};
  const window={getSelection:()=>({removeAllRanges(){},addRange(){}})};
  const button=(label,action)=>({textContent:label,disabled:false,hidden:false,setAttribute(){},classList:{add(){}},click:action});
- const context={document,window,button,composers:new WeakMap(),read:box=>box.textContent,websiteTextEnabled:true,textEpoch:0,langLabel:x=>x,languageSettings:{typeSource:'zh',typeTarget:'ja'},direction:()=> 'zh-ja',matchesLanguage:t=>/[\u3400-\u9fff]/.test(t),InputEvent:class{},Event:class{},message:m=>{requests.push(m);return new Promise(resolve=>finish=resolve);}};
+ const context={document,window,button,composers:new WeakMap(),read:box=>box.textContent,websiteTextOptInEnabled:true,textEpoch:0,langLabel:x=>x,languageSettings:{typeSource:'zh',typeTarget:'ja'},direction:()=> 'zh-ja',matchesLanguage:t=>/[\u3400-\u9fff]/.test(t),InputEvent:class{},Event:class{},message:m=>{requests.push(m);return new Promise(resolve=>finish=resolve);}};
  const add=vm.runInNewContext(source.slice(source.indexOf('  function composerToolbar'),source.indexOf('  function addPost'))+'\naddComposer',context);add(box);
  let prevented=0;
  keydown({key:'Tab',preventDefault(){prevented++;},stopPropagation(){}});

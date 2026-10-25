@@ -33,7 +33,7 @@ function setup(semanticOnly=false,titleConfig=null){
   createElement:()=>makeLine(),
   addEventListener:(name,fn)=>{if(name==='yt-navigate-start')navigate=fn;}};
  const window={};window.top=window;
- const chrome={storage:{local:{get:()=>Promise.resolve({websiteTextEnabled:true})},
+ const chrome={storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true})},
    onChanged:{addListener:f=>change=f}},
   runtime:{onMessage:{addListener(){}},sendMessage:(message,reply)=>requests.push({message,reply})}};
  let scan;
@@ -41,7 +41,7 @@ function setup(semanticOnly=false,titleConfig=null){
   {chrome,window,document,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
    setInterval(){},setTimeout(fn){fn();return 0;},clearTimeout(){},console});
  return {chat,title,requests,makeNode,scan:()=>scan(),navigate:()=>navigate?.(),
-  toggle:v=>change({websiteTextEnabled:{newValue:v}},'local')};
+  toggle:v=>change({websiteTextOptInEnabled:{newValue:v}},'local')};
 }
 
 const settle=async()=>{for(let i=0;i<4;i++)await Promise.resolve();};

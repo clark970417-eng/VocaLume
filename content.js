@@ -2,7 +2,7 @@
 if(window.__jtlV3)return;window.__jtlV3=true;
 let translated = new WeakMap();
 const lineOwners = new WeakMap();
-let websiteTextEnabled=false, textEpoch=0, contextInvalid=false;
+let websiteTextOptInEnabled=false, textEpoch=0, contextInvalid=false;
 let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
 const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
 const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
@@ -64,7 +64,7 @@ function requestTranslation(text, direction, priority = false, queueOrder, isVal
 }
 
 async function translateElement(element, className, priority = false, queueOrder) {
-  if (!websiteTextEnabled || !element) return false;
+  if (!websiteTextOptInEnabled || !element) return false;
   const epoch=textEpoch;
   const text = element.textContent.trim();
   if (!text || !matchesLanguage(text,languageSettings.readSource)) return false;
@@ -85,7 +85,7 @@ async function translateElement(element, className, priority = false, queueOrder
     if (ownsLine()) line.remove();
   };
   line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯中…`;
-  const valid=()=>ownsLine()&&websiteTextEnabled&&epoch===textEpoch&&element.isConnected&&element.textContent.trim()===text;
+  const valid=()=>ownsLine()&&websiteTextOptInEnabled&&epoch===textEpoch&&element.isConnected&&element.textContent.trim()===text;
   try {
     let result;
     try { result = await requestTranslation(text, direction('read'), priority, queueOrder, valid); }
@@ -109,7 +109,7 @@ async function translateElement(element, className, priority = false, queueOrder
 function scan() {
   if(contextInvalid)return;
   if (window.top === window) installSubtitleOverlay();
-  if (!websiteTextEnabled) return;
+  if (!websiteTextOptInEnabled) return;
   if (window.top === window) {
     const title = [
       "ytd-watch-metadata h1 yt-formatted-string",
@@ -192,7 +192,7 @@ function applySubtitleSettings(settings) {
   if (settings) apply(settings); else chrome.storage.local.get("subtitleSettings", ({subtitleSettings}) => apply(subtitleSettings));
 }
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && changes.websiteTextEnabled) setWebsiteText(changes.websiteTextEnabled.newValue!==false);
+  if (area === "local" && changes.websiteTextOptInEnabled) setWebsiteText(changes.websiteTextOptInEnabled.newValue === true);
   if (area === "local" && changes.subtitleSettings) applySubtitleSettings(changes.subtitleSettings.newValue);
   if (area === "local" && changes.languageSettings) {languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-composer-controls').forEach(el=>el.remove());scan();}
 });
@@ -285,7 +285,7 @@ function installComposerButton() {
       status.textContent = "翻譯中…";
       try {
         const result = await runtimeMessage({type:'make-draft',text,direction:direction('type')});
-        if (!websiteTextEnabled || epoch !== textEpoch || !box.isConnected || !controls.isConnected) return;
+        if (!websiteTextOptInEnabled || epoch !== textEpoch || !box.isConnected || !controls.isConnected) return;
         if(editableText(box)!==text){status.textContent='原文已修改，請重新翻譯';return;}
         if (!result.draft?.trim()) throw new Error("沒有收到日文草稿");
         replaceEditable(box, result.draft);
@@ -303,16 +303,16 @@ function installComposerButton() {
 }
 
 function setWebsiteText(enabled){
- websiteTextEnabled=enabled;textEpoch++;translated=new WeakMap();
+ websiteTextOptInEnabled=enabled;textEpoch++;translated=new WeakMap();
  if(!enabled)document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-compose,.jtl-status').forEach(el=>el.remove());
  else scan();
 }
-chrome.storage.local.get(['websiteTextEnabled','languageSettings']).then(s=>{languageSettings={...languageSettings,...(s.languageSettings||{})};setWebsiteText(s.websiteTextEnabled!==false);});
+chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings']).then(s=>{languageSettings={...languageSettings,...(s.languageSettings||{})};setWebsiteText(s.websiteTextOptInEnabled === true);});
 let timer;
 new MutationObserver(() => {
   if (!timer) timer = setTimeout(() => { timer = null; scan(); }, 250);
 }).observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ["contenteditable"]});
-document.addEventListener("focusin", () => { if (websiteTextEnabled && !contextInvalid) installComposerButton(); });
+document.addEventListener("focusin", () => { if (websiteTextOptInEnabled && !contextInvalid) installComposerButton(); });
 scan();
 if (window.top === window) {
  pollTimer=setInterval(pollSubtitles,700);

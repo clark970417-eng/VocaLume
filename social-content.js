@@ -415,6 +415,7 @@
   function setEnabled(value) {
     enabled = value !== false;
     epoch++;
+    translated = new WeakMap();
     if (!enabled) {
       document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node => node.remove());
       activeComposer = null;
@@ -430,14 +431,14 @@
   chrome.runtime.onMessage.addListener(payload => {
     if (payload.type === 'subtitle-update' && window.top === window) renderSubtitles({running: true, items: [payload.item]});
   });
-  chrome.storage.local.get(['websiteTextEnabled','languageSettings','genericSiteAccess']).then(settings => {
+  chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess']).then(settings => {
     languageSettings={...languageSettings,...(settings.languageSettings||{})};
-    globalTextEnabled=settings.websiteTextEnabled !== false;
+    globalTextEnabled=settings.websiteTextOptInEnabled === true;
     currentSiteEnabled=dedicatedSite || settings.genericSiteAccess?.[host] === true;
     applyTextAccess();
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.websiteTextEnabled) {globalTextEnabled=changes.websiteTextEnabled.newValue !== false;applyTextAccess();}
+    if (area === 'local' && changes.websiteTextOptInEnabled) {globalTextEnabled=changes.websiteTextOptInEnabled.newValue === true;applyTextAccess();}
     if (area === 'local' && changes.genericSiteAccess && !dedicatedSite) {currentSiteEnabled=changes.genericSiteAccess.newValue?.[host] === true;applyTextAccess();}
     if (area === 'local' && changes.subtitleSettings) captionBox?.controller.apply(changes.subtitleSettings.newValue);
     if (area === 'local' && changes.languageSettings) {languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();cache.clear();document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());activeComposer=null;activeControls=null;scan();}

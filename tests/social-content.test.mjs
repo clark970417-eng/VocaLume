@@ -41,7 +41,7 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   createElement:makeElement,addEventListener(){},createRange:()=>({selectNodeContents(){}})};
  const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(){} apply(){}}};window.top=window;
  const chrome={runtime:{lastError:null,onMessage:{addListener(){}},sendMessage(message,reply){requests.push({message,reply});}},
-  storage:{local:{get:()=>Promise.resolve({websiteTextEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(){}}}};
+  storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(){}}}};
  vm.runInNewContext(source,{VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{observe(){}},setTimeout:fn=>{fn();return 1;},setInterval(){},Event:class{},InputEvent:class{}});
  return {requests,translationLines,controls,box,selectors};
 }
