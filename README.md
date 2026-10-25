@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current desktop and extension source: **4.5.1**. Japanese speech captions recover adjacent grammatical continuations before translation, including cut-off auxiliaries and negation. Recent unfinished clauses may use up to 12 seconds of audio instead of the normal 8-second bound. Existing [244 vocabulary pairs](docs/game-vocabulary.md) and optional [tone/laughter settings](docs/speech-tone.md) remain available. See the [4.5.1 verification report](docs/retests/4.5.1.md) for scope and tradeoffs. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+Current desktop and extension source: **4.5.2**. Verified standalone Japanese replies can bypass local model inference, elliptical questions keep their missing meaning open, and captions recover more adjacent colloquial endings and negation. This update adds **no audio waiting time**; the existing capture bounds are unchanged. Existing [244 vocabulary pairs](docs/game-vocabulary.md) and optional [tone/laughter settings](docs/speech-tone.md) remain available. See the [4.5.2 verification report](docs/retests/4.5.2.md) for measured scope and limitations. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 
@@ -112,7 +112,7 @@ Run the automated suite with:
 node --test tests/*.test.mjs
 ```
 
-Extension **4.5.1 passes 192 automated tests** and the desktop passes **729 tests**. These cover caption ordering, bounded audio windows, cancellation, source/translation pairing, terminology, tone settings, Japanese continuation, context resets and capture-position validation. Hardware and Opera GX checks are described in the [4.5.1 verification report](docs/retests/4.5.1.md); they are not a guarantee for every device or live stream.
+Extension **4.5.2 passes 192 automated tests** and the desktop passes **781 tests**. These cover caption ordering, bounded audio windows, cancellation, source/translation pairing, terminology, tone settings, Japanese continuation, context resets, capture-position validation and short-reply inference bypass. Hardware and Opera GX checks are described in the [4.5.2 verification report](docs/retests/4.5.2.md); they are not a guarantee for every device or live stream.
 These tests do not establish long-session or commercial-product parity. See
 [3.8 verification](docs/retests/RETEST-3.8.0.md) and the [upstream comparison](COMPARISON-LIVETRANSLATE.md).
 

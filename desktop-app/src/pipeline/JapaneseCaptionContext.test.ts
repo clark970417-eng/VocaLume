@@ -66,4 +66,28 @@ describe('Japanese caption continuation', () => {
     expect(joinJapaneseCaption('駅に','ません。')).toBe('ません。')
     expect(joinJapaneseCaption('歌い','ました。',true)).toBe('歌いました。')
   })
+
+  it.each([
+    ['まだ食べて', 'ないです。', 'まだ食べてないです。'],
+    ['セーブを消しちゃ', 'った。', 'セーブを消しちゃった。'],
+    ['もう買っ', 'ちゃった。', 'もう買っちゃった。'],
+    ['本を読ん', 'じゃった。', '本を読んじゃった。'],
+    ['買うつもり', 'はありません。', '買うつもりはありません。'],
+    ['今日は来ないって', '言っていました。', '今日は来ないって言っていました。'],
+    ['そんなに難しく', 'ないです。', 'そんなに難しくないです。'],
+    ['まだ終わって', 'ません。', 'まだ終わってません。']
+  ])('recovers an already captured colloquial/negative continuation without waiting: %s / %s', (prior, next, expected) => {
+    expect(joinJapaneseCaption(prior, next, true)).toBe(expected)
+    expect(joinJapaneseCaption(prior, next)).toBe(next)
+  })
+
+  it('guards completed thoughts, invalid morphology and explicitly unrelated replies', () => {
+    expect(joinJapaneseCaption('怖いわけでは。', 'ないです。')).toBe('怖いわけではないです。')
+    for (const prior of ['明日から', '本当に', '駅へ行く', '楽しい', '買いました']) {
+      expect(joinJapaneseCaption(prior, 'ないです。', true)).toBe('ないです。')
+    }
+    expect(joinJapaneseCaption('今日は来ないって', 'こんにちは。', true)).toBe('こんにちは。')
+    expect(joinJapaneseCaption('魚が逃げました。', '明日は？', true)).toBe('明日は？')
+    expect(joinJapaneseCaption('「もう来ない」', 'って言ってました。', true)).toBe('って言ってました。')
+  })
 })

@@ -15,6 +15,18 @@ export function joinJapaneseCaption(previous: string, current: string, atAudioCu
   if (next.startsWith(prefix)) return current // overlapping recognition already contains it
   const connected = atAudioCut && /[いきぎしちにびみりえけげせてねべめれ]$/u.test(prefix) &&
       /^(?:ませんでした|ません|ました|ます)(?=[。！？!?、\s]|が|けど|ので|から|$)/u.test(next) ||
+    // Colloquial negatives/contractions and quoted speech need evidence of an
+    // exact capture cut: otherwise a short new reply could be unrelated.
+    atAudioCut && (
+      /[てで]$/u.test(prefix) && /^(?:ない|なかった|ません)(?=[。！？!?、\s]|です|でした|が|けど|ので|から|$)/u.test(next) ||
+      /っ$/u.test(prefix) && /^ちゃ(?:った|う|います|いました|わない)(?=[。！？!?、\s]|が|けど|ので|から|$)/u.test(next) ||
+      /ん$/u.test(prefix) && /^じゃ(?:った|う|います|いました|わない)(?=[。！？!?、\s]|が|けど|ので|から|$)/u.test(next) ||
+      /(?:ちゃ|じゃ)$/u.test(prefix) && /^(?:った|う|います|いました|わない)(?=[。！？!?、\s]|が|けど|ので|から|$)/u.test(next) ||
+      /って$/u.test(prefix) && /^(?:言|聞|思)/u.test(next) ||
+      /(?:つもり|わけ|はず)$/u.test(prefix) && /^(?:は|が)(?:ない|ありません)/u.test(next) ||
+      /(?:難し|忙し|寂し|楽し|美味し|おいし|怖|痛|高|安|強|弱|悪|良|よ)く$/u.test(prefix) && /^な(?:い|かった|くて|くても)(?=[。！？!?、\s]|です|でした|が|けど|ので|から|$)/u.test(next)
+    ) ||
+    /(?:わけ|つもり|はず)では$/u.test(prefix) && /^(?:ない|ありません|なかった)/u.test(next) ||
     /[てで]$/u.test(prefix) && dependentStart.test(next) ||
     /と$/u.test(prefix) && /^(?:思|言|聞|感じ|考え)/u.test(next) ||
     /かも$/u.test(prefix) && /^しれ(?:ない|ません|なかった)/u.test(next) ||

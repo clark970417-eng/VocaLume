@@ -130,7 +130,7 @@ it('serves captions first, then answers every text request queued behind the int
     t.send({ id: 1, op: 'translate', direction: 'zh-ja', text: '謝謝你今天的直播' })
     await vi.waitFor(() => expect(largeInits()).toBe(1))
     // Page text and another draft arrive while the large model is loading.
-    t.send({ id: 2, op: 'translate', direction: 'ja-zh', text: 'こんばんは' })
+    t.send({ id: 2, op: 'translate', direction: 'ja-zh', text: 'こんばんは、今日はゲームをします。' })
     t.send({ id: 3, op: 'translate', direction: 'zh-ja', text: '明天也會來' })
     t.send({ id: 4, op: 'translate', direction: 'ja-zh', text: 'ありがとう' })
 
@@ -142,17 +142,18 @@ it('serves captions first, then answers every text request queued behind the int
     expect(t.answered(6)[0]).toMatchObject({ ok: true, result: { translated: 'small:声' } })
     expect(t.answered(6)[0].at - began).toBeLessThan(CAPTION_BOUND_MS)
 
-    // Every queued request is answered after captions, on the caption model.
+    // Model-backed and exact-short requests are each answered once after captions.
     await vi.waitFor(() => expect([1, 2, 3, 4].every(id => t.answered(id).length === 1)).toBe(true), { timeout: 3000 })
     expect(t.answered(1)[0]).toMatchObject({ ok: true, result: { text: 'small:謝謝你今天的直播', fallbackModel: true } })
-    expect(t.answered(2)[0]).toMatchObject({ ok: true, result: { text: 'small:こんばんは' } })
+    expect(t.answered(2)[0]).toMatchObject({ ok: true, result: { text: 'small:こんばんは、今日はゲームをします。' } })
     expect(t.answered(3)[0]).toMatchObject({ ok: true, result: { text: 'small:明天也會來' } })
-    expect(t.answered(4)[0]).toMatchObject({ ok: true, result: { text: 'small:ありがとう' } })
+    expect(t.answered(4)[0]).toMatchObject({ ok: true, result: { text: '謝謝' } })
     for (const id of [1, 2, 3, 4]) expect(t.answered(id)[0].at).toBeGreaterThanOrEqual(t.answered(6)[0].at)
 
     // Nothing ran twice, nothing ran on the large model, and it was never reloaded.
     const texts = fake.translations.map(entry => entry.text)
-    for (const text of ['謝謝你今天的直播', 'こんばんは', '明天也會來', 'ありがとう']) expect(texts.filter(value => value === text)).toHaveLength(1)
+    for (const text of ['謝謝你今天的直播', 'こんばんは、今日はゲームをします。', '明天也會來']) expect(texts.filter(value => value === text)).toHaveLength(1)
+    expect(texts).not.toContain('ありがとう')
     expect(fake.translations.every(entry => !entry.model.includes('7B'))).toBe(true)
     expect(largeInits()).toBe(1)
     expect(fake.workers.filter(worker => worker.model.includes('7B')).every(worker => worker.killed)).toBe(true)
@@ -213,14 +214,14 @@ it('answers Stop at once when it interrupts a cold draft, and still answers the 
   try {
     t.send({ id: 1, op: 'translate', direction: 'zh-ja', text: '晚安' })
     await vi.waitFor(() => expect(largeInits()).toBe(1))
-    t.send({ id: 2, op: 'translate', direction: 'ja-zh', text: 'おやすみ' })
+    t.send({ id: 2, op: 'translate', direction: 'ja-zh', text: '今日は早めに寝ます。' })
     const began = Date.now()
     t.send({ id: 3, op: 'stop' })
     await vi.waitFor(() => expect(t.answered(3)).toHaveLength(1), { timeout: CAPTION_BOUND_MS + 500 })
     expect(t.answered(3)[0].at - began).toBeLessThan(CAPTION_BOUND_MS)
     await vi.waitFor(() => expect(t.answered(1).length + t.answered(2).length).toBe(2), { timeout: 3000 })
     expect(t.answered(1)[0]).toMatchObject({ ok: true, result: { text: 'small:晚安', fallbackModel: true } })
-    expect(t.answered(2)[0]).toMatchObject({ ok: true, result: { text: 'small:おやすみ' } })
+    expect(t.answered(2)[0]).toMatchObject({ ok: true, result: { text: 'small:今日は早めに寝ます。' } })
     expect(largeInits()).toBe(1)
   } finally { await t.close() }
 })

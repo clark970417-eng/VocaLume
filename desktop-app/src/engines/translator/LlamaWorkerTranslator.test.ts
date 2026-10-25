@@ -6,6 +6,7 @@ vi.mock('../model-downloader', () => ({ getGGUFDir: () => '/models', downloadGGU
 
 import { HunyuanMT2Translator } from './HunyuanMT2Translator'
 import { WorkerTerminatedError, type WorkerPool } from '../../main/worker-pool'
+import type { TranslateContext } from '../types'
 
 function fakePool() {
   const order: string[] = []
@@ -55,6 +56,36 @@ it('uses exact game names cheaply and forwards only applicable contextual terms'
   expect(pool.sendRequest.mock.calls.at(-1)?.[0]).toMatchObject({context:{glossary:[{source:'VALORANT',target:'特戰英豪'},{source:'リコイル制御',target:'壓槍'}]}})
   await engine.translate('皮卡丘','zh','ja',{previousSegments:[],glossary:[{source:'皮卡丘',target:'ピカちゃん'}]})
   expect(pool.sendRequest.mock.calls.at(-1)?.[0]).toMatchObject({context:{glossary:[{source:'皮卡丘',target:'ピカちゃん'}]}})
+})
+
+it('answers verified short Japanese without loading, queueing or starting model inference', async () => {
+  const { pool } = fakePool()
+  const engine = new HunyuanMT2Translator({ pool: pool as unknown as WorkerPool })
+  await expect(engine.translate('本当に？', 'ja', 'zh')).resolves.toBe('真的？')
+  await expect(engine.translate('明日は？', 'ja', 'zh')).resolves.toBe('明天呢？')
+  await expect(engine.translate('ません。', 'ja', 'zh')).resolves.toBe('不……')
+  expect(pool.acquire).not.toHaveBeenCalled()
+  expect(pool.sendRequest).not.toHaveBeenCalled()
+  const cancelled = new AbortController(); cancelled.abort(new Error('Cancelled'))
+  await expect(engine.translate('本当に？', 'ja', 'zh', { previousSegments: [], signal: cancelled.signal })).rejects.toThrow('Cancelled')
+  engine.interrupt('Stopped')
+  await expect(engine.translate('本当に？', 'ja', 'zh')).rejects.toBeInstanceOf(WorkerTerminatedError)
+})
+
+it('does not let the short path bypass user terminology, other languages or contextual full input', async () => {
+  const { pool } = fakePool()
+  const engine = new HunyuanMT2Translator({ pool: pool as unknown as WorkerPool })
+  await engine.initialize(); pool.sendRequest.mockResolvedValue('模型譯文')
+  const glossary = [{ source: 'ありがとう', target: '感恩' }]
+  const custom: TranslateContext = { previousSegments: [], glossary }
+  for (const [text, from, to, context] of [
+    ['ありがとうございます！', 'ja', 'zh', custom],
+    ['本当に？', 'ja', 'en', undefined], ['真的嗎？', 'zh', 'ja', undefined],
+    ['薬は飲みません。', 'ja', 'zh', undefined], ['大丈夫。', 'ja', 'zh', undefined],
+    ['明日は何曜日？', 'ja', 'zh', undefined]
+  ] as const) await expect(engine.translate(text, from, to, context)).resolves.toBe('模型譯文')
+  expect(pool.sendRequest).toHaveBeenCalledTimes(6)
+  expect(pool.sendRequest.mock.calls[0][0]).toMatchObject({ context: { glossary } })
 })
 
 it('respects custom terminology, cancellation and the reverse translation direction', async () => {

@@ -1,0 +1,288 @@
+[
+  {
+    "id": "really",
+    "text": "本当に？",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "thanks",
+    "text": "ありがとうございます！",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "thanks-past",
+    "text": "ありがとうございました。",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "good-evening",
+    "text": "こんばんは。",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "good-night",
+    "text": "おやすみなさい。",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "wait",
+    "text": "ちょっと待って！",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "sorry",
+    "text": "ごめんなさい。",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "what",
+    "text": "え？",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "where",
+    "text": "どこ？",
+    "to": "zh",
+    "group": "clear-short",
+    "from": "ja"
+  },
+  {
+    "id": "tomorrow",
+    "text": "明日は？",
+    "to": "zh",
+    "group": "open-short",
+    "from": "ja"
+  },
+  {
+    "id": "topic-tomorrow",
+    "text": "ところで、明日は？",
+    "to": "zh",
+    "group": "open-short",
+    "from": "ja"
+  },
+  {
+    "id": "next-week",
+    "text": "来週は？",
+    "to": "zh",
+    "group": "open-short",
+    "from": "ja"
+  },
+  {
+    "id": "hesitant",
+    "text": "それはちょっと。",
+    "to": "zh",
+    "group": "open-short",
+    "from": "ja"
+  },
+  {
+    "id": "orphan-negative",
+    "text": "ません。",
+    "to": "zh",
+    "group": "open-short",
+    "from": "ja"
+  },
+  {
+    "id": "contracted-negative",
+    "text": "ないです。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "まだ食べて",
+    "atAudioCut": true
+  },
+  {
+    "id": "contracted-past",
+    "text": "った。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "セーブを消しちゃ",
+    "atAudioCut": true
+  },
+  {
+    "id": "te-past",
+    "text": "ちゃった。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "もう買っ",
+    "atAudioCut": true
+  },
+  {
+    "id": "de-past",
+    "text": "じゃった。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "本を読ん",
+    "atAudioCut": true
+  },
+  {
+    "id": "intention-negative",
+    "text": "はありません。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "買うつもり",
+    "atAudioCut": true
+  },
+  {
+    "id": "explanation-negative",
+    "text": "ないです。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "怖いわけでは"
+  },
+  {
+    "id": "reported-quote",
+    "text": "言っていました。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "今日は来ないって",
+    "atAudioCut": true
+  },
+  {
+    "id": "adjective-negative",
+    "text": "ないです。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "そんなに難しく",
+    "atAudioCut": true
+  },
+  {
+    "id": "aux-negative",
+    "text": "ません。",
+    "to": "zh",
+    "group": "continuation",
+    "from": "ja",
+    "previous": "まだ終わって",
+    "atAudioCut": true
+  },
+  {
+    "id": "ambiguous-danger",
+    "text": "やばい。",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "ambiguous-okay",
+    "text": "大丈夫。",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "ambiguous-good",
+    "text": "いいです。",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "not-all",
+    "text": "本当にいいの？",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "question-full",
+    "text": "明日は何曜日？",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "thanks-quoted",
+    "text": "「ありがとう」の意味は？",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "tomorrow-full",
+    "text": "明日は晴れですか？",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "hesitant-full",
+    "text": "それはちょっと難しい。",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "negative-full",
+    "text": "今日は行きません。",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "name",
+    "text": "ありがとうさんが来ました。",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja"
+  },
+  {
+    "id": "no-cut",
+    "text": "ちゃった。",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja",
+    "previous": "もう買っ"
+  },
+  {
+    "id": "topic-shift",
+    "text": "ところで、明日は？",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja",
+    "previous": "魚が逃げました。"
+  },
+  {
+    "id": "false-quote",
+    "text": "言ってない。",
+    "to": "zh",
+    "group": "guard",
+    "from": "ja",
+    "previous": "ちょっと待って。"
+  },
+  {
+    "id": "zh-negative",
+    "text": "我不是不想玩，只是今天沒有時間。",
+    "to": "ja",
+    "group": "reverse",
+    "from": "zh"
+  },
+  {
+    "id": "zh-time",
+    "text": "不是今天，是明天晚上八點。",
+    "to": "ja",
+    "group": "reverse",
+    "from": "zh"
+  }
+]

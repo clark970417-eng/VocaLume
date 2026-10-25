@@ -2,6 +2,14 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.2 - 2026-10-25
+
+- Answer a small allowlist of standalone Japanese replies without local model inference, while respecting cancellation and custom terminology. Ambiguous replies such as `大丈夫` and `やばい`, names, quotations and longer sentences remain on the model path.
+- Preserve open meaning in `明日は？`, `それはちょっと…` and isolated `ません`; do not invent a weekday, adjective or missing verb.
+- Recover more already-captured Japanese continuations, including colloquial contractions, negative adjective endings and quoted speech. The broader rules require a proven contiguous audio cut; existing bounded context and speaker/language guards remain.
+- No additional audio wait, silence threshold, preview interval, second translation pass or model-size change. Longer recovered input still has a small inference cost; see [paired measurements and limits](docs/retests/4.5.2.md).
+- Public preview installer assets remain 4.4.5; 4.5.2 is the current source and tested local installation.
+
 ## 4.5.1 - 2026-10-25
 
 - Recover adjacent Japanese grammatical continuations from recognized source text before final translation. Examples include `逃げて / しまいました`, `配信する / つもりはありません`, and `勝てるかも / しれません`. Show the recovered clause in the new caption instead of hiding it in model instructions.

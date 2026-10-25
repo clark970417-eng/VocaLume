@@ -8,6 +8,7 @@ import { workerPool, WorkerTerminatedError, type WorkerPool } from '../../main/w
 import { createLogger } from '../../main/logger'
 import { greetingTranslation, normalizeGreetingSource } from '../../../../streamer-vocabulary.mjs'
 import { gameTermTranslation, selectGameTerminology } from '../../../../game-vocabulary.mjs'
+import { shortJaZhTranslation } from './ja-zh-short'
 
 export interface GGUFVariantConfig {
   filename: string
@@ -144,6 +145,8 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
       this.interruption.signal.throwIfAborted()
       const greeting = greetingTranslation(text)
       if (greeting) return greeting
+      const short = shortJaZhTranslation(text)
+      if (short !== undefined) return short
       text = normalizeGreetingSource(text)
     }
     if (!this.initialized) {
