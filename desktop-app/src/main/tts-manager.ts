@@ -90,7 +90,7 @@ export class TTSManager {
     // Skip interim/draft results — only speak final translations
     if (result.isInterim) return
 
-    const text = result.translatedText
+    const text = result.spokenText ?? result.translatedText
     if (!text?.trim()) return
 
     // Interrupt: bump request ID so stale synthesis is discarded

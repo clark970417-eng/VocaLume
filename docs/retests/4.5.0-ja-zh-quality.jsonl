@@ -1,0 +1,13 @@
+{"type":"metadata","model":"hunyuan-mt-15","draftRepair":true,"variant":"1.5-small","manifestHash":"1bcfaa110dfb2de8c6a3b90a7258082af13c0295d49211acf0e0bfa59fd2ddb5","scope":"Actual desktop worker text translation; no audio, browser capture, or blind human quality score"}
+{"type":"trial","id":"greeting-ja","from":"ja","to":"zh","text":"来てくれてありがとう","translated":"謝謝你來","ms":0.05804199999965931}
+{"type":"trial","id":"negation-ja","from":"ja","to":"zh","text":"今日は遊ばないけど、明日は遊ぶつもりです。","translated":"今天我不打算玩遊戲，但是明天我確實有心情玩一下。","ms":685.7245419999999}
+{"type":"trial","id":"pokemon-ja","from":"ja","to":"zh","text":"ポケモンでニャオハをニャローテに進化させます。","translated":"用寶可夢將新葉喵進化為蒂蕾喵。","ms":919.3926670000005}
+{"type":"trial","id":"valorant-ja","from":"ja","to":"zh","text":"ヴァロラントでセージの壁を使って設置を守って。","translated":"在特戰英豪中，使用聖祈的牆壁來保護安裝輻能核心的過程。","ms":922.3708749999996}
+{"type":"trial","id":"greeting-zh","from":"zh","to":"ja","text":"謝謝你來","translated":"来てくれてありがとう","ms":0.8611670000000231}
+{"type":"trial","id":"negation-zh","from":"zh","to":"ja","text":"不是今天，是明天晚上八點。","translated":"今日ではなく、明日の夜8時です。","ms":570.8062499999996}
+{"type":"trial","id":"pokemon-zh","from":"zh","to":"ja","text":"寶可夢的新葉喵進化成蒂蕾喵。","translated":"ポケモンのニャオハがニャローテに進化しました。","ms":871.6903750000001}
+{"type":"trial","id":"economy-zh","from":"zh","to":"ja","text":"特戰英豪這一局先省錢，下回合再全買。","translated":"VALORANTのこの試合では、最初は節約をして、次のラウンドで全て購入しましょう。","ms":1042.4132500000005}
+{"type":"trial","id":"fish-greeting-ja","from":"ja","to":"zh","text":"魚が逃げてしまいました。来てくれてありがとうございます。","translated":"魚兒逃走了。謝謝你們的到來。","ms":659.7724169999992}
+{"type":"trial","id":"fish-wait-greeting-ja","from":"ja","to":"zh","text":"ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。","translated":"請稍等一下。魚兒已經逃走了。謝謝您來。","ms":718.6459579999992}
+{"type":"trial","id":"split-greeting-ja","from":"ja","to":"zh","text":"しまいました来てくれてありがとうございます","translated":"非常感謝大家的到來，時間到了，就這樣吧。","ms":505.7676250000004}
+{"type":"complete"}

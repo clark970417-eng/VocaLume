@@ -13,6 +13,8 @@ test('unambiguous Pokemon names translate in both directions without inference',
  assert.equal(gameTermTranslation('ピカチュウじゃない','ja','zh'),undefined);
  assert.equal(gameTermTranslation('皮卡丘？','zh','ja'),undefined);
  assert.equal(gameTermTranslation('皮卡丘','zh','en'),undefined);
+ assert.equal(gameTermTranslation('ヴァロラント','ja','zh'),'特戰英豪');
+ assert.equal(gameTermTranslation('特戰英豪','zh','ja'),'VALORANT');
 });
 
 test('game-specific terms require matching context rather than unrelated everyday senses',()=>{
@@ -27,6 +29,7 @@ test('game-specific terms require matching context rather than unrelated everyda
  assert.ok(selectGameTerminology('色違いのイーブイを捕まえた','ja','zh').some(e=>e.source==='色違い'&&e.target==='異色'));
  assert.ok(selectGameTerminology('Apex裡隊友倒地了','zh','ja').some(e=>e.source==='倒地'&&e.target==='ダウン'));
  assert.ok(selectGameTerminology('VALORANTでスパイクを解除した','ja','zh').some(e=>e.target==='輻能核心'));
+ assert.ok(selectGameTerminology('ヴァロラントでセージの壁を使う','ja','zh').some(e=>e.source==='ヴァロラント'&&e.target==='特戰英豪'));
  assert.ok(selectGameTerminology('絕對武力 2 要帶彈藥','zh','ja').some(e=>e.target==='弾薬'));
  assert.equal(selectGameTerminology('Apexでスパイクの話をした','ja','zh').some(e=>e.source==='スパイク'),false);
  assert.equal(selectGameTerminology('Apexをダウンロードした','ja','zh').some(e=>e.source==='ダウン'),false);
@@ -39,6 +42,7 @@ test('compound terms win, personal terms override overlaps and hints stay bounde
  assert.ok(selected.some(e=>e.source==='リコイル制御'&&e.target==='壓槍'));
  assert.equal(selected.some(e=>e.source==='リコイル'),false);
  assert.deepEqual(selectGameTerminology('皮卡丘','zh','ja',[{source:'皮卡丘',target:'ピカちゃん'}]),[]);
+ assert.deepEqual(selectGameTerminology('ヴァロラント','ja','zh',[{source:'ヴァロラント',target:'VALORANT'}]),[]);
  assert.equal(selectGameTerminology('VALORANTのリコイル制御','ja','zh',[{source:'リコイル',target:'自訂'}]).some(e=>e.source==='リコイル制御'),false);
  assert.equal(selectGameTerminology(entries.filter(e=>e.standalone).map(e=>e.ja).join('、'),'ja','zh').length,8);
 });
@@ -61,4 +65,18 @@ test('evolution phrases keep the destination species and preserve negation outsi
  assert.ok(terms.some(e=>e.source==='進化成仙子伊布'&&e.target==='ニンフィアに進化'));
  const evolutions=selectGameTerminology('伊布、雷伊布、火伊布、水伊布、太陽伊布、月亮伊布、葉伊布、冰伊布','zh','ja');
  for(const name of ['イーブイ','サンダース','ブースター','シャワーズ','エーフィ','ブラッキー','リーフィア','グレイシア'])assert.ok(evolutions.some(e=>e.target===name));
+});
+
+test('expanded names, live-stream phrases and RPG terms retain domain and personal-glossary guards',()=>{
+ assert.equal(gameTermTranslation('マスカーニャ','ja','zh'),'魔幻假面喵');
+ assert.equal(gameTermTranslation('蒼炎刃鬼','zh','ja'),'ソウブレイズ');
+ assert.ok(selectGameTerminology('VALORANTのセージとレイナ','ja','zh').some(e=>e.target==='聖祈'));
+ assert.ok(selectGameTerminology('Minecraftのエリトラをエンチャントした','ja','zh').some(e=>e.target==='鞘翅'));
+ assert.ok(selectGameTerminology('ゲームで天井までガチャを引く','ja','zh').some(e=>e.target==='保底'));
+ assert.ok(selectGameTerminology('今日は配信アーカイブをメンバー限定にする','ja','zh').some(e=>e.target==='會員限定'));
+ for(const text of ['天井を修理する','ボチボチ天井を修理する','会社で高評価をもらった','ダイヤモンドの指輪を買う','窓を設置してロックを解除する'])assert.deepEqual(selectGameTerminology(text,'ja','zh'),[],text);
+ assert.equal(selectGameTerminology('Minecraftのエリトラ','ja','zh',[{source:'エリトラ',target:'我的自訂稱呼'}]).some(e=>e.source==='エリトラ'),false);
+ assert.equal(gameTermTranslation('来てくれてありがとうございます','ja','zh'),'謝謝您的到來');
+ assert.deepEqual(selectGameTerminology('魚が逃げてしまいました。来てくれてありがとうございます。','ja','zh'),[]);
+ assert.deepEqual(selectGameTerminology('魚跑掉了。謝謝你來','zh','ja'),[]);
 });

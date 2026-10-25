@@ -47,6 +47,8 @@ export interface TranslationResult {
   sourceText: string
   /** Translated text */
   translatedText: string
+  /** Undecorated translation for TTS; caption-only laughter must not be spoken as letters. */
+  spokenText?: string
   /** Source language */
   sourceLanguage: Language
   /** Target language */
@@ -81,6 +83,9 @@ export interface SpeechEvidence {
   /** Seconds of the chunk that the browser's voice activity detector scored at
    * or above its speech-onset probability. */
   speechSeconds: number
+  /** Capture cue identity and end of the last VAD speech frame in this PCM window. */
+  segment?: string
+  speechEndSample?: number
 }
 
 /**

@@ -39,3 +39,8 @@ it('does not force explicit document contexts into livestream terminology', () =
   expect(finishJaZhTranslation('図書館のアーカイブを調べます。', '我會查閱圖書館的檔案。')).toBe('我會查閱圖書館的檔案。')
   expect(finishJaZhTranslation('新聞の切り抜きです。', '這是報紙的剪報。')).toBe('這是報紙的剪報。')
 })
+it('does not invent help in a welcome, but keeps explicitly spoken help', () => {
+  expect(finishJaZhTranslation('来てくれてありがとうございます。', '謝謝您能過來幫忙。')).toBe('謝謝您來。')
+  expect(buildJaZhFidelityGuidance('しまいました来てくれてありがとうございます')).toBe('')
+  expect(finishJaZhTranslation('手伝いに来てくれてありがとうございます。', '謝謝您能過來幫忙。')).toBe('謝謝您能過來幫忙。')
+})

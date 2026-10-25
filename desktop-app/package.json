@@ -1,9 +1,10 @@
 {
   "name": "live-translate",
-  "version": "4.4.8",
+  "version": "4.5.0",
   "description": "Local-first multilingual live captions and browser translation",
   "main": "./out/main/index.js",
   "scripts": {
+    "build:voice-tone": "node scripts/build-voice-tone.cjs",
     "postinstall": "node scripts/fix-whisper-addon.js",
     "prebuild": "node scripts/fix-whisper-addon.js",
     "dev": "electron-vite dev",

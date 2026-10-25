@@ -2,6 +2,18 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.0 - 2026-10-25
+
+- Reuse the final speech transcript only when the cue, PCM prefix and last detected speech position are unchanged and appended audio is quiet. Missing evidence or new speech causes normal recognition.
+- Prepare complete HY-MT Japanese/Chinese sentences without displaying a provisional translation. Promote only exact source/language/engine/glossary matches, including the saved SimulMT path; cancel changed or stopped work.
+- Require fresh recognition evidence for the shorter 480 ms complete-sentence pause; retain longer guards for hanging clauses. Reserve additional idle time when measured recognition becomes slow.
+- Expand the bidirectional game/livestream vocabulary from 78 to 244 pairs. Retain context checks, personal glossary priority and bounded prompt hints. Avoid adding “helping” to thanks for coming.
+- Recognize the spoken title ヴァロラント as 特戰英豪. Keep whole greetings out of longer-sentence terminology prompts: they could cause HY-MT 1.5 to translate only the greeting and drop an adjacent clause.
+- Add optional speech punctuation/laughter styles to desktop settings and the extension: natural, ww, 笑 and 草. macOS includes a local sound classifier; uncertain, slow or thermally constrained analysis is skipped. Other desktop platforms use explicit transcript markers.
+- Add a high-resolution wordmark and retain the original application icon; sharpen the extension header icon.
+- Verification: 190 extension tests, 706 desktop tests, type checking, production build and local macOS signature checks. See [measured scope](docs/retests/4.5.0.md) and [tone guide](docs/speech-tone.md).
+- Desktop and extension source/local installation are 4.5.0. Public preview installer assets remain 4.4.5; this is not a newly notarized public installer release.
+
 ## Extension 4.4.10 - 2026-10-25
 
 - Send desktop speech for translation in shorter cues: seek a 160 ms voice-detection pause after four seconds, preserve early breaths and recognized unfinished clauses, and cap uninterrupted audio at eight seconds instead of twenty. Keep the complete audio in order and retain the desktop engine's preceding translation context.

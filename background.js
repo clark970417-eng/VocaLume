@@ -291,7 +291,7 @@ async function startCapture(tabId){
  await stopCapture();const prefs=(await settings()).subtitleSettings;setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record')await initRecording();captureTabId=tabId;diagnostics={};lastError='';
  const configured=await settings(),langs={...languageDefaults,...(configured.languageSettings||{})};speechFrom=langs.speechSource;speechTo=langs.speechTarget;parseDirection(pair(speechFrom,speechTo));engineMode=configured.speechMode==='desktop'?'desktop':'browser';
  try{
- if(engineMode==='desktop'){modelStatus='正在載入桌面模型，首次可能需要下載…';await desktop.request('init',{sourceLanguage:speechFrom,targetLanguage:speechTo},600000);}
+ if(engineMode==='desktop'){modelStatus='正在載入桌面模型，首次可能需要下載…';await desktop.request('init',{sourceLanguage:speechFrom,targetLanguage:speechTo,speechToneMode:['off','natural','ww','笑','草'].includes(prefs?.speechToneMode)?prefs.speechToneMode:'off'},600000);}
  await ensureOffscreen();
  const streamId=await chrome.tabCapture.getMediaStreamId({targetTabId:tabId});
  running=true;modelStatus='正在擷取分頁聲音';
@@ -321,7 +321,7 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
    // Never evict a sentence still waiting for its translation.
    if(desktopSegments.size>200){for(const [key,meta] of desktopSegments){if(meta.session!==gate.session||desktopDelivered.has(key)){desktopSegments.delete(key);desktopDelivered.delete(key);break;}}}
   }
-  desktop.request(m.op,m.op==='decode'?{audio:m.audio,segment,final:!!m.final,...(Number.isFinite(m.speechSeconds)&&m.speechSeconds>=0&&{speechSeconds:m.speechSeconds})}:{},m.op==='init'?600000:60000).then(text=>{
+  desktop.request(m.op,m.op==='decode'?{audio:m.audio,segment,final:!!m.final,...(Number.isFinite(m.speechSeconds)&&m.speechSeconds>=0&&{speechSeconds:m.speechSeconds}),...(Number.isSafeInteger(m.speechEndSample)&&m.speechEndSample>0&&{speechEndSample:m.speechEndSample})}:{},m.op==='init'?600000:60000).then(text=>{
    if(m.op==='decode'&&m.final&&!text?.pending)desktopEvent({event:'caption',segment,result:{...text,final:true}});
    send({ok:true,text});
   },e=>{if(m.op==='decode')desktopEvent({event:'caption',segment,result:{final:true,error:e.message}});send({ok:false,error:e.message});});return true;

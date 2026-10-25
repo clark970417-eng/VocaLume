@@ -12,7 +12,7 @@ const languageOptions = [
 const languageLabel = value => languageOptions.find(([code]) => code === value)?.[1] || value;
 const languageDefaults = {readSource: 'ja', readTarget: 'zh', typeSource: 'zh', typeTarget: 'ja', speechSource: 'ja', speechTarget: 'zh', syncTextLanguages: true};
 const languageIds = Object.keys(languageDefaults);
-const defaults = {japaneseColor: '#ffffff', chineseColor: '#ffffff', fontSize: 22, showOutline: true, outlineColor: '#000000', outlineWidth: 1, captionOpacity: 100, backgroundColor: '#000000', backgroundOpacity: 60, position: 6, holdSeconds: 3, captionMode: 'realtime'};
+const defaults = {japaneseColor: '#ffffff', chineseColor: '#ffffff', fontSize: 22, showOutline: true, outlineColor: '#000000', outlineWidth: 1, captionOpacity: 100, backgroundColor: '#000000', backgroundOpacity: 60, position: 6, holdSeconds: 3, captionMode: 'realtime', speechToneMode: 'off'};
 const controls = Object.keys(defaults);
 const numericControls = ['fontSize', 'outlineWidth', 'position', 'holdSeconds', 'backgroundOpacity', 'captionOpacity'];
 const dedicatedHosts = ['youtube.com', 'x.com', 'twitter.com', 'bilibili.com', 'tiktok.com', 'twitch.tv', 'facebook.com', 'instagram.com', 'discord.com', 'discordapp.com'];
@@ -207,6 +207,7 @@ function renderEngine() {
   const desktop = $('#engineMode').value === 'desktop';
   $('#engineHint').textContent = desktop ? '需先安裝 VocaLume 桌面程式；開始時會自動啟動。' : '首次使用需下載辨識模型；文字翻譯需要網路連線。';
   $('#desktopSettings').hidden = !desktop;
+  $('#speechToneMode').disabled = !desktop;
 }
 listen('#engineMode', 'change', async () => {
   renderEngine();

@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current extension source **4.4.10** sends shorter speech cues for translation and fixes long, untranslated caption accumulation. Desktop capture now seeks a pause after four seconds and caps each continuous audio segment at eight seconds; queued cues keep separate IDs and caption rows. See [verification](docs/retests/4.4.10-extension.md). The **Read / Write / Listen / Settings** popup and manual website text opt-in remain available; see the [popup guide](docs/extension-guide.md). Desktop source remains **4.4.8**, including [duplicate-request speed improvements](docs/retests/4.4.8.md). Public preview downloads above remain **4.4.5**; these newer source changes have not been published as installer releases.
+Current desktop and extension source: **4.5.0**. This update reuses unchanged speech recognition, prepares complete Japanese/Chinese sentences safely, reduces optional preview work under sustained load, and expands the [game and livestream vocabulary](docs/game-vocabulary.md) to **244 pairs**. Optional [speech tone and laughter settings](docs/speech-tone.md) preserve recognized punctuation and offer 自然 / ww / 笑 / 草. See the [verification report](docs/retests/4.5.0.md) for measured scope and limitations. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 
@@ -112,7 +112,7 @@ Run the automated suite with:
 node --test tests/*.test.mjs
 ```
 
-Extension **4.4.10 passes 183 automated tests**, covering short speech cues, preserved audio and caption IDs under load, late final translations, recovery, language settings and site adapters. The [current verification report](docs/retests/4.4.10-extension.md) describes Opera GX capture tests and their limits. Desktop build and test results are recorded separately in the [4.4.8 report](docs/retests/4.4.8.md).
+Extension **4.5.0 passes 190 automated tests** and the desktop passes **706 tests**. These cover caption ordering, bounded audio windows, cancellation, source/translation pairing, terminology boundaries and tone settings. Hardware and Opera GX checks are described in the [4.5.0 verification report](docs/retests/4.5.0.md); they are not a guarantee for every device or live stream.
 These tests do not establish long-session or commercial-product parity. See
 [3.8 verification](docs/retests/RETEST-3.8.0.md) and the [upstream comparison](COMPARISON-LIVETRANSLATE.md).
 
@@ -133,3 +133,7 @@ they should not be interpreted as measurements of the new desktop backend.
 ## Third-party components
 
 The project includes Transformers.js, ONNX Runtime Web, and the Silero V5 model. Licensing and implementation references are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Brand artwork
+
+[High-resolution VocaLume wordmark](docs/brand/VocaLume-logo-hd.png) · [Original transparent application icon](docs/brand/VocaLume-icon-original.png) · [Artwork details](docs/brand/README.md)

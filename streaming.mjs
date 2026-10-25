@@ -1,3 +1,4 @@
+import {completeSentence,unfinishedSentence} from './sentence-boundary.mjs';
 // PCM sample positions, rather than timer cadence, define every audio boundary.
 export class Resampler {
  constructor(rate){this.ratio=rate/16000;this.reset();}
@@ -27,15 +28,16 @@ export class SpeechGain {
 }
 export class SpeechWindows {
  constructor({shortCues=false}={}){this.shortCues=shortCues;this.sentenceMode=shortCues;this.maxSamples=shortCues?128000:80000;this.overlapFrames=shortCues?0:32;this.reset();}
- reset(){this.pre=[];this.parts=[];this.samples=0;this.clock=0;this.onset=0;this.silent=0;this.voiced=0;this.confident=0;this.active=false;this.id=0;this.lastEmission=0;this.overlap=false;this.utterance=0;this.sentenceComplete=false;this.sentenceUnfinished=false;}
- hint(text,utteranceId,id=this.id){
+ reset(){this.pre=[];this.parts=[];this.samples=0;this.clock=0;this.onset=0;this.silent=0;this.voiced=0;this.confident=0;this.active=false;this.id=0;this.lastEmission=0;this.overlap=false;this.utterance=0;this.sentenceComplete=false;this.sentenceUnfinished=false;this.lastSpeechSample=0;this.hintSample=0;}
+ hint(text,utteranceId,id=this.id,sampleCount=this.clock){
   if(!this.active||utteranceId!==this.utterance||id!==this.id)return;
   // A recognizer's period alone is weak evidence. Japanese hanging particles
   // and Chinese continuation words need the longer pause even with punctuation.
   const value=String(text||'').trim();
-  const unfinished=/(?:けど|けれど|から|ので|のに|とか|という|って|でも|そして|それで|如果|因為|但是|然後|雖然|所以|而且)[、，,。.!！?？\s]*$/u;
-  this.sentenceUnfinished=unfinished.test(value);
-  this.sentenceComplete=/[。！？.!?][」』”"]?$/.test(value)&&!this.sentenceUnfinished;
+  if(!Number.isFinite(sampleCount)||sampleCount<this.start||sampleCount>this.clock)return;
+  this.hintSample=sampleCount;
+  this.sentenceUnfinished=unfinishedSentence(value)||/(?:から|とか|でも)[、，,。.!！?？\s]*$/u.test(value);
+  this.sentenceComplete=completeSentence(value)&&!this.sentenceUnfinished;
  }
  finish(){
   if(!this.active)return null;
@@ -43,7 +45,7 @@ export class SpeechWindows {
   if(this.voiced<3584){this.parts=[];this.samples=0;return null;}
   const audio=new Float32Array(this.samples);let offset=0;
   for(const part of this.parts){audio.set(part,offset);offset+=part.length;}
-  const job={id:this.id,utteranceId:this.utterance,utteranceEnd:true,audio,final:true,overlap:this.overlap,voicedSeconds:this.voiced/16000,speechSeconds:this.confident/16000,sampleCount:this.clock,startSample:this.start,endSample:this.clock,speechStartSample:this.speechStart};
+  const job={id:this.id,utteranceId:this.utterance,utteranceEnd:true,audio,final:true,overlap:this.overlap,voicedSeconds:this.voiced/16000,speechSeconds:this.confident/16000,sampleCount:this.clock,startSample:this.start,endSample:this.clock,speechStartSample:this.speechStart,lastSpeechSample:this.lastSpeechSample};
   this.parts=[];this.samples=0;return job;
  }
  push(frame,probability,interval=.65){
@@ -58,15 +60,16 @@ export class SpeechWindows {
    // The first cadence starts at acoustic onset, not after VAD activation.
    // Otherwise the two-frame onset confirmation is added to the configured
    // preview delay and a nominal 500 ms preview arrives closer to 600 ms.
-   this.lastEmission=this.speechStart;this.overlap=false;this.sentenceComplete=false;this.sentenceUnfinished=false;
+   this.lastEmission=this.speechStart;this.overlap=false;this.sentenceComplete=false;this.sentenceUnfinished=false;this.lastSpeechSample=this.clock;this.hintSample=0;
    return null;
   }
   this.parts.push(frame);this.samples+=n;
-  if(speech)this.voiced+=n;
+  if(speech){this.voiced+=n;this.lastSpeechSample=this.clock;}
   // Speech at the onset probability, which the companion's outro check was calibrated on.
   if(probability>=.30)this.confident+=n;
   this.silent=speech?0:this.silent+n;
-  const pause=this.sentenceMode?(this.sentenceComplete?14400:22400):9216;
+  const freshHint=this.hintSample>=this.lastSpeechSample;
+  const pause=this.sentenceMode?(this.sentenceComplete&&freshHint?7680:22400):9216;
   // Retain early breaths and hanging clauses. Once a cue has four seconds of
   // context, a 160 ms VAD-confirmed pause is a useful boundary; uninterrupted speech has an
   // eight-second ceiling. This bounds translation input without truncating text.
@@ -81,7 +84,7 @@ export class SpeechWindows {
   let job=null;
   if(this.voiced>=3200 && ((ended||cut) || (previewReady&&this.clock-this.lastEmission>=interval*16000))){
    const audio=new Float32Array(this.samples);let at=0;for(const part of this.parts){audio.set(part,at);at+=part.length;}
-   job={id:this.id,utteranceId:this.utterance,utteranceEnd:ended,audio,final:ended||cut,overlap:this.overlap,voicedSeconds:this.voiced/16000,speechSeconds:this.confident/16000,sampleCount:this.clock,startSample:this.start,endSample:this.clock,speechStartSample:this.speechStart};
+   job={id:this.id,utteranceId:this.utterance,utteranceEnd:ended,audio,final:ended||cut,overlap:this.overlap,voicedSeconds:this.voiced/16000,speechSeconds:this.confident/16000,sampleCount:this.clock,startSample:this.start,endSample:this.clock,speechStartSample:this.speechStart,lastSpeechSample:this.lastSpeechSample};
    this.lastEmission=this.clock;
   }
   if(ended){this.active=false;this.parts=[];this.samples=0;this.pre=[];this.onset=0;}

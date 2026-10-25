@@ -18,6 +18,7 @@ import { ContextBuffer } from './ContextBuffer'
 import { TranslationCache } from './TranslationCache'
 import { EngineManager } from './EngineManager'
 import { StreamingProcessor } from './StreamingProcessor'
+import { isSpeechToneMode, type SpeechToneMode } from './SpeechTone'
 import { GERProcessor } from './GERProcessor'
 import { MemoryMonitor } from './MemoryMonitor'
 import { AdaptiveRouter } from './AdaptiveRouter'
@@ -84,6 +85,7 @@ export class TranslationPipeline extends EventEmitter {
 
   // Language configuration
   private sourceLanguage: SourceLanguage = 'auto'
+  private speechToneMode: SpeechToneMode = 'off'
   private targetLanguage: Language = 'en'
 
   // SimulMT state
@@ -156,6 +158,8 @@ export class TranslationPipeline extends EventEmitter {
         return translated
       },
       getSimulMtConfig: () => ({ enabled: this.simulMtEnabled, waitK: this.simulMtWaitK }),
+      getSpeechToneMode: () => this.speechToneMode,
+      getSourceLanguage: () => this.sourceLanguage,
       resolveTargetLanguage: (lang) => this.resolveTargetLanguage(lang),
       incrementProcessing: () => { this.processingCount++ },
       decrementProcessing: () => {
@@ -246,6 +250,12 @@ export class TranslationPipeline extends EventEmitter {
     if (changed) {
       this.translationCache.clear()
     }
+  }
+
+  /** Configure optional speech punctuation and laughter presentation. */
+  setSpeechToneMode(mode: unknown): void {
+    this.speechToneMode = isSpeechToneMode(mode) ? mode : 'off'
+    if (this.speechToneMode === 'off') this.streaming.stopToneAnalysis()
   }
 
   /** Configure simultaneous translation (Wait-k policy) */

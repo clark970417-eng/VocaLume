@@ -1,6 +1,7 @@
 import Store from 'electron-store'
 import type { GlossaryEntry, Language, SourceLanguage } from '../engines/types'
 import { DEFAULT_WS_PORT } from './constants'
+import type { SpeechToneMode } from '../pipeline/SpeechTone'
 
 export interface QuotaRecord {
   monthKey: string
@@ -51,6 +52,7 @@ export interface CorrectionEntry {
 }
 
 export interface AppSettings {
+  speechToneMode: SpeechToneMode
   translationEngine: string
   googleApiKey: string
   microsoftApiKey: string
@@ -168,6 +170,7 @@ export interface AppSettings {
 export const store = new Store<AppSettings>({
   encryptionKey: 'live-translate-v1',
   defaults: {
+    speechToneMode: 'off',
     hasCompletedSetup: false,
     translationEngine: 'auto',
     googleApiKey: '',

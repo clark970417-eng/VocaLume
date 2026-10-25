@@ -1,0 +1,3 @@
+{"case":"japanese-speech","confidence":0.01632453128695488,"detected":false,"ms":643.031375}
+{"case":"silence","confidence":0.008206133730709553,"detected":false,"ms":107.2019580000001}
+{"case":"cc0-laughter","confidence":0.9514647722244263,"detected":true,"ms":112.54899999999998}

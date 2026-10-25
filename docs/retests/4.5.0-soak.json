@@ -1,0 +1,79 @@
+{
+  "scope": "138 paced repetitions of the same authored Japanese fixture. Real Silero, MLX Whisper and HY-MT 1.5 on one Mac. Repeated text mostly hits translation cache. Snapshot precedes final phrase-hint and TTS/pure-laughter presentation fixes. This is a continuity check, not diverse uncached translation throughput, semantic accuracy, or a controlled thermal comparison.",
+  "fixture": "tests/japanese-fixture.wav",
+  "platform": {
+    "chip": "Apple M5",
+    "memoryGiB": 16,
+    "macOS": "26.4.1"
+  },
+  "summary": {
+    "durationMs": 1828238.853042,
+    "asrCalls": 905,
+    "asrMs": 897058.9474430019,
+    "translationCalls": 6,
+    "translationMs": 6911.141916000008,
+    "finals": 276,
+    "failed": 0
+  },
+  "errors": [],
+  "roundEndQueueMax": 0,
+  "thermalStates": [
+    "fair"
+  ],
+  "speedLimits": [
+    100
+  ],
+  "mainProcessRssMiB": {
+    "first": 44.2,
+    "last": 36.0,
+    "max": 44.8
+  },
+  "endOfCapturedWindowToChinese": {
+    "p50Ms": 1319.8,
+    "p95Ms": 3011.5,
+    "maxMs": 6432.3
+  },
+  "first20Finals": {
+    "p50Ms": 1953.5,
+    "p95Ms": 3935.2,
+    "maxMs": 4242.0
+  },
+  "last20Finals": {
+    "p50Ms": 1238.2,
+    "p95Ms": 2337.2,
+    "maxMs": 2749.2
+  },
+  "uniqueFinalPairs": [
+    {
+      "source": "しまいました来てくれてありがとうございます",
+      "translated": "謝謝您的到來"
+    },
+    {
+      "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "translated": "請稍等一下。魚兒已經逃走了。謝謝您的到來。"
+    },
+    {
+      "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。"
+    },
+    {
+      "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて",
+      "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有魚兒要逃走了。"
+    },
+    {
+      "source": "来てくれてありがとうございます",
+      "translated": "謝謝您的到來"
+    },
+    {
+      "source": "皆さんこんにちは今日は一緒にゲームを楽しみましょう ちょっと待ってください魚が逃げてしまい",
+      "translated": "各位，您好！今天就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。"
+    }
+  ],
+  "notes": [
+    "End-of-window latency excludes the pause used to close that window.",
+    "Round-end queue snapshots are not a peak queue measurement.",
+    "Main-process RSS excludes model and audio subprocesses.",
+    "Ordinary browser playback and desktop activity were not isolated. The installed desktop microphone session was found active near the end and stopped; this run is not a controlled speed benchmark.",
+    "All sampled thermal states were fair. Optional acoustic tone classification was skipped; no degrees-C temperature was measured."
+  ]
+}

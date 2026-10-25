@@ -213,6 +213,7 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
 
       // Configure language settings (#263)
       ctx.pipeline!.setLanguageConfig(store.get('sourceLanguage'), store.get('targetLanguage'))
+      ctx.pipeline!.setSpeechToneMode(store.get('speechToneMode'))
 
       ctx.pipeline!.setGEREnabled(!!store.get('gerEnabled'))
 

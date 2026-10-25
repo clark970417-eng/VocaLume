@@ -1,5 +1,5 @@
 import {ort} from './whisper-runtime.js';
-import {Resampler,SpeechWindows,SpeechGain} from './streaming.mjs?v=4.4.10';
+import {Resampler,SpeechWindows,SpeechGain} from './streaming.mjs?v=4.5.0';
 ort.env.wasm.wasmPaths=new URL('./ort/',import.meta.url).href;
 ort.env.wasm.numThreads=1;
 let context=new Float32Array(64);
@@ -35,7 +35,7 @@ self.onmessage=({data:m})=>{
    sr=new ort.Tensor('int64',BigInt64Array.from([16000n]),[]);reset(m);postMessage({type:'ready',epoch});return;
   }
   if(m.type==='reset'){reset(m);return;}
-  if(m.type==='transcript'&&m.epoch===epoch){windows.hint(m.text,m.utteranceId,m.id);return;}
+  if(m.type==='transcript'&&m.epoch===epoch){windows.hint(m.text,m.utteranceId,m.id,m.sampleCount);return;}
   if(m.type==='flush'&&m.epoch===epoch){
    if(pending.length){while(pending.length<512)pending.push(0);await processFrames(.65);}
    publish(windows.finish());postMessage({type:'flushed',epoch});return;

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSettingsState } from '../hooks/useSettingsState'
 import { Onboarding } from './Onboarding'
+import { SpeechToneSettings } from './settings/SpeechToneSettings'
 import {
   AudioSettings,
   LanguageSettings,
@@ -251,6 +252,7 @@ function SettingsPanel(): React.JSX.Element {
           />
 
           <CorrectionHistory />
+          <SpeechToneSettings />
 
           <SubtitleSettings
             fontSize={s.subtitleFontSize}

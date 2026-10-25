@@ -17,6 +17,13 @@ test('output checks reject English, commentary and leftover Japanese but retain 
  assert.throws(()=>validateTranslation('Translation: こんにちは','zh-ja'));
  assert.equal(validateTranslation('鹿乃まほろ今天要玩遊戲。','ja-zh'),'鹿乃まほろ今天要玩遊戲。');
 });
+test('standalone laugh captions can use the chosen style without accepting untranslatable speech',()=>{
+ for(const direction of ['ja-zh','zh-ja'])for(const marker of ['ww','笑','草','（笑）']){
+  assert.equal(validateTranslation(marker,direction,'（笑）'),marker);
+ }
+ for(const source of ['こんにちは','笑った','草原','www.example.com','こんにちは（笑）'])assert.throws(()=>validateTranslation('ww','ja-zh',source));
+ assert.throws(()=>validateTranslation('hello','ja-zh','（笑）'));
+});
 test('memo shares concurrent work, retries failures and evicts least recently used',async()=>{
  const memo=new TranslationMemo(2);let calls=0;
  const work=async()=>{calls++;return '結果';};

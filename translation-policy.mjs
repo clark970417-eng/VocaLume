@@ -58,6 +58,11 @@ export const chinesePrompt = `Translate Japanese into fluent Taiwan Traditional 
 export function validateTranslation(value,direction,source=''){
  const text=String(value||'').trim();
  if(!text || /<think>|```|^(?:Translation|翻譯|译文)\s*[:：]/iu.test(text))throw new Error('翻譯服務回傳格式不正確');
+ // Nonverbal-only captions legitimately have no target-language characters.
+ // Require explicit laughter in the whole source, so ordinary speech cannot
+ // pass the language/completeness check merely by returning "ww" or "草".
+ const laughterOnly=/^(?:[（([](?:笑|笑い|笑聲|笑声|laughter|laughs)[）)\]]|w{2,}|ははは+|ハハハ+|哈哈哈+)[。.!！?？\s]*$/iu;
+ if(laughterOnly.test(source.trim())&&/^(?:ww|笑|草|（笑）)$/u.test(text))return text;
  if(direction==='ja-zh'){
   // These proper names legitimately retain kana in a Chinese sentence.
   let body=text.replace(/鹿乃まほろ|ミリプロ/g,'');

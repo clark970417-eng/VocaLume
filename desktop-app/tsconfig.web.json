@@ -14,6 +14,7 @@
     "src/renderer/**/*",
     "src/preload/index.d.ts",
     "src/engine-selection.ts",
-    "src/media-formats.ts"
+    "src/media-formats.ts",
+    "src/pipeline/SpeechTone.ts"
   ]
 }

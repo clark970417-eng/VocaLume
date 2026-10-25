@@ -58,7 +58,7 @@ function decode(s,job){
  if(!s.recording&&!s.desktop&&Date.now()-job.audioEndAt>4000){s.expired++;return;}
  s.busy=job;s.started=performance.now();s.metrics.add('queueMs',Date.now()-job.audioEndAt);
  s.timeout=setTimeout(()=>restartWorker(s,'辨識逾時'),s.desktop?60000:15000);
- const audio=job.audio.slice();s.worker.postMessage({type:'decode',id:job.id,audio,segment:s.epoch+':'+job.id,utterance:s.epoch+':'+job.utteranceId,final:job.final,speechSeconds:job.speechSeconds,speechAt:job.speechAt,audioEndAt:job.audioEndAt},[audio.buffer]);
+ const audio=job.audio.slice();s.worker.postMessage({type:'decode',id:job.id,audio,segment:s.epoch+':'+job.id,utterance:s.epoch+':'+job.utteranceId,final:job.final,speechSeconds:job.speechSeconds,speechEndSample:job.lastSpeechSample-job.startSample,speechAt:job.speechAt,audioEndAt:job.audioEndAt},[audio.buffer]);
 }
 function drainVad(s){
  if(s.vadBusy||!s.vadReady)return;
@@ -111,7 +111,7 @@ function initializeWorker(s){
   s.previewBudget.complete(s.decodeMs,performance.now());
   if(data.performance)s.performance=data.performance;
   const job=s.busy;
-  if(job&&data.text)s.vad?.postMessage({type:'transcript',epoch:s.epoch,id:job.id,utteranceId:job.utteranceId,text:data.text});
+  if(job&&data.text)s.vad?.postMessage({type:'transcript',epoch:s.epoch,id:job.id,utteranceId:job.utteranceId,sampleCount:job.sampleCount,text:data.text});
   if(job&&job.epoch===s.epoch&&!s.nativeUntil&&(s.recording||Date.now()-job.audioEndAt<5000)){
    if(s.desktop&&data.text&&s.lastId!==job.id){s.lastId=job.id;s.metrics.add('firstJapaneseMs',Date.now()-job.speechAt);s.metrics.add('audioLagMs',Date.now()-job.audioEndAt);}
    const text=s.desktop?null:s.filter.accept(data.text,job);
@@ -128,7 +128,7 @@ function initializeWorker(s){
  worker.postMessage({type:'init'});
 }
 function initializeVad(s){
- s.vad=new Worker('vad-worker.js?v=4.4.10',{type:'module'});
+ s.vad=new Worker('vad-worker.js?v=4.5.0',{type:'module'});
  s.vadTimeout=setTimeout(()=>{if(active===s){send(s,'speech-error',{error:'人聲模型載入逾時'});stop();}},30000);
  s.vad.onerror=()=>{if(active===s){send(s,'speech-error',{error:'人聲模型載入失敗'});stop();}};
  s.vad.onmessage=({data:m})=>{

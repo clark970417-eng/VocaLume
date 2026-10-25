@@ -1,0 +1,177 @@
+{
+  "scope": "Development snapshot before final vocabulary/tone integration. Same authored Japanese fixture and real models; four paced repetitions. Different OS thermal histories prevent a controlled latency/temperature claim. Not a browser test.",
+  "baselineSource": "7aedd4a",
+  "runs": [
+    {
+      "label": "4.4.10 baseline",
+      "rounds": 4,
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 797.0704160000005,
+          "atMs": 5629.071833
+        },
+        {
+          "cue": 2,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您能過來幫忙。",
+          "endToChineseMs": 858.134415999999,
+          "atMs": 11770.135041
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 876.8995829999985,
+          "atMs": 18956.900166
+        },
+        {
+          "cue": 5,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您能過來幫忙。",
+          "endToChineseMs": 461.5497499999983,
+          "atMs": 24621.550457999998
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 708.0815000000002,
+          "atMs": 32036.082415999997
+        },
+        {
+          "cue": 8,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您能過來幫忙。",
+          "endToChineseMs": 532.4041250000009,
+          "atMs": 37940.404624999996
+        },
+        {
+          "cue": 10,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 734.5224999999991,
+          "atMs": 45310.52375
+        },
+        {
+          "cue": 11,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您能過來幫忙。",
+          "endToChineseMs": 533.1780829999989,
+          "atMs": 51189.178916
+        }
+      ],
+      "summary": {
+        "durationMs": 53000.214666,
+        "asrCalls": 55,
+        "asrMs": 25246.721170999983,
+        "translationCalls": 2,
+        "translationMs": 730.2543330000008,
+        "finals": 8,
+        "failed": 0
+      },
+      "totalMs": 61197.186125,
+      "firstSourceLatency": {
+        "p50Ms": 1546.3,
+        "p95Ms": 2326.6,
+        "maxMs": 2410.5
+      },
+      "endOfWindowToChinese": {
+        "p50Ms": 721.3,
+        "p95Ms": 858.1,
+        "maxMs": 876.9
+      },
+      "thermalStates": [
+        "fair",
+        "nominal"
+      ]
+    },
+    {
+      "label": "4.5.0 development snapshot",
+      "rounds": 4,
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1599.979625,
+          "atMs": 6431.982625000001
+        },
+        {
+          "cue": 2,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您能過來幫忙。",
+          "endToChineseMs": 1040.2444999999989,
+          "atMs": 11952.245416
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 757.2402910000019,
+          "atMs": 18837.241166
+        },
+        {
+          "cue": 5,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您能過來幫忙。",
+          "endToChineseMs": 738.9380830000009,
+          "atMs": 24898.939375
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 755.5791660000032,
+          "atMs": 32083.58
+        },
+        {
+          "cue": 8,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您能過來幫忙。",
+          "endToChineseMs": 593.7378749999989,
+          "atMs": 38001.738791
+        },
+        {
+          "cue": 10,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1117.1275410000017,
+          "atMs": 45693.128458
+        },
+        {
+          "cue": 11,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您能過來幫忙。",
+          "endToChineseMs": 813.3756250000006,
+          "atMs": 51469.376333
+        }
+      ],
+      "summary": {
+        "durationMs": 52996.662208,
+        "asrCalls": 46,
+        "asrMs": 23357.279580000024,
+        "translationCalls": 2,
+        "translationMs": 1031.354041999999,
+        "finals": 8,
+        "failed": 0
+      },
+      "totalMs": 60809.769250000005,
+      "firstSourceLatency": {
+        "p50Ms": 1873.6,
+        "p95Ms": 2313.2,
+        "maxMs": 2544.4
+      },
+      "endOfWindowToChinese": {
+        "p50Ms": 785.3,
+        "p95Ms": 1117.1,
+        "maxMs": 1600.0
+      },
+      "thermalStates": [
+        "fair"
+      ]
+    }
+  ]
+}

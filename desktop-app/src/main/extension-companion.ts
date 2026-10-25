@@ -1,4 +1,5 @@
 import { performanceState } from './performance-state'
+import { isSpeechToneMode } from '../pipeline/SpeechTone'
 /** Private local adapter for the existing browser UI; uses the production pipeline. */
 import { createServer, type Server, type Socket } from 'net'
 import { mkdirSync, chmodSync, existsSync, unlinkSync, writeFileSync } from 'fs'
@@ -172,7 +173,7 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
       for (;;) {
         const newline = buffer.indexOf('\n'); if (newline < 0) break
         const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1)
-        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; sourceLanguage?: string; targetLanguage?: string }
+        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; speechEndSample?: unknown; sourceLanguage?: string; targetLanguage?: string; speechToneMode?: unknown }
         try { m = JSON.parse(line) } catch { send({ ok: false, error: 'Invalid request' }); continue }
         if (!m || typeof m !== 'object') { send({ ok: false, error: 'Invalid request' }); continue }
         const audioPriority = ['decode', 'init', 'stop'].includes(m.op || '')
@@ -200,6 +201,11 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
               result = { stopped: true }
             } else if (m.op === 'init') {
               if (pipeline.active && !ownsSession) throw new Error('Stop desktop audio capture before starting browser capture.')
+              if (m.speechToneMode !== undefined) {
+                if (!isSpeechToneMode(m.speechToneMode)) throw new Error('Invalid speech tone setting')
+                store.set('speechToneMode', m.speechToneMode)
+                pipeline.setSpeechToneMode(m.speechToneMode)
+              }
               const supported = new Set(['ja','en','zh','ko','fr','de','es','pt','ru','it','nl','pl','ar','th','vi','id'])
               if (m.sourceLanguage && m.targetLanguage) {
                 if (!supported.has(m.sourceLanguage) || !supported.has(m.targetLanguage) || m.sourceLanguage === m.targetLanguage) throw new Error('Invalid language pair')
@@ -232,7 +238,7 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
               for (let i = 0; i < audio.length; i++) audio[i] = bytes.readFloatLE(i * 4)
               if (!audio.every(Number.isFinite)) throw new Error('Invalid audio samples')
               // Optional: an older browser sends none, and invalid values count as none.
-              const evidence = speechEvidenceFor(m.speechSeconds, audio.length / 16000)
+              const evidence = speechEvidenceFor(m.speechSeconds, audio.length / 16000, m)
               if (lastAudio && current.segment && current.segment !== m.segment) {
                 if (pipeline.canOverlapFinalTranslation && typeof pipeline.prepareFinalStreaming === 'function') await prepareFinal(lastAudio, current.segment, lastEvidence)
                 else { const prior = await pipeline.finalizeStreaming(lastAudio, 16000, lastEvidence); if (prior) caption(prior) }

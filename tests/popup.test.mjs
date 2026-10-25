@@ -118,6 +118,21 @@ test('task navigation remembers the page without enabling translation or capture
   assert.equal(reopened.get('#appearance').open, true);
 });
 
+test('speech tone saves independently, survives reopening and requires desktop speech mode', async () => {
+  const h = await harness({saved: {speechMode: 'desktop'}});
+  assert.equal(h.get('#speechToneMode').disabled, false);
+  assert.equal(h.get('#speechToneMode').value, 'off');
+  await h.change('speechToneMode', 'ww', 'input');
+  assert.equal(h.state.saved.subtitleSettings.speechToneMode, 'ww');
+  assert.equal(h.requests.some(r => r.type === 'subtitle-control'), false);
+  assert.equal(h.get('#websiteText').checked, false);
+  const reopened = await harness({saved: h.state.saved});
+  assert.equal(reopened.get('#speechToneMode').value, 'ww');
+  await reopened.change('engineMode', 'browser');
+  assert.equal(reopened.get('#speechToneMode').disabled, true);
+  assert.equal(reopened.get('#speechToneMode').value, 'ww');
+});
+
 test('tabs support arrows, Home and End with a single keyboard tab stop', async () => {
   const h = await harness();
   h.get('#tab-read').dispatch('keydown', {key: 'ArrowRight'});

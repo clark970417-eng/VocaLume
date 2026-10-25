@@ -56,10 +56,14 @@ document.querySelector('#full-test').onclick=async event=>{
    if(!exported?.ok||!Array.isArray(exported.text))throw Error('無法檢查字幕記錄');
    const session=exported.text.at(-1)?.session,entries=exported.text.filter(e=>e.session===session);
    if(!entries.length||entries.some(e=>e.state!=='done'||!e.translated?.trim()))throw Error('仍有未完成的字幕或只有原文的記錄');
+   // This authored fixture says the fish escaped before thanking the viewer.
+   // A non-empty output alone must not hide a dropped adjacent clause.
+   if(entries.some(e=>e.original.includes('魚が')&&!e.translated.includes('魚')))throw Error('音檔中的「魚逃走了」被漏譯，不能只保留招呼');
   }
   const visible=document.querySelector('#jtl-subtitles')?.classList.contains('jtl-visible');
   const count=document.querySelectorAll('#events tr').length;
   if(!hasChinese)throw Error('沒有收到中文翻譯');
+  if([...document.querySelectorAll('#events tr')].some(row=>/原文明說|未完成的句子|原文中沒有|翻譯指示/.test(row.cells[2]?.textContent||'')))throw Error('模型把翻譯提示寫進字幕');
   if(mode==='record'&&Number(document.querySelector('#test-cycles').value)>=6&&document.querySelectorAll('.jtl-pair').length!==4)throw Error('六次播放後應保留四組字幕，目前只有 '+document.querySelectorAll('.jtl-pair').length+' 組');
   status.textContent=mode==='record'?`完整模式：音檔結束，顯示 ${document.querySelectorAll('.jtl-pair').length} 組記錄（最多四組），不按秒數消失。`:`音檔完成；字幕更新 ${count} 次；結束後字幕${visible?'仍顯示（需檢查）':'已清空'}；自動隱藏與截止時間相差 ${hideDrift===null?'未測得':hideDrift+' ms'}。`;
  }catch(error){status.textContent='測試未通過：'+error.message;}

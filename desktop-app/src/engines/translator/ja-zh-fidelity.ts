@@ -44,6 +44,10 @@ const hasHearsay = (text: string): boolean => /聽說|據說|據了解|傳聞|�
 export function finishJaZhTranslation(source: string, output: string): string {
   let result = output.trim()
 
+  if (/来てくれてありがとう/.test(source) && !/手伝|助け|協力|お世話/.test(source)) {
+    result = result.replace(/謝謝([你您])(?:能)?(?:過來|來)(?:幫忙|幫助)(?:我們|我)?/g, '謝謝$1來')
+  }
+
   if (/リスポーン地点/.test(source)) {
     result = result.replace(/リスポーン(?:地点|地點|點)?|回程(?:的)?(?:地点|地點|點)|復活(?:的)?(?:地点|地點)|重生(?:的)?(?:地点|地點)/g, '重生點')
   }

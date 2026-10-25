@@ -8,10 +8,19 @@ test('slow recognition receives actual idle time, including when a decode exceed
  b.complete(5000,5000);
  assert.ok(b.intervalMs()>5800);
  assert.ok(b.remainingMs(5000)>880);
- assert.equal(b.remainingMs(5900),0);
+ assert.equal(b.remainingMs(10000),0);
  assert.ok(b.remainingMs(5000,{previewDutyCycle:.4})>=7500);
  assert.equal(b.intervalMs({previewsPaused:true}),Infinity);
  assert.equal(b.remainingMs(90000,{previewsPaused:true}),Infinity);
+});
+
+test('sustained slow recognition reduces optional load before a thermal warning',()=>{
+ const b=new PreviewBudget();b.complete(2600,2600);
+ assert.equal(b.dutyCycle(),.65);assert.equal(b.intervalMs(),4000);
+ assert.ok(b.remainingMs(2600)>1300);
+ assert.equal(b.dutyCycle({previewDutyCycle:.4}),.4);
+ for(let i=0;i<20;i++)b.complete(100,3000+i*500);
+ assert.equal(b.dutyCycle(),.85);
 });
 
 test('brief inference keeps normal responsiveness, and invalid timings do not poison the budget',()=>{

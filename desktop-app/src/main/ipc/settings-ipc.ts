@@ -6,6 +6,7 @@ import type { AppSettings, SubtitleSettings, CorrectionEntry } from '../store'
 import { validateSubtitleSettings } from '../ipc-validators'
 import type { AppContext } from '../app-context'
 import { createLogger } from '../logger'
+import { isSpeechToneMode } from '../../pipeline/SpeechTone'
 import {
   parseGlossary,
   detectGlossaryFormat,
@@ -62,6 +63,7 @@ export function registerSettingsIpc(ctx: AppContext): void {
 
   ipcMain.handle('get-settings', () => {
     return {
+      speechToneMode: store.get('speechToneMode'),
       translationEngine: store.get('translationEngine'),
       googleApiKey: store.get('googleApiKey'),
       deeplApiKey: store.get('deeplApiKey'),
@@ -125,9 +127,11 @@ export function registerSettingsIpc(ctx: AppContext): void {
   })
 
   ipcMain.handle('save-settings', (_event, settings: Record<string, unknown>) => {
+    if ('speechToneMode' in settings && !isSpeechToneMode(settings.speechToneMode)) throw new Error('Invalid speech tone setting')
     for (const [key, value] of Object.entries(settings)) {
       store.set(key as keyof AppSettings, value as never)
     }
+    if ('speechToneMode' in settings) ctx.pipeline?.setSpeechToneMode(settings.speechToneMode)
   })
 
   /** Sync the merged glossary (personal + org) to the running pipeline */
