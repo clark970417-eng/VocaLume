@@ -1,12 +1,20 @@
+# Changelog
+
+This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
+
+## 4.4.8 - 2026-10-25
+
+- Coalesce identical local translation requests. Completed results are reused for five minutes in a bounded, memory-only desktop cache; language direction, model options, writing style, full text and terminology remain part of the key.
+- Cancel each waiting caller independently. Shared inference is cancelled only when all callers stop waiting; failed, cancelled and empty results never become cached translations.
+- Merge duplicate local requests from browser page text, captions and drafts before sending them to the native bridge.
+- Retain existing prompts, models, complete-sentence handling and caption order. Keep website text translation opt-in from 4.4.7.
+- See [verification and measured scope](docs/retests/4.4.8.md). This improves repeated/concurrent identical text; it does not claim faster inference for every new sentence.
+
 ## Extension 4.4.7 - 2026-10-25
 
 - Website text translation now requires explicit opt-in in the popup, including dedicated social sites. New and existing installations start off until the user chooses to enable it; the choice persists.
 - Turning text translation off also hides typing controls, without starting or stopping speech captions.
 - Desktop remains 4.4.5. Automated extension checks passed; Opera reload could not be verified because the computer-use service disconnected.
-
-# Changelog
-
-This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
 ## Extension 4.4.6 - 2026-10-20
 

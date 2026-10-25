@@ -4,7 +4,6 @@ let desktopClient;
 const desktop={request:(...args)=>{if(!desktopClient){desktopClient=new NativeClient(chrome.runtime);desktopClient.onEvent=desktopEvent;}return desktopClient.request(...args);}};
 const desktopSegments=new Map();
 let engineMode='browser';
-const desktopTranslations=new Map();
 import {ResultGate} from './stream-core.mjs';
 import {CueCursor} from './cue-cursor.mjs';
 import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt} from './translation-policy.mjs';
@@ -39,14 +38,16 @@ async function freeTranslate(text,from,to,signal){
  if(!result)throw new Error('翻譯回應為空');return result;
 }
 const textMemo=new TranslationMemo();
+const localTranslationMemo=new TranslationMemo();
 async function localTranslation(text,direction,timeout=60000){
  const configured=await settings(),style=configured.writingStyle||'general';
  const quality=direction==='zh-ja'&&configured.writingQuality==='quality'?'quality':'fast';
- const key=direction+':'+style+':'+quality+':'+text.trim();const cached=desktopTranslations.get(key);if(cached)return cached;
- const result=await desktop.request('translate',{text,direction,writingStyle:style,quality},timeout);
- const translated=checkedTranslation(result.text,direction,text);if(!translated)throw new Error('翻譯回應為空');
- desktopTranslations.set(key,translated);if(desktopTranslations.size>200)desktopTranslations.delete(desktopTranslations.keys().next().value);
- return translated;
+ const key=direction+':'+style+':'+quality+':'+text.trim();
+ return localTranslationMemo.run(key,async()=>{
+  const result=await desktop.request('translate',{text,direction,writingStyle:style,quality},timeout);
+  const translated=checkedTranslation(result.text,direction,text);if(!translated)throw new Error('翻譯回應為空');
+  return translated;
+ });
 }
 async function makeDraft(text,direction){
  if(typeof text!=='string'||!text.trim()||text.length>3000)throw new Error('請輸入 1–3000 字');

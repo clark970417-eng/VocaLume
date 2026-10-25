@@ -99,3 +99,32 @@ it('fails work in progress as terminated and refuses new work after an interrupt
   await engine.dispose()
   expect(pool.release).toHaveBeenCalledTimes(1)
 })
+
+it('reuses identical complete translations but isolates directions, register, terms and disposal', async () => {
+  const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  await engine.initialize();pool.sendRequest.mockResolvedValue('完整譯文')
+  const text='今日はもう遊べません。'
+  await engine.translate(text,'ja','zh')
+  await engine.translate(text,'ja','zh')
+  expect(pool.sendRequest).toHaveBeenCalledTimes(1)
+  await engine.translate(text,'ja','en')
+  await engine.translate(text,'ja','zh',{previousSegments:[],glossary:[{source:'遊べ',target:'遊玩'}]})
+  await engine.translate('今天不能來','zh','ja',{previousSegments:[],writingStyle:'general'})
+  await engine.translate('今天不能來','zh','ja',{previousSegments:[],writingStyle:'polite'})
+  expect(pool.sendRequest).toHaveBeenCalledTimes(5)
+  await engine.dispose();await engine.initialize();await engine.translate(text,'ja','zh')
+  expect(pool.sendRequest).toHaveBeenCalledTimes(6)
+  await engine.dispose()
+})
+
+it('snapshots terminology before queued inference, so later edits cannot poison the cached request', async () => {
+  const {pool}=fakePool(),engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  await engine.initialize();pool.sendRequest.mockResolvedValue('阿光')
+  const context={previousSegments:[],glossary:[{source:'ひかり',target:'阿光'}]}
+  const first=engine.translate('ひかりが来ました。','ja','zh',context)
+  context.glossary[0].target='光'
+  expect(pool.sendRequest.mock.calls[0][0]).toMatchObject({context:{glossary:[{source:'ひかり',target:'阿光'}]}})
+  await first;await engine.translate('ひかりが来ました。','ja','zh',context)
+  expect(pool.sendRequest).toHaveBeenCalledTimes(2)
+  await engine.dispose()
+})

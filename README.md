@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Browser patch **4.4.6** adds Discord message translation; it works with desktop **4.4.5**. See [verification and language settings](docs/retests/4.4.6-extension.md). The public preview installer link above remains 4.4.5.
+Current source **4.4.8** reduces duplicate local translation work in the desktop app and extension, and keeps website text translation **off until you opt in**. See [measured scope](docs/retests/4.4.8.md) and [Discord settings](docs/retests/4.4.6-extension.md). The public preview installer link above remains 4.4.5; no 4.4.8 installer release has been published.
 
 ![Extension icon](./icon-preview.png)
 

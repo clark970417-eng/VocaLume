@@ -1,4 +1,6 @@
 import { join } from 'path'
+import { TranslationRequestCache } from './translation-request-cache'
+import { translationContextForModel } from '../../main/translation-session'
 import type { TranslatorEngine, Language, TranslateContext } from '../types'
 import { getGGUFDir, downloadGGUF } from '../model-downloader'
 import type { WorkerInitOptions } from '../../main/worker-pool'
@@ -26,6 +28,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   abstract readonly name: string
   readonly isOffline = true
 
+  private readonly translationRequests = new TranslationRequestCache()
   protected initialized = false
   private initPromise: Promise<void> | null = null
   protected onProgress?: (message: string) => void
@@ -148,10 +151,16 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     }
 
     const t0 = performance.now()
-    const result = await this.pool.sendRequest(
-      { type: 'translate', text, from, to, context: this.serialContext(text, from, to, context) },
-      'translate', this.workerOptions, this.requestSignal(context?.signal), context?.onPartial
-    )
+    const serialContext = structuredClone(translationContextForModel(
+      this.serialContext(text, from, to, context) ?? { previousSegments: [] }, this.workerOptions.modelType ?? ''
+    ))
+    // Exact text, direction, model options, register and terminology all belong
+    // to the key. Nothing is normalized away from what the model sees.
+    const key = JSON.stringify([this.workerOptions, text, from, to, serialContext])
+    const result = await this.translationRequests.run(key, (signal, onPartial) => this.pool.sendRequest(
+      { type: 'translate', text, from, to, context: serialContext },
+      'translate', this.workerOptions, signal, context?.onPartial ? onPartial : undefined
+    ), this.requestSignal(context?.signal), context?.onPartial)
     const ms = performance.now() - t0
     this.log.info(`translate ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
     return result
@@ -275,6 +284,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   }
 
   async dispose(): Promise<void> {
+    this.translationRequests.clear()
     if (this.initialized) {
       await this.pool.release()
       this.initialized = false

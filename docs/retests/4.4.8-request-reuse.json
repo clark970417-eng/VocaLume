@@ -1,0 +1,434 @@
+{
+  "date": "2026-10-25",
+  "baselineCommit": "b2edd3a",
+  "model": "HY-MT1.5-1.8B-Q4_K_M",
+  "backend": "Metal, 33 GPU layers",
+  "scope": "Authored JA/ZH text only. One measured run each in reversed order after initial development run. Other desktop applications remained running. Excludes model initialization, recognition, network and caption display. Not blind quality testing or long-run thermal testing.",
+  "matchingOutputRecords": 20,
+  "summary": {
+    "baseline": {
+      "unique": {
+        "n": 8,
+        "medianMs": 979.942,
+        "meanMs": 1046.679
+      },
+      "repeat": {
+        "n": 8,
+        "medianMs": 798.887,
+        "meanMs": 840.799
+      },
+      "concurrent-pair": {
+        "n": 4,
+        "medianMs": 1592.188,
+        "meanMs": 1667.695
+      }
+    },
+    "optimized": {
+      "unique": {
+        "n": 8,
+        "medianMs": 883.259,
+        "meanMs": 893.1
+      },
+      "repeat": {
+        "n": 8,
+        "medianMs": 1.58,
+        "meanMs": 4.352
+      },
+      "concurrent-pair": {
+        "n": 4,
+        "medianMs": 902.939,
+        "meanMs": 848.72
+      }
+    }
+  },
+  "trials": {
+    "baseline": [
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日はもう遊べませんが、昨日は最後まで遊べました。",
+        "translated": "今天已經無法再玩了，但昨天還可以玩到最後一刻。",
+        "ms": 945.386207999999
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日はもう遊べませんが、昨日は最後まで遊べました。",
+        "translated": "今天已經無法再玩了，但昨天還可以玩到最後一刻。",
+        "ms": 808.588667
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "ja",
+        "to": "zh",
+        "text": "右じゃなくて、左の扉を開けてください。",
+        "translated": "請打開左邊的門吧，而不是右邊的門。",
+        "ms": 861.4493330000005
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "ja",
+        "to": "zh",
+        "text": "右じゃなくて、左の扉を開けてください。",
+        "translated": "請打開左邊的門吧，而不是右邊的門。",
+        "ms": 994.6703749999997
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "ja",
+        "to": "zh",
+        "text": "あと三回と言いましたが、今日はもう一回だけにします。",
+        "translated": "雖然之前說還有三次，但今天就只再進行一次而已。",
+        "ms": 1726.563250000001
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "ja",
+        "to": "zh",
+        "text": "あと三回と言いましたが、今日はもう一回だけにします。",
+        "translated": "雖然之前說還有三次，但今天就只再進行一次而已。",
+        "ms": 750.0055830000001
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "ja",
+        "to": "zh",
+        "text": "明日も来られるかはまだ分かりません。待たなくて大丈夫です。",
+        "translated": "不知道明天是否還能來到這裡。不必等待，沒問題的。",
+        "ms": 1068.6972499999993
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "ja",
+        "to": "zh",
+        "text": "明日も来られるかはまだ分かりません。待たなくて大丈夫です。",
+        "translated": "不知道明天是否還能來到這裡。不必等待，沒問題的。",
+        "ms": 641.4799579999999
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "zh",
+        "to": "ja",
+        "text": "今天沒辦法看到最後，明天再來看！",
+        "translated": "今日は最後を見ることができませんでしたが、明日また見に来ます！",
+        "ms": 1014.4981669999997
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "zh",
+        "to": "ja",
+        "text": "今天沒辦法看到最後，明天再來看！",
+        "translated": "今日は最後を見ることができませんでしたが、明日また見に来ます！",
+        "ms": 815.3319580000007
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "zh",
+        "to": "ja",
+        "text": "我昨天沒能來，今天終於趕上了！",
+        "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました！",
+        "ms": 899.2812080000003
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "zh",
+        "to": "ja",
+        "text": "我昨天沒能來，今天終於趕上了！",
+        "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました！",
+        "ms": 789.1855410000026
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "zh",
+        "to": "ja",
+        "text": "不是右邊，是左邊喔。",
+        "translated": "右側ではなく、左側ですよ。",
+        "ms": 531.8884580000013
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "zh",
+        "to": "ja",
+        "text": "不是右邊，是左邊喔。",
+        "translated": "右側ではなく、左側ですよ。",
+        "ms": 400.34508300000016
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "zh",
+        "to": "ja",
+        "text": "不好意思，我還不太懂日文，請問明天幾點開始呢？",
+        "translated": "ごめんなさい、私はまだ日本語をあまり理解していません。明日の開始時間は何時ですか？",
+        "ms": 1325.6651249999995
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "zh",
+        "to": "ja",
+        "text": "不好意思，我還不太懂日文，請問明天幾點開始呢？",
+        "translated": "ごめんなさい、私はまだ日本語をあまり理解していません。明日の開始時間は何時ですか？",
+        "ms": 1526.7810830000017
+      },
+      {
+        "type": "result",
+        "kind": "concurrent-pair",
+        "from": "ja",
+        "to": "zh",
+        "text": "昨日じゃなくて、来週の金曜日に変更になりました。",
+        "translated": [
+          "原定日期已改為下週的星期五，而非昨天。",
+          "原定日期已改為下週的星期五，而非昨天。"
+        ],
+        "ms": 1422.9235829999998
+      },
+      {
+        "type": "result",
+        "kind": "concurrent-pair",
+        "from": "ja",
+        "to": "zh",
+        "text": "左から二番目の箱を開けてください。",
+        "translated": [
+          "請打開從左邊數起第二個箱子。",
+          "請打開從左邊數起第二個箱子。"
+        ],
+        "ms": 1330.3395420000015
+      },
+      {
+        "type": "result",
+        "kind": "concurrent-pair",
+        "from": "zh",
+        "to": "ja",
+        "text": "我明天晚上還會來看，今天先去睡了。",
+        "translated": [
+          "明日の夜もまた来るつもりです。今日は先に寝ましょう。",
+          "明日の夜もまた来るつもりです。今日は先に寝ましょう。"
+        ],
+        "ms": 2156.0642499999994
+      },
+      {
+        "type": "result",
+        "kind": "concurrent-pair",
+        "from": "zh",
+        "to": "ja",
+        "text": "今天辛苦了，請好好休息。",
+        "translated": [
+          "今日はお疲れさまでした。どうかゆっくり休んでください。",
+          "今日はお疲れさまでした。どうかゆっくり休んでください。"
+        ],
+        "ms": 1761.452250000002
+      }
+    ],
+    "optimized": [
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日はもう遊べませんが、昨日は最後まで遊べました。",
+        "translated": "今天已經無法再玩了，但昨天還可以玩到最後一刻。",
+        "ms": 859.7863340000004
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日はもう遊べませんが、昨日は最後まで遊べました。",
+        "translated": "今天已經無法再玩了，但昨天還可以玩到最後一刻。",
+        "ms": 9.202916999998706
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "ja",
+        "to": "zh",
+        "text": "右じゃなくて、左の扉を開けてください。",
+        "translated": "請打開左邊的門吧，而不是右邊的門。",
+        "ms": 668.0223750000005
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "ja",
+        "to": "zh",
+        "text": "右じゃなくて、左の扉を開けてください。",
+        "translated": "請打開左邊的門吧，而不是右邊的門。",
+        "ms": 0.4049589999995078
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "ja",
+        "to": "zh",
+        "text": "あと三回と言いましたが、今日はもう一回だけにします。",
+        "translated": "雖然之前說還有三次，但今天就只再進行一次而已。",
+        "ms": 903.8047499999993
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "ja",
+        "to": "zh",
+        "text": "あと三回と言いましたが、今日はもう一回だけにします。",
+        "translated": "雖然之前說還有三次，但今天就只再進行一次而已。",
+        "ms": 1.2426249999989523
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "ja",
+        "to": "zh",
+        "text": "明日も来られるかはまだ分かりません。待たなくて大丈夫です。",
+        "translated": "不知道明天是否還能來到這裡。不必等待，沒問題的。",
+        "ms": 887.0453749999997
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "ja",
+        "to": "zh",
+        "text": "明日も来られるかはまだ分かりません。待たなくて大丈夫です。",
+        "translated": "不知道明天是否還能來到這裡。不必等待，沒問題的。",
+        "ms": 16.70433299999968
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "zh",
+        "to": "ja",
+        "text": "今天沒辦法看到最後，明天再來看！",
+        "translated": "今日は最後を見ることができませんでしたが、明日また見に来ます！",
+        "ms": 1246.9818340000002
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "zh",
+        "to": "ja",
+        "text": "今天沒辦法看到最後，明天再來看！",
+        "translated": "今日は最後を見ることができませんでしたが、明日また見に来ます！",
+        "ms": 3.9324169999999867
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "zh",
+        "to": "ja",
+        "text": "我昨天沒能來，今天終於趕上了！",
+        "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました！",
+        "ms": 879.4717920000003
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "zh",
+        "to": "ja",
+        "text": "我昨天沒能來，今天終於趕上了！",
+        "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました！",
+        "ms": 0.1727499999997235
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "zh",
+        "to": "ja",
+        "text": "不是右邊，是左邊喔。",
+        "translated": "右側ではなく、左側ですよ。",
+        "ms": 553.7168339999989
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "zh",
+        "to": "ja",
+        "text": "不是右邊，是左邊喔。",
+        "translated": "右側ではなく、左側ですよ。",
+        "ms": 1.5847499999999854
+      },
+      {
+        "type": "result",
+        "kind": "unique",
+        "from": "zh",
+        "to": "ja",
+        "text": "不好意思，我還不太懂日文，請問明天幾點開始呢？",
+        "translated": "ごめんなさい、私はまだ日本語をあまり理解していません。明日の開始時間は何時ですか？",
+        "ms": 1145.9709160000002
+      },
+      {
+        "type": "result",
+        "kind": "repeat",
+        "from": "zh",
+        "to": "ja",
+        "text": "不好意思，我還不太懂日文，請問明天幾點開始呢？",
+        "translated": "ごめんなさい、私はまだ日本語をあまり理解していません。明日の開始時間は何時ですか？",
+        "ms": 1.5747910000009142
+      },
+      {
+        "type": "result",
+        "kind": "concurrent-pair",
+        "from": "ja",
+        "to": "zh",
+        "text": "昨日じゃなくて、来週の金曜日に変更になりました。",
+        "translated": [
+          "原定日期已改為下週的星期五，而非昨天。",
+          "原定日期已改為下週的星期五，而非昨天。"
+        ],
+        "ms": 872.3900410000006
+      },
+      {
+        "type": "result",
+        "kind": "concurrent-pair",
+        "from": "ja",
+        "to": "zh",
+        "text": "左から二番目の箱を開けてください。",
+        "translated": [
+          "請打開從左邊數起第二個箱子。",
+          "請打開從左邊數起第二個箱子。"
+        ],
+        "ms": 551.8112910000018
+      },
+      {
+        "type": "result",
+        "kind": "concurrent-pair",
+        "from": "zh",
+        "to": "ja",
+        "text": "我明天晚上還會來看，今天先去睡了。",
+        "translated": [
+          "明日の夜もまた来るつもりです。今日は先に寝ましょう。",
+          "明日の夜もまた来るつもりです。今日は先に寝ましょう。"
+        ],
+        "ms": 1037.190416999998
+      },
+      {
+        "type": "result",
+        "kind": "concurrent-pair",
+        "from": "zh",
+        "to": "ja",
+        "text": "今天辛苦了，請好好休息。",
+        "translated": [
+          "今日はお疲れさまでした。どうかゆっくり休んでください。",
+          "今日はお疲れさまでした。どうかゆっくり休んでください。"
+        ],
+        "ms": 933.4886249999981
+      }
+    ]
+  }
+}
