@@ -173,7 +173,7 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
       for (;;) {
         const newline = buffer.indexOf('\n'); if (newline < 0) break
         const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1)
-        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; speechEndSample?: unknown; sourceLanguage?: string; targetLanguage?: string; speechToneMode?: unknown }
+        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; speechEndSample?: unknown; captureStartSample?: unknown; captureEndSample?: unknown; continuationExpected?: unknown; sourceLanguage?: string; targetLanguage?: string; speechToneMode?: unknown }
         try { m = JSON.parse(line) } catch { send({ ok: false, error: 'Invalid request' }); continue }
         if (!m || typeof m !== 'object') { send({ ok: false, error: 'Invalid request' }); continue }
         const audioPriority = ['decode', 'init', 'stop'].includes(m.op || '')

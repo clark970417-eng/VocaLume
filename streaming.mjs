@@ -72,9 +72,12 @@ export class SpeechWindows {
   const pause=this.sentenceMode?(this.sentenceComplete&&freshHint?7680:22400):9216;
   // Retain early breaths and hanging clauses. Once a cue has four seconds of
   // context, a 160 ms VAD-confirmed pause is a useful boundary; uninterrupted speech has an
-  // eight-second ceiling. This bounds translation input without truncating text.
+  // eight-second normal ceiling. A recent unfinished clause gets up to four
+  // more seconds to include its verb/negation; even continuous speech is bounded.
   const cuePause=this.shortCues&&this.samples>=64000&&this.silent>=2560&&!this.sentenceUnfinished;
-  const ended=this.silent>=pause, cut=this.samples>=this.maxSamples||cuePause;
+  const recentUnfinished=this.shortCues&&this.sentenceUnfinished&&this.hintSample>=this.clock-24000;
+  const ceiling=recentUnfinished?this.maxSamples+64000:this.maxSamples;
+  const ended=this.silent>=pause, cut=this.samples>=ceiling||cuePause;
   const speechSamples=this.clock-this.speechStart;
   // Clear speech can produce a useful rolling hypothesis at 500 ms. Keep the
   // former 650 ms guard for weak/noisy input, where an early Whisper pass tends

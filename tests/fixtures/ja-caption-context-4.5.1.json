@@ -1,0 +1,241 @@
+[
+  {
+    "id": "fish-fragment",
+    "to": "zh",
+    "text": "しまいました。来てくれてありがとうございます。",
+    "from": "ja",
+    "previous": "魚が逃げて。"
+  },
+  {
+    "id": "fish-whole",
+    "to": "zh",
+    "text": "魚が逃げてしまいました。来てくれてありがとうございます。",
+    "from": "ja"
+  },
+  {
+    "id": "negation-fragment",
+    "to": "zh",
+    "text": "つもりはありません。明日はやります。",
+    "from": "ja",
+    "previous": "今日は配信する。"
+  },
+  {
+    "id": "negation-whole",
+    "to": "zh",
+    "text": "今日は配信するつもりはありません。明日はやります。",
+    "from": "ja"
+  },
+  {
+    "id": "quote-fragment",
+    "to": "zh",
+    "text": "言ったわけじゃないです。",
+    "from": "ja",
+    "previous": "昨日で終わったと。"
+  },
+  {
+    "id": "quote-whole",
+    "to": "zh",
+    "text": "昨日で終わったと言ったわけじゃないです。",
+    "from": "ja"
+  },
+  {
+    "id": "request-fragment",
+    "to": "zh",
+    "text": "ください。準備をしています。",
+    "from": "ja",
+    "previous": "少し待って。"
+  },
+  {
+    "id": "request-whole",
+    "to": "zh",
+    "text": "少し待ってください。準備をしています。",
+    "from": "ja"
+  },
+  {
+    "id": "reason-fragment",
+    "to": "zh",
+    "text": "短めにします。",
+    "from": "ja",
+    "previous": "今日は時間がないので。"
+  },
+  {
+    "id": "reason-whole",
+    "to": "zh",
+    "text": "今日は時間がないので短めにします。",
+    "from": "ja"
+  },
+  {
+    "id": "lost-fragment",
+    "to": "zh",
+    "text": "しまった。もう戻せない。",
+    "from": "ja",
+    "previous": "セーブを消して。"
+  },
+  {
+    "id": "lost-whole",
+    "to": "zh",
+    "text": "セーブを消してしまった。もう戻せない。",
+    "from": "ja"
+  },
+  {
+    "id": "fear-fragment",
+    "to": "zh",
+    "text": "わけではないです。",
+    "from": "ja",
+    "previous": "怖いという。"
+  },
+  {
+    "id": "fear-whole",
+    "to": "zh",
+    "text": "怖いというわけではないです。",
+    "from": "ja"
+  },
+  {
+    "id": "prediction-fragment",
+    "to": "zh",
+    "text": "しれません。",
+    "from": "ja",
+    "previous": "勝てるかも。"
+  },
+  {
+    "id": "prediction-whole",
+    "to": "zh",
+    "text": "勝てるかもしれません。",
+    "from": "ja"
+  },
+  {
+    "id": "yes",
+    "to": "zh",
+    "text": "はい。",
+    "from": "ja"
+  },
+  {
+    "id": "no",
+    "to": "zh",
+    "text": "いいえ。",
+    "from": "ja"
+  },
+  {
+    "id": "notyet",
+    "to": "zh",
+    "text": "まだ。",
+    "from": "ja"
+  },
+  {
+    "id": "notreally",
+    "to": "zh",
+    "text": "別に。",
+    "from": "ja"
+  },
+  {
+    "id": "really",
+    "to": "zh",
+    "text": "本当に？",
+    "from": "ja"
+  },
+  {
+    "id": "wait",
+    "to": "zh",
+    "text": "待って。",
+    "from": "ja"
+  },
+  {
+    "id": "unfinished",
+    "to": "zh",
+    "text": "それはちょっと。",
+    "from": "ja"
+  },
+  {
+    "id": "what",
+    "to": "zh",
+    "text": "え？",
+    "from": "ja"
+  },
+  {
+    "id": "opinion",
+    "to": "zh",
+    "text": "と思います。",
+    "from": "ja"
+  },
+  {
+    "id": "negativeaux",
+    "to": "zh",
+    "text": "ません。",
+    "from": "ja"
+  },
+  {
+    "id": "contrast",
+    "to": "zh",
+    "text": "けど。",
+    "from": "ja"
+  },
+  {
+    "id": "topic",
+    "to": "zh",
+    "text": "今日は晴れです。",
+    "from": "ja"
+  },
+  {
+    "id": "continuous-negative",
+    "previous": "まだ食べて。",
+    "text": "いません。",
+    "from": "ja",
+    "to": "zh"
+  },
+  {
+    "id": "unrelated",
+    "previous": "魚が逃げました。",
+    "text": "はい。",
+    "from": "ja",
+    "to": "zh"
+  },
+  {
+    "id": "new-topic",
+    "previous": "時間がないので。",
+    "text": "ところで、明日は？",
+    "from": "ja",
+    "to": "zh"
+  },
+  {
+    "id": "overlap",
+    "previous": "魚が逃げて。",
+    "text": "魚が逃げてしまいました。",
+    "from": "ja",
+    "to": "zh"
+  },
+  {
+    "id": "zh-negation",
+    "text": "我不是不想玩，只是今天沒有時間。",
+    "from": "zh",
+    "to": "ja"
+  },
+  {
+    "id": "zh-time",
+    "text": "不是今天，是明天晚上八點。",
+    "from": "zh",
+    "to": "ja"
+  },
+  {
+    "id": "observed-unpunctuated-tail",
+    "from": "ja",
+    "to": "zh",
+    "previous": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて。",
+    "text": "しまいました来てくれてありがとうございます"
+  },
+  {
+    "id": "bare-negative-cut",
+    "from": "ja",
+    "to": "zh",
+    "previous": "薬は飲み",
+    "text": "ません。",
+    "atAudioCut": true
+  },
+  {
+    "id": "bare-past-cut",
+    "from": "ja",
+    "to": "zh",
+    "previous": "昨日は歌い",
+    "text": "ました。",
+    "atAudioCut": true
+  }
+]

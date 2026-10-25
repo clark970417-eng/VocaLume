@@ -1,0 +1,264 @@
+{
+  "label": "production-4.5.1",
+  "rounds": 3,
+  "source": "../tests/japanese-fixture.wav",
+  "events": [
+    {
+      "type": "first-source",
+      "cue": 1,
+      "text": "皆さん、ご視聴ありがとうございました。",
+      "latencyMs": 13080.547958,
+      "atMs": 13081
+    },
+    {
+      "type": "decode",
+      "cue": 1,
+      "final": false,
+      "ms": 12148.340834000002,
+      "audioMs": 928,
+      "source": "皆さん、ご視聴ありがとうございました。",
+      "atMs": 13081
+    },
+    {
+      "type": "decode",
+      "cue": 1,
+      "final": true,
+      "ms": 7239.964874999998,
+      "audioMs": 4832,
+      "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "atMs": 20321
+    },
+    {
+      "type": "first-source",
+      "cue": 2,
+      "text": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "latencyMs": 19816.2625,
+      "atMs": 24648
+    },
+    {
+      "type": "decode",
+      "cue": 2,
+      "final": true,
+      "ms": 4327.609042000004,
+      "audioMs": 6080,
+      "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "atMs": 24648
+    },
+    {
+      "type": "first-source",
+      "cue": 4,
+      "text": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "latencyMs": 13364.180125000003,
+      "atMs": 26612
+    },
+    {
+      "type": "decode",
+      "cue": 4,
+      "final": true,
+      "ms": 1963.8865829999995,
+      "audioMs": 5280,
+      "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "atMs": 26612
+    },
+    {
+      "type": "first-source",
+      "cue": 5,
+      "text": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "latencyMs": 10335.727332999999,
+      "atMs": 28416
+    },
+    {
+      "type": "decode",
+      "cue": 5,
+      "final": true,
+      "ms": 1803.531624999996,
+      "audioMs": 6080,
+      "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "atMs": 28416
+    },
+    {
+      "type": "first-source",
+      "cue": 7,
+      "text": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "latencyMs": 7488.065833000001,
+      "atMs": 33984
+    },
+    {
+      "type": "decode",
+      "cue": 7,
+      "final": true,
+      "ms": 2654.710291000003,
+      "audioMs": 5280,
+      "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "atMs": 33984
+    },
+    {
+      "type": "first-source",
+      "cue": 8,
+      "text": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "latencyMs": 9914.627583000009,
+      "atMs": 41243
+    },
+    {
+      "type": "decode",
+      "cue": 8,
+      "final": true,
+      "ms": 3818.9355419999993,
+      "audioMs": 6080,
+      "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "atMs": 41243
+    }
+  ],
+  "completed": [
+    {
+      "cue": 1,
+      "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+      "endToChineseMs": 15492.833625000003,
+      "atMs": 20324.840833
+    },
+    {
+      "cue": 2,
+      "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+      "endToChineseMs": 13747.999583,
+      "atMs": 24660.001375000003
+    },
+    {
+      "cue": 4,
+      "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+      "endToChineseMs": 8538.288166000002,
+      "atMs": 26618.289625
+    },
+    {
+      "cue": 5,
+      "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+      "endToChineseMs": 4255.755666000001,
+      "atMs": 28415.756166000003
+    },
+    {
+      "cue": 7,
+      "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+      "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+      "endToChineseMs": 2656.1448329999985,
+      "atMs": 33984.14595800001
+    },
+    {
+      "cue": 8,
+      "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+      "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+      "endToChineseMs": 3834.669332999998,
+      "atMs": 41242.66987500001
+    }
+  ],
+  "metrics": [
+    {
+      "round": 1,
+      "atMs": 13251.230208000004,
+      "queued": 1,
+      "thermal": {
+        "thermalState": "fair",
+        "speedLimit": 100,
+        "previewFloorMs": 900,
+        "previewDutyCycle": 0.65,
+        "previewsPaused": false,
+        "coolingDown": false
+      },
+      "rss": 43827200,
+      "processes": [
+        {
+          "type": "Browser",
+          "kb": 43328
+        },
+        {
+          "type": "GPU",
+          "kb": 11888
+        },
+        {
+          "type": "Utility",
+          "kb": 9088
+        },
+        {
+          "type": "Utility",
+          "kb": 1196704
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "atMs": 26498.589000000004,
+      "queued": 1,
+      "thermal": {
+        "thermalState": "fair",
+        "speedLimit": 100,
+        "previewFloorMs": 900,
+        "previewDutyCycle": 0.65,
+        "previewsPaused": false,
+        "coolingDown": false
+      },
+      "rss": 46792704,
+      "processes": [
+        {
+          "type": "Browser",
+          "kb": 45904
+        },
+        {
+          "type": "GPU",
+          "kb": 12480
+        },
+        {
+          "type": "Utility",
+          "kb": 8464
+        },
+        {
+          "type": "Utility",
+          "kb": 1230368
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "atMs": 39757.13495800001,
+      "queued": 0,
+      "thermal": {
+        "thermalState": "fair",
+        "speedLimit": 100,
+        "previewFloorMs": 900,
+        "previewDutyCycle": 0.65,
+        "previewsPaused": false,
+        "coolingDown": false
+      },
+      "rss": 36601856,
+      "processes": [
+        {
+          "type": "Browser",
+          "kb": 36448
+        },
+        {
+          "type": "GPU",
+          "kb": 12064
+        },
+        {
+          "type": "Utility",
+          "kb": 8848
+        },
+        {
+          "type": "Utility",
+          "kb": 1196928
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "durationMs": 41302.393125,
+    "asrCalls": 7,
+    "asrMs": 30290.705208,
+    "translationCalls": 2,
+    "translationMs": 3625.2317919999987,
+    "finals": 6,
+    "failed": 0
+  },
+  "totalMs": 68581.292042
+}

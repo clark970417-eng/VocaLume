@@ -44,3 +44,13 @@ it('accepts speech evidence only when it can describe the audio it arrived with'
   }
   expect(speechEvidenceFor(1, Number.NaN)).toBeUndefined()
 })
+
+it('accepts continuity positions only when their duration matches this PCM window', async () => {
+  const { speechEvidenceFor } = await import('./transcript-guard')
+  const window = {segment:'session:1',speechEndSample:12000,captureStartSample:128000,captureEndSample:160000}
+  expect(speechEvidenceFor(1,2,window)).toEqual({speechSeconds:1,...window})
+  for(const value of [-1,Infinity,NaN,'128000',128001]) {
+    expect(speechEvidenceFor(1,2,{...window,captureStartSample:value})?.captureStartSample).toBeUndefined()
+  }
+  expect(speechEvidenceFor(1,2,{captureStartSample:0,captureEndSample:32000})?.captureStartSample).toBeUndefined()
+})

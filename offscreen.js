@@ -58,7 +58,7 @@ function decode(s,job){
  if(!s.recording&&!s.desktop&&Date.now()-job.audioEndAt>4000){s.expired++;return;}
  s.busy=job;s.started=performance.now();s.metrics.add('queueMs',Date.now()-job.audioEndAt);
  s.timeout=setTimeout(()=>restartWorker(s,'辨識逾時'),s.desktop?60000:15000);
- const audio=job.audio.slice();s.worker.postMessage({type:'decode',id:job.id,audio,segment:s.epoch+':'+job.id,utterance:s.epoch+':'+job.utteranceId,final:job.final,speechSeconds:job.speechSeconds,speechEndSample:job.lastSpeechSample-job.startSample,speechAt:job.speechAt,audioEndAt:job.audioEndAt},[audio.buffer]);
+ const audio=job.audio.slice();s.worker.postMessage({type:'decode',id:job.id,audio,segment:s.epoch+':'+job.id,utterance:s.epoch+':'+job.utteranceId,final:job.final,speechSeconds:job.speechSeconds,speechEndSample:job.lastSpeechSample-job.startSample,captureStartSample:job.startSample,captureEndSample:job.endSample,continuationExpected:job.final&&!job.utteranceEnd,speechAt:job.speechAt,audioEndAt:job.audioEndAt},[audio.buffer]);
 }
 function drainVad(s){
  if(s.vadBusy||!s.vadReady)return;
@@ -128,7 +128,7 @@ function initializeWorker(s){
  worker.postMessage({type:'init'});
 }
 function initializeVad(s){
- s.vad=new Worker('vad-worker.js?v=4.5.0',{type:'module'});
+ s.vad=new Worker('vad-worker.js?v=4.5.1',{type:'module'});
  s.vadTimeout=setTimeout(()=>{if(active===s){send(s,'speech-error',{error:'人聲模型載入逾時'});stop();}},30000);
  s.vad.onerror=()=>{if(active===s){send(s,'speech-error',{error:'人聲模型載入失敗'});stop();}};
  s.vad.onmessage=({data:m})=>{

@@ -44,6 +44,10 @@ const hasHearsay = (text: string): boolean => /聽說|據說|據了解|傳聞|�
 export function finishJaZhTranslation(source: string, output: string): string {
   let result = output.trim()
 
+  // A common hesitant fragment is not evidence for "exaggerated", "difficult"
+  // or a guessed refusal. Leave the same open ending as the recognized source.
+  if (/^それは(?:、|\s)*ちょっと[。．.、，,…\s]*$/u.test(source.trim())) return '那個有點……'
+
   if (/来てくれてありがとう/.test(source) && !/手伝|助け|協力|お世話/.test(source)) {
     result = result.replace(/謝謝([你您])(?:能)?(?:過來|來)(?:幫忙|幫助)(?:我們|我)?/g, '謝謝$1來')
   }

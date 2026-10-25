@@ -86,6 +86,11 @@ export interface SpeechEvidence {
   /** Capture cue identity and end of the last VAD speech frame in this PCM window. */
   segment?: string
   speechEndSample?: number
+  /** Monotonic capture positions used only to join adjacent Japanese clauses. */
+  captureStartSample?: number
+  captureEndSample?: number
+  /** The capture limit, rather than a completed utterance, ended this window. */
+  continuationExpected?: boolean
 }
 
 /**

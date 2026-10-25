@@ -237,6 +237,7 @@ export class TranslationPipeline extends EventEmitter {
   /** Set glossary terms for context-aware translation */
   setGlossary(glossary: GlossaryEntry[]): void {
     this.translationCache.clear()
+    this.streaming.resetSourceContext()
     this.glossary = glossary.map(entry => ({ ...entry }))
     this.adaptiveRouter.setGlossary(glossary)
   }
@@ -249,6 +250,7 @@ export class TranslationPipeline extends EventEmitter {
     this.engineManager.sttEngine?.setLanguage?.(source)
     if (changed) {
       this.translationCache.clear()
+      this.streaming.resetSourceContext()
     }
   }
 

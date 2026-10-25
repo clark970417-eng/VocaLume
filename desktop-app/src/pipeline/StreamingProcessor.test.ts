@@ -5,6 +5,33 @@ import { LocalAgreement } from './LocalAgreement'
 import { ContextBuffer } from './ContextBuffer'
 import * as pressure from '../main/performance-state'
 
+it.each([false,true])('uses visible source context for final captions, including negation, with SimulMT=%s', async enabled => {
+  let source = '今日は配信する。'
+  const calls: string[] = [], sources: string[] = []
+  const emitter = new EventEmitter();emitter.on('source-result',text=>sources.push(text))
+  const translator = {id:'hunyuan-mt-15',translate:async(text:string)=>{calls.push(text);return '譯：'+text},translateSimulMt:vi.fn()}
+  const p = new StreamingProcessor({emitter,agreement:new LocalAgreement(),contextBuffer:new ContextBuffer(),
+    getSTTEngine:()=>({processAudio:async()=>({text:source,language:'ja'})}),getTranslator:()=>translator,
+    getGlossary:()=>[],getSimulMtConfig:()=>({enabled,waitK:3}),resolveTargetLanguage:()=> 'zh',
+    incrementProcessing(){},decrementProcessing(){}
+  } as unknown as StreamingDeps)
+  try {
+    const audio=new Float32Array(16000)
+    await p.finalizeStreaming(audio,16000)
+    source='つもりはありません。明日はやります。'
+    const result=await p.finalizeStreaming(audio,16000)
+    expect(result?.sourceText).toBe('今日は配信するつもりはありません。明日はやります。')
+    expect(result?.translatedText).toBe('譯：'+result?.sourceText)
+    expect(sources.at(-1)).toBe(result?.sourceText)
+    expect(calls.at(-1)).toBe(result?.sourceText)
+    source='はい。'
+    expect((await p.finalizeStreaming(audio,16000))?.sourceText).toBe('はい。')
+    source='魚が逃げて。';await p.finalizeStreaming(audio,16000)
+    p.reset();source='しまいました。'
+    expect((await p.finalizeStreaming(audio,16000))?.sourceText).toBe('しまいました。')
+  } finally {p.reset()}
+})
+
 it('leaves idle time after slow previews while final sentences bypass thermal admission', async () => {
   vi.useFakeTimers()
   const policy = vi.spyOn(pressure, 'performanceState').mockReturnValue({thermalState:'serious',speedLimit:100,previewFloorMs:1500,previewDutyCycle:.4,previewsPaused:false,coolingDown:false})

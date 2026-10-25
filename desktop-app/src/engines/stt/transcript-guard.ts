@@ -46,7 +46,7 @@ export function isUnspokenOutro(text: string, evidence?: SpeechEvidence): boolea
 
 /** Evidence from an untrusted message, or undefined when it cannot describe
  * this audio: not a number, negative, or longer than the audio itself. */
-export function speechEvidenceFor(value: unknown, audioSeconds: number, window?: { segment?: unknown; speechEndSample?: unknown }): SpeechEvidence | undefined {
+export function speechEvidenceFor(value: unknown, audioSeconds: number, window?: { segment?: unknown; speechEndSample?: unknown; captureStartSample?: unknown; captureEndSample?: unknown; continuationExpected?: unknown }): SpeechEvidence | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return undefined
   // The browser counts frames of this audio, so a larger value is not about it.
   if (!Number.isFinite(audioSeconds) || value > audioSeconds + 1e-6) return undefined
@@ -56,6 +56,13 @@ export function speechEvidenceFor(value: unknown, audioSeconds: number, window?:
       window.speechEndSample > 0 && window.speechEndSample <= Math.round(audioSeconds * 16000)) {
     evidence.segment = window.segment
     evidence.speechEndSample = window.speechEndSample
+    const start = window.captureStartSample, end = window.captureEndSample
+    if (typeof start === 'number' && typeof end === 'number' && Number.isSafeInteger(start) &&
+        Number.isSafeInteger(end) && start >= 0 && end - start === Math.round(audioSeconds * 16000)) {
+      evidence.captureStartSample = start
+      evidence.captureEndSample = end
+      if (typeof window.continuationExpected === 'boolean') evidence.continuationExpected = window.continuationExpected
+    }
   }
   return evidence
 }

@@ -321,7 +321,7 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
    // Never evict a sentence still waiting for its translation.
    if(desktopSegments.size>200){for(const [key,meta] of desktopSegments){if(meta.session!==gate.session||desktopDelivered.has(key)){desktopSegments.delete(key);desktopDelivered.delete(key);break;}}}
   }
-  desktop.request(m.op,m.op==='decode'?{audio:m.audio,segment,final:!!m.final,...(Number.isFinite(m.speechSeconds)&&m.speechSeconds>=0&&{speechSeconds:m.speechSeconds}),...(Number.isSafeInteger(m.speechEndSample)&&m.speechEndSample>0&&{speechEndSample:m.speechEndSample})}:{},m.op==='init'?600000:60000).then(text=>{
+  desktop.request(m.op,m.op==='decode'?{audio:m.audio,segment,final:!!m.final,...(Number.isFinite(m.speechSeconds)&&m.speechSeconds>=0&&{speechSeconds:m.speechSeconds}),...(Number.isSafeInteger(m.speechEndSample)&&m.speechEndSample>0&&{speechEndSample:m.speechEndSample}),...(Number.isSafeInteger(m.captureStartSample)&&Number.isSafeInteger(m.captureEndSample)&&{captureStartSample:m.captureStartSample,captureEndSample:m.captureEndSample,continuationExpected:m.continuationExpected===true})}:{},m.op==='init'?600000:60000).then(text=>{
    if(m.op==='decode'&&m.final&&!text?.pending)desktopEvent({event:'caption',segment,result:{...text,final:true}});
    send({ok:true,text});
   },e=>{if(m.op==='decode')desktopEvent({event:'caption',segment,result:{final:true,error:e.message}});send({ok:false,error:e.message});});return true;

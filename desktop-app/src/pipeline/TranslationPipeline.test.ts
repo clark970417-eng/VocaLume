@@ -115,6 +115,31 @@ class MockTranslator implements TranslatorEngine {
   async dispose(): Promise<void> {}
 }
 
+it('keys repeated Japanese suffix translations by the recovered source and clears context on reconfiguration', async () => {
+  const p=new TranslationPipeline()
+  let source='魚が逃げて。'
+  const stt=new MockSTT('context-stt',null)
+  stt.processAudio=async()=>({text:source,language:'ja',timestamp:Date.now(),isFinal:true})
+  const translator=new MockTranslator('hunyuan-mt-15')
+  p.registerSTT(stt.id,()=>stt);p.registerTranslator(translator.id,()=>translator)
+  await p.switchEngine({mode:'cascade',sttEngineId:stt.id,translatorEngineId:translator.id})
+  p.setLanguageConfig('ja','zh');p.start()
+  const audio=new Float32Array(16000)
+  const final=async(text:string)=>{source=text;return p.finalizeStreaming(audio,16000)}
+  try {
+    await final('魚が逃げて。')
+    expect((await final('しまいました。'))?.sourceText).toBe('魚が逃げてしまいました。')
+    await final('セーブを消して。')
+    const result=await final('しまいました。')
+    expect(result?.sourceText).toBe('セーブを消してしまいました。')
+    expect(result?.translatedText).toBe('T(セーブを消してしまいました。)')
+    for (const reconfigure of [()=>p.setGlossary([]),()=>{p.setLanguageConfig('ja','en');p.setLanguageConfig('ja','zh')}]) {
+      await final('魚が逃げて。');reconfigure()
+      expect((await final('しまいました。'))?.sourceText).toBe('しまいました。')
+    }
+  } finally {await p.dispose()}
+})
+
 describe('TranslationPipeline e2e streaming path (#719)', () => {
   let pipeline: TranslationPipeline
   let engine: MockE2EStreamingEngine

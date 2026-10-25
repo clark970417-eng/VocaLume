@@ -2,6 +2,7 @@ import { performanceState } from '../main/performance-state'
 import { PreviewBudget } from '../../../preview-budget.mjs'
 import { completeSentence } from '../../../sentence-boundary.mjs'
 import { RecognitionCheckpoint } from './RecognitionCheckpoint'
+import { JapaneseCaptionContext } from './JapaneseCaptionContext'
 import { SpeechToneAnalyzer } from './SpeechToneAnalyzer'
 import { applySpeechTone, laughterMarker, type SpeechToneMode } from './SpeechTone'
 import type { EventEmitter } from 'events'
@@ -68,6 +69,7 @@ export interface StreamingDeps {
 export class StreamingProcessor {
   private readonly previewBudget = new PreviewBudget()
   private readonly recognitionCheckpoint = new RecognitionCheckpoint()
+  private readonly japaneseContext = new JapaneseCaptionContext()
   private readonly toneAnalyzer = new SpeechToneAnalyzer()
   private preparation?: {
     text: string; from: Language; to: Language; translator: TranslatorEngine; glossary: string
@@ -141,6 +143,7 @@ export class StreamingProcessor {
 
   /** Reset all streaming state */
   reset(): void {
+    this.resetSourceContext()
     this.toneAnalyzer.dispose()
     this.finalGeneration++
     for (const controller of this.preparations) controller.abort()
@@ -149,6 +152,8 @@ export class StreamingProcessor {
   }
 
   stopToneAnalysis(): void { this.toneAnalyzer.dispose() }
+
+  resetSourceContext(): void { this.japaneseContext.reset() }
 
   private beginTone(audio: Float32Array, sampleRate: number) {
     const mode = this.deps.getSpeechToneMode?.() || 'off'
@@ -281,7 +286,8 @@ export class StreamingProcessor {
       const agreement = this.deps.agreement.update(sttResult.text)
       const targetLang = this.deps.resolveTargetLanguage(sttResult.language)
 
-      const fullSourceText = agreement.confirmedText + agreement.interimText
+      const fullSourceText = this.japaneseContext.resolve(agreement.confirmedText + agreement.interimText,
+        sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)
 
       const simulMtConfig = this.deps.getSimulMtConfig()
       const translator = this.deps.getTranslator()
@@ -460,8 +466,12 @@ export class StreamingProcessor {
         this.resetUtterance()
         return null
       }
-      const sourceText = this.deps.agreement.finalize(sttResult.text).confirmedText
+      const recognizedText = this.deps.agreement.finalize(sttResult.text).confirmedText
       const targetLanguage = this.deps.resolveTargetLanguage(sttResult.language)
+      const sourceText = nonverbal ? recognizedText : this.japaneseContext.resolve(recognizedText,
+        sttResult.language, targetLanguage, evidence, this.currentSpeaker()?.speakerIndex)
+      if (nonverbal) this.japaneseContext.reset()
+      else this.japaneseContext.remember(recognizedText, sttResult.language, targetLanguage, evidence, this.currentSpeaker()?.speakerIndex)
       const translator = this.deps.getTranslator()
       const glossary = this.deps.getGlossary().map(entry => ({ ...entry }))
       const preparation = this.preparation
@@ -593,8 +603,15 @@ export class StreamingProcessor {
       }
 
       const agreement = this.deps.agreement.finalize(sttResult.text)
-      this.deps.emitter.emit('source-result', agreement.confirmedText)
       const targetLang = this.deps.resolveTargetLanguage(sttResult.language)
+      const recognizedText = agreement.confirmedText
+      if (nonverbal) this.japaneseContext.reset()
+      else {
+        agreement.confirmedText = this.japaneseContext.resolve(recognizedText,
+          sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)
+        this.japaneseContext.remember(recognizedText, sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)
+      }
+      this.deps.emitter.emit('source-result', agreement.confirmedText)
 
       const glossaryEntries = this.deps.getGlossary()
       const glossary = glossaryEntries.length > 0 ? glossaryEntries : undefined

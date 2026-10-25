@@ -60,7 +60,7 @@ app.whenReady().then(async()=>{
    const job=queue.shift();if(!job)return
    if(!job.final&&budget.remainingMs(performance.now(),performanceState())>0){void drain();return}
    busy=true;const t=performance.now()
-   const evidence={segment:'bench:'+job.id,speechSeconds:job.speechSeconds,speechEndSample:job.lastSpeechSample-job.startSample}
+   const evidence={segment:'bench:'+job.id,speechSeconds:job.speechSeconds,speechEndSample:job.lastSpeechSample-job.startSample,captureStartSample:job.startSample,captureEndSample:job.endSample,continuationExpected:job.final&&!job.utteranceEnd}
    try{
     if(job.final&&finals.size>=4)await Promise.race(finals)
     const result=job.final ? (pipeline.canOverlapFinalTranslation

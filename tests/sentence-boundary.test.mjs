@@ -39,3 +39,28 @@ test('a pause after a Japanese te-form preserves the continuation despite the fo
  let final;for(let i=0;i<15;i++)final=windows.push(frame,0,Infinity)||final;
  assert.equal(final?.final,true);
 });
+
+test('a recent unfinished clause can cross eight seconds, with a strict twelve-second bound',()=>{
+ const w=new SpeechWindows({shortCues:true}),frame=new Float32Array(512);
+ for(let i=0;i<245;i++)w.push(frame,.9,Infinity);
+ w.hint('魚が逃げて。',w.utterance);
+ for(let i=0;i<12;i++)assert.equal(w.push(frame,.9,Infinity),null);
+ w.hint('魚が逃げてしまいました。',w.utterance);
+ let final;for(let i=0;i<15;i++)final=w.push(frame,0,Infinity)||final;
+ assert.ok(final?.final);assert.ok(final.audio.length>128000);assert.ok(final.audio.length<=192000);
+ const bounded=new SpeechWindows({shortCues:true});let cut;
+ for(let i=0;i<380&&!cut;i++){
+  if(bounded.active)bounded.hint('それで。',bounded.utterance);
+  const job=bounded.push(frame,.9,Infinity);if(job?.final)cut=job;
+ }
+ assert.equal(cut?.audio.length,192000);
+});
+
+test('an old unfinished hint cannot add delay to unrelated fresh audio',()=>{
+ const w=new SpeechWindows({shortCues:true}),frame=new Float32Array(512);let cut;
+ for(let i=0;i<250;i++){
+  if(i===100)w.hint('魚が逃げて。',w.utterance);
+  cut=w.push(frame,.9,Infinity)||cut;
+ }
+ assert.equal(cut?.final,true);assert.equal(cut.audio.length,128000);
+});

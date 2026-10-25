@@ -27,6 +27,8 @@ describe('Japanese to Traditional Chinese fidelity', () => {
   })
 
   it('repairs the common ended/spoke ambiguity and trailing action invention', () => {
+    expect(finishJaZhTranslation('それはちょっと。', '那個有點誇張了。')).toBe('那個有點……')
+    expect(finishJaZhTranslation('それはちょっと難しい。', '那個有點困難。')).toBe('那個有點困難。')
     expect(finishJaZhTranslation('まだ終わったとは言ってないよ。', '還沒有說完呢。')).toBe('我還沒說已經結束了喔。')
     expect(finishJaZhTranslation('このあと予定があるから、そろそろ', '等等有安排，所以差不多該走了吧。')).toBe('等等有安排，所以差不多該……')
     expect(finishJaZhTranslation('いや、それはちょっと違うというか', '不，那有點不一樣吧。')).toBe('不，那有點不一樣，該怎麼說……')

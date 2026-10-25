@@ -2,6 +2,15 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.1 - 2026-10-25
+
+- Recover adjacent Japanese grammatical continuations from recognized source text before final translation. Examples include `逃げて / しまいました`, `配信する / つもりはありません`, and `勝てるかも / しれません`. Show the recovered clause in the new caption instead of hiding it in model instructions.
+- Bound source context to the preceding clause (120 characters). Check capture adjacency and known speaker/language changes; clear it on restart, model/language or glossary changes. Expanded source text participates in translation cache keys.
+- Join bare polite verb endings only at an explicitly measured contiguous capture cut. Validate capture positions against the received audio length.
+- Allow a recent unfinished clause up to four additional seconds before the mandatory audio cut, with a 12-second maximum. Ordinary short replies keep the existing pause behavior.
+- Preserve the open meaning of `それはちょっと…` instead of inventing an adjective such as “exaggerated”.
+- Verification and limits: [4.5.1 checks](docs/retests/4.5.1.md). Public preview installer assets remain 4.4.5.
+
 ## 4.5.0 - 2026-10-25
 
 - Reuse the final speech transcript only when the cue, PCM prefix and last detected speech position are unchanged and appended audio is quiet. Missing evidence or new speech causes normal recognition.
