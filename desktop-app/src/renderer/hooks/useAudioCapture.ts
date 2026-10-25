@@ -124,7 +124,9 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
 
   // #501: Track loopback and mixer resources for cleanup
   const loopbackStreamRef = useRef<MediaStream | null>(null)
+  const microphoneStreamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
+  const refreshDevicesRef = useRef<(() => Promise<void>) | null>(null)
 
   // Rolling buffer state for streaming (#53: use circular buffer)
   const isSpeakingRef = useRef(false)
@@ -138,13 +140,13 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
 
   // Enumerate audio input devices
   useEffect(() => {
+    let disposed = false
     const enumerate = async (): Promise<void> => {
       try {
-        // Request permission first to get device labels
-        await navigator.mediaDevices.getUserMedia({ audio: true }).then((s) => {
-          s.getTracks().forEach((t) => t.stop())
-        })
+        // Discovery must not open a microphone on mount. The actual Start
+        // action requests access; browser-only captions need no desktop mic.
         const allDevices = await navigator.mediaDevices.enumerateDevices()
+        if (disposed) return
         const audioInputs = allDevices
           .filter((d) => d.kind === 'audioinput')
           .map((d) => ({ deviceId: d.deviceId, label: d.label || `Microphone ${d.deviceId.slice(0, 6)}` }))
@@ -155,10 +157,9 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           virtualKeywords.some((kw) => d.label.toLowerCase().includes(kw))
         )
         setHasVirtualAudioDevice(hasVirtual)
-        if (audioInputs.length > 0 && !selectedDevice) {
-          setSelectedDevice(audioInputs[0].deviceId)
-        }
+        if (audioInputs.length > 0) setSelectedDevice(current => current || audioInputs[0].deviceId)
       } catch (err) {
+        if (disposed) return
         console.error('Failed to enumerate audio devices:', err)
         // #48: surface permission errors to UI with specific messages
         const message = err instanceof Error ? err.message : String(err)
@@ -177,7 +178,14 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         }
       }
     }
-    enumerate()
+    refreshDevicesRef.current = enumerate
+    void enumerate()
+    navigator.mediaDevices.addEventListener('devicechange', enumerate)
+    return () => {
+      disposed = true
+      refreshDevicesRef.current = null
+      navigator.mediaDevices.removeEventListener('devicechange', enumerate)
+    }
   }, [])
 
   const getRollingBuffer = useCallback((): Float32Array | null => {
@@ -248,6 +256,12 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
 
   // Consolidated cleanup for loopback stream, AudioContext, and rolling buffer refs
   const cleanupResources = useCallback(() => {
+    // Keep ownership of the original mic even if noise suppression or VAD
+    // setup fails before MicVAD can own/destroy its returned stream.
+    if (microphoneStreamRef.current) {
+      microphoneStreamRef.current.getTracks().forEach((t) => t.stop())
+      microphoneStreamRef.current = null
+    }
     if (loopbackStreamRef.current) {
       loopbackStreamRef.current.getTracks().forEach((t) => t.stop())
       loopbackStreamRef.current = null
@@ -341,6 +355,8 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
               noiseSuppression: !noiseSuppression // disable browser NS when DeepFilterNet3 is active
             }
           })
+          microphoneStreamRef.current = rawStream
+          void refreshDevicesRef.current?.()
 
           // #313: Apply DeepFilterNet3 noise suppression before VAD
           const micStream = noiseSuppression

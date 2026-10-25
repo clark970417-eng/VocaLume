@@ -190,8 +190,13 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
             const pipeline = ctx.pipeline
             if (!pipeline) throw new Error('Desktop pipeline not ready')
             let result: unknown
-            if (m.op === 'settings') {
-              ctx.mainWindow?.show(); ctx.mainWindow?.focus()
+            if (m.op === 'status') {
+              // Read-only health information: do not create a renderer just to
+              // inspect whether background translation owns desktop windows.
+              result = { desktopUI: !!ctx.mainWindow, desktopOverlay: !!ctx.subtitleWindow, captureActive: pipeline.active }
+            } else if (m.op === 'settings') {
+              if (ctx.openSettings) ctx.openSettings()
+              else { ctx.mainWindow?.show(); ctx.mainWindow?.focus() }
               result = { opened: true }
             } else if (m.op === 'stop') {
               if (ownsSession && lastAudio) { const result = await pipeline.finalizeStreaming(lastAudio, 16000, lastEvidence); if (result) caption(result) }

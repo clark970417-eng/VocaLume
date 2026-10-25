@@ -46,6 +46,7 @@ mac:
   notarize: false
   extendInfo:
     NSMicrophoneUsageDescription: "VocaLume needs microphone access for real-time speech recognition and translation."
+    NSAudioCaptureUsageDescription: "VocaLume needs system audio access when you choose to translate computer audio."
 win:
   target:
     - target: nsis

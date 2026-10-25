@@ -76,6 +76,15 @@ export function registerGlobalShortcuts(ctx: AppContext): () => void {
   tryRegister('toggle-capture', shortcuts['toggle-capture'], () => {
     const pipeline = ctx.pipeline
     if (!pipeline) return
+    if (ctx.extensionConnected) return
+
+    if (!ctx.mainWindow) {
+      const window = ctx.openSettings?.()
+      window?.webContents.once('did-finish-load', () => {
+        if (!ctx.extensionConnected) ctx.mainWindow?.webContents.send('shortcut-action', 'toggle-capture-start')
+      })
+      return
+    }
 
     if (pipeline.active) {
       // Stop pipeline — invoke the same IPC logic the renderer uses

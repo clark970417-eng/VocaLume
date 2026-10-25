@@ -23,6 +23,7 @@ import type { Llama, LlamaModel, LlamaContext, LlamaContextSequence, Token } fro
 import { LANG_NAMES_EN, LANG_NAMES_ZH } from '../engines/language-names'
 import { formatGlossaryPrompt, selectApplicableGlossary } from '../engines/translator/glossary-utils'
 import { buildJaZhFidelityGuidance, finishJaZhTranslation } from '../engines/translator/ja-zh-fidelity'
+import { finishZhJaTranslation } from '../engines/translator/zh-ja-fidelity'
 import { createLogger } from './logger'
 import { resetTranslationHistory, translationContextForModel } from './translation-session'
 
@@ -273,7 +274,8 @@ function buildTranslationPrompt(
 }
 
 const finishTranslationResult = (source: string, from: string, to: string, response: string): string =>
-  from === 'ja' && to === 'zh' ? finishJaZhTranslation(source, response) : response.trim()
+  from === 'ja' && to === 'zh' ? finishJaZhTranslation(source, response)
+    : from === 'zh' && to === 'ja' ? finishZhJaTranslation(source, response) : response.trim()
 
 /** Get the system prompt for LFM2 based on target language */
 function getLFM2SystemPrompt(to: string): string {
@@ -482,7 +484,7 @@ async function handleTranslate(
     const systemPrompt = activeModelType === 'lfm2' ? getLFM2SystemPrompt(to) : undefined
     const inference = await runInference(prompt, undefined, systemPrompt, text.length)
     const { inferenceMs, contextMs } = inference
-    const response = from === 'ja' && to === 'zh' ? finishJaZhTranslation(text, inference.response) : inference.response
+    const response = finishTranslationResult(text, from, to, inference.response)
     const memAfter = process.memoryUsage()
     const totalMs = performance.now() - t0
 
@@ -533,7 +535,7 @@ async function handleTranslateIncremental(
     const systemPrompt = activeModelType === 'lfm2' ? getLFM2SystemPrompt(to) : undefined
     const inference = await runInference(prompt, previousOutput, systemPrompt, text.length)
     const { inferenceMs, contextMs } = inference
-    const response = from === 'ja' && to === 'zh' ? finishJaZhTranslation(text, inference.response) : inference.response
+    const response = finishTranslationResult(text, from, to, inference.response)
     const memAfter = process.memoryUsage()
     const totalMs = performance.now() - t0
 

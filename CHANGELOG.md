@@ -2,6 +2,14 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.4 - 2026-10-25
+
+- Defer desktop windows and microphone access for browser-only companion launches. Open the UI on demand for settings and desktop capture; retain hidden playback windows when TTS or virtual-microphone routing is enabled. Stop the original microphone stream when audio setup fails.
+- Update Electron from 33.4.11 to 44.9.3, refresh compatible native-build metadata/headers and declare the macOS system-audio permission description. Desktop development now requires Node 22.12+; CI covers Node 22 and 24.
+- Correct a narrow Chinese → Japanese tense error for explicit current/future inability. Leave past events, quotes, conditions, questions, uncertain polarity and multiple inability clauses alone. No extra capture wait or correction inference is added.
+- Verify 32 authored text pairs and six paced final captions. Measurements do not establish faster model inference; Opera GX tab-capture verification is postponed. See [checks and limits](docs/retests/4.5.4.md).
+- Public preview installer assets remain 4.4.5; this is a source/local-app update.
+
 ## 4.5.3 - 2026-10-25
 
 - Reuse identical recognized audio within a cue and conservatively reuse quiet tails, with context, PCM and speech-evidence guards. Preserve accepted final sentences when optional drafts are throttled.

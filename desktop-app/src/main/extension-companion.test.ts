@@ -30,6 +30,37 @@ vi.mock('../engines/translator/HunyuanMT2Translator', () => ({ HunyuanMT2Transla
   async initialize() {} async dispose() {} async translate() { return '新しいモデル' }
 } }))
 
+it('reports background window state without opening settings, and opens them only on request', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'jtl-status-'))
+  const pipeline = Object.assign(new EventEmitter(), { active: false })
+  const openSettings = vi.fn()
+  const ctx = { pipeline, mainWindow: null, subtitleWindow: null, openSettings } as unknown as AppContext
+  const server = await startExtensionCompanion(ctx, directory)
+  const socket = connect(companionEndpoint(directory))
+  socket.setEncoding('utf8')
+  let buffer = ''
+  const messages: Array<Record<string, unknown>> = []
+  socket.on('data', data => {
+    buffer += data
+    let end: number
+    while ((end = buffer.indexOf('\n')) >= 0) { messages.push(JSON.parse(buffer.slice(0, end))); buffer = buffer.slice(end + 1) }
+  })
+  try {
+    socket.write(JSON.stringify({ id: 1, op: 'status' }) + '\n')
+    await vi.waitFor(() => expect(messages).toHaveLength(1))
+    expect(messages[0]).toMatchObject({ ok: true, result: { desktopUI: false, desktopOverlay: false, captureActive: false } })
+    expect(openSettings).not.toHaveBeenCalled()
+    socket.write(JSON.stringify({ id: 2, op: 'settings' }) + '\n')
+    await vi.waitFor(() => expect(messages).toHaveLength(2))
+    expect(messages[1]).toMatchObject({ ok: true, result: { opened: true } })
+    expect(openSettings).toHaveBeenCalledTimes(1)
+  } finally {
+    socket.destroy()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 it('emits Japanese before translation, rejects invalid audio, and continues after errors', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'jtl-'))
   const pipeline = Object.assign(new EventEmitter(), {

@@ -13,6 +13,8 @@ import type { VirtualMicManager } from './virtual-mic-manager'
  * reference captured at registration time.
  */
 export interface AppContext {
+  /** Create the desktop UI only when explicitly requested by a background client. */
+  openSettings?: () => BrowserWindow | null
   /** Prevent the desktop capture controls from interrupting an extension session. */
   extensionConnected?: boolean
   mainWindow: BrowserWindow | null

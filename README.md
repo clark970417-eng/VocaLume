@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current desktop and extension source: **4.5.3**. Recognition reuses identical audio, supports bounded Japanese vocabulary hints, and transfers short audio in memory. Measured memory pressure now reduces optional draft work while preserving final translations. This update adds **no audio waiting time**; the existing capture bounds, model choices, short-reply shortcuts and adjacent-clause recovery remain. Existing [244 vocabulary pairs](docs/game-vocabulary.md) and optional [tone/laughter settings](docs/speech-tone.md) remain available. See the [4.5.3 verification report](docs/retests/4.5.3.md) for measured scope and limitations. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+Current desktop and extension source: **4.5.4**. Browser-only desktop translation now defers desktop windows and microphone access until needed. The desktop runtime is updated, and a conservative Chinese → Japanese correction preserves explicit current/future inability instead of an invented past tense. This adds **no audio waiting time or second model request**. Recognition reuse, memory-pressure protection, [244 vocabulary pairs](docs/game-vocabulary.md) and optional [tone/laughter settings](docs/speech-tone.md) remain. See the [4.5.4 verification report](docs/retests/4.5.4.md) for measurements and the postponed Opera GX capture check. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 
@@ -75,6 +75,8 @@ Every release includes SHA-256 checksums and a build provenance manifest. The de
 
 ### From source
 
+Desktop development requires Node.js **22.12 or later** (CI covers Node 22 and 24).
+
 1. Clone or download this repository.
 2. Open `opera://extensions` in Opera GX or `chrome://extensions` in Chrome.
 3. Enable Developer mode.
@@ -112,7 +114,7 @@ Run the automated suite with:
 node --test tests/*.test.mjs
 ```
 
-Extension **4.5.3 passes 192 automated tests** and the desktop passes **796 tests**, with five additional Python bridge checks. These cover caption ordering, bounded audio windows, cancellation, source/translation pairing, terminology, tone settings, Japanese continuation, recognition reuse, memory pressure, context resets and short-reply inference bypass. Hardware and Opera GX checks are described in the [4.5.3 verification report](docs/retests/4.5.3.md); they are not a guarantee for every device or live stream.
+Extension **4.5.4 passes 192 automated tests** and the desktop passes **803 tests**, with five additional Python bridge checks. These cover caption ordering, bounded audio windows, cancellation, source/translation pairing, terminology, tone settings, Japanese continuation, recognition reuse, memory pressure, deferred desktop windows, tense guards and capture shortcuts. Local model and installed-app checks are described in the [4.5.4 verification report](docs/retests/4.5.4.md). Opera GX tab-capture testing for this patch was postponed at the user's request; prior-version browser checks do not verify this version.
 These tests do not establish long-session or commercial-product parity. See
 [3.8 verification](docs/retests/RETEST-3.8.0.md) and the [upstream comparison](COMPARISON-LIVETRANSLATE.md).
 

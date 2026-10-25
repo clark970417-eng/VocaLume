@@ -40,9 +40,8 @@ import {
   type MigratableKey
 } from './store-migrations'
 import { sanitizeErrorMessage, getErrorHint } from './error-utils'
-import { createMainWindow, createSubtitleWindow, registerDisplayHandlers } from './window-manager'
+import { ensureDesktopWindows, registerDisplayHandlers } from './window-manager'
 import { registerAudioHandlers } from './audio-handlers'
-import { setupAudioPort } from './audio-port'
 import { registerIpcHandlers } from './ipc-handlers'
 import { createLogger } from './logger'
 import { registerUpdateHandlers, disposeAutoUpdater } from './auto-updater'
@@ -60,6 +59,10 @@ import type { WhisperVariant } from '../engines/model-downloader'
 const legacyUserData = app.getPath('userData')
 app.setName('VocaLume')
 app.setPath('userData', legacyUserData)
+// A native-messaging launch is a background service. On macOS a regular app
+// can receive an initial activation event that would otherwise open its UI.
+let backgroundCompanion = process.argv.includes('--jtl-companion')
+if (backgroundCompanion && process.platform === 'darwin') app.setActivationPolicy('accessory')
 
 const log = createLogger('main')
 
@@ -318,9 +321,7 @@ if (!app.requestSingleInstanceLock()) app.quit()
 app.whenReady().then(async () => {
   if (process.platform === 'darwin') updatePerformanceState({ thermalState: powerMonitor.getCurrentThermalState() })
   powerMonitor.on('thermal-state-change', details => updatePerformanceState({ thermalState: details.state }))
-  // Electron 33 omits this documented event from its overloads.
-  const monitorEvents = powerMonitor as NodeJS.EventEmitter
-  monitorEvents.on('speed-limit-change', (details: { limit: number }) => updatePerformanceState({ speedLimit: details.limit }))
+  powerMonitor.on('speed-limit-change', (details: { limit: number }) => updatePerformanceState({ speedLimit: details.limit }))
   if (process.argv.includes('--jtl-companion') && !store.get('hasCompletedSetup')) {
     store.set('isFirstRun', false)
     store.set('sourceLanguage', 'ja')
@@ -407,15 +408,14 @@ app.whenReady().then(async () => {
     })
   }
 
-  createMainWindow(ctx)
-  createSubtitleWindow(ctx)
-
-  // Set up MessagePort for zero-copy audio transfer after renderer loads (#553)
-  if (ctx.mainWindow) {
-    ctx.mainWindow.webContents.on('did-finish-load', () => {
-      setupAudioPort(ctx)
-    })
+  ctx.openSettings = () => {
+    if (backgroundCompanion && process.platform === 'darwin') app.setActivationPolicy('regular')
+    backgroundCompanion = false
+    return ensureDesktopWindows(ctx)
   }
+  const companion = process.argv.includes('--jtl-companion')
+  // TTS playback needs a renderer; browser-only text/audio translation does not.
+  if (!companion || ttsEnabled || vmEnabled) ensureDesktopWindows(ctx, !companion)
 
   cleanupDisplayHandlers = registerDisplayHandlers(ctx)
   if (!isUiTest) cleanupShortcuts = registerGlobalShortcuts(ctx)
@@ -488,4 +488,9 @@ app.on('before-quit', (event) => {
 
 app.on('window-all-closed', () => {
   app.quit()
+})
+
+app.on('activate', () => ctx.openSettings?.())
+app.on('second-instance', (_event, argv) => {
+  if (!argv.includes('--jtl-companion')) ctx.openSettings?.()
 })

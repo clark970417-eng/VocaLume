@@ -4,6 +4,7 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { store } from './store'
 import type { AppContext } from './app-context'
+import { setupAudioPort } from './audio-port'
 
 /** Calculate subtitle window height based on display scale factor */
 export function getSubtitleHeight(display: Electron.Display): number {
@@ -14,9 +15,9 @@ export function getSubtitleHeight(display: Electron.Display): number {
   return Math.round(baseHeight * Math.min(scaleFactor, 2))
 }
 
-export function createMainWindow(ctx: AppContext): void {
+export function createMainWindow(ctx: AppContext, show = true): void {
   ctx.mainWindow = new BrowserWindow({
-    show: !isUiTest,
+    show: show && !isUiTest,
     width: 520,
     height: 720,
     minWidth: 480,
@@ -41,7 +42,7 @@ export function createMainWindow(ctx: AppContext): void {
   })
 }
 
-export function createSubtitleWindow(ctx: AppContext): void {
+export function createSubtitleWindow(ctx: AppContext, show = true): void {
   const displays = screen.getAllDisplays()
   const savedDisplayId = store.get('selectedDisplay')
   const savedDisplay = savedDisplayId ? displays.find((d) => d.id === savedDisplayId) : null
@@ -58,7 +59,7 @@ export function createSubtitleWindow(ctx: AppContext): void {
   const initialY = savedPos?.y ?? (targetDisplay.bounds.y + targetDisplay.bounds.height - subtitleHeight)
 
   ctx.subtitleWindow = new BrowserWindow({
-    show: !isUiTest,
+    show: show && !isUiTest,
     x: initialX,
     y: initialY,
     width: targetDisplay.bounds.width,
@@ -86,6 +87,18 @@ export function createSubtitleWindow(ctx: AppContext): void {
   ctx.subtitleWindow.on('closed', () => {
     ctx.subtitleWindow = null
   })
+}
+
+/** Browser captions need no renderer, desktop microphone or audio device
+ * enumeration. Settings, desktop capture and TTS create their windows on demand. */
+export function ensureDesktopWindows(ctx: AppContext, show = true): BrowserWindow {
+  if (!ctx.mainWindow || ctx.mainWindow.isDestroyed()) {
+    createMainWindow(ctx, show)
+    ctx.mainWindow!.webContents.on('did-finish-load', () => setupAudioPort(ctx))
+  }
+  if (!ctx.subtitleWindow || ctx.subtitleWindow.isDestroyed()) createSubtitleWindow(ctx, show && !ctx.extensionConnected)
+  if (show && !isUiTest) { ctx.mainWindow!.show(); ctx.mainWindow!.focus() }
+  return ctx.mainWindow!
 }
 
 /** Register display-change event handlers. Returns a cleanup function that removes the listeners. */

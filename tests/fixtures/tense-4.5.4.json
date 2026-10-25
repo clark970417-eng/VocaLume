@@ -1,0 +1,226 @@
+[
+  {
+    "id": "present-inability",
+    "to": "ja",
+    "text": "今天沒辦法看到最後，明天再來看！",
+    "intent": "現在無法待到最後，明天再看，不是昨天沒看完。",
+    "from": "zh"
+  },
+  {
+    "id": "today-inability",
+    "to": "ja",
+    "text": "今天不能待到結束，我等一下要出門。",
+    "intent": "目前無法留到結束，還未出門。",
+    "from": "zh"
+  },
+  {
+    "id": "future-inability",
+    "to": "ja",
+    "text": "明天沒辦法參加，下次再一起玩。",
+    "intent": "明天無法參加。",
+    "from": "zh"
+  },
+  {
+    "id": "past-inability",
+    "to": "ja",
+    "text": "昨天沒能看完直播，今天來補看。",
+    "intent": "昨天未看完是過去。",
+    "from": "zh"
+  },
+  {
+    "id": "today-completed",
+    "to": "ja",
+    "text": "今天已經看完直播了，謝謝你！",
+    "intent": "今天已經完成觀看。",
+    "from": "zh"
+  },
+  {
+    "id": "not-yet",
+    "to": "ja",
+    "text": "我還沒吃晚餐，等一下再回來。",
+    "intent": "現在尚未吃。",
+    "from": "zh"
+  },
+  {
+    "id": "already",
+    "to": "ja",
+    "text": "我已經吃過晚餐了，不用等我。",
+    "intent": "已經完成吃飯。",
+    "from": "zh"
+  },
+  {
+    "id": "quoted-past",
+    "to": "ja",
+    "text": "他昨天說「明天不能來」，不是今天。",
+    "intent": "保留引用與昨天說話的時間。",
+    "from": "zh"
+  },
+  {
+    "id": "mixed-time",
+    "to": "ja",
+    "text": "昨天不能來，今天可以，明天還不確定。",
+    "intent": "昨天過去、今天現在、明天未定。",
+    "from": "zh"
+  },
+  {
+    "id": "no-time",
+    "to": "ja",
+    "text": "我沒辦法理解這段日文，可以幫我解釋嗎？",
+    "intent": "現在不理解，不是以前不理解。",
+    "from": "zh"
+  },
+  {
+    "id": "past-explicit",
+    "to": "ja",
+    "text": "那時候沒辦法理解，現在終於懂了。",
+    "intent": "那時候過去，現在理解。",
+    "from": "zh"
+  },
+  {
+    "id": "habit",
+    "to": "ja",
+    "text": "我平常不看恐怖遊戲，但今天想試試。",
+    "intent": "習慣現在否定，今天打算嘗試。",
+    "from": "zh"
+  },
+  {
+    "id": "negative-future",
+    "to": "ja",
+    "text": "明天不直播，改成下週五晚上八點。",
+    "intent": "明天否定，下週五八點。",
+    "from": "zh"
+  },
+  {
+    "id": "conditional",
+    "to": "ja",
+    "text": "如果明天沒辦法來，我會先告訴你。",
+    "intent": "條件，不是已經未能來。",
+    "from": "zh"
+  },
+  {
+    "id": "past-denial",
+    "to": "ja",
+    "text": "我不是沒看完，只是沒看到開頭。",
+    "intent": "否定沒有看完，錯過的是開頭。",
+    "from": "zh"
+  },
+  {
+    "id": "polite-inability",
+    "to": "ja",
+    "text": "不好意思，今天沒辦法待到最後，明天再來支持你！",
+    "intent": "禮貌，今天目前無法待到最後。",
+    "from": "zh"
+  },
+  {
+    "id": "ja-past-fish",
+    "to": "zh",
+    "text": "魚が逃げてしまいました。",
+    "intent": "魚已經逃走。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-present-fish",
+    "to": "zh",
+    "text": "魚が逃げてしまいます。",
+    "intent": "魚要逃走或會逃走，不是已經逃走。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-past-not-finished",
+    "to": "zh",
+    "text": "昨日は最後まで見られませんでした。",
+    "intent": "昨天沒有看完。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-present-inability",
+    "to": "zh",
+    "text": "今日は最後まで見られません。明日また来ます。",
+    "intent": "今天無法看完，明天再來。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-not-yet",
+    "to": "zh",
+    "text": "まだ終わっていません。もう少し待ってください。",
+    "intent": "還沒結束，請再等。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-completed",
+    "to": "zh",
+    "text": "もう終わりました。待たなくて大丈夫です。",
+    "intent": "已經結束，不用等。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-future-plan",
+    "to": "zh",
+    "text": "明日の配信はお休みです。来週また会いましょう。",
+    "intent": "明天停播，下週見。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-mixed",
+    "to": "zh",
+    "text": "昨日はできませんでしたが、今日はできます。",
+    "intent": "昨天不能，今天可以。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-habit",
+    "to": "zh",
+    "text": "普段はホラーゲームをしません。今日は初めてです。",
+    "intent": "平常不玩，今天第一次。",
+    "from": "ja"
+  },
+  {
+    "id": "ja-quote",
+    "to": "zh",
+    "text": "「明日は来られません」と昨日言いました。",
+    "intent": "昨天說明天不能來，保留引用。",
+    "from": "ja"
+  },
+  {
+    "id": "guard-name",
+    "to": "ja",
+    "text": "鹿乃chan，今天的歌聲也好好聽！",
+    "intent": "保留稱呼與稱讚。",
+    "from": "zh"
+  },
+  {
+    "id": "guard-question",
+    "to": "ja",
+    "text": "不好意思，我還不太懂日文，請問明天幾點開始呢？",
+    "intent": "保留未理解與時間問題。",
+    "from": "zh"
+  },
+  {
+    "id": "guard-negative",
+    "to": "zh",
+    "text": "右じゃなくて左です。絶対に押さないで。",
+    "intent": "是左不是右，禁止按。",
+    "from": "ja"
+  },
+  {
+    "id": "guard-open",
+    "to": "zh",
+    "text": "それはちょっと…",
+    "intent": "保留未說完，不補形容詞。",
+    "from": "ja"
+  },
+  {
+    "id": "guard-short",
+    "to": "zh",
+    "text": "ところで、明日は？",
+    "intent": "開放的明天呢，不虛構星期。",
+    "from": "ja"
+  },
+  {
+    "id": "guard-game",
+    "to": "zh",
+    "text": "ヴァンダルをリロードします。スパイクはまだ設置しません。",
+    "intent": "遊戲詞與尚未設置。",
+    "from": "ja"
+  }
+]
