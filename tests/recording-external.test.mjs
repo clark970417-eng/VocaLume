@@ -8,3 +8,15 @@ test('streamed revisions replace their row; new groups remove the oldest visible
  assert.equal(q.entries.length,5);assert.deepEqual(q.rows('s').map(r=>r.id),['1','2','3','4']);
  assert.equal(q.rows('s')[3].translated,'中文');assert.equal(calls,0);assert.equal(q.pending,4);
 });
+
+test('a failed caption stops counting as pending, exposes retry status, and clears it after success',async()=>{
+ const q=new RecordingQueue({save:async()=>{},translate:async()=> '辛苦了'});
+ await q.updateExternal({key:'one',session:'s',group:'one',original:'お疲れ様',translated:'',state:'streaming'});
+ assert.equal(q.rows('s')[0].pending,1);
+ await q.updateExternal({key:'one',session:'s',group:'one',original:'お疲れ様',translated:'',state:'failed',error:'timeout'});
+ assert.equal(q.rows('s')[0].pending,0);assert.equal(q.rows('s')[0].failed,1);
+ assert.equal(q.rows('s')[0].error,'timeout');
+ await q.retry();await new Promise(resolve=>setTimeout(resolve,0));
+ assert.equal(q.rows('s')[0].translated,'辛苦了');assert.equal(q.rows('s')[0].failed,0);
+ assert.equal(q.rows('s')[0].error,'');assert.equal(q.pending,0);
+});

@@ -2,6 +2,13 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## Extension 4.4.10 - 2026-10-25
+
+- Send desktop speech for translation in shorter cues: seek a 160 ms voice-detection pause after four seconds, preserve early breaths and recognized unfinished clauses, and cap uninterrupted audio at eight seconds instead of twenty. Keep the complete audio in order and retain the desktop engine's preceding translation context.
+- Stop merging queued final audio under the newest cue ID. Every source draft now retains its matching final, including after decoder recovery. Four-entry captions use separate cue rows instead of joining an entire uninterrupted monologue.
+- Distinguish waiting from failed translations on the overlay. Failed recordings remain available under **Listen → Caption records → Retry failed translations**, and recovered final results can replace an earlier failure. Single-pair captions still wait for the current translation before advancing.
+- Extension-only change; compatible with the installed desktop 4.4.8. Public preview installers remain 4.4.5. See [verification](docs/retests/4.4.10-extension.md).
+
 ## Extension 4.4.9 - 2026-10-25
 
 - Replace the long popup with four task tabs: Read text, Write replies, Listen to audio and Settings. Keep navigation and save feedback visible while advanced controls scroll.

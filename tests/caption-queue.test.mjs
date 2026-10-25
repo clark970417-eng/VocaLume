@@ -69,6 +69,21 @@ test('an empty render hides the panel so stopping audio closes the overlay',asyn
  t.panel.render([]);assert.equal(t.styles.visibility,'hidden');
 });
 
+test('untranslated captions distinguish waiting from failure without inserting status into the translation',async()=>{
+ const t=panel();await Promise.resolve();
+ t.panel.render([{original:'今から始めます',translated:'',pending:1}]);
+ let pair=t.root.children[0].children[0];
+ assert.equal(pair.children[1].children.length,0);
+ assert.equal(pair.children[2].textContent,'正在聆聽／翻譯…');
+ t.panel.render([{original:'今から始めます',translated:'',failed:1,error:'timeout'}]);
+ pair=t.root.children[0].children[0];
+ assert.match(pair.children[2].textContent,/字幕記錄.*重試/);
+ t.panel.render([{original:'今から始めます',translated:'現在開始',pending:0}]);
+ pair=t.root.children[0].children[0];
+ assert.equal(pair.children.length,2);
+ assert.equal(pair.children[1].children[0].textContent,'現在開始');
+});
+
 test('layout rules stay in the stylesheet: half-line group spacing and wrap-when-needed',()=>{
  const css=fs.readFileSync(new URL('../caption-window.css',import.meta.url),'utf8');
  // line-height 1.35 with .675em between groups is exactly half a line.

@@ -123,13 +123,13 @@ const recording=new RecordingQueue({
  onError:()=>{lastError='字幕記錄無法儲存，請匯出記錄並檢查儲存空間';if(running)stopCapture();}
 });
 function initRecording(){return recordingReady??=chrome.storage.local.get('recordedCaptions').then(s=>recording.restore(Array.isArray(s.recordedCaptions)?s.recordedCaptions:[]));}
-function recordingItem(){const rows=recording.rows(gate.session);if(recordingPreview?.session===gate.session){const existing=rows.find(r=>r.id===recordingPreview.group);if(existing)existing.original+=' '+recordingPreview.original;else rows.push({id:recordingPreview.group,original:recordingPreview.original,translated:''});}return {id:'recording',recordingRows:rows.slice(-4),original:'',translated:'',updatedAt:Date.now()/1000};}
+function recordingItem(){const rows=recording.rows(gate.session);if(recordingPreview?.session===gate.session){const existing=rows.find(r=>r.id===recordingPreview.group);if(existing)existing.original=recordingPreview.original;else rows.push({id:recordingPreview.group,original:recordingPreview.original,translated:'',pending:1});}return {id:'recording',recordingRows:rows.slice(-4),original:'',translated:'',updatedAt:Date.now()/1000};}
 function recordTranscript(m){
- if(m.source!=='native'&&!m.final){if(m.partial&&m.text){recordingPreview={session:gate.session,group:gate.session+':'+m.utteranceId,original:m.text};pushSubtitle(recordingItem());}return;}
+ if(m.source!=='native'&&!m.final){if(m.partial&&m.text){recordingPreview={session:gate.session,group:gate.session+':'+m.id,original:m.text};pushSubtitle(recordingItem());}return;}
  recordingPreview=null;
  const text=String(m.text||'').replace(/\s+/g,' ').trim();if(!text)return;
  const key=gate.session+':'+(m.source==='native'?'native-'+(++outputSequence):m.id);
- recording.add({key,session:gate.session,group:gate.session+':'+(m.utteranceId??key),original:text,createdAt:Date.now()}).catch(()=>{});
+ recording.add({key,session:gate.session,group:key,original:text,createdAt:Date.now()}).catch(()=>{});
 }
 const gate=new ResultGate();
 const cueCursor=new CueCursor();
@@ -157,7 +157,7 @@ function presentDesktopCaption(segment){
   if(caption.final&&!desktopSettledAt)desktopSettledAt=Date.now();
  }
  if(!caption.final||desktopOrder.length<2||desktopAdvanceTimer!==null)return;
- const hold=caption.translated?Math.min(captionHold*1000,Math.max(1000,caption.translated.length*60)):400;
+ const hold=caption.translated?Math.min(captionHold*1000,Math.max(1000,caption.translated.length*60)):2000;
  desktopAdvanceTimer=setTimeout(()=>{
   desktopAdvanceTimer=null;
   if(!running)return;
@@ -192,19 +192,26 @@ function desktopEvent(event){
   }
   return;
  }
- let translated=String(result.translated||'').trim();
- if(result.targetLanguage&&result.targetLanguage!==speechTo)translated='';
- if(translated&&(!result.targetLanguage||result.targetLanguage===speechTo)){try{translated=checkedTranslation(translated,pair(speechFrom,speechTo),original);}catch{translated='';}}
+ let translated=String(result.translated||'').trim(),error=result.error||'';
+ if(result.targetLanguage&&result.targetLanguage!==speechTo){translated='';error='翻譯語言不符';}
+ if(translated&&(!result.targetLanguage||result.targetLanguage===speechTo)){try{translated=checkedTranslation(translated,pair(speechFrom,speechTo),original);}catch(e){translated='';error=e.message;}}
  const previous=meta.caption;
- if(previous?.final&&!result.correction)return;
+ // A recovered decoder may complete a previously failed cue. Accept that final
+ // while keeping late drafts from reopening an already settled caption.
+ if(previous?.final&&!result.correction&&(!result.final||previous.translated))return;
  // An old translation must never be paired with a new source hypothesis.
  if(previous?.original!==original&&!result.final&&translated===previous?.translated)translated='';
- meta.caption={original,translated,final:!!result.final||!!(result.correction&&previous?.final),error:result.error||''};
+ const final=!!result.final||!!(result.correction&&previous?.final);
+ if(previous?.final&&!previous.translated&&translated&&desktopOrder[0]===event.segment){
+  if(desktopAdvanceTimer!==null)clearTimeout(desktopAdvanceTimer);
+  desktopAdvanceTimer=null;desktopSettledAt=0;
+ }
+ meta.caption={original,translated,final,error:final&&!translated?(error||'翻譯未完成'):''};
  diagnostics.lastRecognition=Date.now();modelStatus='已辨識日文';
  if(meta.session===gate.session&&meta.createdAt>=(diagnostics.captionPhaseAt||0)){diagnostics.captionPhase=translated?'translated':'translating';diagnostics.captionPhaseAt=meta.createdAt;}
  if(translated)diagnostics.chineseLagMs=Date.now()-meta.audioEndAt;
  if(meta.mode==='record'){
-  recording.updateExternal({key:event.segment,session:meta.session,group:meta.group,createdAt:meta.createdAt,original,translated,state:translated?'done':result.final?'failed':'streaming'}).catch(()=>{lastError='字幕記錄無法儲存';});
+  recording.updateExternal({key:event.segment,session:meta.session,group:meta.group,createdAt:meta.createdAt,original,translated,state:final?(translated?'done':'failed'):'streaming',error:meta.caption.error}).catch(()=>{lastError='字幕記錄無法儲存';});
  }else{
   presentDesktopCaption(event.segment);
  }
@@ -309,7 +316,7 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
   if(m.op==='decode'){
    diagnostics.captionPhase='recognizing';diagnostics.captionPhaseAt=m.speechAt;
    const previous=desktopSegments.get(segment);
-   desktopSegments.set(segment,{...previous,session:gate.session,mode:captionMode,group:gate.session+':'+m.utterance,createdAt:m.speechAt,audioEndAt:m.audioEndAt,final:m.final});
+   desktopSegments.set(segment,{...previous,session:gate.session,mode:captionMode,group:segment,createdAt:m.speechAt,audioEndAt:m.audioEndAt,final:m.final});
    if(captionMode==='realtime'&&!desktopOrder.includes(segment)&&!desktopDelivered.has(segment))desktopOrder.push(segment);
    // Never evict a sentence still waiting for its translation.
    if(desktopSegments.size>200){for(const [key,meta] of desktopSegments){if(meta.session!==gate.session||desktopDelivered.has(key)){desktopSegments.delete(key);desktopDelivered.delete(key);break;}}}

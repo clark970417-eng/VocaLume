@@ -56,15 +56,15 @@ test('desktop recovery keeps finals ordered and discards an obsolete interrupted
  assert.deepEqual(q.jobs.map(x=>[x.id,x.final]),[[0,true],[2,true],[3,false]]);
 });
 
-test('desktop recording coalesces waiting final audio without changing its order',()=>{
+test('desktop recording preserves each completed cue and its identity even under backlog',()=>{
  const q=new DecodeQueue({retainFinals:true,retainInterim:true,coalesceFinals:true});
  const job=(id,value)=>({id,final:true,audio:new Float32Array(32000).fill(value),speechAt:id*100,audioEndAt:id*100+90,speechSeconds:1,voicedSeconds:1});
  q.push(job(1,.1));q.push(job(2,.2));q.push(job(3,.3));
- assert.equal(q.jobs.length,1);
- assert.equal(q.jobs[0].id,3);
- assert.equal(q.jobs[0].audio.length,96000);
- assert.ok(Math.abs(q.jobs[0].audio[0]-.1)<1e-6);
- assert.ok(Math.abs(q.jobs[0].audio[32000]-.2)<1e-6);
- assert.ok(Math.abs(q.jobs[0].audio[64000]-.3)<1e-6);
- assert.equal(q.jobs[0].speechSeconds,3);
+ assert.equal(q.jobs.length,3);
+ assert.deepEqual(q.jobs.map(j=>j.id),[1,2,3]);
+ for(let i=0;i<3;i++){
+  assert.equal(q.jobs[i].audio.length,32000);
+  assert.ok(Math.abs(q.jobs[i].audio[0]-(i+1)*.1)<1e-6);
+ }
+ assert.equal(q.dropped,0,'every displayed preview still has a matching final');
 });

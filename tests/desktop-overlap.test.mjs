@@ -25,14 +25,21 @@ test('pending desktop acknowledgements keep Japanese open for late Chinese and r
  vm.runInNewContext(source,{chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
- for(let i=1;i<=5;i++)await call({type:'desktop-request',op:'decode',segment:String(i),utterance:String(i),final:true,audio:'test',speechAt:Date.now()+i,audioEndAt:Date.now()},{url:'chrome-extension://test/offscreen.html'});
+ for(let i=1;i<=5;i++)await call({type:'desktop-request',op:'decode',segment:String(i),utterance:'one-continuous-speech',final:true,audio:'test',speechAt:Date.now()+i,audioEndAt:Date.now()},{url:'chrome-extension://test/offscreen.html'});
  let entries=(await call({type:'recording-export'})).text;
  assert.equal(entries.length,5);
+ assert.equal(new Set(entries.map(e=>e.group)).size,5,'continuous speech stays in separate short caption rows');
  assert.equal(entries.filter(e=>e.state==='streaming').length,5);
+ client.onEvent({event:'caption',segment:segments[0],result:{text:'日本語1',translated:'',final:true,error:'timeout'}});
+ entries=(await call({type:'recording-export'})).text;
+ assert.equal(entries[0].state,'failed');assert.equal(entries[0].error,'timeout');
+ client.onEvent({event:'source',segment:segments[0],text:'古い草稿'});
+ assert.equal((await call({type:'recording-export'})).text[0].state,'failed','late drafts cannot turn failure into infinite pending');
  for(let i=0;i<5;i++)client.onEvent({event:'caption',segment:segments[i],result:{text:'日本語'+(i+1),translated:'中文第'+(i+1)+'句',final:true}});
  entries=(await call({type:'recording-export'})).text;
  assert.deepEqual(Array.from(entries,e=>e.translated),['中文第1句','中文第2句','中文第3句','中文第4句','中文第5句']);
  assert.equal(entries.filter(e=>e.state==='done').length,5);
+ assert.equal(entries[0].error,'','a valid final after decoder recovery repairs the failed caption');
  await call({type:'subtitle-control',action:'stop'});
 });
 

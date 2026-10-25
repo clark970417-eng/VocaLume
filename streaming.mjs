@@ -26,15 +26,16 @@ export class SpeechGain {
  }
 }
 export class SpeechWindows {
- constructor(){this.reset();}
- reset(){this.pre=[];this.parts=[];this.samples=0;this.clock=0;this.onset=0;this.silent=0;this.voiced=0;this.confident=0;this.active=false;this.id=0;this.lastEmission=0;this.overlap=false;this.utterance=0;this.sentenceComplete=false;}
- hint(text,utteranceId){
-  if(!this.active||utteranceId!==this.utterance)return;
+ constructor({shortCues=false}={}){this.shortCues=shortCues;this.sentenceMode=shortCues;this.maxSamples=shortCues?128000:80000;this.overlapFrames=shortCues?0:32;this.reset();}
+ reset(){this.pre=[];this.parts=[];this.samples=0;this.clock=0;this.onset=0;this.silent=0;this.voiced=0;this.confident=0;this.active=false;this.id=0;this.lastEmission=0;this.overlap=false;this.utterance=0;this.sentenceComplete=false;this.sentenceUnfinished=false;}
+ hint(text,utteranceId,id=this.id){
+  if(!this.active||utteranceId!==this.utterance||id!==this.id)return;
   // A recognizer's period alone is weak evidence. Japanese hanging particles
   // and Chinese continuation words need the longer pause even with punctuation.
   const value=String(text||'').trim();
   const unfinished=/(?:けど|けれど|から|ので|のに|とか|という|って|でも|そして|それで|如果|因為|但是|然後|雖然|所以|而且)[、，,。.!！?？\s]*$/u;
-  this.sentenceComplete=/[。！？.!?][」』”"]?$/.test(value)&&!unfinished.test(value);
+  this.sentenceUnfinished=unfinished.test(value);
+  this.sentenceComplete=/[。！？.!?][」』”"]?$/.test(value)&&!this.sentenceUnfinished;
  }
  finish(){
   if(!this.active)return null;
@@ -57,7 +58,7 @@ export class SpeechWindows {
    // The first cadence starts at acoustic onset, not after VAD activation.
    // Otherwise the two-frame onset confirmation is added to the configured
    // preview delay and a nominal 500 ms preview arrives closer to 600 ms.
-   this.lastEmission=this.speechStart;this.overlap=false;this.sentenceComplete=false;
+   this.lastEmission=this.speechStart;this.overlap=false;this.sentenceComplete=false;this.sentenceUnfinished=false;
    return null;
   }
   this.parts.push(frame);this.samples+=n;
@@ -66,7 +67,11 @@ export class SpeechWindows {
   if(probability>=.30)this.confident+=n;
   this.silent=speech?0:this.silent+n;
   const pause=this.sentenceMode?(this.sentenceComplete?14400:22400):9216;
-  const ended=this.silent>=pause, cut=this.samples>=(this.maxSamples||80000);
+  // Retain early breaths and hanging clauses. Once a cue has four seconds of
+  // context, a 160 ms VAD-confirmed pause is a useful boundary; uninterrupted speech has an
+  // eight-second ceiling. This bounds translation input without truncating text.
+  const cuePause=this.shortCues&&this.samples>=64000&&this.silent>=2560&&!this.sentenceUnfinished;
+  const ended=this.silent>=pause, cut=this.samples>=this.maxSamples||cuePause;
   const speechSamples=this.clock-this.speechStart;
   // Clear speech can produce a useful rolling hypothesis at 500 ms. Keep the
   // former 650 ms guard for weak/noisy input, where an early Whisper pass tends
@@ -82,7 +87,8 @@ export class SpeechWindows {
   if(ended){this.active=false;this.parts=[];this.samples=0;this.pre=[];this.onset=0;}
   else if(cut){
    const keep=this.overlapFrames??32;this.parts=keep?this.parts.slice(-keep):[];this.samples=this.parts.reduce((a,b)=>a+b.length,0);
-   this.start=this.clock-this.samples;this.id++;this.overlap=true;this.voiced=0;this.confident=0;this.speechStart=this.clock;
+   this.start=this.clock-this.samples;this.id++;this.overlap=keep>0;this.voiced=0;this.confident=0;this.speechStart=this.clock;
+   this.sentenceComplete=false;this.sentenceUnfinished=false;
   }
   return job;
  }
@@ -134,7 +140,7 @@ export class Agreement {
  }
 }
 export class DecodeQueue {
- constructor({retainFinals=false,retainInterim=false,coalesceFinals=false}={}){this.jobs=[];this.dropped=0;this.retainFinals=retainFinals;this.retainInterim=retainInterim;this.coalesceFinals=coalesceFinals;}
+ constructor({retainFinals=false,retainInterim=false}={}){this.jobs=[];this.dropped=0;this.retainFinals=retainFinals;this.retainInterim=retainInterim;}
  clear(){this.jobs=[];}
  push(job){
   if(this.retainFinals){
@@ -144,18 +150,8 @@ export class DecodeQueue {
     this.jobs.push(job);return;
    }
    const finals=this.jobs.filter(x=>x.final&&x.id!==job.id);
-   // Native recognition has a sizeable fixed cost.  During rapid speech,
-   // combine waiting completed utterances into one <=20 s decode instead of
-   // building a minute-long FIFO.  The audio is retained in order and the
-   // resulting recording becomes one larger, complete subtitle row.
-   const previous=finals.at(-1);
-   if(this.coalesceFinals&&previous?.audio&&job.audio&&previous.audio.length+job.audio.length<=320000){
-    const audio=new Float32Array(previous.audio.length+job.audio.length);
-    audio.set(previous.audio);audio.set(job.audio,previous.audio.length);
-    finals[finals.length-1]={...job,audio,speechAt:Math.min(previous.speechAt??Infinity,job.speechAt??Infinity),
-     speechSeconds:(previous.speechSeconds||0)+(job.speechSeconds||0),voicedSeconds:(previous.voicedSeconds||0)+(job.voicedSeconds||0)};
-    this.jobs=[...finals];this.dropped++;return;
-   }
+   // Keep the identity of every accepted cue. Merging audio under the newest
+   // ID leaves earlier visible drafts without a matching final translation.
    if(finals.length>=60)throw new Error('辨識積壓超過上限，已停止收音以保護已記錄內容');
    const preview=this.jobs.find(x=>!x.final&&x.id>job.id);
    this.jobs=[...finals,job,...(preview?[preview]:[])];return;

@@ -55,19 +55,20 @@ for(const mode of ['browser','desktop']) test(`recording retries retained audio 
  vad.onmessage({data:{type:'processed',probability:.9,vadMs:1}});
  vad.onmessage({data:{type:'segment',job:{...job,id:2,audio:job.audio.slice()}}});
  replacement.onmessage({data:{type:'ready',model:'test',dtype:'fp32'}});
- assert.equal(replacement.sent.id,mode==='desktop'?2:1);
- assert.equal(replacement.sent.audio.length,mode==='desktop'?32000:16000);
+ assert.equal(replacement.sent.id,1);
+ assert.equal(replacement.sent.audio.length,16000,'recovery must not merge distinct cue IDs');
  if(mode==='desktop'){
   // Speech keeps changing while the current recognition runs. Retain only the
   // newest rolling preview and start it as soon as the busy result returns.
   vad.onmessage({data:{type:'segment',job:{...job,id:3,utteranceId:3,final:false,sampleCount:20000}}});
-  assert.equal(replacement.sent.id,2);
+  assert.equal(replacement.sent.id,1);
  }
  // Real audio keeps arriving during recovery, including before the retry completes.
  capture.port.onmessage({data:new Float32Array(1024).fill(.1)});
- await replacement.onmessage({data:{type:'result',id:mode==='desktop'?2:1,text:'こんにちは皆さん'}});
- assert.equal(replacement.sent.id,mode==='desktop'?3:2);assert.equal(messages.some(m=>m.type==='speech-error'),false);
+ await replacement.onmessage({data:{type:'result',id:1,text:'こんにちは皆さん'}});
+ assert.equal(replacement.sent.id,2);assert.equal(messages.some(m=>m.type==='speech-error'),false);
  if(mode==='desktop'){
+  await replacement.onmessage({data:{type:'result',id:2,text:'次の文です'}});
   // No new VAD tick is required after the busy decode completes.
   assert.equal(replacement.sent.id,3);
   await replacement.onmessage({data:{type:'result',id:3,text:'次の文です'}});

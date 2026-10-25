@@ -69,3 +69,53 @@ test('sentence mode joins breathing pauses and waits longer after a hanging clau
  w.hint('そう思います。',w.utterance);
  assert.equal(w.push(frame,0)?.final,true);
 });
+
+test('short desktop cues finalize continuous speech within eight seconds without losing or repeating audio',()=>{
+ const w=new SpeechWindows({shortCues:true}),finals=[];
+ for(let i=0;i<1000;i++){
+  const job=w.push(new Float32Array(512).fill(i+1),.9);
+  if(job?.final)finals.push(job);
+ }
+ const tail=w.finish();if(tail)finals.push(tail);
+ assert.ok(finals.length>=4);
+ assert.ok(finals.every(j=>j.audio.length<=128000));
+ assert.ok(finals.every(j=>!j.overlap));
+ const audio=finals.flatMap(j=>Array.from(j.audio));
+ assert.equal(audio.length,1000*512);
+ for(let i=0;i<1000;i++)assert.equal(audio[i*512],i+1);
+ assert.deepEqual(finals.map(j=>j.id),[1,2,3,4]);
+});
+
+test('short cues use a pause after four seconds but retain early breaths and unfinished clauses',()=>{
+ const frame=new Float32Array(512),w=new SpeechWindows({shortCues:true});
+ for(let i=0;i<35;i++)w.push(frame,.9);
+ for(let i=0;i<24;i++)assert.notEqual(w.push(frame,0)?.final,true,'early breathing pause stays open');
+ for(let i=0;i<80;i++)w.push(frame,.9);
+ w.hint('そう思うけど。',w.utterance,w.id);
+ for(let i=0;i<25;i++)assert.notEqual(w.push(frame,0)?.final,true,'hanging clause keeps its continuation');
+ for(let i=0;i<20;i++)w.push(frame,.9);
+ w.hint('そう思います。',w.utterance,w.id);
+ let final;
+ for(let i=0;i<16;i++){const job=w.push(frame,0);if(job?.final)final=job;}
+ assert.ok(final,'complete clause publishes on a short pause instead of waiting 20 seconds');
+ assert.ok(final.audio.length<128000);
+});
+
+test('a delayed recognition hint cannot split the next acoustic cue',()=>{
+ const w=new SpeechWindows({shortCues:true}),frame=new Float32Array(512);
+ for(let i=0;i<250;i++)w.push(frame,.9);
+ assert.equal(w.id,2);
+ for(let i=0;i<35;i++)w.push(frame,.9);
+ w.hint('終わりました。',w.utterance,1);
+ for(let i=0;i<32;i++)assert.notEqual(w.push(frame,0)?.final,true);
+});
+
+test('a short phrase-boundary pause in sustained speech does not force a mid-word eight-second cut',()=>{
+ const w=new SpeechWindows({shortCues:true}),frame=new Float32Array(512);
+ for(let i=0;i<146;i++)w.push(frame,.9);
+ const finals=[];
+ for(let i=0;i<6;i++){const job=w.push(frame,0);if(job?.final)finals.push(job);}
+ assert.equal(finals.length,1);
+ assert.ok(finals[0].endSample/16000<5);
+ assert.equal(finals[0].utteranceEnd,false,'a short cue boundary is not a claim that the whole utterance ended');
+});

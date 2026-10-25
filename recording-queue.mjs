@@ -33,7 +33,15 @@ export class RecordingQueue {
  async retry(){for(const e of this.entries)if(e.state==='failed')e.state='pending';await this.persist();this.pump();}
  rows(session){
   const groups=new Map();
-  for(const e of this.entries){if(e.session!==session)continue;let row=groups.get(e.group);if(!row){row={id:e.group,original:'',translated:'',pending:0};groups.set(e.group,row);}row.original+=(row.original?' ':'')+e.original;row.translated+=(row.translated&&e.translated?' ':'')+e.translated;if(e.state!=='done')row.pending++;}
+  for(const e of this.entries){
+   if(e.session!==session)continue;
+   let row=groups.get(e.group);
+   if(!row){row={id:e.group,original:'',translated:'',pending:0,failed:0,error:''};groups.set(e.group,row);}
+   row.original+=(row.original?' ':'')+e.original;
+   row.translated+=(row.translated&&e.translated?' ':'')+e.translated;
+   if(e.state==='failed'){row.failed++;row.error=e.error||'翻譯未完成';}
+   else if(e.state!=='done')row.pending++;
+  }
   return [...groups.values()].slice(-4);
  }
  get pending(){return this.entries.filter(e=>e.state==='pending'||e.state==='working'||e.state==='streaming').length;}

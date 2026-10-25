@@ -51,6 +51,12 @@ document.querySelector('#full-test').onclick=async event=>{
   if(!document.querySelectorAll('#events tr').length)throw Error('沒有收到任何字幕');
   if(maxGroups>4)throw Error('字幕超過四組');
   const mode=(await chrome.runtime.sendMessage({type:'health'})).text.captionMode;
+  if(mode==='record'){
+   const exported=await chrome.runtime.sendMessage({type:'recording-export'});
+   if(!exported?.ok||!Array.isArray(exported.text))throw Error('無法檢查字幕記錄');
+   const session=exported.text.at(-1)?.session,entries=exported.text.filter(e=>e.session===session);
+   if(!entries.length||entries.some(e=>e.state!=='done'||!e.translated?.trim()))throw Error('仍有未完成的字幕或只有原文的記錄');
+  }
   const visible=document.querySelector('#jtl-subtitles')?.classList.contains('jtl-visible');
   const count=document.querySelectorAll('#events tr').length;
   if(!hasChinese)throw Error('沒有收到中文翻譯');

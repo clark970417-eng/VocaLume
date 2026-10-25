@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current extension source **4.4.9** organizes the popup into **Read / Write / Listen / Settings**, with guided actions, automatic saving and one-click language swaps. Website text translation stays **off until you opt in**. See the [popup guide](docs/extension-guide.md) and [verification](docs/retests/4.4.9-extension.md). Desktop source remains **4.4.8**, including [duplicate-request speed improvements](docs/retests/4.4.8.md). Public preview downloads above remain **4.4.5**; these newer source changes have not been published as installer releases.
+Current extension source **4.4.10** sends shorter speech cues for translation and fixes long, untranslated caption accumulation. Desktop capture now seeks a pause after four seconds and caps each continuous audio segment at eight seconds; queued cues keep separate IDs and caption rows. See [verification](docs/retests/4.4.10-extension.md). The **Read / Write / Listen / Settings** popup and manual website text opt-in remain available; see the [popup guide](docs/extension-guide.md). Desktop source remains **4.4.8**, including [duplicate-request speed improvements](docs/retests/4.4.8.md). Public preview downloads above remain **4.4.5**; these newer source changes have not been published as installer releases.
 
 ![Extension icon](./icon-preview.png)
 
@@ -112,7 +112,7 @@ Run the automated suite with:
 node --test tests/*.test.mjs
 ```
 
-The current revision passes **129 extension tests and 668 desktop tests**, plus desktop TypeScript checks and a production build. A local Opera GX acceptance run loaded the desktop model from the extension, started tab capture, reached the live no-speech state, stopped cleanly, and returned to ready. Coverage includes native response ordering, source-before-translation events, invalid audio, warmup failures, silent PCM, major-site adapters, the general website adapter, and existing caption behavior.
+Extension **4.4.10 passes 183 automated tests**, covering short speech cues, preserved audio and caption IDs under load, late final translations, recovery, language settings and site adapters. The [current verification report](docs/retests/4.4.10-extension.md) describes Opera GX capture tests and their limits. Desktop build and test results are recorded separately in the [4.4.8 report](docs/retests/4.4.8.md).
 These tests do not establish long-session or commercial-product parity. See
 [3.8 verification](docs/retests/RETEST-3.8.0.md) and the [upstream comparison](COMPARISON-LIVETRANSLATE.md).
 

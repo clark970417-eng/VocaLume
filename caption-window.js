@@ -19,7 +19,22 @@
   render(rows){
    this.root.style.setProperty('visibility',rows.length?'visible':'hidden','important');
    const signature=JSON.stringify(rows);if(signature===this.signature)return;this.signature=signature;
-   this.lines.replaceChildren(...rows.slice(-4).map(row=>{const pair=document.createElement('div');pair.className='jtl-pair';for(const [cls,text] of [['jtl-spoken',row.original],['jtl-chinese',row.translated]]){const line=document.createElement('div');line.className=cls;const value=window.jtlCompactCaption(text);if(value){const backing=document.createElement('span');backing.textContent=value;line.append(backing);}pair.append(line);}return pair;}));
+   this.lines.replaceChildren(...rows.slice(-4).map(row=>{
+    const pair=document.createElement('div');pair.className='jtl-pair';
+    for(const [cls,text] of [['jtl-spoken',row.original],['jtl-chinese',row.translated]]){
+     const line=document.createElement('div');line.className=cls;const value=window.jtlCompactCaption(text);
+     if(value){const backing=document.createElement('span');backing.textContent=value;line.append(backing);}
+     pair.append(line);
+    }
+    // Status is separate from the translated text, so it never becomes a
+    // transcript, export or spoken translation. Keep it free of text outlines.
+    if(row.failed||row.error||(!row.translated&&row.pending)){
+     const status=document.createElement('div');status.className='jtl-caption-status';
+     status.textContent=row.failed?'翻譯未完成 · 可在「字幕記錄」重試':row.error?'翻譯未完成':'正在聆聽／翻譯…';
+     pair.append(status);
+    }
+    return pair;
+   }));
    this.lines.scrollTop=this.lines.scrollHeight;
   }
   begin(event){

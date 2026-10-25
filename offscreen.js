@@ -111,7 +111,7 @@ function initializeWorker(s){
   s.previewBudget.complete(s.decodeMs,performance.now());
   if(data.performance)s.performance=data.performance;
   const job=s.busy;
-  if(job&&data.text)s.vad?.postMessage({type:'transcript',epoch:s.epoch,utteranceId:job.utteranceId,text:data.text});
+  if(job&&data.text)s.vad?.postMessage({type:'transcript',epoch:s.epoch,id:job.id,utteranceId:job.utteranceId,text:data.text});
   if(job&&job.epoch===s.epoch&&!s.nativeUntil&&(s.recording||Date.now()-job.audioEndAt<5000)){
    if(s.desktop&&data.text&&s.lastId!==job.id){s.lastId=job.id;s.metrics.add('firstJapaneseMs',Date.now()-job.speechAt);s.metrics.add('audioLagMs',Date.now()-job.audioEndAt);}
    const text=s.desktop?null:s.filter.accept(data.text,job);
@@ -128,7 +128,7 @@ function initializeWorker(s){
  worker.postMessage({type:'init'});
 }
 function initializeVad(s){
- s.vad=new Worker('vad-worker.js?v=3.4.8',{type:'module'});
+ s.vad=new Worker('vad-worker.js?v=4.4.10',{type:'module'});
  s.vadTimeout=setTimeout(()=>{if(active===s){send(s,'speech-error',{error:'人聲模型載入逾時'});stop();}},30000);
  s.vad.onerror=()=>{if(active===s){send(s,'speech-error',{error:'人聲模型載入失敗'});stop();}};
  s.vad.onmessage=({data:m})=>{
@@ -137,12 +137,15 @@ function initializeVad(s){
   if(m.type==='flushed'&&m.epoch===s.epoch){clearTimeout(s.vadTimeout);s.vadFlushed=true;s.queue.jobs=s.queue.jobs.filter(job=>job.final);finishDrain(s);return;}
   if(m.type==='error'){send(s,'speech-error',{error:'人聲偵測失敗：'+m.error});stop();return;}
   if(m.type==='processed'){clearTimeout(s.vadTimeout);s.vadBusy=false;s.probability=m.probability;s.metrics.add('vadMs',m.vadMs);drainVad(s);}
-  if(m.type==='segment'&&m.job.epoch===s.epoch&&!s.nativeUntil)decode(s,m.job);
+  if(m.type==='segment'&&m.job.epoch===s.epoch&&!s.nativeUntil){
+   if(m.job.final)s.metrics.add('cueMs',m.job.audio.length/16);
+   decode(s,m.job);
+  }
  };
  s.vad.postMessage({type:'init',epoch:s.epoch,origin:Date.now(),rate:s.context.sampleRate,desktop:s.desktop});
 }
 async function start(m){
- stop();const s=active={session:m.session,epoch:0,ready:false,vadReady:false,restarts:0,restartTimer:null,frames:0,level:0,decodeMs:500,previewBudget:new PreviewBudget(),previewsSkipped:0,recording:Boolean(m.recording),queue:new DecodeQueue({retainFinals:Boolean(m.recording)||m.mode==='desktop',retainInterim:m.mode==='desktop',coalesceFinals:Boolean(m.recording)&&m.mode==='desktop'}),vadQueue:[],filter:new SpeechResultFilter(),agreement:new Agreement(),metrics:new Measurements(),expired:0,rejected:0,overruns:0};
+ stop();const s=active={session:m.session,epoch:0,ready:false,vadReady:false,restarts:0,restartTimer:null,frames:0,level:0,decodeMs:500,previewBudget:new PreviewBudget(),previewsSkipped:0,recording:Boolean(m.recording),queue:new DecodeQueue({retainFinals:Boolean(m.recording)||m.mode==='desktop',retainInterim:m.mode==='desktop'}),vadQueue:[],filter:new SpeechResultFilter(),agreement:new Agreement(),metrics:new Measurements(),expired:0,rejected:0,overruns:0};
  try{
   s.desktop=m.mode==='desktop';
   s.stream=await navigator.mediaDevices.getUserMedia({audio:{mandatory:{chromeMediaSource:'tab',chromeMediaSourceId:m.streamId}},video:false});
