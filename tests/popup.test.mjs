@@ -1,3 +1,4 @@
+import * as cloudApi from '../cloud-api.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,13 +6,13 @@ import vm from 'node:vm';
 import {captureStatus} from '../capture-status.mjs';
 
 const html = fs.readFileSync(new URL('../popup.html', import.meta.url), 'utf8');
-const source = fs.readFileSync(new URL('../popup.js', import.meta.url), 'utf8').replace(/^import .*;\n/, '');
+const source = fs.readFileSync(new URL('../popup.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '');
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
 // Exercise the shipped controller against real markup IDs without requiring a browser in CI.
 async function harness({saved = {}, url = 'https://www.youtube.com/watch?v=example', health = {running: false}} = {}) {
   const elements = [], writes = [], requests = [], timers = [];
-  const state = {saved: {captionStyleV34: true, ...structuredClone(saved)}, health, focused: '', writeError: null, handler: null, url};
+  const state = {saved: {captionStyleV34: true, ...structuredClone(saved)}, health, focused: '', writeError: null, handler: null, url, permissionAllowed: true, permissions: []};
   class Element {
     constructor(tag, attrs = {}) {
       this.tag = tag;
@@ -48,9 +49,11 @@ async function harness({saved = {}, url = 'https://www.youtube.com/watch?v=examp
   }
   const get = selector => { const el = elements.find(el => matches(el, selector)); assert.ok(el, `Missing element: ${selector}`); return el; };
   const context = {
+    ...cloudApi,
     document: {querySelector: get, querySelectorAll: selector => elements.filter(el => matches(el, selector)), createElement: tag => new Element(tag)},
     Option: class { constructor(label, value) { this.label = label; this.value = value; } },
     chrome: {
+      permissions: {request: async value => {state.permissions.push(value); return state.permissionAllowed;}},
       storage: {local: {
         get: async keys => Object.fromEntries((Array.isArray(keys) ? keys : [keys]).filter(key => key in state.saved).map(key => [key, structuredClone(state.saved[key])])),
         set: async values => { if (state.writeError) throw state.writeError; writes.push(structuredClone(values)); Object.assign(state.saved, structuredClone(values)); },
@@ -104,7 +107,7 @@ test('new popup keeps opt-in off, all languages, saved captions and engine setti
 test('task navigation remembers the page without enabling translation or capture', async () => {
   const h = await harness();
   await h.click('#tab-speech');
-  assert.equal(h.get('#panel-read').hidden, true);
+  assert.equal(h.get('#panel-text').hidden, true);
   assert.equal(h.get('#panel-speech').hidden, false);
   assert.equal(h.get('#textControls').hidden, true);
   assert.equal(h.get('#tab-speech').attrs['aria-selected'], 'true');
@@ -115,7 +118,7 @@ test('task navigation remembers the page without enabling translation or capture
   assert.equal(reopened.get('#panel-speech').hidden, false);
   await reopened.click('#openAppearance');
   assert.equal(reopened.get('#panel-settings').hidden, false);
-  assert.equal(reopened.get('#appearance').open, true);
+  assert.equal(reopened.get('#speechDock').hidden, true);
 });
 
 test('speech tone saves independently, survives reopening and requires desktop speech mode', async () => {
@@ -135,13 +138,13 @@ test('speech tone saves independently, survives reopening and requires desktop s
 
 test('tabs support arrows, Home and End with a single keyboard tab stop', async () => {
   const h = await harness();
-  h.get('#tab-read').dispatch('keydown', {key: 'ArrowRight'});
-  assert.equal(h.state.focused, 'tab-write');
-  assert.equal(h.get('#tab-read').tabIndex, -1);
-  h.get('#tab-write').dispatch('keydown', {key: 'End'});
+  h.get('#tab-text').dispatch('keydown', {key: 'ArrowRight'});
+  assert.equal(h.state.focused, 'tab-speech');
+  assert.equal(h.get('#tab-text').tabIndex, -1);
+  h.get('#tab-speech').dispatch('keydown', {key: 'End'});
   assert.equal(h.state.focused, 'tab-settings');
   h.get('#tab-settings').dispatch('keydown', {key: 'Home'});
-  assert.equal(h.state.focused, 'tab-read');
+  assert.equal(h.state.focused, 'tab-text');
 });
 
 test('swap reading languages reverses synchronized writing; unsync allows an independent pair', async () => {
@@ -252,13 +255,70 @@ test('zero outline and the outline switch leave caption background unchanged', a
   assert.equal(h.state.saved.subtitleSettings.backgroundColor, '#cc3344');
 });
 
-test('cloud keys stay masked and blank fields retain the existing secret', async () => {
+test('API selector preserves existing keys, keeps providers separate and masks saved values', async () => {
   const h = await harness({saved: {nvidiaKey: 'test-existing-secret'}});
-  assert.equal(h.get('#nvidiaKey').value, '');
-  assert.match(h.get('#nvidiaKey').placeholder, /已儲存/);
+  assert.equal(h.get('#apiProvider').value, 'auto');
+  assert.equal(h.get('#apiProvider').options.length, 7);
+  assert.equal(h.writes.length, 0);
+  await h.change('apiProvider', 'nvidia');
+  assert.equal(h.get('#apiKey').value, '');
+  assert.match(h.get('#apiKey').placeholder, /已儲存/);
   await h.click('#saveTranslation');
-  assert.equal(h.state.saved.nvidiaKey, 'test-existing-secret');
-  assert.equal(h.get('#nvidiaKey').value, '');
+  assert.equal(h.state.saved.cloudTranslation.profiles.nvidia.apiKey, 'test-existing-secret');
+  assert.equal(h.get('#apiKey').value, '');
+  assert.equal(h.get('#testTranslation').disabled, false);
+  await h.change('apiProvider', 'openai');
+  assert.equal(h.get('#apiKey').value, '');
+  assert.equal(h.get('#apiKey').placeholder, '尚未設定');
+  assert.equal(h.get('#testTranslation').disabled, true);
+  assert.equal(h.state.saved.cloudTranslation.provider, 'nvidia', 'selection is not applied until saved');
+  await h.change('apiKey', 'new-provider-key', 'input');
+  await h.change('apiProvider', 'gemini');
+  assert.equal(h.get('#apiKey').value, '', 'typed secrets must not cross providers');
+  await h.change('apiProvider', 'openai');
+  assert.equal(h.get('#apiKey').value, 'new-provider-key', 'unsaved values remain only in their own form');
+});
+
+test('API validation and denied permission do not overwrite a working provider', async () => {
+  const h = await harness();
+  await h.change('apiProvider', 'custom');
+  await h.change('apiBaseUrl', 'http://untrusted.example/v1', 'input');
+  await h.click('#saveTranslation');
+  assert.match(h.get('#translationStatus').textContent, /HTTPS/);
+  assert.equal(h.writes.length, 0);
+  await h.change('apiBaseUrl', 'https://provider.example/v1', 'input');
+  await h.change('apiModel', 'my-model', 'input');
+  await h.change('apiKey', 'test-key', 'input');
+  h.state.permissionAllowed = false;
+  await h.click('#saveTranslation');
+  assert.match(h.get('#translationStatus').textContent, /未變更/);
+  assert.equal(h.writes.length, 0);
+  h.state.permissionAllowed = true;
+  await h.click('#saveTranslation');
+  assert.equal(h.state.saved.cloudTranslation.provider, 'custom');
+  assert.equal(h.state.saved.cloudTranslation.profiles.custom.model, 'my-model');
+  assert.equal(h.state.permissions.at(-1).origins[0], 'https://provider.example/*');
+  assert.equal(h.get('#apiKey').value, '');
+  await h.change('apiBaseUrl', 'https://elsewhere.example/v1', 'input');
+  await h.click('#saveTranslation');
+  assert.match(h.get('#translationStatus').textContent, /重新輸入金鑰/);
+  assert.equal(h.state.saved.cloudTranslation.profiles.custom.baseUrl, 'https://provider.example/v1');
+});
+
+test('API clear and connection test are explicit and never translate page contents', async () => {
+  const h = await harness({saved: {nvidiaKey: 'old-secret'}});
+  await h.change('apiProvider', 'nvidia');
+  await h.click('#saveTranslation');
+  h.state.handler = (message, reply) => reply({ok:true,text:{provider:'NVIDIA',translated:'今天是開心的一天。'}});
+  await h.click('#testTranslation');
+  assert.match(h.get('#translationStatus').textContent, /連線成功/);
+  const request = h.requests.find(r => r.type === 'translation-provider-test');
+  assert.deepEqual(request, {type:'translation-provider-test'});
+  await h.change('apiClearKey', true, 'input');
+  await h.click('#saveTranslation');
+  assert.equal(h.state.saved.nvidiaKey, '');
+  assert.equal(h.state.saved.cloudTranslation.profiles.nvidia.apiKey, '');
+  assert.equal(h.get('#apiKey').placeholder, '尚未設定');
 });
 
 test('empty transcripts give next-step guidance instead of downloading an empty file', async () => {
@@ -272,6 +332,43 @@ test('every form label targets an existing control and tab relations are unique'
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length);
   for (const [, id] of html.matchAll(/\b(?:for|aria-controls|aria-labelledby)="([^"]+)"/g)) assert.ok(ids.includes(id), id);
-  assert.equal([...html.matchAll(/role="tab"/g)].length, 4);
-  assert.equal([...html.matchAll(/role="tabpanel"/g)].length, 4);
+  assert.equal([...html.matchAll(/role="tab"/g)].length, 3);
+  assert.equal([...html.matchAll(/role="tabpanel"/g)].length, 3);
+});
+
+
+test('legacy reading and writing tabs open the combined text page without rewriting preferences', async () => {
+  for (const popupPanel of ['read', 'write']) {
+    const h = await harness({saved: {popupPanel}});
+    assert.equal(h.get('#panel-text').hidden, false);
+    assert.equal(h.writes.length, 0);
+    assert.equal(h.get('#typingLanguages').hidden, true);
+    assert.match(h.get('#syncSummary').textContent, /繁體中文 → 日文/);
+    await h.change('syncTextLanguages', false);
+    assert.equal(h.get('#typingLanguages').hidden, false);
+    assert.equal(h.get('#typeSource').disabled, false);
+    await h.change('typeSource', 'en');
+    const reopened = await harness({saved: h.state.saved});
+    assert.equal(reopened.get('#typingLanguages').hidden, false);
+    assert.equal(reopened.get('#typeSource').value, 'en');
+  }
+});
+
+test('active speech controls stay reachable when navigating to text or appearance', async () => {
+  const h = await harness({health: {running: true}});
+  assert.equal(h.get('#speechDock').hidden, false);
+  assert.equal(h.get('#stop').hidden, false);
+  assert.equal(h.get('#start').hidden, true);
+  await h.click('#tab-settings');
+  assert.equal(h.get('#speechDock').hidden, false);
+  await h.click('#tab-text');
+  assert.equal(h.get('#speechDock').hidden, false);
+  assert.equal(h.requests.some(r => r.type === 'subtitle-control'), false);
+  h.state.handler = (_, reply) => { h.state.health = {running: false}; reply({ok: true}); };
+  await h.click('#stop');
+  assert.equal(h.requests.filter(r => r.type === 'subtitle-control').length, 1);
+  assert.equal(h.get('#speechDock').hidden, true);
+  await h.click('#tab-speech');
+  assert.equal(h.get('#speechDock').hidden, false);
+  assert.equal(h.get('#start').disabled, false);
 });

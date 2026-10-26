@@ -47,16 +47,9 @@ test.afterAll(async () => {
   await app?.close()
 })
 
-// Helper: ensure Advanced Settings is expanded
-async function expandAdvancedSettings(): Promise<void> {
-  const sttSelect = settingsWindow.locator('[aria-label="STT engine"]')
-  if (await sttSelect.isVisible().catch(() => false)) return
-  const advancedButton = settingsWindow.locator('button', { hasText: 'Advanced Settings' })
-  await advancedButton.waitFor({ state: 'visible', timeout: 15000 })
-  await advancedButton.click()
-  // First expansion cold-renders the whole advanced panel; under GPU-disabled
-  // CI Electron this can take well over 5s, so allow generous headroom.
-  await sttSelect.waitFor({ state: 'visible', timeout: 15000 })
+async function openSection(name: string): Promise<void> {
+  await settingsWindow.getByRole('tab', { name, exact: true }).click()
+  await expect(settingsWindow.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-selected', 'true')
 }
 
 test.describe('App launch', () => {
@@ -78,7 +71,7 @@ test.describe('App launch', () => {
 
 test.describe('Engine selection', () => {
   test('should display translation engine radio options', async () => {
-    await expandAdvancedSettings()
+    await openSection('Models')
 
     // Use the radiogroup to scope selectors and avoid strict mode violations
     const engineGroup = settingsWindow.locator('[role="radiogroup"]')
@@ -92,7 +85,7 @@ test.describe('Engine selection', () => {
   })
 
   test('should allow selecting a different translation engine', async () => {
-    await expandAdvancedSettings()
+    await openSection('Models')
 
     // Select the always-present Hunyuan-MT 7B radio by its unique label text.
     const engineGroup = settingsWindow.locator('[role="radiogroup"]')
@@ -107,7 +100,7 @@ test.describe('Engine selection', () => {
   })
 
   test('should show STT engine selector', async () => {
-    await expandAdvancedSettings()
+    await openSection('Models')
 
     const sttSelect = settingsWindow.locator('[aria-label="STT engine"]')
     await expect(sttSelect).toBeVisible()
@@ -156,19 +149,21 @@ test.describe('Start/Stop pipeline', () => {
 
 test.describe('Settings persistence', () => {
   test('should have microphone selector', async () => {
+    await openSection('Translate')
     const micSelect = settingsWindow.locator('[aria-label="Microphone device"]')
     await expect(micSelect).toBeVisible()
   })
 
   test('should show config summary panel', async () => {
+    await openSection('Models')
     // The config summary shows Speech Recognition, Translation, and Language labels
     await expect(settingsWindow.locator('text=Speech Recognition').first()).toBeVisible()
     await expect(settingsWindow.locator('text=Translation').first()).toBeVisible()
-    await expect(settingsWindow.locator('text=Language').first()).toBeVisible()
+    await expect(settingsWindow.locator('#settings-panel-models').getByText('Language', {exact: true})).toBeVisible()
   })
 
-  test('should have language selectors in advanced settings', async () => {
-    await expandAdvancedSettings()
+  test('should have language selectors directly on the translate page', async () => {
+    await openSection('Translate')
 
     const sourceSelect = settingsWindow.locator('[aria-label="Source language"]')
     await expect(sourceSelect).toBeVisible()
@@ -181,7 +176,7 @@ test.describe('Settings persistence', () => {
   })
 
   test('should allow changing target language', async () => {
-    await expandAdvancedSettings()
+    await openSection('Translate')
 
     const targetSelect = settingsWindow.locator('[aria-label="Target language"]')
     await expect(targetSelect).toBeVisible()
@@ -203,5 +198,45 @@ test.describe('Window management', () => {
     })
     expect(appPath).toBeTruthy()
     expect(typeof appPath).toBe('string')
+  })
+})
+
+
+test.describe('Simple navigation', () => {
+  test('common controls need at most one section change and the start button stays in view', async () => {
+    for (const name of ['Translate', 'Subtitles', 'Models', 'More']) {
+      await openSection(name)
+      await expect(settingsWindow.getByRole('button', {name: 'Start translation', exact: true})).toBeInViewport()
+      await expect(settingsWindow.getByRole('button', {name: 'Save settings', exact: true})).toBeInViewport()
+    }
+    await openSection('Subtitles')
+    await expect(settingsWindow.getByRole('slider', {name: 'Subtitle font size'})).toBeVisible()
+    await openSection('Translate')
+    await expect(settingsWindow.getByRole('combobox', {name: 'Source language', exact: true})).toBeVisible()
+    await expect(settingsWindow.getByRole('combobox', {name: 'Audio source', exact: true})).toBeVisible()
+  })
+
+  test('switching sections preserves unsaved model and language choices', async () => {
+    await openSection('Models')
+    await settingsWindow.locator('[role="radiogroup"] label').filter({hasText: 'Hunyuan-MT 7B'}).locator('input').check()
+    await openSection('Translate')
+    await settingsWindow.getByRole('combobox', {name: 'Source language', exact: true}).selectOption('ko')
+    await settingsWindow.getByRole('combobox', {name: 'Target language', exact: true}).selectOption('zh')
+    await settingsWindow.getByRole('button', {name: 'Swap translation languages'}).click()
+    await openSection('Models')
+    await openSection('More')
+    await openSection('Translate')
+    await expect(settingsWindow.getByRole('combobox', {name: 'Source language', exact: true})).toHaveValue('zh')
+    await expect(settingsWindow.getByRole('combobox', {name: 'Target language', exact: true})).toHaveValue('ko')
+    await openSection('Models')
+    await expect(settingsWindow.locator('[role="radiogroup"] label').filter({hasText: 'Hunyuan-MT 7B'}).locator('input')).toBeChecked()
+  })
+
+  test('section tabs support keyboard navigation', async () => {
+    await openSection('Translate')
+    await settingsWindow.getByRole('tab', {name: 'Translate', exact: true}).press('ArrowRight')
+    await expect(settingsWindow.getByRole('tab', {name: 'Subtitles', exact: true})).toBeFocused()
+    await settingsWindow.getByRole('tab', {name: 'Subtitles', exact: true}).press('End')
+    await expect(settingsWindow.getByRole('tab', {name: 'More', exact: true})).toBeFocused()
   })
 })

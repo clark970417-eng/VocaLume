@@ -2,6 +2,15 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.6.0 - 2026-10-26
+
+- Simplify the extension to **文字翻譯 / 語音字幕 / 字幕與設定**. Reading and reply directions share one page; synchronized replies show their reverse direction without duplicate language selectors. Existing reading/writing tab preferences open the combined page.
+- Keep speech Start/Stop and status outside the scrolling settings area. Active capture remains stoppable while changing subtitle appearance or text settings; navigation never starts capture or enables website translation.
+- Put caption mode beside speech languages and make font size, colors and outline directly accessible. Keep optional engines, background details, keys and diagnostics grouped behind descriptive controls.
+- Replace the desktop App's long Advanced Settings form with **Translate / Subtitles / Models / More** tabs. Put language and sound source first, add a language swap button, and keep Save/Start/Stop visible. Preserve unsaved choices when switching sections and support keyboard tab navigation.
+- Add a provider selector for OpenAI, Gemini, Claude, NVIDIA, OpenRouter and custom OpenAI-compatible APIs. Keep separate masked credentials and models, request only the chosen host permission, and provide a fixed-sample connection test. Explicit selection routes text/drafts and browser captions to that provider; desktop speech retains its App engine. Reject redirects, unsafe URLs and silent cross-provider fallbacks.
+- Verify existing translation behavior and settings preservation with 240 extension tests, 832 desktop tests and 16 desktop UI tests. See [scope and limits](docs/retests/4.6.0.md). This UI update adds no capture waiting or model changes. Public preview installers remain 4.4.5.
+
 ## 4.5.9 - 2026-10-26
 
 - Stop stale unfinished-sentence feedback from blocking a later breath in browser-to-desktop speech captions. Keep fresh negations/hanging clauses protected and ignore older out-of-order feedback.

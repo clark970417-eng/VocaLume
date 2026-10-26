@@ -20,10 +20,10 @@ export function LanguageSettings({
 }: LanguageSettingsProps): React.JSX.Element {
   return (
     <Section label="Language">
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'end' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>
-            Source Language
+            Spoken language
           </div>
           <select
             value={sourceLanguage}
@@ -44,9 +44,18 @@ export function LanguageSettings({
             ))}
           </select>
         </div>
-        <div style={{ flex: 1 }}>
+        <button type="button" aria-label="Swap translation languages"
+          title={sourceLanguage === 'auto' ? 'Choose a spoken language before swapping' : 'Swap languages'}
+          disabled={disabled || sourceLanguage === 'auto'}
+          onClick={() => {
+            if (sourceLanguage === 'auto') return
+            onSourceLanguageChange(targetLanguage)
+            onTargetLanguageChange(sourceLanguage)
+          }}
+          style={{ minWidth: 36, height: 40, padding: 0, background: 'transparent', border: 0, color: '#8ce4d4', fontSize: 22, cursor: 'pointer' }}>⇄</button>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>
-            Target Language
+            Translate into
           </div>
           <select
             value={targetLanguage}

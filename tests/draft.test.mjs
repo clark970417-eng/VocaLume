@@ -1,3 +1,4 @@
+import * as cloudApi from '../cloud-api.mjs';
 import {RecordingQueue} from '../recording-queue.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +15,7 @@ test('draft mode exposes plain fallback and uses the viewer prompt when a provid
   return {ok:true,json:async()=>[[['明日は来られないかもしれません。']]]};
  };
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch});
+ vm.runInNewContext(src,{...cloudApi,RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch});
  const call=text=>new Promise(resolve=>listener({type:'make-draft',text},{},resolve));
  const fallback=await call('我明天可能沒辦法來看');assert.equal(fallback.ok,true);assert.match(fallback.text.mode,/一般機翻/);
  configured=true;
@@ -30,7 +31,7 @@ test('NVIDIA draft uses supported non-thinking model and never exposes truncated
   return {ok:true,json:async()=>[[['また明日。']]]};
  };
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch});
+ vm.runInNewContext(src,{...cloudApi,RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch});
  const call=text=>new Promise(resolve=>listener({type:'make-draft',text},{},resolve));
  assert.equal((await call('明天也很期待你的新遊戲直播')).text.mode,'自然語氣');
  assert.equal(bodies[0].model,'nvidia/nemotron-3.5-lightning-30b-a3b');
@@ -42,7 +43,7 @@ test('local text drafts do not initialize speech capture or promise verified sty
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop'})}},tabs:{onRemoved:{addListener(){}}},runtime:{onMessage:{addListener:f=>listener=f}}};
  class NativeClient {async request(op,data){calls.push({op,data});return {text:'今日は終わりまでいられない。'};}}
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,...policy,Date});
+ vm.runInNewContext(src,{...cloudApi,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,...policy,Date});
  const result=await new Promise(resolve=>listener({type:'make-draft',text:'今天不能待到結束'},{},resolve));
  assert.equal(result.ok,true);
  assert.deepEqual(calls.map(c=>c.op),['translate']);
@@ -55,7 +56,7 @@ test('changing local draft quality bypasses both caches without starting capture
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop',writingQuality})}},tabs:{onRemoved:{addListener(){}}},runtime:{onMessage:{addListener:f=>listener=f}}};
  class NativeClient {async request(op,data){calls.push({op,data});return {text:data.quality==='quality'?'今日は最後まで見られません。':'今日は最後までいられない。'};}}
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,...policy,Date});
+ vm.runInNewContext(src,{...cloudApi,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,...policy,Date});
  const call=()=>new Promise(resolve=>listener({type:'translate',direction:'zh-ja',text:'今天不能待到結束'},{},resolve));
  const fast=await call();assert.equal(fast.ok,true);assert.equal(fast.text,'今日は最後までいられない。');
  writingQuality='quality';const quality=await call();assert.equal(quality.ok,true);assert.equal(quality.text,'今日は最後まで見られません。');
@@ -67,7 +68,7 @@ test('rate-limited browser drafts fall back to the local translator',async()=>{
  class NativeClient {async request(op,data){calls.push({op,data});return {text:'今晩は'};}}
  const fetch=async()=>({ok:false,status:429,json:async()=>({})});
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch});
+ vm.runInNewContext(src,{...cloudApi,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch});
  const result=await new Promise(resolve=>listener({type:'make-draft',text:'晚上好'},{},resolve));
  assert.equal(result.ok,true);
  assert.equal(result.text.draft,'今晩は');

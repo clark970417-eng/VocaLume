@@ -14,10 +14,9 @@
     <span id="extensionVersion" class="version"></span>
   </header>
   <nav class="task-tabs" role="tablist" aria-label="選擇翻譯功能">
-    <button id="tab-read" type="button" role="tab" aria-controls="panel-read" aria-selected="true" data-panel="read">讀文字</button>
-    <button id="tab-write" type="button" role="tab" aria-controls="panel-write" aria-selected="false" tabindex="-1" data-panel="write">寫留言</button>
-    <button id="tab-speech" type="button" role="tab" aria-controls="panel-speech" aria-selected="false" tabindex="-1" data-panel="speech">聽語音</button>
-    <button id="tab-settings" type="button" role="tab" aria-controls="panel-settings" aria-selected="false" tabindex="-1" data-panel="settings">設定</button>
+    <button id="tab-text" type="button" role="tab" aria-controls="panel-text" aria-selected="true" data-panel="text">文字翻譯</button>
+    <button id="tab-speech" type="button" role="tab" aria-controls="panel-speech" aria-selected="false" tabindex="-1" data-panel="speech">語音字幕</button>
+    <button id="tab-settings" type="button" role="tab" aria-controls="panel-settings" aria-selected="false" tabindex="-1" data-panel="settings">字幕與設定</button>
   </nav>
   <div class="workspace">
     <fieldset id="controls" disabled>
@@ -37,30 +36,27 @@
           <p id="currentSiteHint" class="hint"></p>
         </div>
       </section>
-      <section id="panel-read" class="task-panel" role="tabpanel" aria-labelledby="tab-read" tabindex="0">
-        <div class="panel-heading"><h2>看懂貼文與聊天室</h2><p>選擇原文與想閱讀的語言。</p></div>
+      <section id="panel-text" class="task-panel" role="tabpanel" aria-labelledby="tab-text" tabindex="0">
+        <div class="panel-heading"><h2>閱讀貼文與聊天室</h2></div>
         <div class="language-pair">
           <label for="readSource">原文語言<select id="readSource"></select></label>
           <button class="swap" type="button" data-swap="read" aria-label="交換讀取語言" title="交換讀取語言">⇄</button>
           <label for="readTarget">翻譯成<select id="readTarget"></select></label>
         </div>
-        <div class="guide"><span class="guide-mark" aria-hidden="true">Aa</span><p>開啟後，符合所選語言的內容會顯示譯文。一般網站還需開啟上方的網站開關。</p></div>
-        <button id="goWriting" class="text-button" type="button">也想翻譯自己的留言？ <span aria-hidden="true">→</span></button>
-      </section>
-      <section id="panel-write" class="task-panel" role="tabpanel" aria-labelledby="tab-write" tabindex="0" hidden>
-        <div class="panel-heading"><h2>用對方的語言回覆</h2><p>產生譯文草稿，由你確認後送出。</p></div>
+        <div class="section-divider"></div>
+        <h2>翻譯我的留言</h2>
         <label class="switch sync" for="syncTextLanguages">
-          <span><strong>讀寫語言互相對應</strong><small id="syncSummary">留言方向與讀取方向相反</small></span>
+          <span><strong>自動反向回覆</strong><small id="syncSummary">留言方向與讀取方向相反</small></span>
           <input id="syncTextLanguages" type="checkbox" role="switch" checked>
           <span class="switch-track" aria-hidden="true"></span>
         </label>
-        <div class="language-pair">
+        <div id="typingLanguages" class="language-pair" hidden>
           <label for="typeSource">我用<select id="typeSource"></select></label>
           <button class="swap" type="button" data-swap="type" aria-label="交換留言語言" title="交換留言語言">⇄</button>
           <label for="typeTarget">翻譯成<select id="typeTarget"></select></label>
         </div>
         <p id="writingHint" class="hint"></p>
-        <ol class="steps"><li>在網站留言框輸入文字。</li><li>點留言框旁的翻譯按鈕；X 也可按 <kbd>Tab</kbd>。</li><li>確認譯文，再自行送出。</li></ol>
+        <p class="hint">輸入留言後，點留言框旁的翻譯按鈕；X 也可按 <kbd>Tab</kbd>。確認譯文後，再自行送出。</p>
         <details id="writingOptions">
           <summary>中翻日的語氣與品質</summary>
           <label for="writingStyle">留言語氣<select id="writingStyle"><option value="general">自然 · 保留原文語氣</option><option value="viewer">直播留言 · 自然親切</option><option value="polite">禮貌 · です／ます</option></select></label>
@@ -69,17 +65,20 @@
         </details>
       </section>
       <section id="panel-speech" class="task-panel" role="tabpanel" aria-labelledby="tab-speech" tabindex="0" hidden>
-        <div class="panel-heading"><h2>把影片聲音變成雙語字幕</h2><p>先播放影片，再按開始；關閉此視窗仍會繼續。</p></div>
+        <div class="panel-heading"><h2>影片與直播字幕</h2><p>播放影片後按「開始」。關閉此視窗仍會繼續。</p></div>
         <div class="language-pair">
           <label for="speechSource">聽到的語言<select id="speechSource"></select></label>
           <button class="swap" type="button" data-swap="speech" aria-label="交換語音語言" title="交換語音語言">⇄</button>
           <label for="speechTarget">翻譯成<select id="speechTarget"></select></label>
         </div>
-        <label for="engineMode">翻譯方式<select id="engineMode"><option value="desktop">VocaLume 桌面程式 · 使用本機模型</option><option value="browser">瀏覽器 · 語音辨識＋網路翻譯</option></select></label>
-        <p id="engineHint" class="hint"></p>
-        <div class="speech-status"><span id="captureDot" class="status-dot" aria-hidden="true"></span><p id="status" role="status" aria-live="polite">正在確認字幕狀態…</p></div>
-        <div class="actions"><button id="start" class="primary" type="button">開始語音字幕</button><button id="stop" class="stop" type="button" disabled hidden>停止收音</button></div>
-        <div class="quick-links"><button id="desktopSettings" class="text-button" type="button">開啟桌面設定 ↗</button><button id="openAppearance" class="text-button" type="button">調整字幕外觀 →</button></div>
+        <label for="captionMode">字幕顯示<select id="captionMode"><option value="realtime">單組字幕 · 等待完整譯文</option><option value="record">四組字幕 · 保留完整記錄</option></select></label>
+        <p class="hint">先顯示原文，再補上譯文；下一句不會取消上一句翻譯。語言與顯示方式於下次開始時套用。</p>
+        <button id="openAppearance" class="text-button" type="button">文字大小、顏色與描邊 →</button>
+        <details id="engineOptions"><summary id="engineSummary">翻譯方式</summary>
+          <label for="engineMode">使用<select id="engineMode"><option value="desktop">VocaLume 桌面程式 · 本機模型</option><option value="browser">瀏覽器 · 辨識＋網路翻譯</option></select></label>
+          <p id="engineHint" class="hint"></p>
+          <button id="desktopSettings" class="text-button" type="button">開啟 App 調整模型 ↗</button>
+        </details>
         <details id="speechToneOptions"><summary>語氣與笑聲</summary>
           <label for="speechToneMode">笑聲顯示方式<select id="speechToneMode"><option value="off">關閉</option><option value="natural">自然標記（笑）</option><option value="ww">笑聲使用 ww</option><option value="笑">笑聲使用 笑</option><option value="草">笑聲使用 草</option></select></label>
           <p class="hint">桌面模式下次開始時套用，保留辨識到的驚嘆號與問號。Mac 也會在本機辨識明確笑聲；過熱時暫停聲音分析。無法區分主播或背景笑聲，其他系統僅依明確文字標記。</p>
@@ -87,14 +86,11 @@
         <details id="recordings"><summary>字幕記錄</summary><p id="recordingStatus" class="hint"></p><div class="actions"><button id="exportRecording" class="secondary" type="button">匯出記錄</button><button id="retryRecording" class="secondary" type="button">重試失敗翻譯</button></div><p id="recordingFeedback" class="hint" role="status"></p></details>
       </section>
       <section id="panel-settings" class="task-panel" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
-        <div class="panel-heading"><h2>調成你習慣的樣子</h2><p>外觀即時更新；字幕模式於下次開始時生效。</p></div>
-        <details id="appearance" class="caption-settings" open>
-          <summary>字幕外觀與顯示方式</summary>
+        <div class="panel-heading"><h2>字幕外觀</h2><p>調整後立即套用，不用另外儲存。</p></div>
+        <section id="appearance" class="caption-settings" aria-label="字幕外觀">
           <div id="captionPreview" aria-label="字幕外觀預覽"><span id="previewJa">一緒に楽しみましょう。</span><span id="previewZh">一起享受吧。</span></div>
-          <label for="captionMode">顯示方式<select id="captionMode"><option value="realtime">單組字幕 · 等待完整譯文</option><option value="record">四組字幕 · 保留完整記錄</option></select></label>
-          <p class="hint">先顯示原文，結句後補上譯文。單組字幕會等上一句翻譯完；四組字幕依序保留。停止收音後，仍會完成已記錄的翻譯。</p>
-          <div class="color-row"><label for="japaneseColor">原文顏色<input id="japaneseColor" type="color" value="#ffffff"></label><label for="chineseColor">譯文顏色<input id="chineseColor" type="color" value="#ffffff"></label></div>
           <label for="fontSize">文字大小 <output id="fontSizeValue">22 px</output><input id="fontSize" type="range" min="14" max="42" step="1" value="22"></label>
+          <div class="color-row"><label for="japaneseColor">原文顏色<input id="japaneseColor" type="color" value="#ffffff"></label><label for="chineseColor">譯文顏色<input id="chineseColor" type="color" value="#ffffff"></label></div>
           <label class="switch outline-switch" for="showOutline"><span><strong>文字描邊</strong><small>控制每個字的外框，與字幕背景分開</small></span><input id="showOutline" type="checkbox" role="switch" checked><span class="switch-track" aria-hidden="true"></span></label>
           <div class="outline-row"><label for="outlineColor">描邊顏色<input id="outlineColor" type="color" value="#000000"></label><label for="outlineWidth">粗細 <output id="outlineWidthValue">1 px</output><input id="outlineWidth" type="range" min="0" max="4" step="0.5" value="1"></label></div>
           <details class="nested"><summary>背景、透明度與位置</summary>
@@ -105,16 +101,30 @@
             <label for="holdSeconds">單組字幕最後一句停留 <output id="holdSecondsValue">3 秒</output><input id="holdSeconds" type="range" min="1" max="6" step="1" value="3"></label>
           </details>
           <button id="reset" class="secondary full-width" type="button">恢復預設字幕設定</button>
-        </details>
-        <details><summary>網路翻譯服務（選用）</summary><p class="hint">本機翻譯不需要填寫。若使用瀏覽器留言翻譯，可設定自己的服務金鑰；留空會保留已儲存的金鑰。</p>
-          <label for="nvidiaKey">NVIDIA API Key<input id="nvidiaKey" type="password" autocomplete="off" placeholder="尚未設定"></label>
-          <label for="openrouterKey">OpenRouter API Key<input id="openrouterKey" type="password" autocomplete="off" placeholder="尚未設定"></label>
-          <button id="saveTranslation" class="secondary full-width" type="button">儲存翻譯服務</button><p id="translationStatus" class="hint" role="status"></p>
+        </section>
+        <details id="apiSettings"><summary>網路翻譯服務（選用）</summary>
+          <p class="hint">選擇你已有 API 的服務。用於網站文字、留言和瀏覽器模式字幕；桌面語音的引擎仍在 App 選擇。</p>
+          <label for="apiProvider">翻譯服務<select id="apiProvider"></select></label>
+          <p id="apiProviderHint" class="hint"></p>
+          <div id="apiFields" hidden>
+            <label id="apiUrlField" for="apiBaseUrl" hidden>API 網址<input id="apiBaseUrl" type="url" autocomplete="off" placeholder="https://你的服務/v1"></label>
+            <label for="apiModel">模型名稱<input id="apiModel" type="text" autocomplete="off" spellcheck="false" placeholder="服務提供的模型 ID"></label>
+            <label for="apiKey">API Key<input id="apiKey" type="password" autocomplete="off" placeholder="尚未設定"></label>
+            <label id="apiClearLabel" class="key-removal" for="apiClearKey" hidden><input id="apiClearKey" type="checkbox">移除此服務已儲存的金鑰</label>
+            <p class="hint">金鑰只儲存在這個瀏覽器，不會顯示；留空保留已儲存的金鑰。本機相容服務可以不填金鑰。</p>
+          </div>
+          <div class="actions api-actions"><button id="saveTranslation" class="secondary" type="button">儲存服務</button><button id="testTranslation" class="secondary" type="button" disabled>測試已儲存設定</button></div>
+          <p class="hint">測試只送出一句示範文字，會使用你的 API 額度。</p>
+          <p id="translationStatus" class="hint" role="status"></p>
         </details>
         <details><summary>連線與執行資訊</summary><p class="hint">遇到問題時，可提供下方資訊協助排查。</p><pre id="diagnostics">等待資料</pre></details>
       </section>
     </fieldset>
   </div>
+  <section id="speechDock" class="speech-dock" aria-label="語音字幕控制" hidden>
+    <div class="speech-status"><span id="captureDot" class="status-dot" aria-hidden="true"></span><p id="status" role="status" aria-live="polite">正在確認字幕狀態…</p></div>
+    <div class="actions"><button id="start" class="primary" type="button" disabled>開始語音字幕</button><button id="stop" class="stop" type="button" disabled hidden>停止收音</button></div>
+  </section>
   <footer><span class="save-dot" aria-hidden="true"></span><p id="languageStatus" role="status" aria-live="polite">正在讀取設定…</p></footer>
 </main>
 <script type="module" src="popup.js"></script>

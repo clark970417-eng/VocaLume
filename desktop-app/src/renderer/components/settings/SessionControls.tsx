@@ -4,6 +4,7 @@ import { buttonStyle, withIpcTimeout } from './shared'
 import type { EngineMode } from './shared'
 
 interface SessionControlsProps {
+  view?: 'all' | 'controls' | 'history'
   isRunning: boolean
   isStarting: boolean
   engineMode: EngineMode
@@ -27,6 +28,7 @@ interface SessionControlsProps {
 }
 
 export function SessionControls({
+  view = 'all',
   isRunning,
   isStarting,
   engineMode,
@@ -48,6 +50,7 @@ export function SessionControls({
 }: SessionControlsProps): React.JSX.Element {
   return (
     <>
+      {view !== 'history' && <>
       {/* Start/Stop Button */}
       <button
         aria-label={isRunning ? 'Stop translation' : 'Start translation'}
@@ -79,6 +82,9 @@ export function SessionControls({
           </span>
         )}
       </div>
+
+      </>}
+      {view !== 'controls' && <>
 
       {/* Meeting Summary */}
       {lastTranscriptPath && !isRunning && (
@@ -200,6 +206,7 @@ export function SessionControls({
           </div>
         </Section>
       )}
+      </>}
     </>
   )
 }

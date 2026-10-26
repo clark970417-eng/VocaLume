@@ -27,8 +27,24 @@
       }
     },
     "singlePair": {
-      "status": "pending",
-      "reason": "Computer-use tool reported noWindowsAvailable before the separate single-pair run. Four-group capture had already completed and stopped."
+      "status": "passed",
+      "rounds": 1,
+      "finalizedSourceCues": 2,
+      "captionUpdates": 7,
+      "firstSourceSeconds": 1.45,
+      "finalChineseSeconds": [6.55, 12.25],
+      "finalCaptionCleared": true,
+      "hideDeadlineDifferenceMs": 128,
+      "captureStopped": true,
+      "settingsRestored": true,
+      "metrics": {
+        "vadMs": { "count": 120, "p50": 1, "p95": 2 },
+        "queueMs": { "count": 5, "p50": 0, "p95": 0 },
+        "decodeMs": { "count": 5, "p50": 992, "p95": 1173 },
+        "firstJapaneseMs": { "count": 2, "p50": 1208, "p95": 1208 },
+        "audioLagMs": { "count": 2, "p50": 696, "p95": 696 },
+        "cueMs": { "count": 2, "p50": 5280, "p95": 5280 }
+      }
     }
   },
   "negationControls": [

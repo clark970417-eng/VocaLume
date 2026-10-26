@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current desktop and extension source: **4.5.9**. Browser speech captions now use later breaths instead of being held by stale unfinished-sentence feedback, and can close useful fragments without waiting for a full grammatical sentence. Fresh negations and hanging clauses remain protected; accepted translations keep their order. **No extra capture waiting is added.** See the [4.5.9 boundary measurements and limits](docs/retests/4.5.9.md). The [4.5.8 multilingual recovery](docs/retests/4.5.8.md) remains in place across all 14 extension languages. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+Current desktop and extension source: **4.6.0**. The extension brings reading and reply languages together, keeps active speech controls visible across its three tabs, and puts subtitle appearance one click away. The desktop App opens with language and sound-source choices, with direct **Translate / Subtitles / Models / More** tabs and persistent Start/Stop controls. A selectable API service replaces the fixed key fields, with separate provider/model settings and a connection test. Existing preferences, models and capture timing are preserved. See the [quick-start guide](docs/extension-guide.md) and [4.6.0 UI verification](docs/retests/4.6.0.md). The [4.5.9 speech-boundary improvements](docs/retests/4.5.9.md) and [4.5.8 multilingual recovery](docs/retests/4.5.8.md) remain in place. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 

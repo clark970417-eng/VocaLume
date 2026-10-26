@@ -1,3 +1,4 @@
+import * as cloudApi from '../cloud-api.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -55,7 +56,7 @@ test('background forwards only a non-negative finite speech value to the compani
  class NativeClient{async request(op,fields){requests.push({op,fields});return op==='decode'?{text:'',translated:'',pending:true}:{};}}
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'realtime'},recordedCaptions:[]}),set:async()=>{}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=>'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date});
+ vm.runInNewContext(source,{...cloudApi,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
  const offscreen={url:'chrome-extension://test/offscreen.html'};

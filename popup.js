@@ -1,8 +1,10 @@
+import {API_PROVIDERS,selectedApi,apiProfile,apiEndpoint,apiSettingsUpdate,validateApiProfile} from './cloud-api.mjs';
 import {captureStatus} from './capture-status.mjs';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
-const panels = ['read', 'write', 'speech', 'settings'];
+const panels = ['text', 'speech', 'settings'];
+let activePanel = 'text';
 const languageOptions = [
   ['ja', '日文'], ['en', '英文'], ['zh', '繁體中文'], ['ko', '韓文'],
   ['es', '西班牙文'], ['fr', '法文'], ['de', '德文'], ['pt', '葡萄牙文'],
@@ -50,14 +52,16 @@ function send(message) {
 }
 
 function showPanel(name, {focus = false, remember = true} = {}) {
-  const selected = panels.includes(name) ? name : 'read';
+  const selected = panels.includes(name) ? name : 'text';
+  activePanel = selected;
   for (const panel of panels) {
     const active = panel === selected;
     $(`#panel-${panel}`).hidden = !active;
     $(`#tab-${panel}`).setAttribute('aria-selected', String(active));
     $(`#tab-${panel}`).tabIndex = active ? 0 : -1;
   }
-  $('#textControls').hidden = !['read', 'write'].includes(selected);
+  $('#textControls').hidden = selected !== 'text';
+  renderSpeech();
   $('.workspace').scrollTop = 0;
   if (focus) $(`#tab-${selected}`).focus();
   if (remember) {
@@ -75,10 +79,8 @@ for (const tab of $$('[role="tab"]')) {
     showPanel(panels[next], {focus: true});
   });
 }
-listen('#goWriting', 'click', () => showPanel('write', {focus: true}));
 listen('#openAppearance', 'click', () => {
   showPanel('settings', {focus: true});
-  $('#appearance').open = true;
 });
 
 for (const id of languageIds.filter(id => id !== 'syncTextLanguages')) {
@@ -89,13 +91,14 @@ function applySync() {
   $('#typeSource').disabled = synced;
   $('#typeTarget').disabled = synced;
   $('[data-swap="type"]').disabled = synced;
+  $('#typingLanguages').hidden = synced;
   if (synced) {
     $('#typeSource').value = $('#readTarget').value;
     $('#typeTarget').value = $('#readSource').value;
   }
   $('#syncSummary').textContent = synced
-    ? `閱讀 ${languageLabel($('#readSource').value)} → ${languageLabel($('#readTarget').value)}，留言自動反向`
-    : '已分開設定，可自行選擇留言語言';
+    ? `留言：${languageLabel($('#typeSource').value)} → ${languageLabel($('#typeTarget').value)}`
+    : '分開選擇留言的原文與譯文語言';
   $('#writingOptions').hidden = $('#typeSource').value !== 'zh' || $('#typeTarget').value !== 'ja';
 }
 async function saveLanguages() {
@@ -205,6 +208,7 @@ listen('#reset', 'click', async () => {
 
 function renderEngine() {
   const desktop = $('#engineMode').value === 'desktop';
+  $('#engineSummary').textContent = desktop ? '翻譯方式 · 本機 App' : '翻譯方式 · 瀏覽器';
   $('#engineHint').textContent = desktop ? '需先安裝 VocaLume 桌面程式；開始時會自動啟動。' : '首次使用需下載辨識模型；文字翻譯需要網路連線。';
   $('#desktopSettings').hidden = !desktop;
   $('#speechToneMode').disabled = !desktop;
@@ -218,6 +222,7 @@ for (const id of ['writingStyle', 'writingQuality']) listen('#' + id, 'change', 
 function renderSpeech() {
   const d = lastHealth;
   const busy = Boolean(pendingAction || d.controlBusy || d.draining);
+  $('#speechDock').hidden = activePanel !== 'speech' && !d.running && !busy && !actionError;
   const error = actionError || connectionError || d.lastError;
   const starting = pendingAction === 'start' && d.controlBusy && d.controlAction === 'start'
     ? captureStatus(d).replace(/^●\s*/, '') : '正在啟動字幕…';
@@ -231,6 +236,7 @@ function renderSpeech() {
   $('#start').disabled = !initialized || !healthReady || !supportedTab || Boolean(d.running) || busy;
   $('#start').textContent = pendingAction === 'start' || (d.controlBusy && d.controlAction === 'start') ? '正在啟動…' : d.running ? '語音字幕運行中' : d.draining ? '正在完成剩餘字幕…' : '開始語音字幕';
   $('#stop').hidden = !d.running && !busy;
+  $('#start').hidden = Boolean(d.running) && !busy;
   $('#stop').disabled = !d.running || busy;
   $('#retryRecording').disabled = !(d.recordingFailed > 0) || Boolean(d.controlBusy);
   $('#recordingStatus').textContent = `等待翻譯 ${d.recordingPending || 0} 句 · 失敗 ${d.recordingFailed || 0} 句`;
@@ -274,20 +280,79 @@ listen('#desktopSettings', 'click', async () => {
   renderSpeech();
 });
 
-async function loadTranslationStatus() {
-  const values = await chrome.storage.local.get(['nvidiaKey', 'openrouterKey']);
-  for (const id of ['nvidiaKey', 'openrouterKey']) $('#' + id).placeholder = values[id] ? '已儲存（留空保留）' : '尚未設定';
+let apiSaved = {}, apiSelected = 'auto', apiDirty = false;
+const apiDrafts = new Map();
+for (const provider of API_PROVIDERS) $('#apiProvider').add(new Option(provider.label, provider.id));
+function apiForm() {
+  return {provider: apiSelected, model: $('#apiModel').value, baseUrl: $('#apiBaseUrl').value, apiKey: $('#apiKey').value, clearKey: $('#apiClearKey').checked};
 }
+function canTestApi() {
+  if (apiDirty || apiSelected === 'auto') return false;
+  try { validateApiProfile(apiProfile(apiSaved, apiSelected)); return true; } catch { return false; }
+}
+function renderApiProvider() {
+  const profile = apiProfile(apiSaved, apiSelected), draft = apiDrafts.get(apiSelected) || profile;
+  $('#apiFields').hidden = apiSelected === 'auto';
+  $('#apiUrlField').hidden = apiSelected !== 'custom';
+  $('#apiModel').value = draft.model || '';
+  $('#apiBaseUrl').value = draft.baseUrl || '';
+  // Only an unsaved key typed into this provider's own form may be shown as a masked value.
+  $('#apiKey').value = apiDrafts.has(apiSelected) ? draft.apiKey || '' : '';
+  $('#apiKey').placeholder = profile.apiKey ? '已儲存（留空保留）' : '尚未設定';
+  $('#apiClearKey').checked = Boolean(draft.clearKey);
+  $('#apiClearLabel').hidden = !profile.apiKey;
+  $('#apiProviderHint').textContent = apiSelected === 'auto'
+    ? '保留原本本機與自動翻譯流程，不會自動啟用網站翻譯。'
+    : apiSelected === 'custom' ? '支援 Chat Completions 格式。填入服務的 Base URL；本機服務可用 localhost。'
+    : `連線到 ${new URL(profile.baseUrl).hostname}。模型名稱請依你的 API 帳戶填寫。`;
+  $('#testTranslation').disabled = !canTestApi();
+}
+async function loadTranslationStatus() {
+  apiSaved = await chrome.storage.local.get(['cloudTranslation', 'nvidiaKey', 'openrouterKey']);
+  apiSelected = selectedApi(apiSaved);
+  $('#apiProvider').value = apiSelected;
+  apiDirty = false;
+  apiDrafts.clear();
+  renderApiProvider();
+}
+listen('#apiProvider', 'change', () => {
+  apiDrafts.set(apiSelected, apiForm());
+  apiSelected = $('#apiProvider').value;
+  apiDirty = true;
+  $('#translationStatus').textContent = '尚未套用，請儲存服務。';
+  renderApiProvider();
+});
+for (const id of ['apiModel', 'apiBaseUrl', 'apiKey', 'apiClearKey']) listen('#' + id, 'input', () => {
+  apiDirty = true;
+  $('#testTranslation').disabled = true;
+  $('#translationStatus').textContent = '尚未套用，請儲存服務。';
+});
 listen('#saveTranslation', 'click', async () => {
-  const values = {};
-  for (const id of ['nvidiaKey', 'openrouterKey']) {
-    const value = $('#' + id).value.trim();
-    if (value) values[id] = value;
-  }
-  await savePreferences(values);
-  for (const id of ['nvidiaKey', 'openrouterKey']) $('#' + id).value = '';
-  $('#translationStatus').textContent = '已儲存。下次翻譯會使用新設定。';
-  await loadTranslationStatus();
+  $('#translationStatus').textContent = '';
+  try {
+    const form = apiForm(), updated = apiSettingsUpdate(apiSaved, form);
+    if (form.provider !== 'auto' && !form.clearKey) {
+      const origin = apiEndpoint(apiProfile({cloudTranslation: updated}).baseUrl).origin;
+      if (!await chrome.permissions.request({origins: [origin]})) throw new Error('尚未允許連線，設定未變更。可再次儲存並允許此服務。');
+    }
+    const values = {cloudTranslation: updated};
+    const legacyKey = API_PROVIDERS.find(p => p.id === form.provider)?.legacyKey;
+    if (form.clearKey && legacyKey) values[legacyKey] = '';
+    await savePreferences(values);
+    await loadTranslationStatus();
+    $('#translationStatus').textContent = form.clearKey ? '已移除金鑰。要使用此服務，請重新填入金鑰。' : '已儲存，下次翻譯套用；桌面語音引擎保持原設定。';
+  } catch (error) { $('#translationStatus').textContent = error.message; }
+});
+listen('#testTranslation', 'click', async () => {
+  const provider = apiSelected, revision = apiSaved.cloudTranslation?.revision;
+  const stillCurrent = () => !apiDirty && apiSelected === provider && apiSaved.cloudTranslation?.revision === revision;
+  $('#testTranslation').disabled = true;
+  $('#translationStatus').textContent = '正在測試已儲存的 API…';
+  try {
+    const result = await send({type: 'translation-provider-test'});
+    if (stillCurrent()) $('#translationStatus').textContent = `${result.provider} 連線成功：${result.translated}`;
+  } catch (error) { if (stillCurrent()) $('#translationStatus').textContent = error.message; }
+  finally { $('#testTranslation').disabled = !canTestApi(); }
 });
 listen('#exportRecording', 'click', async () => {
   const entries = await send({type: 'recording-export'});

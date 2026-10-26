@@ -31,30 +31,7 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
   const showMicSelector = audio.audioSource !== 'system'
 
   return (
-    <Section label="Audio Input">
-      <label style={{ ...buttonStyle, display: 'block', textAlign: 'center', marginBottom: '10px', opacity: disabled ? 0.5 : 1, cursor: disabled ? 'default' : 'pointer' }}>
-        Translate audio or video file
-        <input
-          type="file"
-          accept={MEDIA_FILE_ACCEPT}
-          disabled={disabled}
-          style={{ display: 'none' }}
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            event.target.value = ''
-            if (file) void onTranslateFile(file)
-          }}
-        />
-      </label>
-      {mediaImportActive && (
-        <button type="button" onClick={() => void onCancelMediaImport()}
-          style={{ ...buttonStyle, width: '100%', marginBottom: '10px', borderColor: '#ef4444', color: '#fecaca' }}>
-          Cancel file translation
-        </button>
-      )}
-      <div style={{ fontSize: '11px', color: '#94a3b8', margin: '-4px 0 10px' }}>
-        FFmpeg input: MP3, M4A, WAV, FLAC, OGG, WebM, MKV, MOV, AVI, MPEG, TS and more
-      </div>
+    <Section label="Sound source">
       {/* #501: Audio source selector */}
       <select
         value={audio.audioSource}
@@ -125,6 +102,7 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
       <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
         Input level: {Math.round(audio.volume * 100)}%
       </div>
+      <details className="settings-disclosure"><summary>Audio options</summary>
       {/* #313: Noise suppression toggle — only relevant when microphone is active */}
       {showMicSelector && (
         <label style={{
@@ -143,13 +121,13 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
             disabled={disabled}
             aria-label="Enable noise suppression"
           />
-          <span>Noise suppression (DeepFilterNet3)</span>
+          <span>Reduce microphone background noise</span>
         </label>
       )}
       {/* #606: Streaming interval slider */}
       <div style={{ marginTop: '10px' }}>
         <label style={sliderLabelStyle}>
-          Streaming Interval: {streamingIntervalMs}ms
+          Recognition update interval: {streamingIntervalMs}ms
         </label>
         <input
           type="range"
@@ -164,9 +142,24 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#64748b' }}>
           <span>500ms (lower latency)</span>
-          <span>3000ms (higher accuracy)</span>
+          <span>3000ms (less frequent updates)</span>
         </div>
       </div>
+      </details>
+      <details className="settings-disclosure">
+        <summary>Translate an audio or video file</summary>
+        <label htmlFor="media-file" style={{ display: 'block', marginBottom: 6, fontSize: 12, color: '#b5c4d8' }}>Choose a file to begin translation</label>
+        <input id="media-file" type="file" accept={MEDIA_FILE_ACCEPT} disabled={disabled}
+          style={{ width: '100%', color: '#b5c4d8', fontSize: 12 }}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) void onTranslateFile(file)
+          }} />
+        <p style={{ fontSize: 11, color: '#94a3b8' }}>MP3, M4A, WAV, FLAC, WebM, MP4 and other common formats.</p>
+      </details>
+      {mediaImportActive && <button type="button" onClick={() => void onCancelMediaImport()}
+        style={{ ...buttonStyle, background: '#7f1d1d', color: '#fecaca' }}>Cancel file translation</button>}
       {audio.permissionError && (
         <div role="alert" style={{ marginTop: '6px', fontSize: '12px', color: '#ef4444' }}>
           {audio.permissionError}

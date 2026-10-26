@@ -1,0 +1,37 @@
+.settings-shell {
+  --settings-line: #33465e;
+  display: flex; flex-direction: column; height: 100dvh;
+  color: #e2e8f0; background: #101827;
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.settings-shell * { box-sizing: border-box; }
+.settings-shell [hidden] { display: none !important; }
+.settings-header { padding: 18px 24px 14px; }
+.settings-header h1 { margin: 0; font-size: 23px; letter-spacing: -.6px; color: #f8fafc; }
+.settings-header p, .settings-intro { margin: 4px 0 0; font-size: 12px; color: #b5c4d8; }
+.settings-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 0 24px; padding: 4px; background: #1b283b; border: 1px solid var(--settings-line); border-radius: 10px; }
+.settings-tabs button { border: 0; background: transparent; color: #b5c4d8; padding: 10px 4px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.settings-tabs button[aria-selected=true] { background: #8ce4d4; color: #101827; }
+.settings-content { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; scrollbar-width: thin; scrollbar-color: #475569 transparent; }
+.settings-content [role=tabpanel] { outline-offset: 3px; }
+.settings-content [role=tabpanel] > h2 { margin: 0; font-size: 17px; }
+.settings-intro { margin-bottom: 18px; }
+.settings-note { font-size: 12px; color: #b5c4d8; padding: 10px 12px; background: #1b283b; border-radius: 8px; }
+.settings-notice { padding: 8px 12px; margin-bottom: 16px; background: #1b283b; border-left: 3px solid #8ce4d4; font-size: 12px; color: #c7d4e4; }
+.settings-disclosure { border-top: 1px solid var(--settings-line); padding-top: 8px; margin-top: 16px; }
+.settings-disclosure > summary { cursor: pointer; padding: 8px 0; font-size: 13px; color: #c7d4e4; font-weight: 600; }
+.settings-disclosure > summary::marker { color: #8ce4d4; }
+.settings-disclosure > :not(summary) { margin-top: 10px; }
+.settings-footer { flex-shrink: 0; padding: 12px 24px 14px; border-top: 1px solid var(--settings-line); background: #101827; }
+.settings-footer-actions { display: grid; grid-template-columns: 1fr 1.3fr; gap: 12px; align-items: start; }
+.settings-save { width: 100%; min-height: 44px; margin-top: 8px; padding: 12px; font: inherit; font-size: 13px; font-weight: 600; color: #d9e7f5; background: #1b283b; border: 1px solid #475569; border-radius: 8px; cursor: pointer; }
+.settings-save-note { margin: 5px 0 0; font-size: 11px; color: #a6b7cd; }
+.settings-shell summary:focus-visible, .settings-shell [role=tabpanel]:focus-visible { outline: 2px solid #83b9ff; outline-offset: 3px; }
+.settings-shell input[type=range], .settings-shell input[type=checkbox] { accent-color: #8ce4d4; }
+.settings-shell select { min-height: 40px; }
+@media (max-width: 430px) {
+  .settings-header { padding: 14px 16px 10px; }
+  .settings-tabs { margin: 0 16px; }
+  .settings-content { padding: 16px; }
+  .settings-footer { padding: 10px 16px; }
+}

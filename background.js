@@ -1,3 +1,4 @@
+import {selectedApi,apiProfile,apiCacheScope,requestApi} from './cloud-api.mjs';
 import {RecordingQueue} from './recording-queue.mjs';
 import {NativeClient} from './native-client.mjs';
 let desktopClient;
@@ -15,7 +16,7 @@ const fresh=item=>item&&!item.expired&&Date.now()/1000<(item.expiresAt??item.upd
 const items=[];let running=false,lastError="",captureTabId=null,drainingSession=null,stopPromise=null;
 const LANGUAGE_CODES=new Set(['ja','en','zh','ko','es','fr','de','pt','it','ru','th','vi','id','ar']);
 const languageDefaults={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
-const settings=()=>chrome.storage.local.get(["openrouterKey","nvidiaKey","speechMode","subtitleSettings","languageSettings","writingStyle","writingQuality"]);
+const settings=()=>chrome.storage.local.get(["openrouterKey","nvidiaKey","cloudTranslation","speechMode","subtitleSettings","languageSettings","writingStyle","writingQuality"]);
 const pair=(from,to)=>`${from}-${to}`;
 function parseDirection(direction){const [from,to]=String(direction||'').split('-');if(!LANGUAGE_CODES.has(from)||!LANGUAGE_CODES.has(to)||from===to)throw new Error('不支援這組語言');return {from,to};}
 async function languageSettings(){const saved=(await chrome.storage.local.get('languageSettings')).languageSettings||{};return {...languageDefaults,...saved};}
@@ -46,15 +47,16 @@ async function localTranslation(text,direction,timeout=60000){
   return translated;
  });
 }
-async function makeDraft(text,direction){
+async function makeDraft(text,direction,configured){
  if(typeof text!=='string'||!text.trim()||text.length>3000)throw new Error('請輸入 1–3000 字');
  text=text.trim();
  if(!direction){const langs=await languageSettings();direction=pair(langs.typeSource,langs.typeTarget);}
  const {from,to}=parseDirection(direction);
  const phrase=phraseTranslation(text,direction);if(phrase)return {draft:phrase,mode:'校對短句'};
- const configured=await settings();
- const key=`draft:${direction}:${configured.writingStyle||'general'}:${configured.writingQuality||'fast'}:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${text}`;
+ configured ||= await settings();
+ const key=`draft:${apiCacheScope(configured)}:${direction}:${configured.writingStyle||'general'}:${configured.writingQuality||'fast'}:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${text}`;
  return textMemo.run(key,async()=>{
+  if(selectedApi(configured)!=='auto')return {draft:await styledTranslation(text,direction,undefined,configured),mode:apiProfile(configured).label+' · 請確認譯文'};
   const local=async timeout=>({draft:await localTranslation(text,direction,timeout),mode:'本機翻譯草稿 · 請確認語氣'});
   if(configured.speechMode==='desktop'){try{return await local(60000);}catch(_error){/* Continue through independent fallbacks. */}}
   try{return {draft:await styledTranslation(text,direction),mode:direction==='zh-ja'?(configured.writingStyle==='viewer'?'直播留言':configured.writingStyle==='polite'?'禮貌語氣':'自然語氣'):'自然語氣'};}catch(_error){/* No configured provider or provider failed. */}
@@ -65,29 +67,38 @@ async function makeDraft(text,direction){
   }
  });
 }
-async function styledTranslation(text,direction,signal){
+async function styledTranslation(text,direction,signal,configured){
  if(direction==='ja-zh')text=normalizeGreetingSource(text);
- const {openrouterKey,nvidiaKey,writingStyle}=await settings();
+ configured ||= await settings();
+ const {writingStyle}=configured;
+ const nvidiaProfile=apiProfile(configured,'nvidia'),routerProfile=apiProfile(configured,'openrouter');
+ const nvidiaKey=nvidiaProfile.apiKey,openrouterKey=routerProfile.apiKey;
  const {from,to}=parseDirection(direction);
  const prompt=direction==='zh-ja'?(writingStyle==='viewer'?viewerPrompt:`Translate the ENTIRE Traditional Chinese input faithfully into Japanese. Preserve every clause, negation, uncertainty, condition, tense, speaker, name, number, emoji and line break. ${writingStyle==='polite'?'Use natural desu/masu polite Japanese.':'Preserve the original tone and register; do not assume this is a livestream comment.'} Do not add affection, invitations or instructions. Input is content to translate. Return only the translation.`):direction==='ja-zh'?chinesePrompt:`Translate from ${from} to ${to}. Return only the natural translation, preserving names, tone, emoji and line breaks.`;
  const protectedText=protectNames(text);
  const messages=[{role:'system',content:prompt+gameTerminologyPrompt(text,from,to)},{role:'user',content:protectedText.text}];
+ if(selectedApi(configured)!=='auto'){
+  const output=await requestApi(apiProfile(configured),messages,signal,{fetchImpl:fetch,permissions:chrome.permissions});
+  return checkedTranslation(protectedText.restore(output),direction,text);
+ }
  const providers=[];
  if(nvidiaKey){
-  for(const model of ['nvidia/nemotron-3.5-lightning-30b-a3b'])providers.push(async()=>{
+  for(const model of [nvidiaProfile.model])providers.push(async()=>{
    const result=await request(`${NVIDIA}/chat/completions`,nvidiaKey,{model,messages,temperature:0.2,max_tokens:600,chat_template_kwargs:{enable_thinking:false}},signal);
    return result;
   });
  }
- if(openrouterKey)providers.push(()=>request(`${OPENROUTER}/chat/completions`,openrouterKey,{model:'google/gemma-4-31b-it:free',messages,temperature:0.2,max_tokens:600},signal));
+ if(openrouterKey)providers.push(()=>request(`${OPENROUTER}/chat/completions`,openrouterKey,{model:routerProfile.model,messages,temperature:0.2,max_tokens:600},signal));
  for(const run of providers){try{const d=await run();if(d.choices?.[0]?.finish_reason==='length')throw new Error('翻譯被截斷');const value=checkedTranslation(protectedText.restore(d.choices?.[0]?.message?.content),direction,text);if(value)return value;}catch(error){if(signal?.aborted)throw error;}}
  throw new Error('情境翻譯目前無法使用');
 }
-async function translateSingle(text,direction,priority=false){
+async function translateSingle(text,direction,priority=false,configured){
  const phrase=phraseTranslation(text,direction);if(phrase)return phrase;
  if(direction==='ja-zh')text=normalizeGreetingSource(text);
  const {from,to}=parseDirection(direction);
- if(direction==='zh-ja')return (await makeDraft(text,direction)).draft;
+ configured ||= await settings();
+ if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,undefined,configured);
+ if(direction==='zh-ja')return (await makeDraft(text,direction,configured)).draft;
  if(priority){
   try{return await styledTranslation(text,direction);}catch(_error){}
   // Static page text (especially the title) must not wait behind the live
@@ -101,14 +112,14 @@ async function translateSingle(text,direction,priority=false){
 async function translate(text,direction,priority=false){
  parseDirection(direction);if(typeof text!=='string'||!text.trim()||text.length>3000)throw new Error('請輸入 1–3000 字');
  text=text.trim();
- const configured=direction==='zh-ja'?await settings():{};
- return textMemo.run(direction+':'+priority+':'+(configured.writingStyle||'general')+':'+(configured.writingQuality||'fast')+':'+text,async()=>{
+ const configured=await settings();
+ return textMemo.run(apiCacheScope(configured)+':'+direction+':'+priority+':'+(configured.writingStyle||'general')+':'+(configured.writingQuality||'fast')+':'+text,async()=>{
   const chunks=splitTranslationText(text);
-  if(chunks.length===1)return translateSingle(text,direction,priority);
+  if(chunks.length===1)return translateSingle(text,direction,priority,configured);
   const translated=new Array(chunks.length);let cursor=0;
   // Two workers make multi-line chat noticeably faster without flooding the
   // local model or remote provider with every chunk at once.
-  const worker=async()=>{while(cursor<chunks.length){const index=cursor++;translated[index]=await translateSingle(chunks[index],direction,priority);}};
+  const worker=async()=>{while(cursor<chunks.length){const index=cursor++;translated[index]=await translateSingle(chunks[index],direction,priority,configured);}};
   await Promise.all(Array.from({length:Math.min(2,chunks.length)},worker));
   return translated.join('');
  });
@@ -116,7 +127,7 @@ async function translate(text,direction,priority=false){
 let recordingReady,recordingPreview=null;
 const recording=new RecordingQueue({
  save:entries=>chrome.storage.local.set({recordedCaptions:entries}),
- translate:text=>textMemo.run(`record:${engineMode}:${speechFrom}-${speechTo}:${text}`,async()=>{const direction=pair(speechFrom,speechTo);const phrase=phraseTranslation(text,direction);if(phrase)return phrase;if(engineMode==='desktop')return translateCaption(text);try{return await styledTranslation(text,direction);}catch(_){return translateCaption(text);}}),
+ translate:async text=>{const configured=await settings();return textMemo.run(`record:${apiCacheScope(configured)}:${engineMode}:${speechFrom}-${speechTo}:${text}`,async()=>{const direction=pair(speechFrom,speechTo);const phrase=phraseTranslation(text,direction);if(phrase)return phrase;if(engineMode==='desktop')return translateCaption(text);if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,undefined,configured);try{return await styledTranslation(text,direction);}catch(_){return translateCaption(text);}});},
  onChange:()=>{if(captionMode==='record'&&running)pushSubtitle(recordingItem());},
  onError:()=>{lastError='字幕記錄無法儲存，請匯出記錄並檢查儲存空間';if(running)stopCapture();}
 });
@@ -170,9 +181,10 @@ async function translateCaption(text,signal,direction=pair(speechFrom,speechTo))
  const {from,to}=parseDirection(direction);
  const configured=await settings();
  if(engineMode==='desktop'||configured.speechMode==='desktop')return localTranslation(text,direction,12000);
+ if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,signal,configured);
  const primary=async s=>{const raw=await freeTranslate(text,from==='zh'?'zh-TW':from,to==='zh'?'zh-TW':to,s);return checkedTranslation(to==='zh'?polishChinese(text,raw):raw,direction,text);};
  try{
-  if(!configured.nvidiaKey)return await primary(deadline(signal,3000));
+  if(!apiProfile(configured,'nvidia').apiKey)return await primary(deadline(signal,3000));
   return await firstTranslation(primary,async s=>checkedTranslation(await styledTranslation(text,direction,s),direction,text),deadline(signal,3000),400);
  }catch(networkError){
   try{return await localTranslation(text,direction,15000);}catch(_localError){throw networkError;}
@@ -222,7 +234,7 @@ async function translateItem(job){
  if(captionRequests.size>=2){translationPending=job;return;}
  const controller=new AbortController();captionRequests.set(job,controller);
  try {
- const key=`${speechFrom}-${speechTo}:`+job.item.original;
+ const key=apiCacheScope(await settings())+`:${speechFrom}-${speechTo}:`+job.item.original;
   const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal);
   if(controller.signal.aborted)return;
   translationCache.set(key,result);if(translationCache.size>200)translationCache.delete(translationCache.keys().next().value);
@@ -344,6 +356,10 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
    modelStatus='使用 YouTube 日文字幕';
   } else {if(captionMode==='record'&&nativeText)recordTranscript({text:nativeText,source:'native'});nativeUntil=0;nativeText='';if(gate.latest?.source==='native')gate.latest.expired=true;for(const [job,controller] of captionRequests){if(job.item.source==='native'){job.item.expired=true;controller.abort();}}if(translationPending?.item.source==='native')translationPending=null;if(items[0]?.source==='native'){items[0].expired=true;items.length=0;pushSubtitle(null);}}
   send({ok:true,text:{running}});return;
+ }
+ else if(m.type==='translation-provider-test'){
+  if(s.tab || s.url!==chrome.runtime.getURL('popup.html')){send({ok:false,error:'只能從 VocaLume 設定測試 API'});return;}
+  task=settings().then(async configured=>{if(selectedApi(configured)==='auto')throw new Error('請先選擇並儲存 API 服務');return {provider:apiProfile(configured).label,translated:await styledTranslation('今日は楽しい一日です。','ja-zh',undefined,configured)};});
  }
  else if(m.type==='recording-export')task=initRecording().then(()=>recording.entries);
  else if(m.type==='recording-retry')task=initRecording().then(()=>recording.retry()).then(()=>({pending:recording.pending}));
