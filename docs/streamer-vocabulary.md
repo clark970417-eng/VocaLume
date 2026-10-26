@@ -24,7 +24,7 @@ VocaLume recognizes a small, explicit catalogue of creator greetings when readin
 - Matching personal glossary entries take precedence in the desktop local translator.
 - This improves recognized text translation. It does not train or retune the speech recognizer, and cannot recover a catchphrase the recognizer failed to transcribe.
 
-The catalogue is shared by the extension and desktop in [`streamer-vocabulary.js`](../streamer-vocabulary.js), with an ES module facade. Public preview packaging includes both files.
+The catalogue is shared by the extension and desktop in [`streamer-vocabulary.js`](../extension/streamer-vocabulary.js), with an ES module facade. Public preview packaging includes both files.
 
 ## Sources
 

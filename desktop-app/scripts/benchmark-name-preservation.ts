@@ -7,7 +7,7 @@ import type {Language} from '../src/engines/types'
 const {COMPARE_PROFILE,COMPARE_REPORT,COMPARE_LABEL}=process.env
 if(!COMPARE_PROFILE||!COMPARE_REPORT||!COMPARE_LABEL)throw Error('Set isolated profile, report and label')
 app.setPath('userData',COMPARE_PROFILE)
-const corpus=JSON.parse(readFileSync(resolve('../tests/fixtures/names-language-4.5.6.json'),'utf8'))
+const corpus=JSON.parse(readFileSync(resolve('../extension/tests/fixtures/names-language-4.5.6.json'),'utf8'))
 app.whenReady().then(async()=>{
  const engine=new HunyuanMT15Translator(),results:unknown[]=[]
  try {

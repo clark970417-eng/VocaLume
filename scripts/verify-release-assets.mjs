@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 
 const [directory, tag, commit, workflow] = process.argv.slice(2);
-const version = JSON.parse(readFileSync('manifest.json')).version;
+const version = JSON.parse(readFileSync('extension/manifest.json')).version;
 if (!directory || tag !== `beta-v${version}` || !/^[0-9a-f]{40}$/.test(commit || '') || !/^https:\/\/github\.com\/clark970417-eng\/VocaLume\/actions\/runs\/\d+$/.test(workflow || '')) throw new Error('Expected asset directory, matching beta tag, commit SHA and repository Actions URL');
 const root = resolve(directory);
 const names = [`VocaLume-${version}-arm64.dmg`, `VocaLume-${version}.dmg`,

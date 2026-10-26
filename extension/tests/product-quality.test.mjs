@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {validateCorpus, pcmWav, readPcm16, percentile, distribution, qualitySummary, reviewSheet, reviewStatus, soakSummary} from '../desktop-app/scripts/product-quality.mjs';
+import {validateCorpus, pcmWav, readPcm16, percentile, distribution, qualitySummary, reviewSheet, reviewStatus, soakSummary} from '../../desktop-app/scripts/product-quality.mjs';
 
 const corpus = JSON.parse(readFileSync(new URL('./fixtures/product-quality-v1.json', import.meta.url)));
 test('frozen corpus covers both directions and the declared stress conditions', () => {

@@ -1,6 +1,6 @@
 import { performanceState } from '../main/performance-state'
-import { PreviewBudget } from '../../../preview-budget.mjs'
-import { completeSentence } from '../../../sentence-boundary.mjs'
+import { PreviewBudget } from '../../../extension/preview-budget.mjs'
+import { completeSentence } from '../../../extension/sentence-boundary.mjs'
 import { RecognitionCheckpoint } from './RecognitionCheckpoint'
 import { RecognitionBoundary } from './RecognitionBoundary'
 import { recoverFinalTranslation } from './FinalTranslationRecovery'

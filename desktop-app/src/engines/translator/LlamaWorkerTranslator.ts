@@ -6,12 +6,12 @@ import { getGGUFDir, downloadGGUF } from '../model-downloader'
 import type { WorkerInitOptions } from '../../main/worker-pool'
 import { workerPool, WorkerTerminatedError, type WorkerPool } from '../../main/worker-pool'
 import { createLogger } from '../../main/logger'
-import { greetingTranslation, normalizeGreetingSource } from '../../../../streamer-vocabulary.mjs'
-import { gameTermTranslation, selectGameTerminology } from '../../../../game-vocabulary.mjs'
+import { greetingTranslation, normalizeGreetingSource } from '../../../../extension/streamer-vocabulary.mjs'
+import { gameTermTranslation, selectGameTerminology } from '../../../../extension/game-vocabulary.mjs'
 import { shortJaZhTranslation } from './ja-zh-short'
 import { contextualShortReply } from './contextual-short-reply'
-import { protectNames, alreadyTargetLanguage, isNonLinguisticText } from '../../../../translation-guards.mjs'
-import { validateTranslation } from '../../../../translation-policy.mjs'
+import { protectNames, alreadyTargetLanguage, isNonLinguisticText } from '../../../../extension/translation-guards.mjs'
+import { validateTranslation } from '../../../../extension/translation-policy.mjs'
 
 export interface GGUFVariantConfig {
   filename: string

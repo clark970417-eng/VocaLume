@@ -43,6 +43,6 @@ test('packaged content scripts load the same catalogue before scanning and both 
   assert.equal(group.js[0],'streamer-vocabulary.js');
   for(const script of group.js)assert.ok(fs.existsSync(new URL('../'+script,import.meta.url)));
  }
- const workflow=fs.readFileSync(new URL('../.github/workflows/beta.yml',import.meta.url),'utf8');
+ const workflow=fs.readFileSync(new URL('../../.github/workflows/beta.yml',import.meta.url),'utf8');
  assert.match(workflow,/streamer-vocabulary\.js streamer-vocabulary\.mjs/);
 });

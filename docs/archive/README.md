@@ -2,7 +2,7 @@
 
 此處保留舊交接、階段驗收與比較，僅供追溯。部分內容的名字、路徑、模型與限制已過時。
 
-現況請看[首頁](../../README.md)、[使用手冊](../user-guide.md)、[品質驗收](../quality/README.md)及[版本測試](../retests/README.md)。
+現況請看[首頁](../README.zh-TW.md)、[使用手冊](../user-guide.md)、[品質驗收](../quality/README.md)及[版本測試](../retests/README.md)。
 
 - [ACCEPTANCE.md](ACCEPTANCE.md)
 - [CLAUDE-HANDOFF.md](CLAUDE-HANDOFF.md)

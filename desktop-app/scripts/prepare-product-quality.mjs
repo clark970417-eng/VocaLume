@@ -10,7 +10,7 @@ if (process.platform !== 'darwin') throw new Error('Prepare with macOS voices, t
 const destination = resolve(process.argv[2] || '.test-out/product-quality-v1');
 if (existsSync(join(destination, 'manifest.json'))) throw new Error('Use a new output directory; do not silently regenerate a frozen audio set.');
 mkdirSync(destination, {recursive: true});
-const corpusBytes = readFileSync('../tests/fixtures/product-quality-v1.json');
+const corpusBytes = readFileSync('../extension/tests/fixtures/product-quality-v1.json');
 const corpus = validateCorpus(JSON.parse(corpusBytes));
 const ffmpeg = resolve('node_modules/ffmpeg-static/ffmpeg');
 const rows = [];

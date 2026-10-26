@@ -1,6 +1,6 @@
 # VocaLume 使用手冊
 
-[回首頁](../README.md) · [Extension 詳細設定](extension-guide.md) · [回報問題](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
+[回首頁](README.zh-TW.md) · [Extension 詳細設定](extension-guide.md) · [回報問題](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
 
 ## 安裝
 
@@ -98,7 +98,7 @@ Gemini 使用官方 `generateContent` API；程式已包含請求與回應處理
 3. 將新 Extension ZIP 解壓到**同一個擴充功能資料夾**，覆蓋程式檔，再到擴充功能頁重新載入。
 4. 重新整理原本開著的網頁。若 ID 改變，重新執行 Mac 連接步驟。
 
-預覽版透過 GitHub 下載更新，不會靜默替換未簽章 App。發生問題可從 Releases 下載上一版的 App 與 Extension，一起回復；詳見[更新與回復](../RELEASE.md#roll-back)。
+預覽版透過 GitHub 下載更新，不會靜默替換未簽章 App。發生問題可從 Releases 下載上一版的 App 與 Extension，一起回復；詳見[更新與回復](releases/README.md#roll-back)。
 
 ## 常見問題
 

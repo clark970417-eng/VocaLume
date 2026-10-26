@@ -69,7 +69,7 @@ emit({ type: 'captions-small-only', ...alone, captionTreeMB: treeMB(captionHost.
 
 // 2. Large model in a second process, generating repeatedly.
 const largeHost = spawn(electron, [join(root, 'out/main/benchmark-holdout.cjs')], { cwd: root, stdio: 'ignore',
-  env: { ...process.env, COMPARE_PROFILE: join(root, '.test-out/profile'), HOLDOUT_MANIFEST: join(root, '../tests/corpus/translation-holdout.json'),
+  env: { ...process.env, COMPARE_PROFILE: join(root, '.test-out/profile'), HOLDOUT_MANIFEST: join(root, '../extension/tests/corpus/translation-holdout.json'),
     COMPARE_REPORT: '/tmp/jtl-two/large.jsonl', COMPARE_TRANSLATOR: 'hunyuan-mt-2', COMPARE_LABEL: 'probe' } })
 let peak = 0, minFree = 100
 const sampler = setInterval(() => {

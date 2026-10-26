@@ -6,8 +6,8 @@ import {join} from 'path'
 import {createHash} from 'crypto'
 import {cpus,release,totalmem} from 'os'
 import * as ort from 'onnxruntime-node'
-import {SpeechWindows,SpeechGain,Resampler,DecodeQueue} from '../../streaming.mjs'
-import {PreviewBudget} from '../../preview-budget.mjs'
+import {SpeechWindows,SpeechGain,Resampler,DecodeQueue} from '../../extension/streaming.mjs'
+import {PreviewBudget} from '../../extension/preview-budget.mjs'
 import {TranslationPipeline} from '../src/pipeline/TranslationPipeline'
 import {MlxWhisperEngine} from '../src/engines/stt/MlxWhisperEngine'
 import {HunyuanMT15Translator} from '../src/engines/translator/HunyuanMT15Translator'
@@ -45,7 +45,7 @@ app.whenReady().then(async()=>{
   const count=wav.readUInt32LE(offset+4)/2
   const pcm=Float32Array.from({length:count},(_,i)=>wav.readInt16LE(offset+8+i*2)/32768)
   const resampled=new Resampler(rate).push(pcm),audio=new Float32Array(resampled.length+40000);audio.set(resampled)
-  const vad=await ort.InferenceSession.create(join(process.cwd(),'../vendor/silero/silero_vad_v5.onnx'))
+  const vad=await ort.InferenceSession.create(join(process.cwd(),'../extension/vendor/silero/silero_vad_v5.onnx'))
   const gain=new SpeechGain(),frames:Array<{audio:Float32Array;probability:number}>=[]
   let context=new Float32Array(64),state=new ort.Tensor('float32',new Float32Array(256),[2,1,128])
   const sr=new ort.Tensor('int64',BigInt64Array.from([16000n]),[])

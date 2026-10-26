@@ -9,14 +9,24 @@ if (!/^out\/speech-benchmark-[a-z0-9-]+$/.test(destination || '')) throw Error('
 const root = path.resolve('..')
 const baseline = revision && cp.execFileSync('git', ['rev-parse', '--verify', revision + '^{commit}'], {encoding:'utf8'}).trim()
 fs.mkdirSync(destination, {recursive:true})
-const snapshot = relative => cp.execFileSync('git', ['show', baseline + ':' + relative], {encoding:'utf8'})
+const snapshot = relative => {
+  const candidates = [relative, ...(relative.startsWith('extension/') ? [relative.slice('extension/'.length)] : [])]
+  const found = candidates.find(file => cp.spawnSync('git', ['cat-file','-e',baseline + ':' + file], {stdio:'ignore'}).status === 0)
+  if (!found) throw Error('Missing baseline source: ' + relative)
+  return cp.execFileSync('git', ['show', baseline + ':' + found], {encoding:'utf8'})
+}
 if (baseline) fs.writeFileSync(path.join(destination, 'mlx-whisper-bridge.py'), snapshot('desktop-app/resources/mlx-whisper-bridge.py'))
 const plugin = {name:'frozen-production', setup(builder) {
   builder.onLoad({filter:/\.(ts|mjs|js)$/}, args => {
     const relative = path.relative(root, args.path)
     if (relative.includes('node_modules') || relative.startsWith('..')) return
-    const production = relative.startsWith('desktop-app/src/') || !relative.includes('/')
+    const production = relative.startsWith('desktop-app/src/') || (relative.startsWith('extension/') && !relative.slice(10).includes('/')) || !relative.includes('/')
     let contents = baseline && production ? snapshot(relative) : fs.readFileSync(args.path, 'utf8')
+    if (baseline && relative.startsWith('desktop-app/')) {
+      // Older snapshots import shared modules from the former repository root.
+      contents = contents.replace(/(['"])((?:\.\.\/)+)([^/'"]+\.mjs)\1/g, (all, quote, prefix, name) =>
+        fs.existsSync(path.join(root,'extension',name)) ? `${quote}${prefix}extension/${name}${quote}` : all)
+    }
     if (baseline && relative.endsWith('/SubprocessBridge.ts')) {
       contents = contents.replace("return join(__dirname, '../../resources', scriptName)",
         "return scriptName === 'mlx-whisper-bridge.py' ? join(__dirname, scriptName) : join(__dirname, '../../resources', scriptName)")

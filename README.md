@@ -2,44 +2,51 @@
 
 ![VocaLume](docs/brand/VocaLume-logo-hd.png)
 
-**讀懂、回覆，也聽懂。** 影片雙語字幕、網站文字與留言翻譯，支援日文、中文、英文等 14 種語言。本機模型為主要選項，也可使用自己的 API。
+**Read, reply, and understand what you hear.** Multilingual live captions, website translation, and translated reply drafts — with local models or your own API.
 
-[下載 4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0) · [使用手冊](docs/user-guide.md) · [English](docs/README.en.md) · [回報問題](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
+[Download 4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0) · [Installation guide](docs/installation.md) · [繁體中文](docs/README.zh-TW.md) · [Report a problem](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
 
-## 下載哪個檔案？
+## Download
 
-在下載頁的 **Assets** 找到適合你的版本：
+Open the release page and choose a file under **Assets**:
 
-| 電腦 | 安裝檔 |
+| Your computer | Download |
 | --- | --- |
-| Mac，Apple M 系列 | `VocaLume-4.6.0-arm64.dmg` |
-| Mac，Intel | `VocaLume-4.6.0.dmg` |
-| Windows 64 位元 | `VocaLume.Setup.4.6.0.exe` |
-| Linux x64（實驗性） | `VocaLume-4.6.0.AppImage` |
-| Opera GX / Chrome 擴充功能 | `vocalume-extension.zip` |
+| Mac with Apple M-series chip | `VocaLume-4.6.0-arm64.dmg` |
+| Mac with Intel processor | `VocaLume-4.6.0.dmg` |
+| Windows x64 | `VocaLume.Setup.4.6.0.exe` |
+| Linux x64 — experimental | `VocaLume-4.6.0.AppImage` |
+| Opera GX / Chrome extension | `vocalume-extension.zip` |
 
-目前是**未簽章的公開預覽版**。首次開啟可能出現系統提示，請依[安裝說明](docs/user-guide.md#安裝)操作；下載頁附有檔案校驗值。模型首次使用需要另外下載。
+These are **unsigned preview builds**. Follow the installation guide if your operating system displays a warning. Model weights download separately on first use.
 
-## 三步開始
+## Get started
 
-1. **安裝 App**，完成 Quick Start 的模型下載。獨立使用時，在首頁選擇聲音來源、原文與翻譯語言，再按 Start。
-2. **安裝 Extension**：解壓到固定資料夾，在 `opera://extensions` 開啟開發人員模式，按「載入未封裝擴充功能」。Mac 本機字幕還需[連接 App](docs/user-guide.md#連接-mac-app-與-extension)。
-3. **開啟影片**，點 VocaLume →「語音字幕」→ 選語言 → 開始。讀貼文與翻譯留言則在「文字翻譯」開啟；不會替你送出留言。
+1. **Install the App** and finish Quick Start. For standalone captions, choose your audio source and languages, then press Start.
+2. **Install the extension:** extract its ZIP into a permanent folder, open `opera://extensions` or `chrome://extensions`, enable Developer mode, and select **Load unpacked**. Mac local captions also need the [one-time App connection](docs/installation.md#connect-the-mac-app).
+3. **Open a video**, choose the spoken and subtitle languages in VocaLume, and start captions. Enable website translation separately when you want it.
 
-Mac 的本機瀏覽器連接目前支援 Opera GX / Chrome。Windows、Linux 可使用獨立 App，Extension 可選瀏覽器模式；**尚未提供同樣的本機連接安裝流程**。瀏覽器模式需要 WebGPU、模型下載與網路文字翻譯。
+The local browser connection currently supports **macOS Opera GX / Chrome**. Windows and Linux can use the standalone App; browser-only captions require WebGPU and network translation. Their equivalent native connection installer is not included yet.
 
-## 4.6.0 有什麼不同？
+## What you can do
 
-- App 與 Extension 集中常用操作，字幕外觀更容易找到，停止收音按鈕持續可見。
-- 可選 Gemini、OpenAI、Claude 等 API 與模型；不使用 API 也可使用本機引擎。
-- 改善分段、短句前後文、名字保留、翻譯失敗恢復；單組與四組字幕都保留對應譯文。
-- 新增固定日中雙向品質語料、人工審查表與長時間測試流程。[版本詳情](docs/releases/4.6.0.md)
+- Read bilingual captions in single-pair or four-entry mode.
+- Translate posts, titles and chats on supported websites.
+- Translate your reply, review it, and send it yourself.
+- Adjust subtitle size, colors, outline and background.
+- Choose Gemini, OpenAI, Claude or a compatible API — optional.
 
-## 需要幫助？
+[What's new in 4.6.0](docs/releases/4.6.0.md) · [Detailed controls](docs/extension-guide.md) · [Quality evaluation](docs/quality/README.md)
 
-- [安裝、更新、第一次收音與常見問題](docs/user-guide.md)
-- [Extension 操作與 API 設定](docs/extension-guide.md)
-- [測試結果與尚待驗證項目](docs/quality/README.md) · [版本記錄](CHANGELOG.md)
-- [隱私](PRIVACY.md) · [第三方來源與授權](THIRD_PARTY_NOTICES.md) · [原始碼導覽](docs/development.md)
+## Project folders
 
-辨識與翻譯仍可能出錯，尤其是多人重疊、音效、名字與極短句。現有自動檢查不代表已完成雙語人工驗收或所有電腦的實機測試。桌面部分衍生自 [LiveTranslate](https://github.com/rioX432/live-translate)，保留原作者 MIT 授權；模型另有各自授權。
+| Folder | Contents |
+| --- | --- |
+| [extension](extension/) | Browser extension, native connection and extension tests |
+| [desktop-app](desktop-app/) | Desktop App and local translation engines |
+| [docs](docs/) | Guides, release notes, quality reports and legal notices |
+| [scripts](scripts/) | Release packaging and maintenance tools |
+
+[Development guide](docs/development.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
+
+Recognition and translation can still make mistakes, especially with overlapping speech, names and very short phrases. Human quality review and broader device testing remain in progress. The desktop component derives from [LiveTranslate](https://github.com/rioX432/live-translate), with its MIT attribution preserved; model licenses are separate.

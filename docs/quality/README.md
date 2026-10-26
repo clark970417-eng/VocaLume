@@ -1,6 +1,6 @@
 # 語音品質驗收
 
-[回首頁](../../README.md) · [操作驗證](../retests/4.6.0.md) · [固定語料](../../tests/fixtures/product-quality-v1.json)
+[回首頁](../README.zh-TW.md) · [操作驗證](../retests/4.6.0.md) · [固定語料](../../extension/tests/fixtures/product-quality-v1.json)
 
 這套流程用來累積可以比較的證據。**目前仍是公開預覽版，尚未完成商售品質驗收。** 不能以 CI、合成聲音或自動字串符合率代替雙語人工審查。
 
@@ -41,26 +41,26 @@ COMPARE_LABEL=4.6.0-product-v1 \
 node_modules/.bin/electron out/speech-benchmark-product-v1/quality.js
 ```
 
-這項檢查輸出每句實際辨識、翻譯、ASR／翻譯時間與 CER（字元錯誤率），另跑同一句的純文字翻譯以辨別錯誤來源。計時**不含收音、VAD、網頁顯示**。自動意思檢查只是待人工查看的訊號，不應寫成「準確率」。
+這項檢查輸出每句實際辨識、翻譯、ASR／翻譯時間與 CER（字元錯誤率），另跑同一句的純文字翻譯以辨別錯誤來源。音訊與純文字分成兩輪，中間重新初始化翻譯器，避免上一輪相同文字的快取被當成純文字翻譯速度。預熱使用另外的句子。計時**不含收音、VAD、網頁顯示**。自動意思檢查只是待人工查看的訊號，不應寫成「準確率」。
 
 ### 60 分鐘連續處理
 
 ```sh
 COMPARE_PROFILE=/absolute/path/to/isolated-profile \
-COMPARE_AUDIO=/absolute/path/to/repository/tests/japanese-fixture.wav \
+COMPARE_AUDIO=/absolute/path/to/repository/extension/tests/japanese-fixture.wav \
 COMPARE_REPORT=/absolute/path/to/soak.json \
 COMPARE_LABEL=4.6.0-repeated-synthetic-ja \
 COMPARE_ROUNDS=274 \
 node_modules/.bin/electron out/speech-benchmark-product-v1/paced.js
 ```
 
-10.722 秒固定日文聲音加 2.5 秒靜音，274 輪約 60 分鐘，經過真正 Silero、分段、辨識與翻譯。每輪保存進度；提早關閉或錯誤不能記為完成。記錄 p50 / p95 / p99 / 最大耗時、最慢十句、前後半段差異與熱狀態。延遲從**擷取區塊結束**算到翻譯完成，不是從使用者耳朵聽到聲音到畫面顯示的完整延遲。
+10.722 秒固定日文聲音加 2.5 秒靜音，274 輪約 60 分鐘。先用真正 Silero 算出分數，再以實際時間重播，執行串流分段、辨識與翻譯；計時不含即時計算 VAD 的成本。每輪保存進度；提早關閉或錯誤不能記為完成。記錄 p50 / p95 / p99 / 最大耗時、最慢十句、前後半段差異與熱狀態。延遲從**擷取區塊結束**算到翻譯完成，不是從使用者耳朵聽到聲音到畫面顯示的完整延遲。
 
 重複輸入可能受快取幫助；這不是不同內容的未快取吞吐量。測試沒有操作實際瀏覽器或麥克風；仍需另跑完整畫面測試和 1–2 小時真實內容。請勿同時跑另一個模型測試，並記錄當時是否有遊戲、錄影或建置工作。
 
 ```sh
 node scripts/report-product-quality.mjs \
-  ../tests/fixtures/product-quality-v1.json \
+  ../extension/tests/fixtures/product-quality-v1.json \
   /absolute/path/to/quality.json /absolute/path/to/soak.json \
   /absolute/path/to/report-directory
 ```

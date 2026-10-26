@@ -1,12 +1,12 @@
 # VocaLume native messaging
 
 The current desktop integration uses the complete application in
-[desktop-app](../desktop-app/INTEGRATION.md). Pass `--app` to the installer to
+[desktop-app](../../desktop-app/INTEGRATION.md). Pass `--app` to the installer to
 register its executable. `relay.py` starts that app and forwards messages; no
 inference occurs in the relay. The local app build uses upstream MLX Whisper
 Large v3 Turbo and HY-MT GGUF through node-llama-cpp.
 
-New users: follow the [installation manual](../docs/user-guide.md#連接-mac-app-與-extension). The bundled installer currently supports macOS Opera GX / Chrome. Windows and Linux browser registration is not included.
+New users: follow the [installation manual](../../docs/user-guide.md#連接-mac-app-與-extension). The bundled installer currently supports macOS Opera GX / Chrome. Windows and Linux browser registration is not included.
 
 The following describes the retained legacy Python inference option, selected
 when the installer is run without `--app`. Its weights may need downloading again.

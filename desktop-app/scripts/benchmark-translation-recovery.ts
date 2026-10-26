@@ -6,11 +6,11 @@ import {resolve} from 'path'
 import {HunyuanMT15Translator} from '../src/engines/translator/HunyuanMT15Translator'
 import type {Language} from '../src/engines/types'
 // The shared extension policy is bundled for this isolated probe.
-import {phraseTranslation,splitTranslationText,validateTranslation} from '../../translation-policy.mjs'
+import {phraseTranslation,splitTranslationText,validateTranslation} from '../../extension/translation-policy.mjs'
 const {COMPARE_PROFILE,COMPARE_REPORT,COMPARE_LABEL,COMPARE_CORPUS}=process.env
 if(!COMPARE_PROFILE||!COMPARE_REPORT||!COMPARE_LABEL)throw Error('Set isolated profile, report and label')
 app.setPath('userData',COMPARE_PROFILE)
-const corpus=JSON.parse(readFileSync(resolve(COMPARE_CORPUS||'../tests/fixtures/translation-recovery-4.5.7.json'),'utf8'))
+const corpus=JSON.parse(readFileSync(resolve(COMPARE_CORPUS||'../extension/tests/fixtures/translation-recovery-4.5.7.json'),'utf8'))
 app.whenReady().then(async()=>{
  const engine=new HunyuanMT15Translator(),results:unknown[]=[]
  try {

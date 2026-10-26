@@ -31,9 +31,9 @@ async function main() {
   const lines = createInterface({ input: child.stdout })
   const timer = setTimeout(() => { child.kill(); process.exitCode = 1 }, 15000)
   const cases = [
-    { name: 'japanese-speech', audio: pcm('../tests/japanese-fixture.wav'), laugh: false },
+    { name: 'japanese-speech', audio: pcm('../extension/tests/japanese-fixture.wav'), laugh: false },
     { name: 'silence', audio: Buffer.alloc(16000 * 4 * 3).toString('base64'), laugh: false },
-    { name: 'cc0-laughter', audio: pcm('../tests/laughter-fixture.wav'), laugh: true }
+    { name: 'cc0-laughter', audio: pcm('../extension/tests/laughter-fixture.wav'), laugh: true }
   ]
   try {
     const iterator = lines[Symbol.asyncIterator]()

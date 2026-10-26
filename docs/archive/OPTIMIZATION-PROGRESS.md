@@ -31,8 +31,8 @@ Per-engine stage timings are now recorded by the benchmark. An additional
 no-timestamp decoding experiment saved only about 30 ms on this fixture and was
 not enabled in production.
 
-[Before](../../tests/results/stage1-language-before.json) ·
-[After](../../tests/results/stage1-language-after.json)
+[Before](../../extension/tests/results/stage1-language-before.json) ·
+[After](../../extension/tests/results/stage1-language-after.json)
 
 ## 2. Translation quality: measured improvements, residual style limitation
 
@@ -49,7 +49,7 @@ politeness. No arbitrary string replacement is applied to force grammar.
 Text-only drafts now request translation directly instead of initializing speech
 recognition first. They remain drafts and are never posted automatically.
 
-[Local model outputs](../../tests/results/stage2-translation-quality.json).
+[Local model outputs](../../extension/tests/results/stage2-translation-quality.json).
 
 ## 3. Sustained behavior
 
@@ -68,7 +68,7 @@ recognition first. They remain drafts and are never posted automatically.
    37.5–86.8 MiB; this excludes Python/Metal and includes harness event storage.
    This repeated synthetic, sequential engine test bypasses browser capture/VAD;
    it does not establish stability for arbitrary hours-long live streams.
-   [Raw run](../../tests/results/stage3-soak.json).
+   [Raw run](../../extension/tests/results/stage3-soak.json).
 ## 4. UI feedback and installation
 
 Version 3.7.3 distinguishes no audio, non-speech audio, recognition, pending

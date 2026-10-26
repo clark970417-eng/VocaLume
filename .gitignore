@@ -5,3 +5,54 @@ __pycache__/
 
 # Isolated desktop UI test build
 /desktop-app/.test-out/
+
+# Local compatibility aliases for an existing root-loaded Opera extension.
+# Source and new installations use extension/.
+/audio-worklet.js
+/background.js
+/caption-window.css
+/caption-window.js
+/capture-status.mjs
+/cloud-api.mjs
+/content.css
+/content.js
+/cue-cursor.mjs
+/desktop-worker.js
+/game-vocabulary.d.mts
+/game-vocabulary.mjs
+/icon-preview.png
+/manifest.json
+/native-client.mjs
+/offscreen.html
+/offscreen.js
+/popup.css
+/popup.html
+/popup.js
+/preview-budget.d.mts
+/preview-budget.mjs
+/recording-queue.mjs
+/sentence-boundary.d.mts
+/sentence-boundary.mjs
+/social-content.css
+/social-content.js
+/speech-worker.js
+/stream-core.mjs
+/streamer-vocabulary.d.mts
+/streamer-vocabulary.js
+/streamer-vocabulary.mjs
+/streaming.mjs
+/token-stream.mjs
+/translation-guards.d.mts
+/translation-guards.js
+/translation-guards.mjs
+/translation-policy.d.mts
+/translation-policy.mjs
+/vad-worker.js
+/whisper-runtime.js
+/x-content.css
+/x-content.js
+/icons
+/ort
+/vendor
+/desktop
+/tests

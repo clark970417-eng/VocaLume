@@ -48,7 +48,7 @@ function wav(dir, id) {
   throw new Error('Missing WAV data for ' + id)
 }
 
-const speech = JSON.parse(readFileSync(join(root, '../tests/corpus/soak.json'), 'utf8')).map(row => row.id)
+const speech = JSON.parse(readFileSync(join(root, '../extension/tests/corpus/soak.json'), 'utf8')).map(row => row.id)
 const encode = samples => Buffer.from(new Float32Array(samples).buffer).toString('base64')
 
 /** Resident memory of the host and every descendant, in MB. */

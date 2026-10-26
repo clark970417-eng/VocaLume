@@ -4,7 +4,7 @@ import {execFileSync} from 'node:child_process'
 import {createHash} from 'node:crypto'
 import {join,resolve} from 'node:path'
 const destination=resolve(process.argv[2]||'.test-out/speech-455');mkdirSync(destination,{recursive:true})
-const fixture=JSON.parse(readFileSync('../tests/fixtures/speech-quality-4.5.5.json','utf8'))
+const fixture=JSON.parse(readFileSync('../extension/tests/fixtures/speech-quality-4.5.5.json','utf8'))
 const ffmpeg=resolve('node_modules/ffmpeg-static/ffmpeg'),rows=[]
 for(const row of fixture.audio){
  const aiff=join(destination,row.id+'.aiff'),wav=join(destination,row.id+'.wav')

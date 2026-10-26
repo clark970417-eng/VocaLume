@@ -1,5 +1,5 @@
-import { entries as gameEntries } from '../../../../game-vocabulary.mjs'
-import { entries as streamerEntries } from '../../../../streamer-vocabulary.mjs'
+import { entries as gameEntries } from '../../../../extension/game-vocabulary.mjs'
+import { entries as streamerEntries } from '../../../../extension/streamer-vocabulary.mjs'
 
 /** Vocabulary only, never a previous sentence or a translated instruction. */
 export function boundedRecognitionVocabulary(values: readonly string[]): string[] {

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {compareRuntime,sessionLogEnded,swapouts,freePercent,RELEVANT_CRASH,summarizeHealth,EXTENSION_RUNTIME} from '../desktop-app/scripts/acceptance-diagnostics-lib.mjs';
+import {compareRuntime,sessionLogEnded,swapouts,freePercent,RELEVANT_CRASH,summarizeHealth,EXTENSION_RUNTIME} from '../../desktop-app/scripts/acceptance-diagnostics-lib.mjs';
 
 test('runtime comparison names missing and differing files and nothing else',()=>{
  const source={'a.js':Buffer.from('1'),'b.js':Buffer.from('2'),'c.js':Buffer.from('3')};

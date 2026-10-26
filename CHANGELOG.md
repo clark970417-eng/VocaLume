@@ -259,7 +259,7 @@ This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` t
 
 - Text drawn into images, video, canvas, or inaccessible closed components is not available to page scripts.
 - General website matching is intentionally conservative; unusual custom editors may need a dedicated adapter.
-- Public beta packages are unsigned and can trigger operating-system warnings. Follow [BETA-TESTING.md](BETA-TESTING.md).
+- Public beta packages are unsigned and can trigger operating-system warnings. Follow [BETA-TESTING.md](docs/beta-testing.md).
 
 ## 4.2.0 - 2026-09-22
 

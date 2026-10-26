@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 const read = path => JSON.parse(readFileSync(path, 'utf8'));
-const version = read('manifest.json').version;
+const version = read('extension/manifest.json').version;
 const app = read('desktop-app/package.json'), lock = read('desktop-app/package-lock.json');
 if ([app.version, lock.version, lock.packages?.['']?.version].some(v => v !== version)) throw new Error('App, extension and lockfile versions must match');
 const tag = process.argv[2];

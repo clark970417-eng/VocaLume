@@ -4,7 +4,7 @@ This preview is intended for people who agree to test unfinished software and re
 
 ## Download and install
 
-Download the package for your computer and `vocalume-extension.zip` from [4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0). New users can follow the [English quick start](docs/README.en.md) or [完整中文使用手冊](docs/user-guide.md).
+Download the package for your computer and `vocalume-extension.zip` from [4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0). New users can follow the [English quick start](../README.md) or [完整中文使用手冊](user-guide.md).
 
 ### Verify the download
 
@@ -67,7 +67,7 @@ Test only services you already use. Record **pass**, **fail**, or **not tested**
 
 For a longer test, leave one real stream running for two hours. Note the delay near the beginning and end, memory use, any permanent “Translating…” line, missing messages, duplicate captions, and whether reconnecting recovered without restarting the computer.
 
-For repeatable JA↔ZH measurements and bilingual review, use the [quality evaluation workflow](docs/quality/README.md). The fixed synthetic corpus, repeated-speech soak, real-stream test and human review are separate evidence categories.
+For repeatable JA↔ZH measurements and bilingual review, use the [quality evaluation workflow](quality/README.md). The fixed synthetic corpus, repeated-speech soak, real-stream test and human review are separate evidence categories.
 
 ## Report feedback
 
@@ -75,6 +75,6 @@ Use **Issues → New issue** and select either **Beta problem report** or **Tran
 
 The desktop app can export a privacy-safe diagnostic JSON from **Support & Privacy**. It contains the app version, operating system, selected engine names, and recent session health. It excludes API keys, audio, captions, and translated text.
 
-If a Beta behaves worse, follow [the rollback guide](RELEASE.md#roll-back). Installing an older version keeps existing settings and downloaded models.
+If a Beta behaves worse, follow [the rollback guide](releases/README.md#roll-back). Installing an older version keeps existing settings and downloaded models.
 
-Read [PRIVACY.md](PRIVACY.md) before testing cloud translation.
+Read [PRIVACY.md](legal/privacy.md) before testing cloud translation.

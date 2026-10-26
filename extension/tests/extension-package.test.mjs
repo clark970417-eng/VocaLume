@@ -4,8 +4,8 @@ import {readFileSync} from 'node:fs';
 
 test('beta archive includes every local static module dependency',()=>{
  const root=new URL('../',import.meta.url);
- const workflow=readFileSync(new URL('.github/workflows/beta.yml',root),'utf8');
- const command=workflow.match(/zip -r beta\/vocalume-extension.zip ([\s\S]*?)\n      - uses:/)?.[1];
+ const workflow=readFileSync(new URL('../.github/workflows/beta.yml',root),'utf8');
+ const command=workflow.match(/zip -r \.\.\/beta\/vocalume-extension.zip ([\s\S]*?)\n          cd \.\./)?.[1];
  assert.ok(command,'extension archive command exists');
  const files=new Set(command.replace(/\\\n/g,' ').trim().split(/\s+/));
  for(const file of files){

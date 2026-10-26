@@ -97,7 +97,7 @@ export function soakSummary(report) {
   const finals = report.completed || [], events = report.events || [], metrics = report.metrics || [];
   const durationMs = report.summary?.durationMs || 0;
   const half = durationMs / 2;
-  return {scope: 'Repeated synthetic Japanese audio through paced Silero VAD, ASR and translation; excludes browser/microphone, diverse streams and Chinese speech.',
+  return {scope: 'Repeated synthetic Japanese audio; precomputed real Silero probabilities replayed at real-time pace through segmentation, ASR and translation. Excludes live VAD computation, browser/microphone, diverse streams and Chinese speech.',
     complete: !report.fatal && !['failed','interrupted','running'].includes(report.status) && durationMs >= 3600000 && finals.length > 0 &&
       !finals.some(r => !r.translated?.trim() || !Number.isFinite(r.endToChineseMs)) && !events.some(r => r.error),
     durationMs, finals: finals.length, missingFinals: finals.filter(r => !r.translated?.trim()).length,

@@ -1,28 +1,36 @@
-# 原始碼與文件導覽
+# Source and development guide
 
-新用戶請先看[下載與使用手冊](user-guide.md)。根目錄保留瀏覽器執行檔，因為 Opera 的未封裝擴充功能直接從這裡載入；搬動整個根目錄可能改變 Extension ID。
+New users should start with the [installation guide](installation.md).
 
-| 位置 | 用途 |
-| --- | --- |
-| `manifest.json`、根目錄 JS/MJS/CSS/HTML | Extension 執行程式 |
-| `desktop-app/src` | Electron App、辨識與翻譯引擎 |
-| `desktop` | macOS 瀏覽器連接與保留的舊 Python host |
-| `tests` | 可執行回歸檢查與固定測試資料；不是下載安裝檔 |
-| `docs/quality` | 品質基準、人工審查與實機驗收 |
-| `docs/retests` | 各版本已完成的驗證證據 |
-| `docs/archive` | 舊交接、比較與階段進度；不代表現況 |
-| `docs/releases` | 對使用者的版本說明 |
-| `docs/brand` | Logo 與原始圖示 |
-| `.github/workflows`、`scripts` | CI、安裝檔與發布檢查 |
+```text
+VocaLume/
+├── README.md                 English quick start
+├── CHANGELOG.md              User-facing version history
+├── extension/                Browser runtime, icons, VAD resources and tests
+│   ├── manifest.json         Load this folder for a new unpacked installation
+│   ├── desktop/              Mac native messaging installer and relay
+│   └── tests/                Regression cases and browser fixtures
+├── desktop-app/              Electron App, local engines and benchmarks
+├── docs/
+│   ├── installation.md       First installation and updates
+│   ├── legal/                Privacy and third-party notices
+│   ├── quality/              Fixed corpus, human review and device qualification
+│   ├── releases/             Release notes and rollback instructions
+│   ├── retests/              Recorded verification evidence
+│   ├── archive/              Historical handoffs and comparisons
+│   └── brand/                Logo and icon assets
+├── scripts/                  Packaging and maintenance
+└── .github/                  CI and issue forms
+```
 
-模型、API 金鑰、個人錄音、`.test-out` 與打包產物不放進 Git。發布 ZIP 只收執行需要的檔案、連接安裝器與說明，不含整個原始碼、測試結果或歷史報告。
+Models, API keys, personal recordings, `.test-out` and built installers are not committed. Published extension ZIPs contain the runtime, connection installer and standalone guides; they exclude development tests and historical reports.
 
-## 本機開發
+## Local checks
 
-需 Node.js 22.12 或更新版本。下列自動檢查不會呼叫付費 API：
+Requires Node.js 22.12 or later. These commands do not call paid APIs:
 
 ```sh
-node --test tests/*.test.mjs
+node --test extension/tests/*.test.mjs
 cd desktop-app
 npm ci
 npm run typecheck
@@ -30,12 +38,18 @@ npm test -- --run
 npm run build
 ```
 
-模型實測見[品質流程](quality/README.md)；瀏覽器操作見[驗證紀錄](retests/4.6.0.md)。`tests/capture.html` 是使用自備合成聲音的瀏覽器測試頁，不會替使用者發送留言。
+See [quality evaluation](quality/README.md) for model measurements. The browser fixture is `extension/tests/capture.html`; when the extension folder is loaded, open `chrome-extension://YOUR_ID/tests/capture.html`. It uses authored synthetic audio and never posts a message.
 
-## 發布
+## Existing root-loaded Opera installations
 
-App、Extension、lockfile 版本需一致。`node scripts/check-release-version.mjs beta-v4.6.0` 可先檢查。`beta-v*` 標籤觸發跨平台未簽章預覽建置；全部必要產物齊全後才發布 Release。`v*` 正式流程另需簽章憑證，不能拿 Beta 輸出冒充簽章版。
+Older local checkouts loaded the repository root rather than `extension/`. Moving that installation would change its ID. On those existing Mac checkouts only, `node scripts/link-legacy-extension.mjs` creates ignored local symbolic links from the old paths to the new source directory. `--check` verifies them. It refuses to replace an existing file and does not edit the browser profile. The root remains the existing installation location; new users should load `extension/`.
 
-`scripts/verify-release-assets.mjs` 檢查七個必要下載包、Extension 版本與連接依賴，再生成來源 manifest 與包含 manifest 在內的 SHA-256 清單。新增公開版本時更新 README 的下載版本與 `docs/releases/版本.md`。
+CI and clean-checkout tests use the new paths directly, without these compatibility aliases. The aliases are local and are not uploaded to GitHub or included in releases.
 
-桌面部分保留 [上游 MIT 授權](../desktop-app/LICENSE)；第三方和模型資訊在[授權說明](../THIRD_PARTY_NOTICES.md)。
+## Releases
+
+App, extension and lockfile versions must match. Check with `node scripts/check-release-version.mjs beta-v4.6.0`. A `beta-v*` tag builds unsigned previews for all configured platforms and publishes only after required assets pass validation. Stable `v*` releases additionally require signing credentials.
+
+`scripts/verify-release-assets.mjs` verifies seven required packages, the extension version and native-host dependencies before generating provenance and checksums. `scripts/package-guides.mjs` turns relative documentation links into web links for the standalone ZIP. Keep README download versions and `docs/releases/VERSION.md` current.
+
+The desktop component preserves the [upstream MIT license](../desktop-app/LICENSE). Other component and model licenses are described in [third-party notices](legal/third-party-notices.md).

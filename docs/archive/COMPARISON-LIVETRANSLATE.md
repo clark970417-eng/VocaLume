@@ -56,8 +56,8 @@ not identical decoder configurations. The selected HY-MT1.5 path is not a benchm
 of every upstream engine or its automatic default selection. Machine load was not
 held constant, and capture, VAD, browser messaging and rendering were bypassed.
 
-Raw evidence: [upstream](../../tests/results/stage8-upstream-ready-matched.jsonl),
-[fork](../../tests/results/stage8-fork-context-isolated.jsonl). Failed setup runs and
+Raw evidence: [upstream](../../extension/tests/results/stage8-upstream-ready-matched.jsonl),
+[fork](../../extension/tests/results/stage8-fork-context-isolated.jsonl). Failed setup runs and
 rejected experiments are described in [the revision report](../retests/RETEST-3.8.0.md).
 
 ## Historical awake A/B results
@@ -79,7 +79,7 @@ The fork's silence behavior was better in this test. Both translators expanded
 some wording; neither is proven more accurate on a representative speech corpus.
 The repeated second round retained context and is not an independent quality sample.
 
-[Raw events](../../tests/results/livetranslate-3.7-awake.json) are retained for review.
+[Raw events](../../extension/tests/results/livetranslate-3.7-awake.json) are retained for review.
 Prior sleep-interrupted runs remain excluded. This still does not establish a
 winner for the complete UI or every optional upstream feature.
 
@@ -202,8 +202,8 @@ both sides, so these are engine-and-pipeline numbers.
 | Recognition character error, punctuation-insensitive | 8.17% | 8.17% |
 | Peak resident memory across processes | 1445 MB | 1476 MB |
 
-Raw rows: [fork](../../tests/results/stage8-fork-386.jsonl) and
-[upstream](../../tests/results/stage8-upstream-386match.jsonl). Recognition error was
+Raw rows: [fork](../../extension/tests/results/stage8-fork-386.jsonl) and
+[upstream](../../extension/tests/results/stage8-upstream-386match.jsonl). Recognition error was
 scored with `desktop-app/scripts/score-recognition.py`; both sides produced
 exactly 43 edits over 526 reference characters, which is what identical weights
 on identical audio should produce.

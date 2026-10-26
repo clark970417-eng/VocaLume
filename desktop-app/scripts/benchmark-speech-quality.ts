@@ -29,7 +29,9 @@ app.whenReady().then(async()=>{
  app.dock?.hide()
  const report:any={label:COMPARE_LABEL,fixtureHash:createHash('sha256').update(JSON.stringify(fixture)).digest('hex'),scope:fixture.provenance,
   system:{platform:process.platform,arch:process.arch,os:release(),cpu:cpus()[0]?.model,memoryBytes:totalmem(),electron:process.versions.electron},
-  engines:{asr:'mlx-community/whisper-large-v3-turbo',translator:'HY-MT1.5-1.8B Q4_K_M'},audio:[],text:[],context:[],errors:[],thermal:process.platform==='darwin'?powerMonitor.getCurrentThermalState():'unknown'}
+  engines:{asr:'mlx-community/whisper-large-v3-turbo',translator:'HY-MT1.5-1.8B Q4_K_M'},
+  cachePolicy:'Audio and text run in separate passes; translator disposed and reinitialized between passes. No source examples are used for warmup.',
+  audio:[],text:[],context:[],errors:[],thermal:process.platform==='darwin'?powerMonitor.getCurrentThermalState():'unknown'}
  const stt=new MlxWhisperEngine({language:'ja'}),translator=new HunyuanMT15Translator(),pipeline=new TranslationPipeline()
  let scripted=''
  const checkpoint=()=>writeFileSync(COMPARE_REPORT,JSON.stringify(report,null,2))
@@ -44,20 +46,31 @@ app.whenReady().then(async()=>{
   await stt.initialize();await translator.initialize()
   await translator.translate('準備ができました。','ja','zh')
   for(const row of fixture.audio){
+   try{
    const audio=pcm(join(CORPUS_AUDIO_DIR,row.id+'.wav'));stt.setLanguage(row.from)
    const start=performance.now(),result=await stt.processAudio(audio,16000),recognized=result?.text||'',asrMs=performance.now()-start
    const t=performance.now(),translated=recognized?await translator.translate(recognized,row.from,row.to):''
    const record={id:row.id,from:row.from,to:row.to,reference:row.text,recognized,translated,asrMs,translationMs:performance.now()-t,audioMs:audio.length/16,CER:distance(normalize(row.text),normalize(recognized))/Math.max(1,normalize(row.text).length),...checks(row,translated)}
    report.audio.push(record);console.log('QUALITY '+JSON.stringify(record))
+   }catch(error){report.errors.push('audio:'+row.id+':'+String(error));report.audio.push({id:row.id,from:row.from,to:row.to,translated:'',error:String(error)})}
    checkpoint()
+  }
+  // A just-translated ASR hypothesis may exactly equal the reference. Running
+  // text translation immediately afterward would report a cache hit as model speed.
+  await translator.dispose();await translator.initialize()
+  await translator.translate('準備ができました。','ja','zh')
+  for(const row of fixture.audio){
+   try{
    const textAt=performance.now(),textTranslation=await translator.translate(row.text,row.from,row.to)
    report.text.push({id:row.id,source:row.text,translated:textTranslation,ms:performance.now()-textAt,...checks(row,textTranslation)})
+   }catch(error){report.errors.push('text:'+row.id+':'+String(error));report.text.push({id:row.id,source:row.text,translated:'',error:String(error)})}
    checkpoint()
   }
   pipeline.registerSTT('scripted',()=>scriptSTT);pipeline.registerTranslator('hunyuan-mt-15',()=>translator)
   pipeline.on('error',e=>report.errors.push(String(e)))
   await pipeline.switchEngine({mode:'cascade',sttEngineId:'scripted',translatorEngineId:'hunyuan-mt-15'});pipeline.setLanguageConfig('ja','zh');pipeline.start()
   for(const row of fixture.context){
+   try{
    // stop() disposes engines asynchronously; reinitialize before the next pair.
    await pipeline.stop();await pipeline.switchEngine({mode:'cascade',sttEngineId:'scripted',translatorEngineId:'hunyuan-mt-15'});pipeline.start();scripted=row.previous
    const a=new Float32Array(16000)
@@ -66,6 +79,7 @@ app.whenReady().then(async()=>{
    const result=await pipeline.finalizeStreaming(a,16000,{segment:row.id+':current',speechSeconds:1,speechEndSample:16000,captureStartSample:16000,captureEndSample:32000})
    const translated=result?.translatedText||''
    report.context.push({...row,source:result?.sourceText,translated,ms:performance.now()-at,...checks(row,translated)})
+   }catch(error){report.errors.push('context:'+row.id+':'+String(error));report.context.push({...row,translated:'',error:String(error)})}
    checkpoint()
   }
  }catch(error){report.errors.push(String(error));process.exitCode=1}
