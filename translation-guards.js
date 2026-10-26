@@ -7,16 +7,28 @@
   const han = /[\u3400-\u9fff]/u;
   const honorific = /^(?:ちゃん|さん|さま|様|くん|君|たん)/u;
   const chineseEvidence = /[這这們们嗎吗麼么覺觉讓让還还會会說说]|你好|您好|謝謝|谢谢|今天|明天|昨天|辛苦了|喜歡|喜欢|已經|已经|真的|中文|[我你您][是有在不沒没想要也很能愛爱]|(?:好|太)(?:可愛|可爱|看|聽|听)/u;
+  const scripts = {ja:kana, zh:han, ko:/\p{Script=Hangul}/u, ru:/\p{Script=Cyrillic}/u, ar:/\p{Script=Arabic}/u, th:/\p{Script=Thai}/u};
+  const latinLanguages = new Set(['en','es','fr','de','pt','it','vi','id','nl','pl']);
+  const latin = /\p{Script=Latin}/u;
+
+  function stripLiterals(value) {
+    return String(value || '').replace(/https?:\/\/\S+/giu, '')
+      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/gu, '')
+      .replace(/(?:^|\s)[@#][A-Za-z0-9_]+\b/gu, '');
+  }
+
+  // Script evidence, not a language classifier: French and English share Latin.
+  function hasLanguageText(value, language) {
+    const script = scripts[language] || (latinLanguages.has(language) ? latin : null);
+    return !!script && [...stripLiterals(value)].some(char => /\p{L}/u.test(char) && script.test(char));
+  }
 
   function isNonLinguisticText(value) {
     const text = String(value || '').trim();
     if (!text) return false;
     // Preserve literal-only lines in otherwise translatable comments. Ordinary
     // words (including Han-only Japanese) must still enter the normal route.
-    const body = text.replace(/https?:\/\/\S+/giu, '')
-      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/gu, '')
-      .replace(/(?:^|\s)[@#][A-Za-z0-9_]+\b/gu, '');
-    return !/\p{L}/u.test(body);
+    return !/\p{L}/u.test(stripLiterals(text));
   }
 
   function nameSpans(value, glossary = []) {
@@ -79,20 +91,26 @@
 
   function alreadyTargetLanguage(value, from, to) {
     if (from === to) return true;
-    const body = protectNames(value).body.replace(/https?:\/\/\S+|@[A-Za-z0-9_]+/gu,'');
+    const body = stripLiterals(protectNames(value).body);
     if (to === 'zh') return han.test(body) && !kana.test(body) && !/[\uac00-\ud7af\u0400-\u04ff\u0600-\u06ff\u0e00-\u0e7f]/u.test(body)
       && !/[A-Za-z]{3,}/u.test(body.replace(/\bw+\b/giu,'')) && chineseEvidence.test(body);
     if (to === 'ja') return kana.test(body) && !chineseEvidence.test(body) && !/[\uac00-\ud7af]/u.test(body);
+    // Among supported languages these scripts have distinct targets. Require
+    // every remaining letter to match, so mixed source sentences still translate.
+    // Never guess English vs French, Spanish, Vietnamese, etc. from Latin alone.
+    if (['ko','ru','ar','th'].includes(to)) {
+      const letters = body.match(/\p{L}/gu) || [];
+      return letters.length > 0 && letters.every(char => scripts[to].test(char));
+    }
     return false;
   }
 
   function shouldTranslateReading(value, from, to) {
     const text = String(value || '').trim();
-    if (!text || from === to || alreadyTargetLanguage(text,from,to)) return false;
+    if (!text || from === to || isNonLinguisticText(text) || alreadyTargetLanguage(text,from,to)) return false;
     if (from === 'ja' && globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text)) return true;
     const body = protectNames(text).body;
-    const pattern = {ja:kana, zh:han, ko:/[\uac00-\ud7af]/u, ru:/[\u0400-\u04ff]/u, ar:/[\u0600-\u06ff]/u, th:/[\u0e00-\u0e7f]/u}[from] || /[A-Za-zÀ-ž]/u;
-    return pattern.test(body);
+    return hasLanguageText(body,from);
   }
-  globalThis.VocaLumeTranslationGuards = Object.freeze({protectNames,alreadyTargetLanguage,shouldTranslateReading,isNonLinguisticText});
+  globalThis.VocaLumeTranslationGuards = Object.freeze({protectNames,alreadyTargetLanguage,shouldTranslateReading,isNonLinguisticText,hasLanguageText});
 })();

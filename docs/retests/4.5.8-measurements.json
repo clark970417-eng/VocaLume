@@ -1,0 +1,638 @@
+{
+  "label": "4.5.8 final with native validation",
+  "provenance": "Authored multilingual smoke cases; no private user content. Checks cover script, literal retention and nonempty output, not native-speaker semantic review.",
+  "results": [
+    {
+      "id": "ja-en",
+      "from": "ja",
+      "to": "en",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ won’t come tomorrow.🎉10/26https://example.invalid/live",
+      "ms": 245,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-ko",
+      "from": "ja",
+      "to": "ko",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ는 내일 오지 않을 것입니다.🎉10/26https://example.invalid/live",
+      "ms": 255,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-es",
+      "from": "ja",
+      "to": "es",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ no vendrá mañana.🎉10/26https://example.invalid/live",
+      "ms": 223,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-fr",
+      "from": "ja",
+      "to": "fr",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ ne viendra pas demain.🎉10/26https://example.invalid/live",
+      "ms": 226,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-de",
+      "from": "ja",
+      "to": "de",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ kommt morgen nicht.🎉10/26https://example.invalid/live",
+      "ms": 204,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-pt",
+      "from": "ja",
+      "to": "pt",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ não virá amanhã.🎉10/26https://example.invalid/live",
+      "ms": 215,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-it",
+      "from": "ja",
+      "to": "it",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ non verrà domani.🎉10/26https://example.invalid/live",
+      "ms": 232,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-ru",
+      "from": "ja",
+      "to": "ru",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ не придет завтра.🎉10/26https://example.invalid/live",
+      "ms": 231,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-th",
+      "from": "ja",
+      "to": "th",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ จะไม่มาในวันพรุ่งนี้.🎉10/26https://example.invalid/live",
+      "ms": 295,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-vi",
+      "from": "ja",
+      "to": "vi",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ sẽ không đến vào ngày mai.🎉10/26https://example.invalid/live",
+      "ms": 248,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-id",
+      "from": "ja",
+      "to": "id",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ tidak akan datang besok.🎉10/26https://example.invalid/live",
+      "ms": 248,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ja-ar",
+      "from": "ja",
+      "to": "ar",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ],
+      "translated": "まほろ لن يأتي غدًا.🎉10/26https://example.invalid/live",
+      "ms": 266,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "target-ko",
+      "from": "ja",
+      "to": "ko",
+      "text": "내일은 방송을 쉬겠습니다.",
+      "unchanged": true,
+      "translated": "내일은 방송을 쉬겠습니다.",
+      "ms": 0,
+      "modelCalls": 0,
+      "pass": true
+    },
+    {
+      "id": "target-ru",
+      "from": "ja",
+      "to": "ru",
+      "text": "Завтра трансляции не будет.",
+      "unchanged": true,
+      "translated": "Завтра трансляции не будет.",
+      "ms": 0,
+      "modelCalls": 0,
+      "pass": true
+    },
+    {
+      "id": "target-ar",
+      "from": "ja",
+      "to": "ar",
+      "text": "لن يكون هناك بث غداً.",
+      "unchanged": true,
+      "translated": "لن يكون هناك بث غداً.",
+      "ms": 0,
+      "modelCalls": 0,
+      "pass": true
+    },
+    {
+      "id": "target-th",
+      "from": "ja",
+      "to": "th",
+      "text": "พรุ่งนี้ไม่มีการถ่ายทอดสด",
+      "unchanged": true,
+      "translated": "พรุ่งนี้ไม่มีการถ่ายทอดสด",
+      "ms": 0,
+      "modelCalls": 0,
+      "pass": true
+    },
+    {
+      "id": "en-zh",
+      "from": "en",
+      "to": "zh",
+      "text": "There will be no stream tomorrow.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有直播了。🎉10/26",
+      "ms": 217,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ko-zh",
+      "from": "ko",
+      "to": "zh",
+      "text": "내일은 방송을 쉬겠습니다.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|停止|休"
+      ],
+      "translated": "明天將停止播出節目。🎉10/26",
+      "ms": 217,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "es-zh",
+      "from": "es",
+      "to": "zh",
+      "text": "Mañana no habrá transmisión.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有轉播。🎉10/26",
+      "ms": 229,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "fr-zh",
+      "from": "fr",
+      "to": "zh",
+      "text": "Il n’y aura pas de diffusion demain.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有播出。🎉10/26",
+      "ms": 209,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "de-zh",
+      "from": "de",
+      "to": "zh",
+      "text": "Morgen gibt es keinen Stream.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有直播。🎉10/26",
+      "ms": 216,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "pt-zh",
+      "from": "pt",
+      "to": "zh",
+      "text": "Amanhã não haverá transmissão.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有轉播。🎉10/26",
+      "ms": 216,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "it-zh",
+      "from": "it",
+      "to": "zh",
+      "text": "Domani non ci sarà una diretta.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有直播。🎉10/26",
+      "ms": 203,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ru-zh",
+      "from": "ru",
+      "to": "zh",
+      "text": "Завтра трансляции не будет.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有轉播了。🎉10/26",
+      "ms": 247,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "th-zh",
+      "from": "th",
+      "to": "zh",
+      "text": "พรุ่งนี้ไม่มีการถ่ายทอดสด\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有直播。🎉10/26",
+      "ms": 220,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "vi-zh",
+      "from": "vi",
+      "to": "zh",
+      "text": "Ngày mai sẽ không phát trực tiếp.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有直播。🎉10/26",
+      "ms": 215,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "id-zh",
+      "from": "id",
+      "to": "zh",
+      "text": "Besok tidak ada siaran langsung.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天沒有直播。🎉10/26",
+      "ms": 183,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "ar-zh",
+      "from": "ar",
+      "to": "zh",
+      "text": "لن يكون هناك بث غداً.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ],
+      "translated": "明天不會有播放了。🎉10/26",
+      "ms": 244,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-en",
+      "from": "zh",
+      "to": "en",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ won’t come tomorrow.🎉10/26",
+      "ms": 257,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-ko",
+      "from": "zh",
+      "to": "ko",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ는 내일 오지 않을 것입니다.🎉10/26",
+      "ms": 298,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-es",
+      "from": "zh",
+      "to": "es",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ no vendrá mañana.🎉10/26",
+      "ms": 268,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-fr",
+      "from": "zh",
+      "to": "fr",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ ne viendra pas demain.🎉10/26",
+      "ms": 274,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-de",
+      "from": "zh",
+      "to": "de",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ wird morgen nicht kommen.🎉10/26",
+      "ms": 268,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-pt",
+      "from": "zh",
+      "to": "pt",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ não virá amanhã.🎉10/26",
+      "ms": 275,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-it",
+      "from": "zh",
+      "to": "it",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ non verrà domani.🎉10/26",
+      "ms": 284,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-ru",
+      "from": "zh",
+      "to": "ru",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ завтра не придет.🎉10/26",
+      "ms": 273,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-th",
+      "from": "zh",
+      "to": "th",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ จะไม่มาในวันพรุ่งนี้.🎉10/26",
+      "ms": 357,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-vi",
+      "from": "zh",
+      "to": "vi",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ sẽ không đến vào ngày mai.🎉10/26",
+      "ms": 286,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-id",
+      "from": "zh",
+      "to": "id",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ tidak akan datang besok.🎉10/26",
+      "ms": 248,
+      "modelCalls": 1,
+      "pass": true
+    },
+    {
+      "id": "zh-ar",
+      "from": "zh",
+      "to": "ar",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ],
+      "translated": "まほろ لن يأتي غدًا.🎉10/26",
+      "ms": 273,
+      "modelCalls": 1,
+      "pass": true
+    }
+  ]
+}

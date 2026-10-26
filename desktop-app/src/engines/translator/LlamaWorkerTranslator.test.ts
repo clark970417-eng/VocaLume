@@ -8,6 +8,37 @@ import { HunyuanMT2Translator } from './HunyuanMT2Translator'
 import { WorkerTerminatedError, type WorkerPool } from '../../main/worker-pool'
 import type { TranslateContext } from '../types'
 
+it('rejects invalid local output before caching so the same spoken sentence can recover', async () => {
+  for (const [to, bad, good] of [
+    ['zh', '🎉', '明天沒有直播。'], ['en', '明天沒有直播。', 'No stream tomorrow.'],
+    ['ko', 'Translation: 내일 방송이 없습니다.', '내일 방송이 없습니다.'],
+    ['ar', '', 'لن يكون هناك بث غداً.'], ['nl', '🎉', 'Morgen is er geen livestream.'],
+    ['pl', '🎉', 'Jutro nie będzie transmisji.']
+  ] as const) {
+    const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+    await engine.initialize()
+    pool.sendRequest.mockResolvedValueOnce(bad).mockResolvedValue(good)
+    await expect(engine.translate('明日は配信を休みます。','ja',to)).rejects.toThrow()
+    expect(await engine.translate('明日は配信を休みます。','ja',to)).toBe(good)
+    expect(await engine.translate('明日は配信を休みます。','ja',to)).toBe(good)
+    expect(pool.sendRequest).toHaveBeenCalledTimes(2)
+    await engine.dispose()
+  }
+})
+
+it('does not reuse invalid incremental, speculative or simultaneous translations as a final caption', async () => {
+  const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  await engine.initialize();pool.sendRequest.mockResolvedValue('🎉')
+  const text='明日は配信を休みます。'
+  await expect(engine.translateIncremental(text,'','ja','ko')).rejects.toThrow()
+  await expect(engine.translateSSBD(text,'','ja','ko')).rejects.toThrow()
+  await expect(engine.translateSimulMt(text,'','ja','ko',true)).rejects.toThrow()
+  pool.sendRequest.mockResolvedValue('내일 방송이 없습니다.')
+  expect(await engine.translate(text,'ja','ko')).toBe('내일 방송이 없습니다.')
+  expect(pool.sendRequest).toHaveBeenCalledTimes(4)
+  await engine.dispose()
+})
+
 function fakePool() {
   const order: string[] = []
   const pool = {
@@ -86,6 +117,25 @@ it('preserves literal-only input across decoding modes without loading a model',
   await expect(engine.translate('🎉','ja','zh')).rejects.toBeInstanceOf(WorkerTerminatedError)
 })
 
+it('skips already-target Korean, Russian, Arabic and Thai while respecting glossary overrides', async () => {
+  const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  for(const [to,text] of [['ko','내일은 방송을 쉬겠습니다.'],['ru','Завтра трансляции не будет.'],['ar','لن يكون هناك بث غداً.'],['th','พรุ่งนี้ไม่มีการถ่ายทอดสด']] as const){
+    await expect(engine.translate(text,'ja',to)).resolves.toBe(text)
+    await expect(engine.translateIncremental(text,'','ja',to)).resolves.toBe(text)
+    await expect(engine.translateSSBD(text,'','ja',to)).resolves.toBe(text)
+    await expect(engine.translateSimulMt(text,'','ja',to,true)).resolves.toBe(text)
+  }
+  expect(pool.acquire).not.toHaveBeenCalled();expect(pool.sendRequest).not.toHaveBeenCalled()
+  const cancelled=new AbortController();cancelled.abort(new Error('Cancelled'))
+  await expect(engine.translate('안녕하세요','ja','ko',{previousSegments:[],signal:cancelled.signal})).rejects.toThrow('Cancelled')
+  await engine.initialize();pool.sendRequest.mockResolvedValue('방송')
+  await expect(engine.translate('방송','ja','ko',{previousSegments:[],glossary:[{source:'방송',target:'방송'}]})).resolves.toBe('방송')
+  // Preserve-as-written glossary entries resolve exactly; ordinary explicit
+  // replacements still reach the translator and are not blocked by the shortcut.
+  await engine.translate('방송','ja','ko',{previousSegments:[],glossary:[{source:'방송',target:'라이브'}]})
+  expect(pool.sendRequest).toHaveBeenCalledTimes(1)
+})
+
 it('rejects lost names and protects alternate decoding paths without leaking internal tokens', async () => {
   const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
   await engine.initialize()
@@ -130,7 +180,7 @@ it('answers verified short Japanese without loading, queueing or starting model 
 it('does not let the short path bypass user terminology, other languages or contextual full input', async () => {
   const { pool } = fakePool()
   const engine = new HunyuanMT2Translator({ pool: pool as unknown as WorkerPool })
-  await engine.initialize(); pool.sendRequest.mockResolvedValue('模型譯文')
+  await engine.initialize(); pool.sendRequest.mockImplementation(async request => (request as {to:string}).to === 'en' ? 'Model translation' : '模型譯文')
   const glossary = [{ source: 'ありがとう', target: '感恩' }]
   const custom: TranslateContext = { previousSegments: [], glossary }
   for (const [text, from, to, context] of [
@@ -138,7 +188,7 @@ it('does not let the short path bypass user terminology, other languages or cont
     ['本当に？', 'ja', 'en', undefined], ['真的嗎？', 'zh', 'ja', undefined],
     ['薬は飲みません。', 'ja', 'zh', undefined], ['大丈夫。', 'ja', 'zh', undefined],
     ['明日は何曜日？', 'ja', 'zh', undefined]
-  ] as const) await expect(engine.translate(text, from, to, context)).resolves.toBe('模型譯文')
+  ] as const) await expect(engine.translate(text, from, to, context)).resolves.toBe(to === 'en' ? 'Model translation' : '模型譯文')
   expect(pool.sendRequest).toHaveBeenCalledTimes(6)
   expect(pool.sendRequest.mock.calls[0][0]).toMatchObject({ context: { glossary } })
 })
@@ -188,7 +238,7 @@ it('fails work in progress as terminated and refuses new work after an interrupt
 
 it('reuses identical complete translations but isolates directions, register, terms and disposal', async () => {
   const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
-  await engine.initialize();pool.sendRequest.mockResolvedValue('完整譯文')
+  await engine.initialize();pool.sendRequest.mockImplementation(async request => (request as {to:string}).to === 'en' ? 'Complete translation' : '完整譯文')
   const text='今日はもう遊べません。'
   await engine.translate(text,'ja','zh')
   await engine.translate(text,'ja','zh')

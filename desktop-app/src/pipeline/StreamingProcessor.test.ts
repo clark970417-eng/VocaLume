@@ -6,6 +6,30 @@ import { ContextBuffer } from './ContextBuffer'
 import * as pressure from '../main/performance-state'
 import {contextualShortReply} from '../engines/translator/contextual-short-reply'
 
+it.each([false,true])('bounds other-language SimulMT final recovery and resets rejected cue state (persistent=%s)', async persistent => {
+  const error=Object.assign(new Error('Invalid output'),{name:'TranslationValidationError'})
+  const emitter=new EventEmitter(), errors=vi.fn();emitter.on('error',errors)
+  const source='明日は配信を休みます。', output='No stream tomorrow.'
+  const stt=vi.fn(async()=>({text:source,language:'ja'}))
+  const translate=vi.fn().mockImplementation(async()=>{if(persistent)throw error;return output})
+  const translator={id:'hunyuan-mt-15',translate,translateSimulMt:vi.fn().mockRejectedValueOnce(error).mockResolvedValue(output),resetSimulMtSession:vi.fn()}
+  const glossary:never[]=[], context=new ContextBuffer()
+  const p=new StreamingProcessor({emitter,agreement:new LocalAgreement(),contextBuffer:context,
+    getSTTEngine:()=>({processAudio:stt}),getTranslator:()=>translator,getGlossary:()=>glossary,
+    getSimulMtConfig:()=>({enabled:true,waitK:3}),resolveTargetLanguage:()=> 'en',incrementProcessing(){},decrementProcessing(){}
+  } as unknown as StreamingDeps)
+  try {
+    const result=await p.finalizeStreaming(new Float32Array(16000),16000)
+    if(persistent){expect(result).toBeNull();expect(errors).toHaveBeenCalledOnce();expect(context.getContext().previousSegments).toEqual([])}
+    else expect(result).toMatchObject({sourceText:source,translatedText:output})
+    expect(stt).toHaveBeenCalledOnce()
+    expect(translator.translateSimulMt).toHaveBeenCalledOnce();expect(translate).toHaveBeenCalledOnce()
+    expect(translator.resetSimulMtSession).toHaveBeenCalled()
+    expect(await p.finalizeStreaming(new Float32Array(16000),16000)).toMatchObject({translatedText:output})
+    expect(translate).toHaveBeenCalledOnce()
+  }finally{p.reset()}
+})
+
 it.each(['serial','overlap'])('keeps Chinese reply context scoped to the adjacent cue (%s)', async mode => {
   let source='準備好了嗎？'
   const calls: unknown[]=[]

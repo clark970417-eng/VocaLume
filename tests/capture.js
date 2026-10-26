@@ -1,5 +1,4 @@
-let started=0,last='',lastExpiry=0,hideDrift=null,lastUpdateAt=0,maxGroups=0,hasChinese=false;
-let originalSettings;
+let started=0,last='',lastExpiry=0,hideDrift=null,lastUpdateAt=0,maxGroups=0,hasTranslation=false;
 async function continuousFixture(cycles){
  const context=new AudioContext();
  try{
@@ -18,14 +17,20 @@ async function continuousFixture(cycles){
 }
 document.querySelector('#full-test').onclick=async event=>{
  const status=document.querySelector('#test-status'),video=document.querySelector('video');
+ const target=document.querySelector('#test-target').value;
+ const keys=['subtitleSettings','languageSettings','speechMode'];
+ let saved,requestedCapture=false;
  event.target.disabled=true;
  try{
-  document.querySelector('#events').replaceChildren();last='';started=0;lastExpiry=0;hideDrift=null;lastUpdateAt=0;maxGroups=0;hasChinese=false;
+  const initial=await chrome.runtime.sendMessage({type:'health'});
+  if(!initial?.ok||initial.text.running||initial.text.draining)throw Error('請先停止其他收音再測試');
+  document.querySelector('#events').replaceChildren();last='';started=0;lastExpiry=0;hideDrift=null;lastUpdateAt=0;maxGroups=0;hasTranslation=false;
   const cycles=Number(document.querySelector('#test-cycles').value);
   video.src=await continuousFixture(cycles);video.load();
-  const saved=await chrome.storage.local.get('subtitleSettings');originalSettings=saved.subtitleSettings;
-  await chrome.storage.local.set({subtitleSettings:{...saved.subtitleSettings,captionMode:document.querySelector('#test-mode').value}});
+  saved=await chrome.storage.local.get(keys);
+  await chrome.storage.local.set({subtitleSettings:{...saved.subtitleSettings,captionMode:document.querySelector('#test-mode').value},languageSettings:{...saved.languageSettings,speechSource:'ja',speechTarget:target},speechMode:'desktop'});
   const tab=await chrome.tabs.getCurrent();
+  requestedCapture=true;
   const reply=await chrome.runtime.sendMessage({type:'subtitle-control',action:'start',tabId:tab.id});
   if(!reply?.ok)throw Error(reply?.error||'啟動失敗');
   status.textContent='等待模型就緒';
@@ -58,16 +63,17 @@ document.querySelector('#full-test').onclick=async event=>{
    if(!entries.length||entries.some(e=>e.state!=='done'||!e.translated?.trim()))throw Error('仍有未完成的字幕或只有原文的記錄');
    // This authored fixture says the fish escaped before thanking the viewer.
    // A non-empty output alone must not hide a dropped adjacent clause.
-   if(entries.some(e=>e.original.includes('魚が')&&!e.translated.includes('魚')))throw Error('音檔中的「魚逃走了」被漏譯，不能只保留招呼');
+   const fish={zh:/魚/u,en:/fish/iu,ko:/물고기|생선/u}[target];
+   if(entries.some(e=>e.original.includes('魚が')&&!fish.test(e.translated)))throw Error('音檔中的「魚逃走了」被漏譯，不能只保留招呼');
   }
   const visible=document.querySelector('#jtl-subtitles')?.classList.contains('jtl-visible');
   const count=document.querySelectorAll('#events tr').length;
-  if(!hasChinese)throw Error('沒有收到中文翻譯');
+  if(!hasTranslation)throw Error('沒有收到所選語言的翻譯');
   if([...document.querySelectorAll('#events tr')].some(row=>/原文明說|未完成的句子|原文中沒有|翻譯指示/.test(row.cells[2]?.textContent||'')))throw Error('模型把翻譯提示寫進字幕');
   if(mode==='record'&&Number(document.querySelector('#test-cycles').value)>=6&&document.querySelectorAll('.jtl-pair').length!==4)throw Error('六次播放後應保留四組字幕，目前只有 '+document.querySelectorAll('.jtl-pair').length+' 組');
   status.textContent=mode==='record'?`完整模式：音檔結束，顯示 ${document.querySelectorAll('.jtl-pair').length} 組記錄（最多四組），不按秒數消失。`:`音檔完成；字幕更新 ${count} 次；結束後字幕${visible?'仍顯示（需檢查）':'已清空'}；自動隱藏與截止時間相差 ${hideDrift===null?'未測得':hideDrift+' ms'}。`;
  }catch(error){status.textContent='測試未通過：'+error.message;}
- finally{video.pause();if(video.src.startsWith('blob:'))URL.revokeObjectURL(video.src);await chrome.runtime.sendMessage({type:'subtitle-control',action:'stop'});if(originalSettings)await chrome.storage.local.set({subtitleSettings:originalSettings});event.target.disabled=false;}
+ finally{video.pause();if(video.src.startsWith('blob:'))URL.revokeObjectURL(video.src);if(requestedCapture)await chrome.runtime.sendMessage({type:'subtitle-control',action:'stop'});if(saved){await chrome.storage.local.set(saved);const absent=keys.filter(key=>!(key in saved));if(absent.length)await chrome.storage.local.remove(absent);}event.target.disabled=false;}
 };
 document.querySelector('video').addEventListener('play',()=>{if(!started)started=performance.now();});
 setInterval(()=>{
@@ -77,7 +83,7 @@ setInterval(()=>{
  if(!overlay?.classList.contains('jtl-visible')){if(lastExpiry){hideDrift=Math.round(Date.now()-lastExpiry*1000);lastExpiry=0;}return;}
  lastExpiry=Number(overlay.dataset.expiresAt)||0;
  const ja=[...overlay.querySelectorAll('.jtl-spoken')].map(e=>e.textContent).join(' / '),zh=[...overlay.querySelectorAll('.jtl-chinese')].map(e=>e.textContent).join(' / '),key=ja+'|'+zh;
- if(zh.trim())hasChinese=true;
+ if(globalThis.VocaLumeTranslationGuards.hasLanguageText(zh,document.querySelector('#test-target').value))hasTranslation=true;
  if(key===last)return;last=key;lastUpdateAt=Date.now();maxGroups=Math.max(maxGroups,overlay.querySelectorAll('.jtl-pair').length);
  const row=document.createElement('tr');for(const text of [((performance.now()-started)/1000).toFixed(2),ja,zh]){const cell=document.createElement('td');cell.textContent=text;row.append(cell);}document.querySelector('#events').append(row);
 },150);

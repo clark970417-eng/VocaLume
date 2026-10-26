@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current desktop and extension source: **4.5.7**. Fix intermittent failures when a multi-line message contains an emoji, date, URL or handle on its own line; reading translation keeps its own language pair when speech uses another pair. Busy local text requests get one bounded retry, and failed page translations offer **Try again** without refreshing the page. Known-name protection and the Chinese-language guard remain in place. **Capture waiting and silence thresholds are unchanged.** See the [4.5.7 regression checks and limits](docs/retests/4.5.7.md) and [4.5.6 name-preservation checks](docs/retests/4.5.6.md). Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+Current desktop and extension source: **4.5.8**. Translation recovery checks now cover all 14 supported extension languages: reject empty, malformed or clearly incompatible-script output before both native and browser caches accept it; preserve literal-only lines and known names; avoid redundant Korean, Russian, Arabic and Thai translation. Quickly failed final speech translations may retry once using the recognized sentence. Fix conflicting Chinese-output instructions when Chinese is translated into another language. **Capture waiting and silence thresholds are unchanged.** See the [4.5.8 multilingual checks and limits](docs/retests/4.5.8.md) and [4.5.7 recovery changes](docs/retests/4.5.7.md). Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 

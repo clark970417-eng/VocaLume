@@ -16,6 +16,7 @@ import { E2EStreamingAdapter } from './E2EStreamingAdapter'
 import { LocalAgreement } from './LocalAgreement'
 import { ContextBuffer } from './ContextBuffer'
 import { TranslationCache } from './TranslationCache'
+import { recoverFinalTranslation } from './FinalTranslationRecovery'
 import { EngineManager } from './EngineManager'
 import { StreamingProcessor } from './StreamingProcessor'
 import { isSpeechToneMode, type SpeechToneMode } from './SpeechTone'
@@ -152,10 +153,13 @@ export class TranslationPipeline extends EventEmitter {
         const cached = this.translationCache.get(text, from, to, sourceContext)
         if (cached !== undefined) return cached
         const context = { ...this.contextBuffer.getContext(this.glossary.length ? this.glossary : undefined), ...(sourceContext && {sourceContext}) }
-        const translated = this.adaptiveRouter.getConfig().enabled && this.adaptiveRouter.isReady
+        const generation = this.generation, translator = this.engineManager.translator
+        const current = (): boolean => this.running && generation === this.generation &&
+          translator === this.engineManager.translator && glossaryVersion === this.glossary && to === this.targetLanguage
+        const translated = await recoverFinalTranslation(async () => this.adaptiveRouter.getConfig().enabled && this.adaptiveRouter.isReady
           ? (await this.adaptiveRouter.translate(text, from, to, context, recognitionConfidence)).translated
-          : await this.engineManager.translator!.translate(text, from, to, context)
-        if (glossaryVersion === this.glossary) this.translationCache.set(text, from, to, translated, sourceContext)
+          : await translator!.translate(text, from, to, context), current)
+        if (current()) this.translationCache.set(text, from, to, translated, sourceContext)
         return translated
       },
       getSimulMtConfig: () => ({ enabled: this.simulMtEnabled, waitK: this.simulMtWaitK }),

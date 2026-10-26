@@ -39,7 +39,11 @@ vi.mock('electron', () => ({ utilityProcess: { fork: () => {
         else reply({ type: 'disposed' })
       } else if (message.type === 'translate') {
         fake.translations.push({ model: worker.model, text: String(message.text) })
-        reply({ type: 'result', id: message.id, text: `${worker.model.includes('7B') ? 'large' : 'small'}:${message.text}` })
+        const prose = message.to === 'zh' ? ({
+          'こんばんは、今日はゲームをします。': '晚上好，今天要玩遊戲。',
+          '今日は早めに寝ます。': '今天會早點睡。'
+        } as Record<string,string>)[String(message.text)] ?? message.text : message.text
+        reply({ type: 'result', id: message.id, text: `${worker.model.includes('7B') ? 'large' : 'small'}:${prose}` })
       }
     },
     kill() { if (!worker.killed) { worker.killed = true; setImmediate(() => worker.emit('exit', 0)) } return true }
@@ -145,7 +149,7 @@ it('serves captions first, then answers every text request queued behind the int
     // Model-backed and exact-short requests are each answered once after captions.
     await vi.waitFor(() => expect([1, 2, 3, 4].every(id => t.answered(id).length === 1)).toBe(true), { timeout: 3000 })
     expect(t.answered(1)[0]).toMatchObject({ ok: true, result: { text: 'small:謝謝你今天的直播', fallbackModel: true } })
-    expect(t.answered(2)[0]).toMatchObject({ ok: true, result: { text: 'small:こんばんは、今日はゲームをします。' } })
+    expect(t.answered(2)[0]).toMatchObject({ ok: true, result: { text: 'small:晚上好，今天要玩遊戲。' } })
     expect(t.answered(3)[0]).toMatchObject({ ok: true, result: { text: 'small:明天也會來' } })
     expect(t.answered(4)[0]).toMatchObject({ ok: true, result: { text: '謝謝' } })
     for (const id of [1, 2, 3, 4]) expect(t.answered(id)[0].at).toBeGreaterThanOrEqual(t.answered(6)[0].at)
@@ -221,7 +225,7 @@ it('answers Stop at once when it interrupts a cold draft, and still answers the 
     expect(t.answered(3)[0].at - began).toBeLessThan(CAPTION_BOUND_MS)
     await vi.waitFor(() => expect(t.answered(1).length + t.answered(2).length).toBe(2), { timeout: 3000 })
     expect(t.answered(1)[0]).toMatchObject({ ok: true, result: { text: 'small:晚安', fallbackModel: true } })
-    expect(t.answered(2)[0]).toMatchObject({ ok: true, result: { text: 'small:今日は早めに寝ます。' } })
+    expect(t.answered(2)[0]).toMatchObject({ ok: true, result: { text: 'small:今天會早點睡。' } })
     expect(largeInits()).toBe(1)
   } finally { await t.close() }
 })

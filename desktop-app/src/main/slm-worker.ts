@@ -1,4 +1,5 @@
 import { japaneseChineseInstruction, type WritingStyle } from './japanese-chinese-prompt'
+import { multilingualTranslationInstruction } from './multilingual-prompt'
 import { boundedTranslation, TranslationCancelledError } from './bounded-translation'
 /**
  * UtilityProcess worker for SLM inference via node-llama-cpp.
@@ -245,6 +246,8 @@ function buildTranslationPrompt(
   }
 
   if (activeModelType === 'hunyuan-mt-15' || activeModelType === 'hunyuan-mt-2') {
+    const multilingual = multilingualTranslationInstruction(from, to, text)
+    if (multilingual !== undefined) return contextSection + multilingual + text
     const isChinese = from === 'zh' || from === 'zh-Hant' || to === 'zh' || to === 'zh-Hant'
     if (isChinese) {
       const targetZh = LANG_NAMES_ZH[to] ?? to

@@ -2,6 +2,15 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.8 - 2026-10-26
+
+- Validate local model output before its native cache accepts it, including candidates reused by speech captions. Quickly failed final translations can recover once from invalid output, lost name markers or a worker exit without recognizing the audio again. Slow, cancelled and overloaded requests are not retried; persistent failures remain visible.
+- Apply nonempty/format/script validation to all 14 supported extension languages, including local, cloud, draft and caption results. Invalid results are not cached; a later retry can recover. Retained names and URLs cannot substitute for missing translated prose. Accept legitimate unchanged same-alphabet words and Han-only Japanese.
+- Use Unicode script evidence for reading, including Vietnamese letters outside Latin-1. Keep literal-only rows quiet. Extend conservative already-target bypasses to Korean, Russian, Arabic and Thai without guessing between Latin-alphabet languages.
+- Remove contradictory Traditional-Chinese style instructions from Chinese → other-language HY-MT1.5/2 requests. State the source language for other languages → Chinese; explicitly preserve actual name markers in Chinese → other-language requests. Keep the Japanese/Chinese-specific templates and other non-Chinese templates unchanged.
+- Verify 182 language-pair validation contracts and 40 authored real-model cases. Script checks are not semantic language identification or a claim that all language pairs have equal accuracy. See [results and limits](docs/retests/4.5.8.md).
+- Keep capture waiting, VAD thresholds, model selection, icon and saved preferences unchanged. Existing bounded retry/manual recovery is shared across languages. Public preview installers remain 4.4.5.
+
 ## 4.5.7 - 2026-10-26
 
 - Keep literal-only chunks (emoji, dates, URLs, handles and punctuation) unchanged instead of rejecting an otherwise valid multi-line translation. Ordinary Japanese, Chinese and English still use the translation route; a model cannot replace real prose with an emoji and pass validation.

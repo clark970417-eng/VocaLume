@@ -1,0 +1,477 @@
+{
+  "provenance": "Authored multilingual smoke cases; no private user content. Checks cover script, literal retention and nonempty output, not native-speaker semantic review.",
+  "cases": [
+    {
+      "id": "ja-en",
+      "from": "ja",
+      "to": "en",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-ko",
+      "from": "ja",
+      "to": "ko",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-es",
+      "from": "ja",
+      "to": "es",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-fr",
+      "from": "ja",
+      "to": "fr",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-de",
+      "from": "ja",
+      "to": "de",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-pt",
+      "from": "ja",
+      "to": "pt",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-it",
+      "from": "ja",
+      "to": "it",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-ru",
+      "from": "ja",
+      "to": "ru",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-th",
+      "from": "ja",
+      "to": "th",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-vi",
+      "from": "ja",
+      "to": "vi",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-id",
+      "from": "ja",
+      "to": "id",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "ja-ar",
+      "from": "ja",
+      "to": "ar",
+      "text": "まほろは明日来ません。\n🎉\n10/26\nhttps://example.invalid/live",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26",
+        "https://example.invalid/live"
+      ]
+    },
+    {
+      "id": "target-ko",
+      "from": "ja",
+      "to": "ko",
+      "text": "내일은 방송을 쉬겠습니다.",
+      "unchanged": true
+    },
+    {
+      "id": "target-ru",
+      "from": "ja",
+      "to": "ru",
+      "text": "Завтра трансляции не будет.",
+      "unchanged": true
+    },
+    {
+      "id": "target-ar",
+      "from": "ja",
+      "to": "ar",
+      "text": "لن يكون هناك بث غداً.",
+      "unchanged": true
+    },
+    {
+      "id": "target-th",
+      "from": "ja",
+      "to": "th",
+      "text": "พรุ่งนี้ไม่มีการถ่ายทอดสด",
+      "unchanged": true
+    },
+    {
+      "id": "en-zh",
+      "from": "en",
+      "to": "zh",
+      "text": "There will be no stream tomorrow.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "ko-zh",
+      "from": "ko",
+      "to": "zh",
+      "text": "내일은 방송을 쉬겠습니다.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|停止|休"
+      ]
+    },
+    {
+      "id": "es-zh",
+      "from": "es",
+      "to": "zh",
+      "text": "Mañana no habrá transmisión.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "fr-zh",
+      "from": "fr",
+      "to": "zh",
+      "text": "Il n’y aura pas de diffusion demain.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "de-zh",
+      "from": "de",
+      "to": "zh",
+      "text": "Morgen gibt es keinen Stream.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "pt-zh",
+      "from": "pt",
+      "to": "zh",
+      "text": "Amanhã não haverá transmissão.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "it-zh",
+      "from": "it",
+      "to": "zh",
+      "text": "Domani non ci sarà una diretta.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "ru-zh",
+      "from": "ru",
+      "to": "zh",
+      "text": "Завтра трансляции не будет.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "th-zh",
+      "from": "th",
+      "to": "zh",
+      "text": "พรุ่งนี้ไม่มีการถ่ายทอดสด\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "vi-zh",
+      "from": "vi",
+      "to": "zh",
+      "text": "Ngày mai sẽ không phát trực tiếp.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "id-zh",
+      "from": "id",
+      "to": "zh",
+      "text": "Besok tidak ada siaran langsung.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "ar-zh",
+      "from": "ar",
+      "to": "zh",
+      "text": "لن يكون هناك بث غداً.\n🎉\n10/26",
+      "literal": [
+        "🎉",
+        "10/26"
+      ],
+      "must": [
+        "明天|明日",
+        "不|無|无|沒有|没有|沒|没|暫停|暂停|休"
+      ]
+    },
+    {
+      "id": "zh-en",
+      "from": "zh",
+      "to": "en",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-ko",
+      "from": "zh",
+      "to": "ko",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-es",
+      "from": "zh",
+      "to": "es",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-fr",
+      "from": "zh",
+      "to": "fr",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-de",
+      "from": "zh",
+      "to": "de",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-pt",
+      "from": "zh",
+      "to": "pt",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-it",
+      "from": "zh",
+      "to": "it",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-ru",
+      "from": "zh",
+      "to": "ru",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-th",
+      "from": "zh",
+      "to": "th",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-vi",
+      "from": "zh",
+      "to": "vi",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-id",
+      "from": "zh",
+      "to": "id",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    },
+    {
+      "id": "zh-ar",
+      "from": "zh",
+      "to": "ar",
+      "text": "まほろ明天不會來。\n🎉\n10/26",
+      "literal": [
+        "まほろ",
+        "🎉",
+        "10/26"
+      ]
+    }
+  ]
+}

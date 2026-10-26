@@ -3,6 +3,7 @@ import { PreviewBudget } from '../../../preview-budget.mjs'
 import { completeSentence } from '../../../sentence-boundary.mjs'
 import { RecognitionCheckpoint } from './RecognitionCheckpoint'
 import { RecognitionBoundary } from './RecognitionBoundary'
+import { recoverFinalTranslation } from './FinalTranslationRecovery'
 import { recognitionVocabulary } from '../engines/stt/recognition-vocabulary'
 import { JapaneseCaptionContext } from './JapaneseCaptionContext'
 import { SpeechToneAnalyzer } from './SpeechToneAnalyzer'
@@ -667,15 +668,22 @@ export class StreamingProcessor {
 
       if (!nonverbal && useSimulMt && translator && agreement.confirmedText.trim()) {
         // SimulMT revision: retranslate the full clause for accuracy (#550)
-        translatedText = await translator.translateSimulMt!(
+        let usedRevision = true
+        const context = { ...this.deps.contextBuffer.getContext(glossary), ...(sourceContext && {sourceContext}) }
+        translatedText = await recoverFinalTranslation(() => translator.translateSimulMt!(
           agreement.confirmedText,
           this.simulMtPreviousOutput,
           sttResult.language,
           targetLang,
           true, // revision mode — full clause available
-          this.deps.contextBuffer.getContext(glossary)
-        )
-        translationStage = 'simulmt-revised'
+          context
+        ), () => this.isCurrentGeneration(gen, utterance) && translator === this.deps.getTranslator() &&
+          glossaryEntries === this.deps.getGlossary() && targetLang === this.deps.resolveTargetLanguage(sttResult.language), {
+          // Bypass the rejected SimulMT session once using the complete source.
+          // Do not nest translateFinal's retry and accidentally run three times.
+          retry: () => { usedRevision = false; return translator.translate(agreement.confirmedText, sttResult.language, targetLang, context) }
+        })
+        translationStage = usedRevision ? 'simulmt-revised' : undefined
         if (!this.isCurrentGeneration(gen, utterance)) return null
         this.deps.contextBuffer.add(agreement.confirmedText, translatedText)
 
@@ -747,10 +755,11 @@ export class StreamingProcessor {
       this.resetUtterance()
       return result
     } catch (err) {
-      this.deps.agreement.reset()
-      this.lastTranslatedSource = ''
-      this.lastTranslatedConfirmed = ''
-      this.deps.emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
+      if (this.isCurrentGeneration(gen, utterance)) {
+        this.deps.agreement.reset()
+        this.resetUtterance()
+        this.deps.emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
+      }
       return null
     } finally {
       this.streamingLock = false

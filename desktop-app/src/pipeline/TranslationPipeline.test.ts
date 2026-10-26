@@ -130,6 +130,35 @@ it('keeps already-Chinese recognition in the selected Chinese target for whole a
   } finally {await p.dispose()}
 })
 
+it('recovers a failed spoken translation without repeating recognition or losing the source sentence', async () => {
+  for (const [from,to,text,translated] of [
+    ['ja','zh','明日は配信を休みます。','明天沒有直播。'],
+    ['ko','en','내일 방송이 없습니다.','No stream tomorrow.'],
+    ['zh','ja','明天沒有直播。','明日は配信がありません。'],
+    ['en','ar','No stream tomorrow.','لن يكون هناك بث غداً.']
+  ] as const) {
+    const p=new TranslationPipeline(), source=vi.fn()
+    const stt=new MockSTT('retry-stt',{text,language:from,timestamp:Date.now(),isFinal:true})
+    const recognize=vi.spyOn(stt,'processAudio')
+    const translator=new MockTranslator('hunyuan-mt-15')
+    const translate=vi.spyOn(translator,'translate')
+      .mockRejectedValueOnce(Object.assign(new Error('Invalid translation'),{name:'TranslationValidationError'}))
+      .mockResolvedValue(translated)
+    p.registerSTT(stt.id,()=>stt);p.registerTranslator(translator.id,()=>translator)
+    await p.switchEngine({mode:'cascade',sttEngineId:stt.id,translatorEngineId:translator.id})
+    p.setLanguageConfig(from,to);p.on('source-result',source);p.start()
+    try {
+      const audio=new Float32Array(16000)
+      expect(await p.finalizeStreaming(audio,16000)).toMatchObject({sourceText:text,translatedText:translated,targetLanguage:to})
+      expect(recognize).toHaveBeenCalledOnce()
+      expect(source).toHaveBeenCalledExactlyOnceWith(text)
+      expect(translate).toHaveBeenCalledTimes(2)
+      expect(await p.finalizeStreaming(audio,16000)).toMatchObject({translatedText:translated})
+      expect(translate).toHaveBeenCalledTimes(2)
+    } finally {await p.dispose()}
+  }
+})
+
 it('keys repeated Japanese suffix translations by the recovered source and clears context on reconfiguration', async () => {
   const p=new TranslationPipeline()
   let source='魚が逃げて。'

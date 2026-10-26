@@ -19,13 +19,9 @@ const settings=()=>chrome.storage.local.get(["openrouterKey","nvidiaKey","speech
 const pair=(from,to)=>`${from}-${to}`;
 function parseDirection(direction){const [from,to]=String(direction||'').split('-');if(!LANGUAGE_CODES.has(from)||!LANGUAGE_CODES.has(to)||from===to)throw new Error('不支援這組語言');return {from,to};}
 async function languageSettings(){const saved=(await chrome.storage.local.get('languageSettings')).languageSettings||{};return {...languageDefaults,...saved};}
-function checkedTranslation(value,direction,source){const {from,to}=parseDirection(direction);return (from==='ja'&&to==='zh')||(from==='zh'&&to==='ja')?validateTranslation(value,direction,source):String(value||'').trim();}
+function checkedTranslation(value,direction,source){parseDirection(direction);return validateTranslation(value,direction,source);}
 function checkedPageTranslation(value,direction,source){
- const {to}=parseDirection(direction),result=String(value||'').trim();
- if(!result||result===String(source||'').trim())throw new Error('翻譯服務未回傳結果');
- const targetPattern={zh:/[\u3400-\u9fff]/,ja:/[\u3040-\u30ff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
- if(targetPattern[to]&&!targetPattern[to].test(result))throw new Error('翻譯服務未回傳目標語言');
- return result;
+ return checkedTranslation(value,direction,source);
 }
 const deadline=(signal,ms)=>signal?AbortSignal.any([signal,AbortSignal.timeout(ms)]):AbortSignal.timeout(ms);
 async function request(url,key,body,signal){const r=await fetch(url,{signal:deadline(signal,10000),method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok){const error=new Error(`API ${r.status}`);error.status=r.status;throw error;}return d}
@@ -209,7 +205,7 @@ function desktopEvent(event){
   desktopAdvanceTimer=null;desktopSettledAt=0;
  }
  meta.caption={original,translated,final,error:final&&!translated?(error||'翻譯未完成'):''};
- diagnostics.lastRecognition=Date.now();modelStatus='已辨識日文';
+ diagnostics.lastRecognition=Date.now();modelStatus='已辨識語音';
  if(meta.session===gate.session&&meta.createdAt>=(diagnostics.captionPhaseAt||0)){diagnostics.captionPhase=translated?'translated':'translating';diagnostics.captionPhaseAt=meta.createdAt;}
  if(translated)diagnostics.chineseLagMs=Date.now()-meta.audioEndAt;
  if(meta.mode==='record'){
@@ -256,7 +252,7 @@ function addTranscript(m){
  const item=gate.accept(m.session,++outputSequence,m.text);if(!item)return;
  item.source=m.source;item.speechId=m.id;item.expiresAt=Date.now()/1000+captionHold;item.provisional=Boolean(m.provisional);item.audioEndAt=m.audioEndAt;item.stableText=m.stableText||'';
  if(!items[0]?.translated||!fresh(items[0])){items.length=0;items.push(item);pushSubtitle(item);}
- diagnostics.lastRecognition=Date.now();diagnostics.decodeMs=m.decodeMs;modelStatus='已辨識日文';
+ diagnostics.lastRecognition=Date.now();diagnostics.decodeMs=m.decodeMs;modelStatus='已辨識語音';
  translateItem({session:m.session,item,started:Date.now()});
 }
 async function ensureOffscreen(){if(await chrome.offscreen.hasDocument())return;await chrome.offscreen.createDocument({url:'offscreen.html',reasons:['USER_MEDIA'],justification:'擷取目前分頁音訊以產生字幕'});}

@@ -11,6 +11,7 @@ import { gameTermTranslation, selectGameTerminology } from '../../../../game-voc
 import { shortJaZhTranslation } from './ja-zh-short'
 import { contextualShortReply } from './contextual-short-reply'
 import { protectNames, alreadyTargetLanguage, isNonLinguisticText } from '../../../../translation-guards.mjs'
+import { validateTranslation } from '../../../../translation-policy.mjs'
 
 export interface GGUFVariantConfig {
   filename: string
@@ -170,10 +171,12 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     // Exact text, direction, model options, register and terminology all belong
     // to the key. Nothing is normalized away from what the model sees.
     const key = JSON.stringify([this.workerOptions, text, from, to, serialContext])
-    const result = await this.translationRequests.run(key, async (signal, onPartial) => protectedText.restore(await this.pool.sendRequest(
+    // Validate inside the cache task: rejecting only at the browser leaves the
+    // bad native result cached, so retrying the same caption can never recover.
+    const result = await this.translationRequests.run(key, async (signal, onPartial) => validateTranslation(protectedText.restore(await this.pool.sendRequest(
       { type: 'translate', text: protectedText.text, from, to, context: serialContext },
       'translate', this.workerOptions, signal, context?.onPartial ? onPartial : undefined
-    )), this.requestSignal(context?.signal), context?.onPartial ? value => {
+    )), `${from}-${to}`, text, serialContext?.glossary), this.requestSignal(context?.signal), context?.onPartial ? value => {
       const restored = protectedText.restorePartial(value)
       if (restored.trim()) context.onPartial!(restored)
     } : undefined)
@@ -196,10 +199,11 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
       throw new Error(`[${this.id}-worker] Not initialized`)
     }
 
-    return this.pool.sendRequest(
+    const result = await this.pool.sendRequest(
       { type: 'translate-incremental', text, previousOutput, from, to, context: this.serialContext(text, from, to, context) },
       'translate-incremental', this.workerOptions, this.requestSignal(context?.signal)
     )
+    return validateTranslation(result, `${from}-${to}`, text, context?.glossary)
   }
 
   /**
@@ -237,7 +241,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     )
     const ms = performance.now() - t0
     this.log.info(`ssbd ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
-    return result
+    return validateTranslation(result, `${from}-${to}`, text, context?.glossary)
   }
 
   /**
@@ -276,7 +280,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     const ms = performance.now() - t0
     const label = isRevision ? 'simulmt-rev' : 'simulmt-incr'
     this.log.info(`${label} ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
-    return result
+    return validateTranslation(result, `${from}-${to}`, text, context?.glossary)
   }
 
   /** Reset the persistent SimulMT session (e.g. on speech segment boundary) */
