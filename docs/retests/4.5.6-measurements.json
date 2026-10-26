@@ -1,0 +1,596 @@
+{
+  "date": "2026-10-26",
+  "baselineCommit": "fe91a0121b2795f930218248f12fcc48a03c9f89",
+  "candidateVersion": "4.5.6",
+  "environment": {
+    "chip": "Apple M5",
+    "memoryGiB": 16,
+    "os": "macOS 26.4.1",
+    "model": "HY-MT1.5-1.8B-Q4_K_M"
+  },
+  "provenance": "Authored regression examples, not copied user messages or a blind accuracy benchmark.",
+  "scope": "One sequential pass per version, baseline then candidate, initialized local model; no capture, audio recognition, queueing or browser UI timing. Selected regex checks are not a general accuracy score.",
+  "checkCorrection": "Both negation-control outputs were identical and valid; the check was expanded to accept the synonym 無法. No generated output or timing was edited.",
+  "baseline": {
+    "metrics": {
+      "cases": 20,
+      "selectedChecksPassed": 11,
+      "namedSentences": 11,
+      "allSpecifiedNamesPreserved": 7,
+      "unchangedCases": 5,
+      "unchangedCasesPassed": 0,
+      "namedSentenceMedianMs": 203
+    },
+    "results": [
+      {
+        "id": "name-negative",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろは明日来ません。",
+        "names": [
+          "まほろ"
+        ],
+        "must": [
+          "明天",
+          "不|沒|未"
+        ],
+        "translated": "瑪霍羅明天不會來了。",
+        "ms": 203,
+        "pass": false
+      },
+      {
+        "id": "name-thanks",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろちゃん、今日は配信ありがとう！",
+        "names": [
+          "まほろちゃん"
+        ],
+        "must": [
+          "謝|感謝",
+          "直播"
+        ],
+        "translated": "真弘子ちゃん，今天真的很謝謝你的直播！",
+        "ms": 245,
+        "pass": false
+      },
+      {
+        "id": "full-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "鹿乃まほろの歌が好きです。",
+        "names": [
+          "鹿乃まほろ"
+        ],
+        "must": [
+          "喜歡",
+          "歌"
+        ],
+        "translated": "我喜歡鹿乃まほろ的歌。",
+        "ms": 173,
+        "pass": true
+      },
+      {
+        "id": "name-time",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろの配信は午後八時からです。",
+        "names": [
+          "まほろ"
+        ],
+        "must": [
+          "八|8",
+          "下午"
+        ],
+        "translated": "まほろ的直播時間是下午八點開始。",
+        "ms": 201,
+        "pass": true
+      },
+      {
+        "id": "two-name-forms",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろさんと鹿乃まほろちゃん、二人ともありがとう。",
+        "names": [
+          "まほろさん",
+          "鹿乃まほろちゃん"
+        ],
+        "must": [
+          "謝|感謝"
+        ],
+        "translated": "マホロさん和鹿乃マホロちゃん，你們兩個都真是太好了。",
+        "ms": 295,
+        "pass": false
+      },
+      {
+        "id": "katakana-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "マホロちゃん、お疲れ様でした。",
+        "names": [
+          "マホロちゃん"
+        ],
+        "must": [
+          "辛苦"
+        ],
+        "translated": "マホロちゃん，你真辛苦了。",
+        "ms": 175,
+        "pass": true
+      },
+      {
+        "id": "latin-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "Mahoroさん、また明日ね。",
+        "names": [
+          "Mahoroさん"
+        ],
+        "must": [
+          "明天"
+        ],
+        "translated": "馬霍羅先生，再見了，明天見。",
+        "ms": 185,
+        "pass": false
+      },
+      {
+        "id": "quoted-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "「まほろ」は人の名前です。",
+        "names": [
+          "まほろ"
+        ],
+        "must": [
+          "人名|名字|姓名|名稱"
+        ],
+        "translated": "「まほろ」是一個人的名字。",
+        "ms": 152,
+        "pass": true
+      },
+      {
+        "id": "name-zh-ja",
+        "from": "zh",
+        "to": "ja",
+        "text": "まほろちゃん，謝謝你的直播，我明天還會來。",
+        "names": [
+          "まほろちゃん"
+        ],
+        "must": [
+          "明日",
+          "ありがとう|感謝"
+        ],
+        "translated": "まほろちゃん、配信に感謝します。私は明日もまた来ます。",
+        "ms": 379,
+        "pass": true
+      },
+      {
+        "id": "name-zh-ja-negative",
+        "from": "zh",
+        "to": "ja",
+        "text": "まほろ今天不會開台，明天八點才會。",
+        "names": [
+          "まほろ"
+        ],
+        "must": [
+          "明日",
+          "八|8",
+          "ません|ない"
+        ],
+        "translated": "まほろは今日は開台しません。明日の8時に始まります。",
+        "ms": 305,
+        "pass": true
+      },
+      {
+        "id": "full-name-zh-ja",
+        "from": "zh",
+        "to": "ja",
+        "text": "我很喜歡鹿乃まほろ的歌。",
+        "names": [
+          "鹿乃まほろ"
+        ],
+        "must": [
+          "好き",
+          "歌"
+        ],
+        "translated": "私は鹿乃まほろの歌がとても好きです。",
+        "ms": 228,
+        "pass": true
+      },
+      {
+        "id": "chinese-with-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろ今天直播辛苦了，我明天還會來。",
+        "unchanged": true,
+        "translated": "マホロ，你今天的直播真的辛苦了，我明天還會再來的。",
+        "ms": 304,
+        "pass": false
+      },
+      {
+        "id": "chinese-with-honorific",
+        "from": "ja",
+        "to": "zh",
+        "text": "我很喜歡まほろちゃん的歌。",
+        "unchanged": true,
+        "translated": "我真的很喜歡まほろちゃん的歌。",
+        "ms": 196,
+        "pass": false
+      },
+      {
+        "id": "chinese",
+        "from": "ja",
+        "to": "zh",
+        "text": "這段已經是中文，不需要再翻譯。",
+        "unchanged": true,
+        "translated": "這段文字已經是中文了，不需要再進行翻譯。",
+        "ms": 220,
+        "pass": false
+      },
+      {
+        "id": "simplified-chinese",
+        "from": "ja",
+        "to": "zh",
+        "text": "这段已经是中文，不需要再翻译。",
+        "unchanged": true,
+        "translated": "這段文字已經是中文了，不需要再進行翻譯。",
+        "ms": 216,
+        "pass": false
+      },
+      {
+        "id": "name-only",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろ",
+        "unchanged": true,
+        "translated": "瑪霍羅",
+        "ms": 72,
+        "pass": false
+      },
+      {
+        "id": "ordinary-word",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろばという言葉を知っていますか。",
+        "must": [
+          "詞|地方|意思|聽|知"
+        ],
+        "translated": "您知道「まほろば」這個詞嗎？",
+        "ms": 195,
+        "pass": true
+      },
+      {
+        "id": "different-character",
+        "from": "ja",
+        "to": "zh",
+        "text": "マホロアはゲームのキャラクターです。",
+        "must": [
+          "遊戲",
+          "角色"
+        ],
+        "translated": "馬霍洛亞是一個遊戲中的角色。",
+        "ms": 185,
+        "pass": true
+      },
+      {
+        "id": "negation-control",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日はもう遊べませんが、昨日は最後まで遊べました。",
+        "must": [
+          "今天",
+          "昨天",
+          "不能|沒辦法|無法"
+        ],
+        "translated": "今天已經無法再玩了，但昨天還可以玩到最後一刻。",
+        "ms": 253,
+        "pass": true
+      },
+      {
+        "id": "draft-control",
+        "from": "zh",
+        "to": "ja",
+        "text": "昨天太忙，沒能看完直播。",
+        "must": [
+          "昨日",
+          "忙",
+          "見|観",
+          "なかった|ませんでした"
+        ],
+        "translated": "昨日はあまり忙しくて、配信を全部見ることができませんでした。",
+        "ms": 359,
+        "pass": true
+      }
+    ]
+  },
+  "candidate": {
+    "metrics": {
+      "cases": 20,
+      "selectedChecksPassed": 20,
+      "namedSentences": 11,
+      "allSpecifiedNamesPreserved": 11,
+      "unchangedCases": 5,
+      "unchangedCasesPassed": 5,
+      "namedSentenceMedianMs": 212
+    },
+    "results": [
+      {
+        "id": "name-negative",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろは明日来ません。",
+        "names": [
+          "まほろ"
+        ],
+        "must": [
+          "明天",
+          "不|沒|未"
+        ],
+        "translated": "まほろ明天不會來了。",
+        "ms": 190,
+        "pass": true
+      },
+      {
+        "id": "name-thanks",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろちゃん、今日は配信ありがとう！",
+        "names": [
+          "まほろちゃん"
+        ],
+        "must": [
+          "謝|感謝",
+          "直播"
+        ],
+        "translated": "まほろちゃん，今天謝謝你們的直播！",
+        "ms": 235,
+        "pass": true
+      },
+      {
+        "id": "full-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "鹿乃まほろの歌が好きです。",
+        "names": [
+          "鹿乃まほろ"
+        ],
+        "must": [
+          "喜歡",
+          "歌"
+        ],
+        "translated": "我喜歡鹿乃まほろ的歌。",
+        "ms": 163,
+        "pass": true
+      },
+      {
+        "id": "name-time",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろの配信は午後八時からです。",
+        "names": [
+          "まほろ"
+        ],
+        "must": [
+          "八|8",
+          "下午"
+        ],
+        "translated": "まほろ的直播時間是下午八點開始。",
+        "ms": 212,
+        "pass": true
+      },
+      {
+        "id": "two-name-forms",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろさんと鹿乃まほろちゃん、二人ともありがとう。",
+        "names": [
+          "まほろさん",
+          "鹿乃まほろちゃん"
+        ],
+        "must": [
+          "謝|感謝"
+        ],
+        "translated": "まほろさん和鹿乃まほろちゃん，你們兩個人都很棒。謝謝你們。",
+        "ms": 304,
+        "pass": true
+      },
+      {
+        "id": "katakana-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "マホロちゃん、お疲れ様でした。",
+        "names": [
+          "マホロちゃん"
+        ],
+        "must": [
+          "辛苦"
+        ],
+        "translated": "マホロちゃん，辛苦了。",
+        "ms": 130,
+        "pass": true
+      },
+      {
+        "id": "latin-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "Mahoroさん、また明日ね。",
+        "names": [
+          "Mahoroさん"
+        ],
+        "must": [
+          "明天"
+        ],
+        "translated": "Mahoroさん，再見了，明天見哦。",
+        "ms": 153,
+        "pass": true
+      },
+      {
+        "id": "quoted-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "「まほろ」は人の名前です。",
+        "names": [
+          "まほろ"
+        ],
+        "must": [
+          "人名|名字|姓名|名稱"
+        ],
+        "translated": "「まほろ」是一個人的名字。",
+        "ms": 163,
+        "pass": true
+      },
+      {
+        "id": "name-zh-ja",
+        "from": "zh",
+        "to": "ja",
+        "text": "まほろちゃん，謝謝你的直播，我明天還會來。",
+        "names": [
+          "まほろちゃん"
+        ],
+        "must": [
+          "明日",
+          "ありがとう|感謝"
+        ],
+        "translated": "まほろちゃん、ご配信ありがとうございます。明日もまた来ます。",
+        "ms": 380,
+        "pass": true
+      },
+      {
+        "id": "name-zh-ja-negative",
+        "from": "zh",
+        "to": "ja",
+        "text": "まほろ今天不會開台，明天八點才會。",
+        "names": [
+          "まほろ"
+        ],
+        "must": [
+          "明日",
+          "八|8",
+          "ません|ない"
+        ],
+        "translated": "まほろ今日は番組を開催しません。明日の8時に始まります。",
+        "ms": 338,
+        "pass": true
+      },
+      {
+        "id": "full-name-zh-ja",
+        "from": "zh",
+        "to": "ja",
+        "text": "我很喜歡鹿乃まほろ的歌。",
+        "names": [
+          "鹿乃まほろ"
+        ],
+        "must": [
+          "好き",
+          "歌"
+        ],
+        "translated": "私は鹿乃まほろの歌がとても好きです。",
+        "ms": 217,
+        "pass": true
+      },
+      {
+        "id": "chinese-with-name",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろ今天直播辛苦了，我明天還會來。",
+        "unchanged": true,
+        "translated": "まほろ今天直播辛苦了，我明天還會來。",
+        "ms": 0,
+        "pass": true
+      },
+      {
+        "id": "chinese-with-honorific",
+        "from": "ja",
+        "to": "zh",
+        "text": "我很喜歡まほろちゃん的歌。",
+        "unchanged": true,
+        "translated": "我很喜歡まほろちゃん的歌。",
+        "ms": 0,
+        "pass": true
+      },
+      {
+        "id": "chinese",
+        "from": "ja",
+        "to": "zh",
+        "text": "這段已經是中文，不需要再翻譯。",
+        "unchanged": true,
+        "translated": "這段已經是中文，不需要再翻譯。",
+        "ms": 0,
+        "pass": true
+      },
+      {
+        "id": "simplified-chinese",
+        "from": "ja",
+        "to": "zh",
+        "text": "这段已经是中文，不需要再翻译。",
+        "unchanged": true,
+        "translated": "这段已经是中文，不需要再翻译。",
+        "ms": 0,
+        "pass": true
+      },
+      {
+        "id": "name-only",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろ",
+        "unchanged": true,
+        "translated": "まほろ",
+        "ms": 0,
+        "pass": true
+      },
+      {
+        "id": "ordinary-word",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろばという言葉を知っていますか。",
+        "must": [
+          "詞|地方|意思|聽|知"
+        ],
+        "translated": "您知道「まほろば」這個詞嗎？",
+        "ms": 250,
+        "pass": true
+      },
+      {
+        "id": "different-character",
+        "from": "ja",
+        "to": "zh",
+        "text": "マホロアはゲームのキャラクターです。",
+        "must": [
+          "遊戲",
+          "角色"
+        ],
+        "translated": "馬霍洛亞是一個遊戲中的角色。",
+        "ms": 185,
+        "pass": true
+      },
+      {
+        "id": "negation-control",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日はもう遊べませんが、昨日は最後まで遊べました。",
+        "must": [
+          "今天",
+          "昨天",
+          "不能|沒辦法|無法"
+        ],
+        "translated": "今天已經無法再玩了，但昨天還可以玩到最後一刻。",
+        "ms": 252,
+        "pass": true
+      },
+      {
+        "id": "draft-control",
+        "from": "zh",
+        "to": "ja",
+        "text": "昨天太忙，沒能看完直播。",
+        "must": [
+          "昨日",
+          "忙",
+          "見|観",
+          "なかった|ませんでした"
+        ],
+        "translated": "昨日はあまり忙しくて、配信を全部見ることができませんでした。",
+        "ms": 357,
+        "pass": true
+      }
+    ]
+  }
+}

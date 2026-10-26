@@ -147,6 +147,7 @@ export class TranslationPipeline extends EventEmitter {
       },
       canReuseInterimTranslation: () => !this.adaptiveRouter.getConfig().enabled,
       translateFinal: async (text, from, to, recognitionConfidence, sourceContext) => {
+        if (from === to) return text
         const glossaryVersion = this.glossary
         const cached = this.translationCache.get(text, from, to, sourceContext)
         if (cached !== undefined) return cached
@@ -512,7 +513,9 @@ export class TranslationPipeline extends EventEmitter {
       // Check translation cache before calling engine
       const cached = this.translationCache.get(sttResult.text, sttResult.language, targetLang)
       let translated: string
-      if (cached !== undefined) {
+      if (sttResult.language === targetLang) {
+        translated = sttResult.text
+      } else if (cached !== undefined) {
         translated = cached
         log.info(`Translate: cache hit → "${translated}"`)
       } else if (this.adaptiveRouter.getConfig().enabled && this.adaptiveRouter.isReady) {
@@ -736,16 +739,11 @@ export class TranslationPipeline extends EventEmitter {
 
   /**
    * Resolve the target language based on user settings and detected source language.
-   * When source and target are the same, falls back to ja<->en swap for backward compatibility.
+   * Keep the user's target even when recognition already returns that language.
+   * A Chinese sentence in a Japanese stream must not silently switch to Japanese.
    */
-  private resolveTargetLanguage(detectedLang: Language): Language {
-    const target = this.targetLanguage
-    // If detected language matches target, swap to avoid no-op translation
-    if (detectedLang === target) {
-      // Backward-compatible fallback: ja<->en
-      return detectedLang === 'ja' ? 'en' : 'ja'
-    }
-    return target
+  private resolveTargetLanguage(_detectedLang: Language): Language {
+    return this.targetLanguage
   }
 
   // --- Cleanup ---

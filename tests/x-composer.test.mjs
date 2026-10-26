@@ -2,8 +2,22 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {shouldTranslateReading} from '../translation-guards.mjs';
 const source=fs.readFileSync(new URL('../x-content.js',import.meta.url),'utf8');
 const body={};const locate=vm.runInNewContext(source.slice(source.indexOf('  function composerToolbar'),source.indexOf('  function addComposer'))+'\ncomposerToolbar',{document:{body}});
+test('X offers reading translation for a Japanese sentence but not Chinese containing a kana name',()=>{
+ const controls=[];
+ const node=text=>({textContent:text,insertAdjacentElement(_,control){control.isConnected=true;controls.push(control);}});
+ const document={createElement:()=>({children:[],classList:{add(){}},setAttribute(){},append(...children){this.children.push(...children);},remove(){this.isConnected=false;}})};
+ const add=vm.runInNewContext(source.slice(source.indexOf('  function addPost'),source.indexOf('  function installPanel'))+'\naddPost',{
+  document,posts:new WeakMap(),read:node=>node.textContent,matchesReadLanguage:text=>shouldTranslateReading(text,'ja','zh'),
+  languageSettings:{readSource:'ja',readTarget:'zh'},langLabel:x=>x,button:()=>({classList:{add(){}},setAttribute(){}})
+ });
+ for(const text of ['這已經是中文','我喜歡まほろちゃん','まほろ'])add(node(text));
+ assert.equal(controls.length,0);
+ const japanese=node('まほろの歌が好きです。');add(japanese);assert.equal(controls.length,1);
+ japanese.textContent='我很喜歡まほろ的歌';add(japanese);assert.equal(controls[0].isConnected,false);
+});
 test('X reply control mounts outside clipped editor next to its own toolbar',()=>{
  const toolbar={};const outer={parentElement:body,querySelectorAll:()=>[{}],querySelector:()=>toolbar};
  const clipped={parentElement:outer,querySelectorAll:()=>[{}],querySelector:()=>null};

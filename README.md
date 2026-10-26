@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current desktop and extension source: **4.5.5**. Local Japanese ↔ Chinese speech uses less unnecessary recognition work, protects some very short endings after audio cuts, and uses conservative context for short replies. Repeated optional previews are reduced under load. **Capture waiting and silence thresholds are unchanged.** See the [4.5.5 measurements and verification](docs/retests/4.5.5.md), including remaining fragment errors and why an overall latency improvement is not yet established. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+Current desktop and extension source: **4.5.6**. Known creator names such as `まほろ` retain their original spelling in Japanese ↔ Chinese translation. Reading translation skips Chinese sentences containing these names, and speech no longer switches to Japanese when recognition already returns the selected Chinese target. Explicit Chinese → Japanese drafts remain available. **Capture waiting and silence thresholds are unchanged.** See the [4.5.6 regression checks and limits](docs/retests/4.5.6.md) and the preceding [speech measurements](docs/retests/4.5.5.md). Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 

@@ -7,6 +7,7 @@
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
   const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
   const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
+  const matchesReadLanguage=text=>globalThis.VocaLumeTranslationGuards.shouldTranslateReading(text,languageSettings.readSource,languageSettings.readTarget);
   const composers = new WeakMap();
   function dispatchComposerKey(event) {
     const path = event.composedPath?.() || [event.target];
@@ -133,8 +134,8 @@
 
   function addPost(text) {
     const existing=posts.get(text);
+    if (!matchesReadLanguage(read(text))) {existing?.remove();posts.delete(text);return;}
     if(existing?.isConnected){if(text.nextElementSibling!==existing)text.insertAdjacentElement('afterend',existing);return;}
-    if (!matchesLanguage(read(text), languageSettings.readSource)) return;
     const controls = document.createElement('div');
     controls.className = 'jtl-x-controls';controls.jtlSource=text;
     const result = document.createElement('div');

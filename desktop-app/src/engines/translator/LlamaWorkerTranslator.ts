@@ -10,6 +10,7 @@ import { greetingTranslation, normalizeGreetingSource } from '../../../../stream
 import { gameTermTranslation, selectGameTerminology } from '../../../../game-vocabulary.mjs'
 import { shortJaZhTranslation } from './ja-zh-short'
 import { contextualShortReply } from './contextual-short-reply'
+import { protectNames, alreadyTargetLanguage } from '../../../../translation-guards.mjs'
 
 export interface GGUFVariantConfig {
   filename: string
@@ -135,6 +136,9 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     if (from === to) return text
     context?.signal?.throwIfAborted()
     this.interruption.signal.throwIfAborted()
+    const protectedSource = protectNames(text, context?.glossary)
+    if (alreadyTargetLanguage(text, from, to) && !context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) return text
+    if (protectedSource.entries.length && !/[\p{L}\p{N}]/u.test(protectedSource.body)) return protectedSource.restore(protectedSource.text)
     if (!context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) {
       const reply = contextualShortReply(text, from, to, context?.sourceContext)
       if (reply !== undefined) return reply
@@ -160,13 +164,17 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     const serialContext = structuredClone(translationContextForModel(
       this.serialContext(text, from, to, context) ?? { previousSegments: [] }, this.workerOptions.modelType ?? ''
     ))
+    const protectedText = protectNames(text, context?.glossary)
     // Exact text, direction, model options, register and terminology all belong
     // to the key. Nothing is normalized away from what the model sees.
     const key = JSON.stringify([this.workerOptions, text, from, to, serialContext])
-    const result = await this.translationRequests.run(key, (signal, onPartial) => this.pool.sendRequest(
-      { type: 'translate', text, from, to, context: serialContext },
+    const result = await this.translationRequests.run(key, async (signal, onPartial) => protectedText.restore(await this.pool.sendRequest(
+      { type: 'translate', text: protectedText.text, from, to, context: serialContext },
       'translate', this.workerOptions, signal, context?.onPartial ? onPartial : undefined
-    ), this.requestSignal(context?.signal), context?.onPartial)
+    )), this.requestSignal(context?.signal), context?.onPartial ? value => {
+      const restored = protectedText.restorePartial(value)
+      if (restored.trim()) context.onPartial!(restored)
+    } : undefined)
     const ms = performance.now() - t0
     this.log.info(`translate ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
     return result
@@ -181,6 +189,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   ): Promise<string> {
     if (!text.trim()) return previousOutput || ''
     if (from === to) return text
+    if (protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
     if (!this.initialized) {
       throw new Error(`[${this.id}-worker] Not initialized`)
     }
@@ -214,6 +223,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   ): Promise<string> {
     if (!text.trim()) return previousOutput || ''
     if (from === to) return text
+    if (protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
     if (!this.initialized) {
       throw new Error(`[${this.id}-worker] Not initialized`)
     }
@@ -251,6 +261,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   ): Promise<string> {
     if (!text.trim()) return previousOutput || ''
     if (from === to) return text
+    if (protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
     if (!this.initialized) {
       throw new Error(`[${this.id}-worker] Not initialized`)
     }

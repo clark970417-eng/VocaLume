@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
-const source=fs.readFileSync(new URL('../content.js',import.meta.url),'utf8');
+const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8'));
 function setup(){
  const boxes=[], controls=[], replies=[];let focus,change,scan;
  const makeBox=()=>{const host={append(c){c.isConnected=true;controls.push(c);}};const box={textContent:'都好好聽啊',isConnected:true,closest:()=>host,parentElement:host,focus(){focus=box;}};boxes.push(box);return box;};
@@ -34,7 +34,7 @@ test('a finished draft is only inserted for review; nothing is submitted',async(
  // Only the input notification that tells the page its editor changed.
  assert.deepEqual(events,['InputEvent']);
  // No keyboard event and no click on a send control may reach the page.
- const source=fs.readFileSync(new URL('../content.js',import.meta.url),'utf8');
+ const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8'));
  assert.equal(/KeyboardEvent|\.click\(\)|key:\s*['"]Enter/.test(source),false);
  const xSource=fs.readFileSync(new URL('../x-content.js',import.meta.url),'utf8');
  assert.equal(/KeyboardEvent|key:\s*['"]Enter/.test(xSource),false);

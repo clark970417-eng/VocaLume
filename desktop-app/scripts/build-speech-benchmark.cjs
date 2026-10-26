@@ -25,6 +25,6 @@ const plugin = {name:'frozen-production', setup(builder) {
     return {contents,loader:args.path.endsWith('.ts')?'ts':'js',resolveDir:path.dirname(args.path)}
   })
 }}
-build({entryPoints:{quality:'scripts/benchmark-speech-quality.ts',paced:'scripts/benchmark-captions.ts',cuts:'scripts/benchmark-audio-cuts.ts','slm-worker':'src/main/slm-worker.ts'},
+build({entryPoints:{names:'scripts/benchmark-name-preservation.ts',quality:'scripts/benchmark-speech-quality.ts',paced:'scripts/benchmark-captions.ts',cuts:'scripts/benchmark-audio-cuts.ts','slm-worker':'src/main/slm-worker.ts'},
   outdir:destination,bundle:true,platform:'node',format:'cjs',packages:'external',plugins:[plugin]})
   .catch(error=>{console.error(error);process.exitCode=1})

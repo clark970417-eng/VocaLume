@@ -37,7 +37,7 @@ function setup(semanticOnly=false,titleConfig=null){
    onChanged:{addListener:f=>change=f}},
   runtime:{onMessage:{addListener(){}},sendMessage:(message,reply)=>requests.push({message,reply})}};
  let scan;
- vm.runInNewContext(fs.readFileSync(new URL('../content.js',import.meta.url),'utf8'),
+ vm.runInNewContext((fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8')),
   {chrome,window,document,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
    setInterval(){},setTimeout(fn){fn();return 0;},clearTimeout(){},console});
  return {chat,title,requests,makeNode,scan:()=>scan(),navigate:()=>navigate?.(),
@@ -45,6 +45,15 @@ function setup(semanticOnly=false,titleConfig=null){
 }
 
 const settle=async()=>{for(let i=0;i<4;i++)await Promise.resolve();};
+
+test('Chinese containing a Japanese name and name-only chat do not add translation rows',async()=>{
+ const t=setup();await settle();
+ for(const text of ['這是中文','我喜歡まほろ的歌','まほろちゃん今天辛苦了','鹿乃まほろ','まほろ'])t.chat.push(t.makeNode(text));
+ const japanese=t.makeNode('まほろは明日来ません。');t.chat.push(japanese);
+ t.scan();await settle();
+ assert.deepEqual(t.requests.map(r=>r.message.text),['まほろは明日来ません。']);
+ assert(t.chat.slice(0,-1).every(node=>node.lines.length===0));
+});
 
 test('an unchanged message is translated once however often the page mutates',async()=>{
  const t=setup();await settle();
@@ -59,6 +68,16 @@ test('an unchanged message is translated once however often the page mutates',as
  t.scan();t.scan();await settle();
  assert.equal(t.requests.length,1);
  assert.equal(node.lines.length,1);
+});
+
+test('recycling a translated chat node for Chinese clears its old line without another request',async()=>{
+ const t=setup();await settle();const node=t.makeNode('まほろの配信です。');t.chat.push(node);
+ t.scan();await settle();t.requests[0].reply({ok:true,text:'這是まほろ的直播。'});await settle();
+ node.textContent='我很喜歡まほろちゃん';t.scan();await settle();
+ assert.equal(node.lines.filter(line=>!line.removed).length,0);
+ assert.equal(t.requests.length,1);
+ node.textContent='まほろの配信です。';t.scan();await settle();
+ assert.equal(node.lines.find(line=>!line.removed).textContent,'中：這是まほろ的直播。');
 });
 
 test('a recycled node discards the late result and translates its new message',async()=>{

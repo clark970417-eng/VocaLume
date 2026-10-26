@@ -8,6 +8,7 @@ export const EXTENSION_RUNTIME = [
   'content.css', 'x-content.css', 'social-content.css', 'offscreen.js', 'offscreen.html', 'popup.html', 'popup.js', 'popup.css',
   'audio-worklet.js', 'vad-worker.js', 'speech-worker.js', 'desktop-worker.js', 'streaming.mjs', 'stream-core.mjs',
   'token-stream.mjs', 'cue-cursor.mjs', 'native-client.mjs', 'recording-queue.mjs', 'translation-policy.mjs',
+  'translation-guards.js', 'translation-guards.mjs',
   'capture-status.mjs', 'whisper-runtime.js'
 ]
 

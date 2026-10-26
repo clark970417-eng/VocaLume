@@ -14,7 +14,7 @@ function fakePool() {
     acquire: vi.fn(async () => {}),
     release: vi.fn(async () => {}),
     terminate: vi.fn(() => { order.push('terminate') }),
-    sendRequest: vi.fn((_message: unknown, _type: string, _options: unknown, signal?: AbortSignal) =>
+    sendRequest: vi.fn((_message: unknown, _type: string, _options: unknown, signal?: AbortSignal, _onPartial?: (value:string)=>void) =>
       new Promise<string>((resolve, reject) => {
         signal?.addEventListener('abort', () => { order.push('abort'); reject(signal.reason) }, { once: true })
         if (!signal) resolve('')
@@ -39,9 +39,43 @@ it('translates known greetings without a GPU call and preserves names in longer 
   expect(pool.acquire).not.toHaveBeenCalled()
   expect(pool.sendRequest).not.toHaveBeenCalled()
   await engine.initialize()
-  pool.sendRequest.mockResolvedValueOnce('你好，鹿乃まほろ今天要玩遊戲。')
-  await engine.translate('こんまほ、鹿乃まほろです。今日はゲームします。', 'ja', 'zh')
-  expect(pool.sendRequest.mock.calls[0][0]).toMatchObject({ text: 'こんにちは、鹿乃まほろです。今日はゲームします。' })
+  pool.sendRequest.mockResolvedValueOnce('你好，[NAME0]今天要玩遊戲。')
+  await expect(engine.translate('こんまほ、鹿乃まほろです。今日はゲームします。', 'ja', 'zh')).resolves.toBe('你好，鹿乃まほろ今天要玩遊戲。')
+  expect(pool.sendRequest.mock.calls[0][0]).toMatchObject({ text: 'こんにちは、[NAME0]です。今日はゲームします。' })
+})
+
+it('preserves a short personal name in both directions and restores safe partial captions', async () => {
+  const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  await engine.initialize()
+  pool.sendRequest.mockImplementationOnce(async (_request, _type, _options, _signal, onPartial) => {
+    onPartial?.('[NA'); onPartial?.('[NAME0]明天不會'); return '[NAME0]明天不會來。'
+  })
+  const partials:string[]=[]
+  await expect(engine.translate('まほろちゃんは明日来ません。','ja','zh',{previousSegments:[],onPartial:t=>partials.push(t)})).resolves.toBe('まほろちゃん明天不會來。')
+  expect(partials).toEqual(['まほろちゃん明天不會'])
+  pool.sendRequest.mockResolvedValueOnce('[NAME0]、明日もまた来ます。')
+  await expect(engine.translate('まほろ，我明天還會來。','zh','ja')).resolves.toBe('まほろ、明日もまた来ます。')
+  pool.sendRequest.mockResolvedValueOnce('[NAME0]今天休息。')
+  await expect(engine.translate('まほろは今日休みです。','ja','zh',{previousSegments:[],glossary:[{source:'まほろ',target:'真幌'}]})).resolves.toBe('真幌今天休息。')
+})
+
+it('keeps already-Chinese content and name-only messages out of the model', async () => {
+  const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  for(const text of ['這是中文','まほろちゃん今天辛苦了','鹿乃まほろ','まほろ']) await expect(engine.translate(text,'ja','zh')).resolves.toBe(text)
+  expect(pool.acquire).not.toHaveBeenCalled();expect(pool.sendRequest).not.toHaveBeenCalled()
+})
+
+it('rejects lost names and protects alternate decoding paths without leaking internal tokens', async () => {
+  const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  await engine.initialize()
+  pool.sendRequest.mockResolvedValueOnce('真弘明天不來。')
+  await expect(engine.translate('まほろは明日来ません。','ja','zh')).rejects.toThrow('遺漏人名')
+  pool.sendRequest.mockResolvedValue('[NAME0]明天不來。')
+  for(const run of [
+    ()=>engine.translateIncremental('まほろは明日来ません。','','ja','zh'),
+    ()=>engine.translateSSBD('まほろは明日来ません。','','ja','zh'),
+    ()=>engine.translateSimulMt('まほろは明日来ません。','','ja','zh',true)
+  ]) await expect(run()).resolves.toBe('まほろ明天不來。')
 })
 
 it('uses exact game names cheaply and forwards only applicable contextual terms', async () => {

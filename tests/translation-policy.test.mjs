@@ -16,6 +16,10 @@ test('output checks reject English, commentary and leftover Japanese but retain 
  assert.throws(()=>validateTranslation('中文こんにちは','ja-zh'));
  assert.throws(()=>validateTranslation('Translation: こんにちは','zh-ja'));
  assert.equal(validateTranslation('鹿乃まほろ今天要玩遊戲。','ja-zh'),'鹿乃まほろ今天要玩遊戲。');
+ assert.equal(validateTranslation('まほろちゃん明天不會來。','ja-zh','まほろちゃんは明日来ません。'),'まほろちゃん明天不會來。');
+ assert.equal(validateTranslation('まほろ和鹿乃まほろちゃん，謝謝。','ja-zh','まほろと鹿乃まほろちゃん、ありがとう。'),'まほろ和鹿乃まほろちゃん，謝謝。');
+ assert.equal(validateTranslation('まほろ','ja-zh','まほろ'),'まほろ');
+ assert.throws(()=>validateTranslation('まほろは明日不會來。','ja-zh','まほろは明日来ません。'));
 });
 test('standalone laugh captions can use the chosen style without accepting untranslatable speech',()=>{
  for(const direction of ['ja-zh','zh-ja'])for(const marker of ['ww','笑','草','（笑）']){

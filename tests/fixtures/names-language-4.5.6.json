@@ -1,0 +1,25 @@
+{
+  "provenance": "Authored regression examples, not copied user messages or a blind accuracy benchmark.",
+  "cases": [
+    {"id":"name-negative","from":"ja","to":"zh","text":"まほろは明日来ません。","names":["まほろ"],"must":["明天","不|沒|未"]},
+    {"id":"name-thanks","from":"ja","to":"zh","text":"まほろちゃん、今日は配信ありがとう！","names":["まほろちゃん"],"must":["謝|感謝","直播"]},
+    {"id":"full-name","from":"ja","to":"zh","text":"鹿乃まほろの歌が好きです。","names":["鹿乃まほろ"],"must":["喜歡","歌"]},
+    {"id":"name-time","from":"ja","to":"zh","text":"まほろの配信は午後八時からです。","names":["まほろ"],"must":["八|8","下午"]},
+    {"id":"two-name-forms","from":"ja","to":"zh","text":"まほろさんと鹿乃まほろちゃん、二人ともありがとう。","names":["まほろさん","鹿乃まほろちゃん"],"must":["謝|感謝"]},
+    {"id":"katakana-name","from":"ja","to":"zh","text":"マホロちゃん、お疲れ様でした。","names":["マホロちゃん"],"must":["辛苦"]},
+    {"id":"latin-name","from":"ja","to":"zh","text":"Mahoroさん、また明日ね。","names":["Mahoroさん"],"must":["明天"]},
+    {"id":"quoted-name","from":"ja","to":"zh","text":"「まほろ」は人の名前です。","names":["まほろ"],"must":["人名|名字|姓名|名稱"]},
+    {"id":"name-zh-ja","from":"zh","to":"ja","text":"まほろちゃん，謝謝你的直播，我明天還會來。","names":["まほろちゃん"],"must":["明日","ありがとう|感謝"]},
+    {"id":"name-zh-ja-negative","from":"zh","to":"ja","text":"まほろ今天不會開台，明天八點才會。","names":["まほろ"],"must":["明日","八|8","ません|ない"]},
+    {"id":"full-name-zh-ja","from":"zh","to":"ja","text":"我很喜歡鹿乃まほろ的歌。","names":["鹿乃まほろ"],"must":["好き","歌"]},
+    {"id":"chinese-with-name","from":"ja","to":"zh","text":"まほろ今天直播辛苦了，我明天還會來。","unchanged":true},
+    {"id":"chinese-with-honorific","from":"ja","to":"zh","text":"我很喜歡まほろちゃん的歌。","unchanged":true},
+    {"id":"chinese","from":"ja","to":"zh","text":"這段已經是中文，不需要再翻譯。","unchanged":true},
+    {"id":"simplified-chinese","from":"ja","to":"zh","text":"这段已经是中文，不需要再翻译。","unchanged":true},
+    {"id":"name-only","from":"ja","to":"zh","text":"まほろ","unchanged":true},
+    {"id":"ordinary-word","from":"ja","to":"zh","text":"まほろばという言葉を知っていますか。","must":["詞|地方|意思|聽|知"]},
+    {"id":"different-character","from":"ja","to":"zh","text":"マホロアはゲームのキャラクターです。","must":["遊戲","角色"]},
+    {"id":"negation-control","from":"ja","to":"zh","text":"今日はもう遊べませんが、昨日は最後まで遊べました。","must":["今天","昨天","不能|沒辦法|無法"]},
+    {"id":"draft-control","from":"zh","to":"ja","text":"昨天太忙，沒能看完直播。","must":["昨日","忙","見|観","なかった|ませんでした"]}
+  ]
+}

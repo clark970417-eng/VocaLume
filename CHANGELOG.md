@@ -2,6 +2,14 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.6 - 2026-10-26
+
+- Preserve known creator names, including standalone `まほろ`, full names and attached honorifics, instead of allowing a translation model to invent a Chinese spelling. Validate restored names before caching a local result; suppress incomplete internal markers in partial output.
+- Skip reading translations for Chinese containing a recognized kana name and for name-only messages. Keep explicit Chinese → Japanese writing. Preserve the selected speech target when recognition already returns that language.
+- Clear stale translations when a reused chat node changes to Chinese; prevent an older social request from removing a newer result.
+- Verify 20 authored real-model examples, desktop/extension regression tests and Opera GX title/chat/draft behavior. These checks do not establish general translation accuracy or faster end-to-end speech. See [results and limits](docs/retests/4.5.6.md).
+- Keep capture waiting, silence thresholds, models, icon and saved preferences unchanged. Public preview installer assets remain 4.4.5; this is a source/local-app update.
+
 ## 4.5.5 - 2026-10-26
 
 - Establish reproducible Japanese/Chinese audio, text, context and forced-cut controls against 4.5.4. Separate ASR-only timing from paced caption latency and retain before/after outputs.

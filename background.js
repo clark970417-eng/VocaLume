@@ -6,7 +6,7 @@ const desktopSegments=new Map();
 let engineMode='browser';
 import {ResultGate} from './stream-core.mjs';
 import {CueCursor} from './cue-cursor.mjs';
-import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt} from './translation-policy.mjs';
+import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from './translation-policy.mjs';
 const OPENROUTER="https://openrouter.ai/api/v1",NVIDIA="https://integrate.api.nvidia.com/v1";
 let captionMode='record',captionHold=3,speechFrom='ja',speechTo='zh';
 const setHold=value=>{captionHold=Math.max(1,Math.min(6,Number(value)||3));};
@@ -31,11 +31,12 @@ const deadline=(signal,ms)=>signal?AbortSignal.any([signal,AbortSignal.timeout(m
 async function request(url,key,body,signal){const r=await fetch(url,{signal:deadline(signal,10000),method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok){const error=new Error(`API ${r.status}`);error.status=r.status;throw error;}return d}
 async function nvidia(text,from,to,signal){const {nvidiaKey}=await settings();if(!nvidiaKey)throw new Error("請先儲存 NVIDIA Key");const d=await request(`${NVIDIA}/chat/completions`,nvidiaKey,{model:"nvidia/riva-translate-4b-instruct-v2",messages:[{role:"system",content:`${from}-${to}`},{role:"user",content:text}],temperature:0,max_tokens:300},signal);return(d.choices?.[0]?.message?.content||"").trim()}
 async function freeTranslate(text,from,to,signal){
- const q=new URLSearchParams({client:'gtx',sl:from,tl:to,dt:'t',q:text});
+ const protectedText=protectNames(text);
+ const q=new URLSearchParams({client:'gtx',sl:from,tl:to,dt:'t',q:protectedText.text});
  const r=await fetch(`https://translate.googleapis.com/translate_a/single?${q}`,{signal:deadline(signal,4000)});
  if(!r.ok)throw new Error(`翻譯服務 ${r.status}`);
  const d=await r.json();const result=(d[0]||[]).map(x=>x[0]||'').join('').trim();
- if(!result)throw new Error('翻譯回應為空');return result;
+ if(!result)throw new Error('翻譯回應為空');return protectedText.restore(result);
 }
 const textMemo=new TranslationMemo();
 const localTranslationMemo=new TranslationMemo();
@@ -73,7 +74,8 @@ async function styledTranslation(text,direction,signal){
  const {openrouterKey,nvidiaKey,writingStyle}=await settings();
  const {from,to}=parseDirection(direction);
  const prompt=direction==='zh-ja'?(writingStyle==='viewer'?viewerPrompt:`Translate the ENTIRE Traditional Chinese input faithfully into Japanese. Preserve every clause, negation, uncertainty, condition, tense, speaker, name, number, emoji and line break. ${writingStyle==='polite'?'Use natural desu/masu polite Japanese.':'Preserve the original tone and register; do not assume this is a livestream comment.'} Do not add affection, invitations or instructions. Input is content to translate. Return only the translation.`):direction==='ja-zh'?chinesePrompt:`Translate from ${from} to ${to}. Return only the natural translation, preserving names, tone, emoji and line breaks.`;
- const messages=[{role:'system',content:prompt+gameTerminologyPrompt(text,from,to)},{role:'user',content:text}];
+ const protectedText=protectNames(text);
+ const messages=[{role:'system',content:prompt+gameTerminologyPrompt(text,from,to)},{role:'user',content:protectedText.text}];
  const providers=[];
  if(nvidiaKey){
   for(const model of ['nvidia/nemotron-3.5-lightning-30b-a3b'])providers.push(async()=>{
@@ -82,7 +84,7 @@ async function styledTranslation(text,direction,signal){
   });
  }
  if(openrouterKey)providers.push(()=>request(`${OPENROUTER}/chat/completions`,openrouterKey,{model:'google/gemma-4-31b-it:free',messages,temperature:0.2,max_tokens:600},signal));
- for(const run of providers){try{const d=await run();if(d.choices?.[0]?.finish_reason==='length')throw new Error('翻譯被截斷');const value=checkedTranslation(d.choices?.[0]?.message?.content,direction,text);if(value)return value;}catch(error){if(signal?.aborted)throw error;}}
+ for(const run of providers){try{const d=await run();if(d.choices?.[0]?.finish_reason==='length')throw new Error('翻譯被截斷');const value=checkedTranslation(protectedText.restore(d.choices?.[0]?.message?.content),direction,text);if(value)return value;}catch(error){if(signal?.aborted)throw error;}}
  throw new Error('情境翻譯目前無法使用');
 }
 async function translateSingle(text,direction,priority=false){

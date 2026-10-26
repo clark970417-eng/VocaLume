@@ -1,0 +1,15 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8">
+<title>VocaLume 人名與中文辨識測試</title>
+<link rel="stylesheet" href="../content.css">
+<style>body{font:18px system-ui;background:#111827;color:#e5e7eb;margin:32px;max-width:1000px}button{padding:12px}section{padding:16px;margin:12px 0;border:1px solid #475569}pre{white-space:pre-wrap;line-height:1.6}.jtl-title,.jtl-translation{color:#86efac}yt-live-chat-text-message-renderer{display:block}</style>
+<h1>人名保留與避免重複翻譯</h1>
+<p>以正式擴充功能腳本測試自製文字；標題沿用原本的翻譯服務，留言與草稿使用本機模型。只產生草稿，不會發送留言。結束後恢復原本的文字與語言設定。</p>
+<button id="test">開始測試</button><pre id="result" role="status">尚未開始</pre>
+<section id="title-case"><ytd-watch-metadata><h1><yt-formatted-string>まほろの配信は午後八時からです。</yt-formatted-string></h1></ytd-watch-metadata></section>
+<section id="ja-case"><yt-live-chat-text-message-renderer><span id="message">まほろは明日来ません。</span></yt-live-chat-text-message-renderer></section>
+<section id="zh-case"><yt-live-chat-text-message-renderer><span id="message">我很喜歡まほろちゃん，今天直播辛苦了！</span></yt-live-chat-text-message-renderer></section>
+<section id="name-case"><yt-live-chat-text-message-renderer><span id="message">鹿乃まほろちゃん</span></yt-live-chat-text-message-renderer></section>
+<script src="../streamer-vocabulary.js"></script><script src="../translation-guards.js"></script>
+<script src="../caption-window.js"></script><script src="../content.js"></script>
+<script src="names-language-browser.js"></script>
+</html>

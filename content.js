@@ -8,6 +8,7 @@ const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de
 const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
 const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
 const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
+const matchesReadLanguage=text=>globalThis.VocaLumeTranslationGuards.shouldTranslateReading(text,languageSettings.readSource,languageSettings.readTarget);
 const cache = new Map();
 const inFlight = new Map();
 const translationQueue = [];
@@ -47,7 +48,7 @@ function smallestJapaneseLeaves(region) {
   return [...region.querySelectorAll('span,p,div,yt-formatted-string')].filter(element => {
     if (element.closest?.('#author-name,[id*="author" i],[class*="author" i],a')) return false;
     const text = (element.textContent || '').trim();
-    return text && matchesLanguage(text,languageSettings.readSource) && ![...(element.children || [])].some(child => matchesLanguage(child.textContent || '',languageSettings.readSource));
+    return text && matchesReadLanguage(text) && ![...(element.children || [])].some(child => matchesReadLanguage(child.textContent || ''));
   });
 }
 
@@ -67,9 +68,15 @@ async function translateElement(element, className, priority = false, queueOrder
   if (!websiteTextOptInEnabled || !element) return false;
   const epoch=textEpoch;
   const text = element.textContent.trim();
-  if (!text || !matchesLanguage(text,languageSettings.readSource)) return false;
   const anchor = className === "jtl-title" ? (element.closest("h1") || element) : element;
   let line = anchor.parentElement?.querySelector(`:scope > .${className}`);
+  if (!text || !matchesReadLanguage(text)) {
+    if (translated.has(element)) {
+      translated.delete(element);
+      if (line) { lineOwners.delete(line); line.remove(); }
+    }
+    return false;
+  }
   if (translated.get(element) === text && line) return true;
   translated.set(element, text);
   if (!line) {
@@ -116,7 +123,7 @@ function scan() {
       "ytd-watch-metadata #title h1",
       "#above-the-fold #title h1",
       "h1.ytd-watch-metadata"
-    ].map(selector=>document.querySelector(selector)).find(element=>matchesLanguage(element?.textContent||"",languageSettings.readSource));
+    ].map(selector=>document.querySelector(selector)).find(element=>matchesReadLanguage(element?.textContent||""));
     const titleLines = [...document.querySelectorAll(".jtl-title")];
     if (!title) titleLines.forEach(line => line.remove());
     titleLines.slice(1).forEach(line => line.remove());
@@ -139,7 +146,7 @@ function scan() {
 function installCommentButtons() {
   document.querySelectorAll("ytd-comment-thread-renderer #content-text, ytd-comment-view-model #content-text").forEach(element => {
     const text = element.textContent.trim();
-    if (!text || !matchesLanguage(text,languageSettings.readSource) || element.parentElement?.querySelector(":scope > .jtl-comment-action")) return;
+    if (!text || !matchesReadLanguage(text) || element.parentElement?.querySelector(":scope > .jtl-comment-action")) return;
     const action = document.createElement("button");
     action.type = "button";
     action.className = "jtl-comment-action";

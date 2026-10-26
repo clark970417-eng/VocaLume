@@ -115,6 +115,21 @@ class MockTranslator implements TranslatorEngine {
   async dispose(): Promise<void> {}
 }
 
+it('keeps already-Chinese recognition in the selected Chinese target for whole and streaming audio', async () => {
+  const p=new TranslationPipeline(), text='今天直播辛苦了。'
+  const stt=new MockSTT('zh-stt',{text,language:'zh',timestamp:Date.now(),isFinal:true})
+  const translator=new MockTranslator('hunyuan-mt-15')
+  p.registerSTT(stt.id,()=>stt);p.registerTranslator(translator.id,()=>translator)
+  await p.switchEngine({mode:'cascade',sttEngineId:stt.id,translatorEngineId:translator.id})
+  p.setLanguageConfig('ja','zh');p.start()
+  try {
+    const audio=new Float32Array(16000)
+    expect(await p.process(audio,16000)).toMatchObject({sourceText:text,translatedText:text,targetLanguage:'zh'})
+    expect(await p.finalizeStreaming(audio,16000)).toMatchObject({sourceText:text,translatedText:text,targetLanguage:'zh'})
+    expect(translator.translateCalls).toEqual([])
+  } finally {await p.dispose()}
+})
+
 it('keys repeated Japanese suffix translations by the recovered source and clears context on reconfiguration', async () => {
   const p=new TranslationPipeline()
   let source='魚が逃げて。'

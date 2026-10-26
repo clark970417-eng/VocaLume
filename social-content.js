@@ -114,6 +114,7 @@
   };
   const config = configs[site];
   let translated = new WeakMap();
+  const lineOwners = new WeakMap();
   const composers = new WeakMap();
   let activeComposer;
   let activeControls;
@@ -135,6 +136,7 @@
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
   const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
   const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
+  const matchesReadLanguage=text=>globalThis.VocaLumeTranslationGuards.shouldTranslateReading(text,languageSettings.readSource,languageSettings.readTarget);
 
   const hasJapanese = text => /[\u3040-\u30ff]/.test(text);
   const hasChinese = text => /[\u3400-\u9fff]/.test(text) && !hasJapanese(text);
@@ -146,7 +148,7 @@
       '[data-e2e="message-text"]', '[class*="CommentContent"]', '[class*="CommentText"]',
       '.danmaku-content', '.reply-content', '.sub-reply-content'
     ].join(','));
-    if (explicit && matchesLanguage(clean(explicit.innerText || explicit.textContent),languageSettings.readSource)) return explicit;
+    if (explicit && matchesReadLanguage(clean(explicit.innerText || explicit.textContent))) return explicit;
 
     // TikTok's fallback chat selector can cover the avatar, nickname, badge and
     // message in one React container. Prefer the smallest Japanese leaf that is
@@ -155,8 +157,8 @@
     const candidates = [...node.querySelectorAll('span,p,div')].filter(element => {
       if (element.closest?.(metadata)) return false;
       const text = clean(element.innerText || element.textContent);
-      if (!text || !matchesLanguage(text,languageSettings.readSource)) return false;
-      return ![...element.children].some(child => matchesLanguage(clean(child.innerText || child.textContent),languageSettings.readSource));
+      if (!text || !matchesReadLanguage(text)) return false;
+      return ![...element.children].some(child => matchesReadLanguage(clean(child.innerText || child.textContent)));
     });
     return candidates.sort((a, b) => clean(a.innerText || a.textContent).length - clean(b.innerText || b.textContent).length)[0] || node;
   }
@@ -211,20 +213,33 @@
     if (!enabled || !node?.isConnected || node.closest?.('.jtl-social-translation,.jtl-social-controls')) return;
     if (!isTitle) node = messageTextNode(node);
     const source = clean(node.innerText || node.textContent);
+    const parent = node.parentElement;
+    let line = parent?.querySelector(':scope > .jtl-social-translation');
     // The background translator safely splits long messages. Keep only a
     // generous guard against accidentally selecting an entire chat timeline.
-    if (!source || source.length > 3000 || !matchesLanguage(source,languageSettings.readSource)) return;
+    if (!source || source.length > 3000 || !matchesReadLanguage(source)) {
+      if (translated.has(node)) {
+        translated.delete(node);
+        if (line) { lineOwners.delete(line); line.remove(); }
+      }
+      return;
+    }
     if (translated.get(node) === source) return;
     translated.set(node, source);
     const currentEpoch = epoch;
-    const valid = () => enabled && currentEpoch === epoch && node.isConnected && clean(node.innerText || node.textContent) === source;
-    const parent = node.parentElement;
-    let line = parent?.querySelector(':scope > .jtl-social-translation');
     if (!line) {
       line = document.createElement('div');
       line.className = `jtl-social-translation${isTitle ? ' jtl-social-title' : ''}`;
       node.insertAdjacentElement('afterend', line);
     }
+    const owner = {};
+    lineOwners.set(line, owner);
+    const ownsLine = () => lineOwners.get(line) === owner;
+    const valid = () => ownsLine() && enabled && currentEpoch === epoch && node.isConnected && clean(node.innerText || node.textContent) === source;
+    const discard = () => {
+      if (translated.get(node) === source) translated.delete(node);
+      if (ownsLine()) line.remove();
+    };
     line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯中…`;
     try {
       let result;
@@ -234,13 +249,13 @@
         line.textContent = '中：第一次失敗，正在重試…';
         result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid);
       }
-      if (!valid()) { line.remove(); return; }
+      if (!valid()) { discard(); return; }
       line.textContent = `${langLabel(languageSettings.readTarget)}：${result}`;
     } catch (_) {
       // Keep the failed source marked after one retry so the status mutation
       // cannot cause the page observer to resubmit it forever.
       if (valid()) line.textContent = '中：翻譯失敗，請稍後重新整理再試';
-      else { translated.delete(node); line.remove(); }
+      else discard();
     }
   }
 
@@ -394,7 +409,7 @@
       .flatMap(region => [...region.querySelectorAll('span,p,div')])
       .filter(element => {
         const text = clean(element.innerText || element.textContent);
-        return text && matchesLanguage(text,languageSettings.readSource) && ![...element.children].some(child => matchesLanguage(clean(child.innerText || child.textContent),languageSettings.readSource));
+        return text && matchesReadLanguage(text) && ![...element.children].some(child => matchesReadLanguage(clean(child.innerText || child.textContent)));
       });
     const messages = [...new Set([
       ...config.text.flatMap(selector => [...document.querySelectorAll(selector)]),
