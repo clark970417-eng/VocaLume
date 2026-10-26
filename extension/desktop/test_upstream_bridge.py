@@ -12,7 +12,7 @@ import numpy as np
 
 class UpstreamBridgeTests(unittest.TestCase):
     def load(self):
-        path = Path(__file__).resolve().parent.parent / 'desktop-app/resources/mlx-whisper-bridge.py'
+        path = Path(__file__).resolve().parents[2] / 'desktop-app/resources/mlx-whisper-bridge.py'
         spec = importlib.util.spec_from_file_location('tested_bridge', path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

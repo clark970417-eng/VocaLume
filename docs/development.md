@@ -40,6 +40,8 @@ npm run build
 
 See [quality evaluation](quality/README.md) for model measurements. The browser fixture is `extension/tests/capture.html`; when the extension folder is loaded, open `chrome-extension://YOUR_ID/tests/capture.html`. It uses authored synthetic audio and never posts a message.
 
+Native bridge regression tests use Python 3.11 with NumPy 2.4.6. From the repository root, run `python -m unittest discover -s extension/desktop -p 'test_*.py'` in that Python environment. These checks use a mocked recognition model and do not download model weights or call an API. CI runs them alongside the extension tests.
+
 ## Existing root-loaded Opera installations
 
 Older local checkouts loaded the repository root rather than `extension/`. Moving that installation would change its ID. On those existing Mac checkouts only, `node scripts/link-legacy-extension.mjs` creates ignored local symbolic links from the old paths to the new source directory. `--check` verifies them. It refuses to replace an existing file and does not edit the browser profile. The root remains the existing installation location; new users should load `extension/`.
