@@ -27,7 +27,7 @@ function pcm(file:string):Float32Array{
 function checks(row:any,translated:string){return {meaningChecksPassed:!!translated&&(row.must||[]).every((s:string)=>new RegExp(s,'u').test(translated))&&(row.mustNot||[]).every((s:string)=>!new RegExp(s,'u').test(translated))}}
 app.whenReady().then(async()=>{
  app.dock?.hide()
- const report:any={label:COMPARE_LABEL,fixtureHash:createHash('sha256').update(JSON.stringify(fixture)).digest('hex'),scope:fixture.provenance,
+ const report:any={label:COMPARE_LABEL,fixtureHash:createHash('sha256').update(JSON.stringify(fixture)).digest('hex'),corpusHash:fixture.corpusSha256,scope:fixture.provenance,
   system:{platform:process.platform,arch:process.arch,os:release(),cpu:cpus()[0]?.model,memoryBytes:totalmem(),electron:process.versions.electron},
   engines:{asr:'mlx-community/whisper-large-v3-turbo',translator:'HY-MT1.5-1.8B Q4_K_M'},
   cachePolicy:'Audio and text run in separate passes; translator disposed and reinitialized between passes. No source examples are used for warmup.',

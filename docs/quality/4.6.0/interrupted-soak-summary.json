@@ -1,0 +1,171 @@
+{
+  "version": "4.6.0",
+  "status": "interrupted-at-user-request",
+  "reason": "The user requested stopping because the computer became sluggish.",
+  "rawReportSha256": "15c64806d9eeef59aa6df1692231d7e2de827ba195d1597c1e331e4d5de21497",
+  "system": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "os": "25.4.0",
+    "cpu": "Apple M5",
+    "memoryBytes": 17179869184,
+    "electron": "44.9.3"
+  },
+  "environment": {
+    "controlledBackgroundWorkload": false,
+    "backgroundActivity": "Normal desktop use continued. Browser, messaging and editor processes were active at the recorded snapshot; repository builds and lightweight checks also ran during this soak. No second model benchmark was run concurrently.",
+    "macOSVersion": "26.4.1",
+    "snapshots": [
+      {
+        "atUtc": "2026-10-26T15:58:05.738994+00:00",
+        "soakElapsedMs": 2729088.328292,
+        "loadAverage": [
+          42.3369140625,
+          40.31982421875,
+          24.75244140625
+        ],
+        "systemFreeMemoryPercent": 27,
+        "swapUsedMiB": 13986.12,
+        "thermalState": "fair"
+      }
+    ]
+  },
+  "soak": {
+    "scope": "Repeated synthetic Japanese audio; precomputed real Silero probabilities replayed at real-time pace through segmentation, ASR and translation. Excludes live VAD computation, browser/microphone, diverse streams and Chinese speech.",
+    "complete": false,
+    "plannedRounds": 274,
+    "completedRounds": 209,
+    "expectedFinals": 419,
+    "missingFinalCues": [],
+    "unexpectedFinalCues": [],
+    "duplicateFinalCues": [],
+    "durationMs": 2768832.509417,
+    "finals": 419,
+    "missingFinals": 0,
+    "errors": [],
+    "fatal": "Stopped at user request because the computer became sluggish.",
+    "endOfCaptureWindowToTranslationMs": {
+      "count": 419,
+      "p50": 945.3674999999348,
+      "p95": 4202.874542000238,
+      "p99": 9162.64154200023,
+      "max": 15825.060667000245
+    },
+    "firstHalfMs": {
+      "count": 209,
+      "p50": 621.3083330000518,
+      "p95": 2150.0232500000275,
+      "p99": 2781.4286670000292,
+      "max": 5521.817500000005
+    },
+    "secondHalfMs": {
+      "count": 210,
+      "p50": 1504.6338329999708,
+      "p95": 5200.493792000227,
+      "p99": 11688.062541999854,
+      "max": 15825.060667000245
+    },
+    "slowestCues": [
+      {
+        "cue": 583,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 15825.060667000245,
+        "atMs": 2590769.061542
+      },
+      {
+        "cue": 592,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 14018.990999999922,
+        "atMs": 2628706.99175
+      },
+      {
+        "cue": 593,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 11688.062541999854,
+        "atMs": 2632456.063375
+      },
+      {
+        "cue": 584,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 11647.604875000194,
+        "atMs": 2592671.606
+      },
+      {
+        "cue": 595,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 9162.64154200023,
+        "atMs": 2637098.6421250002
+      },
+      {
+        "cue": 590,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 8524.574792,
+        "atMs": 2616044.575333
+      },
+      {
+        "cue": 442,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 7764.1266250000335,
+        "atMs": 1960052.128583
+      },
+      {
+        "cue": 586,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 7033.832832999993,
+        "atMs": 2595225.83375
+      },
+      {
+        "cue": 620,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 6657.060457999818,
+        "atMs": 2746657.060708
+      },
+      {
+        "cue": 230,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 5521.817500000005,
+        "atMs": 1023281.818208
+      }
+    ],
+    "firstSourceMs": {
+      "count": 420,
+      "p50": 2220.0696669999743,
+      "p95": 8098.173375000246,
+      "p99": 13983.00679200003,
+      "max": 18848.870457999874
+    },
+    "parentRssBytes": {
+      "count": 209,
+      "p50": 55771136,
+      "p95": 79429632,
+      "p99": 89161728,
+      "max": 92307456
+    },
+    "thermalStates": [
+      "nominal",
+      "fair"
+    ],
+    "finalCacheStats": {
+      "hits": 416,
+      "misses": 9,
+      "size": 2,
+      "maxSize": 500
+    },
+    "repeatedInputCacheBenefit": "possible; not an uncached throughput benchmark",
+    "humanReview": "pending"
+  },
+  "bilingualCorpusRun": "not-started",
+  "humanReview": "pending",
+  "physicalDeviceComparison": "pending",
+  "qualification": "not-passed; incomplete session"
+}

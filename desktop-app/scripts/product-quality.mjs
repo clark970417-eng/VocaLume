@@ -56,16 +56,17 @@ export function pcmWav(samples) {
   samples.forEach((v, i) => data.writeInt16LE(Math.round(Math.max(-1, Math.min(1, v)) * 32767), 44 + i * 2));
   return data;
 }
-export function qualitySummary(report, corpus) {
+export function qualitySummary(report, corpus, expectedCorpusHash) {
   const audio = report.audio || [], text = report.text || [], context = report.context || [];
   const missing = (expected, actual) => expected.filter(r => !actual.some(a => a.id === r.id)).map(r => r.id);
   const missingCases = {audio: missing(corpus.audio, audio), text: missing(corpus.audio, text), context: missing(corpus.context || [], context)};
   const exactCases = [[corpus.audio,audio],[corpus.audio,text],[corpus.context || [],context]].every(([expected, actual]) =>
     actual.length === expected.length && new Set(actual.map(r => r.id)).size === actual.length);
   const empty = [...audio, ...text, ...context].filter(r => !r.translated?.trim()).map(r => r.id);
+  const corpusMatches = expectedCorpusHash ? report.corpusHash === expectedCorpusHash : null;
   return {scope: 'Synthetic fixed-clip recognition and translation; excludes capture, VAD, browser rendering and human review.',
-    complete: exactCases && !report.errors?.length && !empty.length && Object.values(missingCases).every(ids => !ids.length),
-    missingCases, empty, errors: report.errors || [],
+    complete: corpusMatches !== false && exactCases && !report.errors?.length && !empty.length && Object.values(missingCases).every(ids => !ids.length),
+    corpusMatches, missingCases, empty, errors: report.errors || [],
     directions: Object.fromEntries(['ja-zh', 'zh-ja'].map(pair => {
       const rows = audio.filter(r => `${r.from}-${r.to}` === pair);
       return [pair, {cases: rows.length, asrMs: distribution(rows.map(r => r.asrMs)), translationMs: distribution(rows.map(r => r.translationMs)),
@@ -97,9 +98,20 @@ export function soakSummary(report) {
   const finals = report.completed || [], events = report.events || [], metrics = report.metrics || [];
   const durationMs = report.summary?.durationMs || 0;
   const half = durationMs / 2;
+  const expectedCues = new Set(events.filter(e => e.type === 'decode' && e.final === true).map(e => e.cue));
+  const finalCounts = new Map();
+  for (const final of finals) finalCounts.set(final.cue, (finalCounts.get(final.cue) || 0) + 1);
+  const missingFinalCues = [...expectedCues].filter(cue => !finalCounts.has(cue));
+  const unexpectedFinalCues = [...finalCounts.keys()].filter(cue => !expectedCues.has(cue));
+  const duplicateFinalCues = [...finalCounts].filter(([, count]) => count > 1).map(([cue]) => cue);
+  const roundsComplete = Number.isSafeInteger(report.rounds) && report.rounds > 0 && metrics.length === report.rounds &&
+    metrics.every((metric, index) => metric.round === index + 1);
   return {scope: 'Repeated synthetic Japanese audio; precomputed real Silero probabilities replayed at real-time pace through segmentation, ASR and translation. Excludes live VAD computation, browser/microphone, diverse streams and Chinese speech.',
-    complete: !report.fatal && !['failed','interrupted','running'].includes(report.status) && durationMs >= 3600000 && finals.length > 0 &&
+    complete: !report.fatal && report.status === 'completed' && roundsComplete && durationMs >= 3600000 && expectedCues.size > 0 &&
+      !missingFinalCues.length && !unexpectedFinalCues.length && !duplicateFinalCues.length &&
       !finals.some(r => !r.translated?.trim() || !Number.isFinite(r.endToChineseMs)) && !events.some(r => r.error),
+    plannedRounds: report.rounds ?? null, completedRounds: metrics.length, expectedFinals: expectedCues.size,
+    missingFinalCues, unexpectedFinalCues, duplicateFinalCues,
     durationMs, finals: finals.length, missingFinals: finals.filter(r => !r.translated?.trim()).length,
     errors: events.filter(e => e.error), fatal: report.fatal || null,
     endOfCaptureWindowToTranslationMs: distribution(finals.map(r => r.endToChineseMs)),
