@@ -5,6 +5,7 @@ import {app,powerMonitor} from 'electron'
 import {readFileSync,writeFileSync} from 'fs'
 import {join} from 'path'
 import {createHash} from 'crypto'
+import {cpus,release,totalmem} from 'os'
 import {MlxWhisperEngine} from '../src/engines/stt/MlxWhisperEngine'
 import {HunyuanMT15Translator} from '../src/engines/translator/HunyuanMT15Translator'
 import {TranslationPipeline} from '../src/pipeline/TranslationPipeline'
@@ -25,11 +26,21 @@ function pcm(file:string):Float32Array{
 }
 function checks(row:any,translated:string){return {meaningChecksPassed:!!translated&&(row.must||[]).every((s:string)=>new RegExp(s,'u').test(translated))&&(row.mustNot||[]).every((s:string)=>!new RegExp(s,'u').test(translated))}}
 app.whenReady().then(async()=>{
- const report:any={label:COMPARE_LABEL,fixtureHash:createHash('sha256').update(JSON.stringify(fixture)).digest('hex'),scope:fixture.provenance,audio:[],text:[],context:[],errors:[],thermal:process.platform==='darwin'?powerMonitor.getCurrentThermalState():'unknown'}
+ app.dock?.hide()
+ const report:any={label:COMPARE_LABEL,fixtureHash:createHash('sha256').update(JSON.stringify(fixture)).digest('hex'),scope:fixture.provenance,
+  system:{platform:process.platform,arch:process.arch,os:release(),cpu:cpus()[0]?.model,memoryBytes:totalmem(),electron:process.versions.electron},
+  engines:{asr:'mlx-community/whisper-large-v3-turbo',translator:'HY-MT1.5-1.8B Q4_K_M'},audio:[],text:[],context:[],errors:[],thermal:process.platform==='darwin'?powerMonitor.getCurrentThermalState():'unknown'}
  const stt=new MlxWhisperEngine({language:'ja'}),translator=new HunyuanMT15Translator(),pipeline=new TranslationPipeline()
  let scripted=''
+ const checkpoint=()=>writeFileSync(COMPARE_REPORT,JSON.stringify(report,null,2))
  const scriptSTT:STTEngine={id:'scripted',name:'Frozen source text',isOffline:true,initialize:async()=>{},dispose:async()=>{},processAudio:async()=>({text:scripted,language:'ja',isFinal:true,timestamp:Date.now()})}
  try{
+  if(!Array.isArray(fixture.audio)||!fixture.audio.length)throw Error('Empty audio corpus')
+  for(const row of fixture.audio){
+   if(!/^[a-z0-9-]+$/.test(row.id))throw Error('Invalid case ID')
+   const bytes=readFileSync(join(CORPUS_AUDIO_DIR,row.id+'.wav'))
+   if(!row.sha256||createHash('sha256').update(bytes).digest('hex')!==row.sha256)throw Error('Audio hash mismatch: '+row.id)
+  }
   await stt.initialize();await translator.initialize()
   await translator.translate('準備ができました。','ja','zh')
   for(const row of fixture.audio){
@@ -38,8 +49,10 @@ app.whenReady().then(async()=>{
    const t=performance.now(),translated=recognized?await translator.translate(recognized,row.from,row.to):''
    const record={id:row.id,from:row.from,to:row.to,reference:row.text,recognized,translated,asrMs,translationMs:performance.now()-t,audioMs:audio.length/16,CER:distance(normalize(row.text),normalize(recognized))/Math.max(1,normalize(row.text).length),...checks(row,translated)}
    report.audio.push(record);console.log('QUALITY '+JSON.stringify(record))
+   checkpoint()
    const textAt=performance.now(),textTranslation=await translator.translate(row.text,row.from,row.to)
    report.text.push({id:row.id,source:row.text,translated:textTranslation,ms:performance.now()-textAt,...checks(row,textTranslation)})
+   checkpoint()
   }
   pipeline.registerSTT('scripted',()=>scriptSTT);pipeline.registerTranslator('hunyuan-mt-15',()=>translator)
   pipeline.on('error',e=>report.errors.push(String(e)))
@@ -53,7 +66,8 @@ app.whenReady().then(async()=>{
    const result=await pipeline.finalizeStreaming(a,16000,{segment:row.id+':current',speechSeconds:1,speechEndSample:16000,captureStartSample:16000,captureEndSample:32000})
    const translated=result?.translatedText||''
    report.context.push({...row,source:result?.sourceText,translated,ms:performance.now()-at,...checks(row,translated)})
+   checkpoint()
   }
  }catch(error){report.errors.push(String(error));process.exitCode=1}
- finally{await pipeline.dispose();await stt.dispose();await translator.dispose();writeFileSync(COMPARE_REPORT,JSON.stringify(report,null,2));console.log('QUALITY_REPORT '+COMPARE_REPORT);app.quit()}
+ finally{await pipeline.dispose();await stt.dispose();await translator.dispose();checkpoint();console.log('QUALITY_REPORT '+COMPARE_REPORT);app.exit(report.errors.length?1:0)}
 })

@@ -4,7 +4,7 @@ This preview is intended for people who agree to test unfinished software and re
 
 ## Download and install
 
-Download the package for your computer and `vocalume-extension.zip` from the repository's **Releases** page.
+Download the package for your computer and `vocalume-extension.zip` from [4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0). New users can follow the [English quick start](docs/README.en.md) or [完整中文使用手冊](docs/user-guide.md).
 
 ### Verify the download
 
@@ -34,6 +34,16 @@ Each release includes `SHA256SUMS.txt` and `release-manifest.json`. Verify the i
 3. Turn on Developer mode, choose **Load unpacked**, and select the unzipped folder.
 4. Keep the desktop app open when using desktop recognition or local writing translation.
 
+**Mac local captions need a one-time native connection registration.** With Python 3 installed, open a terminal in the extracted extension folder, replace the ID below with the extension's ID from the browser's extension manager, and run:
+
+```sh
+python3 desktop/install.py --extension-id YOUR_EXTENSION_ID --app '/Applications/VocaLume.app/Contents/MacOS/VocaLume'
+```
+
+Reload the extension and the video page afterward. The ZIP includes the installer and relay. This connection installer currently supports macOS Opera GX and Chrome. Windows/Linux desktop builds are available independently, but their equivalent native-host setup is not included; use the standalone App or browser-only mode. Browser-only mode requires WebGPU and network text translation.
+
+Do not delete or move the extracted extension directory. To update, overwrite that same directory, reload the extension, and refresh open pages so the extension ID and settings stay associated.
+
 ## Ten-minute first test
 
 1. Complete Quick Start and wait for its model download.
@@ -56,6 +66,8 @@ Test only services you already use. Record **pass**, **fail**, or **not tested**
 | X / Twitter |  |  | n/a |  |  |
 
 For a longer test, leave one real stream running for two hours. Note the delay near the beginning and end, memory use, any permanent “Translating…” line, missing messages, duplicate captions, and whether reconnecting recovered without restarting the computer.
+
+For repeatable JA↔ZH measurements and bilingual review, use the [quality evaluation workflow](docs/quality/README.md). The fixed synthetic corpus, repeated-speech soak, real-stream test and human review are separate evidence categories.
 
 ## Report feedback
 

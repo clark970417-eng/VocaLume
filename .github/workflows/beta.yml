@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: beta-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   extension:
     runs-on: ubuntu-24.04
@@ -16,6 +20,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Verify release versions
+        run: |
+          if test "${GITHUB_REF_TYPE}" = tag; then
+            node scripts/check-release-version.mjs "${GITHUB_REF_NAME}"
+          else
+            node scripts/check-release-version.mjs
+          fi
       - run: node --test tests/*.test.mjs
       - name: Package Chromium extension
         run: |
@@ -26,7 +37,10 @@ jobs:
             cloud-api.mjs capture-status.mjs cue-cursor.mjs recording-queue.mjs streaming.mjs sentence-boundary.mjs stream-core.mjs token-stream.mjs preview-budget.mjs \
             translation-policy.mjs translation-guards.js translation-guards.mjs game-vocabulary.mjs streamer-vocabulary.js streamer-vocabulary.mjs popup.html popup.js popup.css content.js content.css \
             x-content.js x-content.css social-content.js social-content.css \
-            caption-window.js caption-window.css icons vendor ort
+            caption-window.js caption-window.css icons vendor ort \
+            INSTALL.md PRIVACY.md THIRD_PARTY_NOTICES.md \
+            desktop/install.py desktop/relay.py desktop/host.py desktop/translation_support.py \
+            desktop/requirements.txt desktop/LIVE_TRANSLATE_LICENSE
       - uses: actions/upload-artifact@v4
         with:
           name: browser-extension
@@ -94,6 +108,10 @@ jobs:
     needs: [extension, desktop]
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/download-artifact@v4
         with:
           path: beta
@@ -106,20 +124,19 @@ jobs:
           find . -maxdepth 1 -type f -name '* *' -print0 | while IFS= read -r -d '' file; do
             mv "$file" "${file// /.}"
           done
-          find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 shasum -a 256 > SHA256SUMS.txt
-          jq -n \
-            --arg tag "${GITHUB_REF_NAME}" \
-            --arg commit "${GITHUB_SHA}" \
-            --arg builtAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg workflow "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
-            '{tag:$tag,commit:$commit,builtAt:$builtAt,workflow:$workflow,signed:false,channel:"beta"}' \
-            > release-manifest.json
           cd ..
-          cat > beta-notes.md <<EOF
+          node scripts/verify-release-assets.mjs beta "${GITHUB_REF_NAME}" "${GITHUB_SHA}" \
+            "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          VERSION="${GITHUB_REF_NAME#beta-v}"
+          if test -f "docs/releases/${VERSION}.md"; then
+            cp "docs/releases/${VERSION}.md" beta-notes.md
+          else
+            cat > beta-notes.md <<EOF
           Public preview build. Read the [installation and testing guide](https://github.com/${GITHUB_REPOSITORY}/blob/main/BETA-TESTING.md) before installation.
 
           Verify downloads with \`SHA256SUMS.txt\`. These packages are not code-signed, so the operating system will show a security warning. Report results through the repository issue forms.
           EOF
+          fi
           gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
             -f tag_name="${GITHUB_REF_NAME}" --jq .body > generated-notes.md
           printf '\n## Changes\n\n' >> beta-notes.md
@@ -132,6 +149,6 @@ jobs:
             gh release create "${GITHUB_REF_NAME}" beta/* \
               --repo "${GITHUB_REPOSITORY}" \
               --prerelease \
-              --title "VocaLume ${GITHUB_REF_NAME}" \
+              --title "VocaLume ${VERSION} — multilingual captions and simpler controls (Beta)" \
               --notes-file beta-notes.md
           fi

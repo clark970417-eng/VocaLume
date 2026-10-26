@@ -1,10 +1,12 @@
-# Native messaging installation
+# VocaLume native messaging
 
 The current desktop integration uses the complete application in
 [desktop-app](../desktop-app/INTEGRATION.md). Pass `--app` to the installer to
 register its executable. `relay.py` starts that app and forwards messages; no
 inference occurs in the relay. The local app build uses upstream MLX Whisper
 Large v3 Turbo and HY-MT GGUF through node-llama-cpp.
+
+New users: follow the [installation manual](../docs/user-guide.md#連接-mac-app-與-extension). The bundled installer currently supports macOS Opera GX / Chrome. Windows and Linux browser registration is not included.
 
 The following describes the retained legacy Python inference option, selected
 when the installer is run without `--app`. Its weights may need downloading again.
@@ -45,8 +47,7 @@ The bounded LRU translation cache and glossary prompt format in
 `translation_support.py` adapt
 [LiveTranslate](https://github.com/rioX432/live-translate), commit
 `3d333e6296240d17dfc72207eac7fd7a7499a663`. Its MIT notice is preserved in
-`LIVE_TRANSLATE_LICENSE`. The application is not a wholesale fork: this bridge
-uses MLX instead of LiveTranslate's node-llama-cpp translation process.
+`LIVE_TRANSLATE_LICENSE`. This paragraph describes the legacy Python host only. The current desktop integration includes the upstream application and uses its node-llama-cpp translation process.
 
 Model weights have their own licenses; the upstream application's MIT license
 does not cover HY-MT weights. Models are downloaded separately, not bundled.

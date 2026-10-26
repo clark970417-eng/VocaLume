@@ -9,7 +9,9 @@ This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` t
 - Put caption mode beside speech languages and make font size, colors and outline directly accessible. Keep optional engines, background details, keys and diagnostics grouped behind descriptive controls.
 - Replace the desktop App's long Advanced Settings form with **Translate / Subtitles / Models / More** tabs. Put language and sound source first, add a language swap button, and keep Save/Start/Stop visible. Preserve unsaved choices when switching sections and support keyboard tab navigation.
 - Add a provider selector for OpenAI, Gemini, Claude, NVIDIA, OpenRouter and custom OpenAI-compatible APIs. Keep separate masked credentials and models, request only the chosen host permission, and provide a fixed-sample connection test. Explicit selection routes text/drafts and browser captions to that provider; desktop speech retains its App engine. Reject redirects, unsafe URLs and silent cross-provider fallbacks.
-- Verify existing translation behavior and settings preservation with 240 extension tests, 832 desktop tests and 16 desktop UI tests. See [scope and limits](docs/retests/4.6.0.md). This UI update adds no capture waiting or model changes. Public preview installers remain 4.4.5.
+- Verify existing translation behavior and settings preservation with 240 extension tests, 832 desktop tests and 16 desktop UI tests. See [scope and limits](docs/retests/4.6.0.md). This UI update adds no capture waiting or model changes.
+- Add a frozen 28-clip JA↔ZH synthetic corpus, eight context cases, separately reported ASR/translation timings, tail-latency summaries and an unfilled bilingual review worksheet. Reject incomplete measurements rather than reporting missing data as a pass. See [quality evaluation](docs/quality/README.md).
+- Publish the 4.6.0 preview with concise download instructions and a full user manual. Archive obsolete root-level progress documents while retaining their evidence. Include the Mac native-host installer in the extension download, check matching versions and required assets, and checksum the release provenance manifest.
 
 ## 4.5.9 - 2026-10-26
 

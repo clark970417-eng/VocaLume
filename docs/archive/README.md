@@ -1,0 +1,14 @@
+# 歷史文件
+
+此處保留舊交接、階段驗收與比較，僅供追溯。部分內容的名字、路徑、模型與限制已過時。
+
+現況請看[首頁](../../README.md)、[使用手冊](../user-guide.md)、[品質驗收](../quality/README.md)及[版本測試](../retests/README.md)。
+
+- [ACCEPTANCE.md](ACCEPTANCE.md)
+- [CLAUDE-HANDOFF.md](CLAUDE-HANDOFF.md)
+- [COMPARISON-LIVETRANSLATE.md](COMPARISON-LIVETRANSLATE.md)
+- [INTEGRATION-PARITY.md](INTEGRATION-PARITY.md)
+- [OPERA-ACCEPTANCE.md](OPERA-ACCEPTANCE.md)
+- [OPTIMIZATION-PROGRESS.md](OPTIMIZATION-PROGRESS.md)
+- [TRANSLATION-NOTES.md](TRANSLATION-NOTES.md)
+- [V3-TEST-STATUS.md](V3-TEST-STATUS.md)

@@ -1,0 +1,627 @@
+{
+  "version": 1,
+  "id": "product-quality-v1",
+  "frozenOn": "2026-10-26",
+  "provenance": "Authored bilingual regression controls, synthesized with macOS voices. Speed, game-like effects and speaker overlap are synthetic stress controls. Japanese speaker changes are pitch changes of one voice. Not live-speech, accent diversity or human quality validation. Audio hashes freeze each rendered set before measurement.",
+  "audio": [
+    {
+      "id": "ja-past",
+      "from": "ja",
+      "to": "zh",
+      "text": "昨日は最後まで見られませんでした。",
+      "meaning": "Yesterday could not watch to the end.",
+      "must": [
+        "昨天",
+        "沒|無法|不能|未"
+      ],
+      "categories": [
+        "tense",
+        "negation"
+      ]
+    },
+    {
+      "id": "ja-future",
+      "from": "ja",
+      "to": "zh",
+      "text": "明日は参加できませんが、来週は参加できます。",
+      "meaning": "Cannot participate tomorrow, can next week.",
+      "must": [
+        "明天",
+        "下週|下周",
+        "不能|無法|沒辦法"
+      ],
+      "categories": [
+        "tense",
+        "negation"
+      ]
+    },
+    {
+      "id": "ja-correction",
+      "from": "ja",
+      "to": "zh",
+      "text": "右じゃなくて、左の扉を開けてください。",
+      "meaning": "Open the left door, not the right.",
+      "must": [
+        "左",
+        "右",
+        "不"
+      ],
+      "categories": [
+        "negation"
+      ]
+    },
+    {
+      "id": "ja-not-yet",
+      "from": "ja",
+      "to": "zh",
+      "text": "まだ食べてないです。あとで食べます。",
+      "meaning": "Have not eaten yet, will eat later.",
+      "must": [
+        "還沒|尚未",
+        "吃"
+      ],
+      "categories": [
+        "tense",
+        "negation"
+      ]
+    },
+    {
+      "id": "ja-accidental",
+      "from": "ja",
+      "to": "zh",
+      "text": "間違えてセーブデータを消しちゃった。",
+      "meaning": "Accidentally deleted the save data.",
+      "must": [
+        "不小心|誤|錯",
+        "刪|消"
+      ],
+      "categories": [
+        "colloquial",
+        "tense"
+      ]
+    },
+    {
+      "id": "ja-number",
+      "from": "ja",
+      "to": "zh",
+      "text": "あと三回ではなく、二回だけ挑戦します。",
+      "meaning": "Only two more attempts, not three.",
+      "must": [
+        "三|3",
+        "二|兩|2",
+        "不"
+      ],
+      "categories": [
+        "numbers",
+        "negation"
+      ]
+    },
+    {
+      "id": "ja-quote",
+      "from": "ja",
+      "to": "zh",
+      "text": "今日は来ないって言っていました。",
+      "meaning": "They said they would not come today.",
+      "must": [
+        "今天",
+        "不來|不會來|沒來",
+        "說"
+      ],
+      "categories": [
+        "reported-speech",
+        "negation"
+      ]
+    },
+    {
+      "id": "ja-incomplete",
+      "from": "ja",
+      "to": "zh",
+      "text": "それはちょっと。",
+      "meaning": "Hesitant fragment, no invented reason.",
+      "must": [
+        "有點|有些|這個|那個"
+      ],
+      "categories": [
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "zh-present",
+      "from": "zh",
+      "to": "ja",
+      "text": "今天沒辦法看到最後，明天再來看。",
+      "meaning": "Cannot stay to the end today, will return tomorrow.",
+      "must": [
+        "今日",
+        "明日",
+        "ません|ない"
+      ],
+      "mustNot": [
+        "できませんでした"
+      ],
+      "categories": [
+        "tense",
+        "negation"
+      ]
+    },
+    {
+      "id": "zh-past",
+      "from": "zh",
+      "to": "ja",
+      "text": "我昨天沒能來，今天終於趕上了。",
+      "meaning": "Could not attend yesterday, made it today.",
+      "must": [
+        "昨日",
+        "今日"
+      ],
+      "categories": [
+        "tense",
+        "negation"
+      ]
+    },
+    {
+      "id": "zh-correction",
+      "from": "zh",
+      "to": "ja",
+      "text": "不是右邊，是左邊喔。",
+      "meaning": "Left, not right.",
+      "must": [
+        "右",
+        "左",
+        "なく|ない|違"
+      ],
+      "categories": [
+        "negation"
+      ]
+    },
+    {
+      "id": "zh-not-yet",
+      "from": "zh",
+      "to": "ja",
+      "text": "我還沒吃飯，等一下再吃。",
+      "meaning": "Have not eaten, will later.",
+      "must": [
+        "まだ",
+        "食",
+        "ない|ません"
+      ],
+      "categories": [
+        "tense",
+        "negation"
+      ]
+    },
+    {
+      "id": "zh-future",
+      "from": "zh",
+      "to": "ja",
+      "text": "明天不能參加，下個星期可以。",
+      "meaning": "Cannot tomorrow, can next week.",
+      "must": [
+        "明日",
+        "来週",
+        "ない|ません"
+      ],
+      "categories": [
+        "tense",
+        "negation"
+      ]
+    },
+    {
+      "id": "zh-number",
+      "from": "zh",
+      "to": "ja",
+      "text": "不是三次，只要再試兩次。",
+      "meaning": "Two more attempts, not three.",
+      "must": [
+        "三|3",
+        "二|2",
+        "なく|ない"
+      ],
+      "categories": [
+        "numbers",
+        "negation"
+      ]
+    },
+    {
+      "id": "zh-quote",
+      "from": "zh",
+      "to": "ja",
+      "text": "他說今天不會來。",
+      "meaning": "He said he would not come today.",
+      "must": [
+        "今日",
+        "来ない|来ません",
+        "言"
+      ],
+      "categories": [
+        "reported-speech",
+        "negation"
+      ]
+    },
+    {
+      "id": "zh-incomplete",
+      "from": "zh",
+      "to": "ja",
+      "text": "這個有點。",
+      "meaning": "Incomplete hesitant clause, do not invent a reason.",
+      "must": [
+        "ちょっと|少し"
+      ],
+      "categories": [
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "ja-fast",
+      "to": "zh",
+      "text": "敵は右じゃなくて左に二人います。まだ撃たないでください。",
+      "meaning": "Two enemies on the left, not the right. Do not shoot yet.",
+      "categories": [
+        "fast-speech",
+        "numbers",
+        "negation"
+      ],
+      "speed": 1.35,
+      "must": [
+        "左",
+        "二|兩|2",
+        "不要|別|先不"
+      ],
+      "from": "ja"
+    },
+    {
+      "id": "zh-fast",
+      "to": "ja",
+      "text": "敵人不是在右邊，是左邊有兩個，先不要開槍。",
+      "meaning": "Two enemies on the left, not the right. Do not shoot yet.",
+      "categories": [
+        "fast-speech",
+        "numbers",
+        "negation"
+      ],
+      "speed": 1.35,
+      "must": [
+        "左",
+        "二|2",
+        "撃たない|撃つな|撃たず"
+      ],
+      "from": "zh"
+    },
+    {
+      "id": "ja-colloquial",
+      "to": "zh",
+      "text": "それ取っといて。まだ使わないから。",
+      "meaning": "Keep that for me; I will not use it yet.",
+      "categories": [
+        "colloquial",
+        "negation"
+      ],
+      "must": [
+        "留|保管|收",
+        "還不|還沒|暫時不|不用"
+      ],
+      "from": "ja"
+    },
+    {
+      "id": "zh-colloquial",
+      "to": "ja",
+      "text": "那個先留著啦，等等才要用。",
+      "meaning": "Keep that for now; it is needed later.",
+      "categories": [
+        "colloquial",
+        "tense"
+      ],
+      "must": [
+        "取って|残して|置いて",
+        "後|あと"
+      ],
+      "from": "zh"
+    },
+    {
+      "id": "ja-name",
+      "to": "zh",
+      "text": "まほろちゃんは今日は配信しません。明日また来ます。",
+      "meaning": "Mahoro is a person; no stream today, returning tomorrow.",
+      "categories": [
+        "proper-names",
+        "tense",
+        "negation"
+      ],
+      "must": [
+        "まほろ|真幌|麻幌|Mahoro",
+        "今天",
+        "明天",
+        "不"
+      ],
+      "from": "ja"
+    },
+    {
+      "id": "zh-name",
+      "to": "ja",
+      "text": "鹿乃今天不開直播，明天才會來。",
+      "meaning": "Kano is a person; no stream today, returning tomorrow.",
+      "categories": [
+        "proper-names",
+        "tense",
+        "negation"
+      ],
+      "must": [
+        "鹿乃|かの|カノ",
+        "今日",
+        "明日",
+        "ない|ません"
+      ],
+      "from": "zh"
+    },
+    {
+      "id": "ja-game-effects",
+      "to": "zh",
+      "text": "ピカチュウはまだ倒れていません。回復してから交代します。",
+      "meaning": "Pikachu has not fainted; heal before switching.",
+      "categories": [
+        "game-effects",
+        "proper-names",
+        "negation"
+      ],
+      "effects": true,
+      "must": [
+        "皮卡丘",
+        "還沒|尚未",
+        "回復|恢復|治療|補血"
+      ],
+      "from": "ja"
+    },
+    {
+      "id": "zh-game-effects",
+      "to": "ja",
+      "text": "皮卡丘還沒有倒下，先恢復再換人。",
+      "meaning": "Pikachu has not fainted; heal before switching.",
+      "categories": [
+        "game-effects",
+        "proper-names",
+        "negation"
+      ],
+      "effects": true,
+      "must": [
+        "ピカチュウ",
+        "まだ",
+        "回復"
+      ],
+      "from": "zh"
+    },
+    {
+      "id": "ja-speaker-turns",
+      "to": "zh",
+      "text": "もう終わりましたか。いいえ、まだ終わっていません。",
+      "meaning": "First speaker asks whether it is finished. Second says no, not yet.",
+      "categories": [
+        "speaker-turns",
+        "negation"
+      ],
+      "segments": [
+        {
+          "text": "もう終わりましたか。"
+        },
+        {
+          "text": "いいえ、まだ終わっていません。",
+          "pitch": 1.12
+        }
+      ],
+      "must": [
+        "還沒|尚未",
+        "結束|完成"
+      ],
+      "from": "ja"
+    },
+    {
+      "id": "zh-speaker-turns",
+      "to": "ja",
+      "text": "你已經做完了嗎？還沒，我明天才會完成。",
+      "meaning": "First speaker asks whether it is finished. Second says not yet, will finish tomorrow.",
+      "categories": [
+        "speaker-turns",
+        "tense",
+        "negation"
+      ],
+      "segments": [
+        {
+          "text": "你已經做完了嗎？",
+          "voice": "Meijia"
+        },
+        {
+          "text": "還沒，我明天才會完成。",
+          "voice": "Tingting"
+        }
+      ],
+      "must": [
+        "まだ",
+        "明日"
+      ],
+      "from": "zh"
+    },
+    {
+      "id": "ja-speaker-overlap",
+      "to": "zh",
+      "text": "右の扉を開けてください。違います、左の扉です。",
+      "meaning": "One speaker requests the right door; another corrects it to the left. Overlap is a stress case.",
+      "categories": [
+        "speaker-overlap",
+        "negation"
+      ],
+      "overlap": true,
+      "segments": [
+        {
+          "text": "右の扉を開けてください。"
+        },
+        {
+          "text": "違います、左の扉です。",
+          "pitch": 1.12
+        }
+      ],
+      "must": [
+        "右",
+        "左"
+      ],
+      "from": "ja"
+    },
+    {
+      "id": "zh-speaker-overlap",
+      "to": "ja",
+      "text": "請打開右邊的門。不對，是左邊的門。",
+      "meaning": "One speaker requests the right door; another corrects it to the left. Overlap is a stress case.",
+      "categories": [
+        "speaker-overlap",
+        "negation"
+      ],
+      "overlap": true,
+      "segments": [
+        {
+          "text": "請打開右邊的門。",
+          "voice": "Meijia"
+        },
+        {
+          "text": "不對，是左邊的門。",
+          "voice": "Tingting"
+        }
+      ],
+      "must": [
+        "右",
+        "左"
+      ],
+      "from": "zh"
+    }
+  ],
+  "context": [
+    {
+      "id": "refuse-offer",
+      "previous": "もう一杯お茶はいかがですか？",
+      "text": "もう大丈夫です。",
+      "meaning": "Declining more tea, no invented illness.",
+      "must": [
+        "不用|不需要|夠了|可以了"
+      ],
+      "mustNot": [
+        "病|康復|受傷"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "answer-safety",
+      "previous": "怪我はありませんか？",
+      "text": "大丈夫です。",
+      "meaning": "Reassuring they are okay.",
+      "must": [
+        "沒事|沒問題|很好|不要緊"
+      ],
+      "mustNot": [
+        "不用了"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "negative-answer",
+      "previous": "もうボスを倒したの？",
+      "text": "まだです。",
+      "meaning": "Not yet, not not-needed.",
+      "must": [
+        "還沒|尚未"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "positive-answer",
+      "previous": "準備はできましたか？",
+      "text": "できました。",
+      "meaning": "Ready/completed, no invented ability.",
+      "must": [
+        "好了|完成|準備"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "open-topic",
+      "previous": "明日は配信を休みます。",
+      "text": "ところで、それは？",
+      "meaning": "Topic change: do not carry over the streaming plan.",
+      "mustNot": [
+        "休息|直播|明天"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "quote-guard",
+      "previous": "彼は来ないと言っていました。",
+      "text": "「大丈夫」と言った。",
+      "meaning": "Quoted okay, not a response to previous speaker.",
+      "must": [
+        "說"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "fragment-masu",
+      "previous": "まだ終わってい",
+      "text": "ません。",
+      "cut": true,
+      "meaning": "Not finished yet, preserve negative.",
+      "must": [
+        "還沒|尚未",
+        "結束|完成"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ]
+    },
+    {
+      "id": "fragment-past",
+      "previous": "魚を全部食べてしまい",
+      "text": "ました。",
+      "cut": true,
+      "meaning": "Already ate all fish, past completion.",
+      "must": [
+        "魚",
+        "吃",
+        "了"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # Desktop 3.7.3 and extension 3.7.4 verification
 
 September 11, 2026. Staged changes and earlier baseline results are documented in
-[optimization progress](../../OPTIMIZATION-PROGRESS.md).
+[optimization progress](../archive/OPTIMIZATION-PROGRESS.md).
 
 ## Controlled upstream comparison
 

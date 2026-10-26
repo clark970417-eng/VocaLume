@@ -1,140 +1,45 @@
-> **Latest public preview: [4.4.5](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.4.5).** Download the desktop app and browser extension together, follow [beta installation and testing](BETA-TESTING.md), and send feedback with the repository issue forms.
-
 # VocaLume
 
-Current desktop and extension source: **4.6.0**. The extension brings reading and reply languages together, keeps active speech controls visible across its three tabs, and puts subtitle appearance one click away. The desktop App opens with language and sound-source choices, with direct **Translate / Subtitles / Models / More** tabs and persistent Start/Stop controls. A selectable API service replaces the fixed key fields, with separate provider/model settings and a connection test. Existing preferences, models and capture timing are preserved. See the [quick-start guide](docs/extension-guide.md) and [4.6.0 UI verification](docs/retests/4.6.0.md). The [4.5.9 speech-boundary improvements](docs/retests/4.5.9.md) and [4.5.8 multilingual recovery](docs/retests/4.5.8.md) remain in place. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+![VocaLume](docs/brand/VocaLume-logo-hd.png)
 
-![Extension icon](./icon-preview.png)
+**讀懂、回覆，也聽懂。** 影片雙語字幕、網站文字與留言翻譯，支援日文、中文、英文等 14 種語言。本機模型為主要選項，也可使用自己的 API。
 
-A local-first desktop app and Chromium extension for multilingual live captions, website translation, and reviewable translated replies. It can caption audio from the active browser tab and translate visible titles, comments, posts, and live chat without automatically submitting anything.
+[下載 4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0) · [使用手冊](docs/user-guide.md) · [English](docs/README.en.md) · [回報問題](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
 
-The complete upstream LiveTranslate application is included in
-[desktop-app](desktop-app/INTEGRATION.md), with attribution and a private browser
-bridge. This integration preserves the extension's page translation, Japanese
-reply drafts, caption modes and visual controls. See the integration notes for
-the implemented path, tests and remaining limits.
+## 下載哪個檔案？
 
-Current release notes: [4.4.5 — YouTube navigation fix](CHANGELOG.md#445---2026-10-18). Verification scope and remaining limits: [4.4.4 checks](docs/retests/4.4.4.md), [thermal checks](docs/retests/4.4.3.md), and [4.4.1 caption checks](docs/retests/4.4.1.md). Historical reports remain in [`docs/retests`](docs/retests/).
+在下載頁的 **Assets** 找到適合你的版本：
 
-## What's new in 4.4.5
+| 電腦 | 安裝檔 |
+| --- | --- |
+| Mac，Apple M 系列 | `VocaLume-4.6.0-arm64.dmg` |
+| Mac，Intel | `VocaLume-4.6.0.dmg` |
+| Windows 64 位元 | `VocaLume.Setup.4.6.0.exe` |
+| Linux x64（實驗性） | `VocaLume-4.6.0.AppImage` |
+| Opera GX / Chrome 擴充功能 | `vocalume-extension.zip` |
 
-- Clear stale YouTube title translations when navigating to a different-language video. Prevent late results from removing newer translations.
+目前是**未簽章的公開預覽版**。首次開啟可能出現系統提示，請依[安裝說明](docs/user-guide.md#安裝)操作；下載頁附有檔案校驗值。模型首次使用需要另外下載。
 
-- Add [78 Japanese / Traditional Chinese game terms](docs/game-vocabulary.md), including Pokémon, VALORANT, Apex and common shooter vocabulary. Only applicable terms enter a sentence's prompt.
+## 三步開始
 
-- Leave idle time after slow recognition, reduce speculative drafts under heat, and prioritize complete sentences. See [thermal behavior](docs/thermal-performance.md).
-- Recognize [creator greetings](docs/streamer-vocabulary.md), such as こんまほ / konmaho and おつかの / otsukano, without a model request for standalone messages.
+1. **安裝 App**，完成 Quick Start 的模型下載。獨立使用時，在首頁選擇聲音來源、原文與翻譯語言，再按 Start。
+2. **安裝 Extension**：解壓到固定資料夾，在 `opera://extensions` 開啟開發人員模式，按「載入未封裝擴充功能」。Mac 本機字幕還需[連接 App](docs/user-guide.md#連接-mac-app-與-extension)。
+3. **開啟影片**，點 VocaLume →「語音字幕」→ 選語言 → 開始。讀貼文與翻譯留言則在「文字翻譯」開啟；不會替你送出留言。
 
-- Japanese source drafts update while local translation waits for the completed sentence.
-- Single-pair captions retain the previous sentence until its translation is shown; four-entry captions keep filling their matching rows.
-- Breathing-pause handling, adaptive recognition cadence, and OS thermal feedback reduce unnecessary repeated work.
-- Local Chinese-to-Japanese drafts default to the smaller caption model; the extension offers an optional quality model.
-- Chinese-to-Japanese writing supports natural, livestream-viewer and polite styles; X supports Tab to translate and insert an unchanged draft for review.
-- Native messaging recovers text requests once and repairs stale VocaLume launch paths.
+Mac 的本機瀏覽器連接目前支援 Opera GX / Chrome。Windows、Linux 可使用獨立 App，Extension 可選瀏覽器模式；**尚未提供同樣的本機連接安裝流程**。瀏覽器模式需要 WebGPU、模型下載與網路文字翻譯。
 
-## Project overview
+## 4.6.0 有什麼不同？
 
-The project explores a practical accessibility problem: live Japanese media often has no captions, while conventional translation tools either require a separate desktop application or wait for a complete sentence before showing output. This extension captures audio from the active browser tab, detects speech locally, displays Japanese as recognition progresses, and adds a Traditional Chinese translation when it becomes available.
+- App 與 Extension 集中常用操作，字幕外觀更容易找到，停止收音按鈕持續可見。
+- 可選 Gemini、OpenAI、Claude 等 API 與模型；不使用 API 也可使用本機引擎。
+- 改善分段、短句前後文、名字保留、翻譯失敗恢復；單組與四組字幕都保留對應譯文。
+- 新增固定日中雙向品質語料、人工審查表與長時間測試流程。[版本詳情](docs/releases/4.6.0.md)
 
-It supports two independent workflows:
+## 需要幫助？
 
-- **Page text translation** translates titles, live chat messages, comments, and posts across the web. YouTube, Twitch, X, Bilibili, TikTok, Facebook, and Instagram have dedicated page rules; other sites use a conservative general adapter.
-- **Audio captioning** captures audio from the active browser tab and produces movable, resizable bilingual captions.
+- [安裝、更新、第一次收音與常見問題](docs/user-guide.md)
+- [Extension 操作與 API 設定](docs/extension-guide.md)
+- [測試結果與尚待驗證項目](docs/quality/README.md) · [版本記錄](CHANGELOG.md)
+- [隱私](PRIVACY.md) · [第三方來源與授權](THIRD_PARTY_NOTICES.md) · [原始碼導覽](docs/development.md)
 
-The extension never publishes a message automatically. Its optional writing assistant creates a Japanese draft from Chinese text and leaves review and submission to the user.
-
-## Key features
-
-- Local Japanese recognition through browser WebGPU or the full desktop MLX engine.
-- Silero V5 voice activity detection in a dedicated worker.
-- Incremental Japanese hypotheses before the final recognition result.
-- Traditional Chinese translation with bounded requests, cancellation of obsolete work, and recognition recovery.
-- Optional local Hy-MT2 7B translation; the smaller HY-MT1.5 model remains available for faster output.
-- Two display modes: one low-latency caption pair or a four-entry ordered transcript queue.
-- A movable and resizable caption panel with configurable type size, color, outline, background, and opacity.
-- Persistent transcript records, failed-translation retry, and text export.
-- Translation of titles, live chat, comments, and posts across websites, with 14 selectable languages and dedicated rules for major platforms.
-- Reviewable writing translations for detected comment, reply, and live-chat editors; synchronized mode automatically reverses the reading pair.
-- Local audio processing by default, with optional cloud engines in the desktop application; no automatic posting.
-
-## System design
-
-Audio is captured from the active tab with Chromium's tab capture API. An `AudioWorklet` streams samples to a resampler and a Silero V5 worker. Speech windows are sent to a separate Whisper worker so interface updates, detection, and recognition do not block one another.
-
-The desktop path sends growing speech windows to the upstream streaming processor, with an eight-second normal bound, up to twelve seconds for a recently recognized unfinished clause, with capture windows kept contiguous. A final fragment of at most one second after a proven forced cut can reuse up to two seconds of already captured audio for recognition, with bounded source reconstruction. Local agreement aligns recognition hypotheses. Japanese output is published first; asynchronous translation fills the matching line without starting a duplicate browser translation request. The browser-only fallback keeps its existing bounded overlapping windows. Ordered-record mode retains completed utterances while translations finish.
-
-This is windowed incremental recognition rather than a stateful streaming acoustic model. It reduces perceived latency, but it cannot provide zero-delay transcription or perfect recognition.
-
-## Installation
-
-### Public beta
-
-Download the desktop package for your operating system and the browser extension ZIP from [GitHub Releases](https://github.com/clark970417-eng/VocaLume/releases). These preview packages are not code-signed, so read the operating-system-specific instructions and security explanation in [BETA-TESTING.md](BETA-TESTING.md) before opening them.
-
-Every release includes SHA-256 checksums and a build provenance manifest. The desktop app supports Stable and Beta update channels; unsigned builds open the verified GitHub download page instead of attempting an unsafe silent replacement. See the [release and rollback guide](RELEASE.md) for recovery instructions.
-
-### From source
-
-Desktop development requires Node.js **22.12 or later** (CI covers Node 22 and 24).
-
-1. Clone or download this repository.
-2. Open `opera://extensions` in Opera GX or `chrome://extensions` in Chrome.
-3. Enable Developer mode.
-4. Select **Load unpacked** and choose the directory containing `manifest.json`.
-5. Refresh the target website, open the extension, and select **Start audio** when you also want captions for that tab's audio.
-
-Browser mode downloads Whisper Small and uses network translation. Desktop mode
-requires the [local app and native messaging registration](desktop-app/INTEGRATION.md);
-audio captions and Japanese reply drafts then use local models after their initial
-download. Website text translation retains its existing provider routing.
-
-## Privacy and security
-
-The default browser and MLX desktop recognition paths process audio locally. Browser-mode and website translation may send recognized or page text to the selected provider. Optional cloud engines in the full desktop application can send audio or text to their configured providers. Extension credentials are stored in `chrome.storage.local`; desktop settings use the application store. Neither is committed. Transcripts remain locally until cleared. The upstream application also retains its local usage metrics and session logging.
-
-The preview privacy notice, deletion guidance, and safe-feedback rules are in [PRIVACY.md](PRIVACY.md).
-
-## Repository structure
-
-- `background.js` — translation scheduling, caption state, and extension control.
-- `offscreen.js` and `audio-worklet.js` — tab capture and audio processing.
-- `speech-worker.js` — WebGPU Whisper inference.
-- `vad-worker.js` and `vendor/silero/` — local voice activity detection.
-- `streaming.mjs` — resampling, overlapping speech windows, hypothesis alignment, and latency metrics.
-- `content.js`, `x-content.js`, and `social-content.js` — page integration and translation controls.
-- `caption-window.js` — movable and resizable bilingual caption interface.
-- `popup.js` — settings, diagnostics, transcript export, and start/stop controls.
-- `tests/` — unit, integration, browser, VAD, and tab-capture fixtures.
-
-## Verification
-
-Run the automated suite with:
-
-```sh
-node --test tests/*.test.mjs
-```
-
-Extension **4.5.5 passes 193 automated tests** and the desktop passes **814 tests**, with six Python bridge checks. These cover caption ordering, source/translation pairing, recognition reuse, short-reply context, negation at audio cuts, bounded previews and existing recovery paths. Local model measurements, installed-app checks and Opera GX verification are recorded in the [4.5.5 report](docs/retests/4.5.5.md). These tests do not establish general live-speech accuracy, long-session reliability or commercial-product parity.
-See also [3.8 verification](docs/retests/RETEST-3.8.0.md) and the [upstream comparison](COMPARISON-LIVETRANSLATE.md).
-
-The end-to-end browser fixture at `tests/capture.html` uses the production capture
-and caption path with a 10.7-second synthetic Japanese recording. Historical
-browser-only measurements are recorded in [docs/retests/RETEST-3.4.8.md](docs/retests/RETEST-3.4.8.md);
-they should not be interpreted as measurements of the new desktop backend.
-
-## Limitations
-
-- Recognition quality can decrease with music, overlapping speakers, proper names, noise, and very short utterances.
-- Translation quality and latency depend on model choice, available compute, and, for network providers, service and network conditions.
-- Picture-in-picture windows cannot host a normal page content-script overlay.
-- Text rendered only inside images, video frames, canvas elements, or inaccessible closed components cannot be read as normal page text.
-- A 60.02-minute repeated-speech stress run completed 329 trials and 32 restarts without empty final strings, but had substantial high-load latency spikes. Diverse hours-long livestreams and all optional engines remain unverified. See [the verification report](docs/retests/RETEST-3.8.0.md).
-- The model has not been fine-tuned for this project.
-
-## Third-party components
-
-The project includes Transformers.js, ONNX Runtime Web, and the Silero V5 model. Licensing and implementation references are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-## Brand artwork
-
-[High-resolution VocaLume wordmark](docs/brand/VocaLume-logo-hd.png) · [Original transparent application icon](docs/brand/VocaLume-icon-original.png) · [Artwork details](docs/brand/README.md)
+辨識與翻譯仍可能出錯，尤其是多人重疊、音效、名字與極短句。現有自動檢查不代表已完成雙語人工驗收或所有電腦的實機測試。桌面部分衍生自 [LiveTranslate](https://github.com/rioX432/live-translate)，保留原作者 MIT 授權；模型另有各自授權。

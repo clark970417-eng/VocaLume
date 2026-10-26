@@ -1,8 +1,10 @@
 /** Local, paced caption probe: real Silero/ASR/translation, no browser permissions
  * or remote services. Use an isolated profile with existing model files. */
-import {app,powerMonitor} from 'electron'
+import {app,powerMonitor,powerSaveBlocker} from 'electron'
 import {readFileSync,writeFileSync} from 'fs'
 import {join} from 'path'
+import {createHash} from 'crypto'
+import {cpus,release,totalmem} from 'os'
 import * as ort from 'onnxruntime-node'
 import {SpeechWindows,SpeechGain,Resampler,DecodeQueue} from '../../streaming.mjs'
 import {PreviewBudget} from '../../preview-budget.mjs'
@@ -16,8 +18,15 @@ app.setPath('userData',COMPARE_PROFILE)
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,Math.max(0,ms)))
 
 app.whenReady().then(async()=>{
+ app.dock?.hide()
+ const blocker=powerSaveBlocker.start('prevent-app-suspension')
  const fixedCues=process.env.COMPARE_FIXED_CUES==='1'
- const report:any={label:COMPARE_LABEL,rounds:Number(process.env.COMPARE_ROUNDS||4),source:COMPARE_AUDIO,fixedCues,events:[],completed:[],metrics:[]}
+ const rounds=Number(process.env.COMPARE_ROUNDS||4)
+ if(!Number.isSafeInteger(rounds)||rounds<1||rounds>10000)throw Error('Expected 1–10000 rounds')
+ const report:any={label:COMPARE_LABEL,rounds,status:'running',fixedCues,events:[],completed:[],metrics:[],
+  system:{platform:process.platform,arch:process.arch,os:release(),cpu:cpus()[0]?.model,memoryBytes:totalmem(),electron:process.versions.electron}}
+ const checkpoint=()=>writeFileSync(COMPARE_REPORT,JSON.stringify(report,null,2))
+ app.on('before-quit',()=>{if(report.status==='running'){report.status='interrupted';report.fatal='Application quit before the run completed';checkpoint()}})
  const pipeline=new TranslationPipeline(), stt=new MlxWhisperEngine({language:'ja'}), translator=new HunyuanMT15Translator({kvCacheQuant:true})
  let asrCalls=0,asrMs=0,translationCalls=0,translationMs=0
  const recognize=stt.processAudio.bind(stt);stt.processAudio=async(...args)=>{const start=performance.now();asrCalls++;try{return await recognize(...args)}finally{asrMs+=performance.now()-start}}
@@ -30,6 +39,7 @@ app.whenReady().then(async()=>{
  const began=performance.now()
  try{
   const wav=readFileSync(COMPARE_AUDIO), rate=wav.readUInt32LE(24)
+  report.audioSha256=createHash('sha256').update(wav).digest('hex');checkpoint()
   let offset=12
   while(wav.toString('ascii',offset,offset+4)!=='data')offset+=8+wav.readUInt32LE(offset+4)+(wav.readUInt32LE(offset+4)%2)
   const count=wav.readUInt32LE(offset+4)/2
@@ -95,7 +105,8 @@ app.whenReady().then(async()=>{
     if(job){queue.push(job);void drain()}
    }
    report.metrics.push({round:round+1,atMs:performance.now()-start,queued:queue.jobs.length,
-    thermal:performanceState(),rss:process.memoryUsage().rss,processes:app.getAppMetrics().map(p=>({type:p.type,kb:p.memory.workingSetSize}))})
+    cache:pipeline.cacheStats,thermal:performanceState(),rss:process.memoryUsage().rss,processes:app.getAppMetrics().map(p=>({type:p.type,kb:p.memory.workingSetSize}))})
+   checkpoint()
    if ((round + 1) % 10 === 0) console.log('CAPTION_PROGRESS '+JSON.stringify({round:round+1,finals:report.completed.length,queued:queue.jobs.length,thermal:performanceState().thermalState}))
   }
   const final=windows.finish();if(final){queue.push(final);void drain()}
@@ -104,9 +115,11 @@ app.whenReady().then(async()=>{
   if(fatal)throw fatal
   report.summary={durationMs:performance.now()-start,asrCalls,asrMs,translationCalls,translationMs,finals:report.completed.length,
    failed:report.completed.filter((r:any)=>!r.translated).length}
+  report.status='completed'
  }catch(error){report.fatal=String(error);process.exitCode=1}
  finally{
+  if(report.fatal)report.status='failed'
   await pipeline.dispose();report.totalMs=performance.now()-began
-  writeFileSync(COMPARE_REPORT,JSON.stringify(report,null,2));console.log('CAPTION_REPORT '+JSON.stringify(report.summary||report.fatal));app.quit()
+  checkpoint();console.log('CAPTION_REPORT '+JSON.stringify(report.summary||report.fatal));powerSaveBlocker.stop(blocker);app.exit(report.fatal?1:0)
  }
 })
