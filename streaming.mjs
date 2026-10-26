@@ -1,4 +1,4 @@
-import {completeSentence,unfinishedSentence} from './sentence-boundary.mjs';
+import {completeSpokenClause,unfinishedSentence} from './sentence-boundary.mjs';
 // PCM sample positions, rather than timer cadence, define every audio boundary.
 export class Resampler {
  constructor(rate){this.ratio=rate/16000;this.reset();}
@@ -34,10 +34,10 @@ export class SpeechWindows {
   // A recognizer's period alone is weak evidence. Japanese hanging particles
   // and Chinese continuation words need the longer pause even with punctuation.
   const value=String(text||'').trim();
-  if(!Number.isFinite(sampleCount)||sampleCount<this.start||sampleCount>this.clock)return;
+  if(!Number.isFinite(sampleCount)||sampleCount<this.start||sampleCount>this.clock||sampleCount<this.hintSample)return;
   this.hintSample=sampleCount;
   this.sentenceUnfinished=unfinishedSentence(value)||/(?:から|とか|でも)[、，,。.!！?？\s]*$/u.test(value);
-  this.sentenceComplete=completeSentence(value)&&!this.sentenceUnfinished;
+  this.sentenceComplete=completeSpokenClause(value)&&!this.sentenceUnfinished;
  }
  finish(){
   if(!this.active)return null;
@@ -70,11 +70,18 @@ export class SpeechWindows {
   this.silent=speech?0:this.silent+n;
   const freshHint=this.hintSample>=this.lastSpeechSample;
   const pause=this.sentenceMode?(this.sentenceComplete&&freshHint?7680:22400):9216;
-  // Retain early breaths and hanging clauses. Once a cue has four seconds of
-  // context, a 160 ms VAD-confirmed pause is a useful boundary; uninterrupted speech has an
-  // eight-second normal ceiling. A recent unfinished clause gets up to four
-  // more seconds to include its verb/negation; even continuous speech is bounded.
-  const cuePause=this.shortCues&&this.samples>=64000&&this.silent>=2560&&!this.sentenceUnfinished;
+  // A hanging ending only describes audio the recognizer has actually heard.
+  // Do not let an old "今日は一緒に" veto a later breath after the speaker has
+  // already said its predicate. Protect up to 384ms of newly voiced tail while
+  // allowing older evidence to expire; elapsed silence alone never expires it.
+  const hangingHere=this.sentenceUnfinished&&this.hintSample>=this.lastSpeechSample-6144;
+  // A clear breath can close a useful fragment without a grammatical full stop.
+  // Keep very short phrases together; use 320ms after 2.5s of context, or the
+  // existing 160ms boundary after 4s. Capture/preview cadence is unchanged.
+  const cuePause=this.shortCues&&!hangingHere&&(
+   this.samples>=40000&&this.silent>=5120||this.samples>=64000&&this.silent>=2560);
+  // Keep the existing 8s ceiling and bounded 12s protection for a recently
+  // recognized hanging clause. No future audio or extra inference is awaited.
   const recentUnfinished=this.shortCues&&this.sentenceUnfinished&&this.hintSample>=this.clock-24000;
   const ceiling=recentUnfinished?this.maxSamples+64000:this.maxSamples;
   const ended=this.silent>=pause, cut=this.samples>=ceiling||cuePause;

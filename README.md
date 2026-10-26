@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current desktop and extension source: **4.5.8**. Translation recovery checks now cover all 14 supported extension languages: reject empty, malformed or clearly incompatible-script output before both native and browser caches accept it; preserve literal-only lines and known names; avoid redundant Korean, Russian, Arabic and Thai translation. Quickly failed final speech translations may retry once using the recognized sentence. Fix conflicting Chinese-output instructions when Chinese is translated into another language. **Capture waiting and silence thresholds are unchanged.** See the [4.5.8 multilingual checks and limits](docs/retests/4.5.8.md) and [4.5.7 recovery changes](docs/retests/4.5.7.md). Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+Current desktop and extension source: **4.5.9**. Browser speech captions now use later breaths instead of being held by stale unfinished-sentence feedback, and can close useful fragments without waiting for a full grammatical sentence. Fresh negations and hanging clauses remain protected; accepted translations keep their order. **No extra capture waiting is added.** See the [4.5.9 boundary measurements and limits](docs/retests/4.5.9.md). The [4.5.8 multilingual recovery](docs/retests/4.5.8.md) remains in place across all 14 extension languages. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 

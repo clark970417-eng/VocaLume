@@ -1,0 +1,342 @@
+{
+  "provenance": "Authored local audio controls, real Silero/MLX Whisper/HY-MT1.5. No user or remote audio. Condensed raw observations; not a population-quality or long-duration thermal benchmark.",
+  "baselineRevision": "1dfeb103ed4148f9e5657da246d1bcc436126c24",
+  "fixture": "tests/japanese-fixture.wav",
+  "fixtureSha256": "9509e4d83358abda97b1b7c4b7ab38fbcf937c1f0ea7386ba8fbbd21a668acde",
+  "browserChecks": {
+    "browser": "Opera GX, existing unpacked extension 4.5.9",
+    "app": "Installed VocaLume 4.5.9",
+    "fourGroupRecord": {
+      "status": "passed",
+      "rounds": 6,
+      "playbackSeconds": 79.33388,
+      "finalizedSourceCues": 12,
+      "displayedGroupsAtEnd": 4,
+      "firstSourceSeconds": 1.37,
+      "firstChineseSeconds": 6.32,
+      "fishEscapedClausePresent": true,
+      "captureStopped": true,
+      "settingsRestored": true,
+      "metrics": {
+        "vadMs": { "count": 120, "p50": 1, "p95": 3 },
+        "queueMs": { "count": 36, "p50": 0, "p95": 105 },
+        "decodeMs": { "count": 36, "p50": 621, "p95": 1021 },
+        "firstJapaneseMs": { "count": 12, "p50": 2425, "p95": 4097 },
+        "audioLagMs": { "count": 12, "p50": 589, "p95": 761 },
+        "cueMs": { "count": 12, "p50": 5312, "p95": 6016 }
+      }
+    },
+    "singlePair": {
+      "status": "pending",
+      "reason": "Computer-use tool reported noWindowsAvailable before the separate single-pair run. Four-group capture had already completed and stopped."
+    }
+  },
+  "negationControls": [
+    "ja-future",
+    "ja-correction",
+    "ja-not-yet",
+    "ja-number",
+    "ja-incomplete"
+  ],
+  "negationCorpus": "tests/fixtures/speech-quality-4.5.5.json",
+  "negationAudioAssembly": "Existing system-voice fixtures joined in the listed order with 2 seconds of zero PCM between them. One paced pass.",
+  "runs": {
+    "before": {
+      "label": "4.5.8 sentence boundary baseline",
+      "rounds": 2,
+      "summary": {
+        "durationMs": 26498.147833000003,
+        "asrCalls": 32,
+        "asrMs": 13422.224998999998,
+        "translationCalls": 5,
+        "translationMs": 1736.9203320000015,
+        "finals": 4,
+        "failed": 0
+      },
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまい…",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了……",
+          "endToChineseMs": 1317.6341250000005,
+          "atMs": 9317.636958
+        },
+        {
+          "cue": 2,
+          "source": "来てくれてありがとうございます",
+          "translated": "謝謝您的到來",
+          "endToChineseMs": 2.412833000000319,
+          "atMs": 12002.413541
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+          "endToChineseMs": 1172.6945829999968,
+          "atMs": 21972.695332999996
+        },
+        {
+          "cue": 5,
+          "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+          "translated": "魚兒逃走了。謝謝你們的到來。",
+          "endToChineseMs": 324.4569580000025,
+          "atMs": 25124.457666000002
+        }
+      ],
+      "boundaries": [
+        {
+          "cue": 1,
+          "audioMs": 8000,
+          "startSample": 0,
+          "endSample": 128000,
+          "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまい…",
+          "atMs": 9318
+        },
+        {
+          "cue": 2,
+          "audioMs": 4000,
+          "startSample": 128000,
+          "endSample": 192000,
+          "source": "来てくれてありがとうございます",
+          "atMs": 12002
+        },
+        {
+          "cue": 4,
+          "audioMs": 8000,
+          "startSample": 204800,
+          "endSample": 332800,
+          "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+          "atMs": 21973
+        },
+        {
+          "cue": 5,
+          "audioMs": 4000,
+          "startSample": 332800,
+          "endSample": 396800,
+          "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+          "atMs": 25124
+        }
+      ],
+      "thermal": [
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    },
+    "after": {
+      "label": "4.5.9 breath boundary candidate",
+      "rounds": 2,
+      "summary": {
+        "durationMs": 26537.621875000004,
+        "asrCalls": 32,
+        "asrMs": 14955.455998999998,
+        "translationCalls": 4,
+        "translationMs": 913.9256249999999,
+        "finals": 4,
+        "failed": 0
+      },
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 924.8007920000009,
+          "atMs": 5756.8038750000005
+        },
+        {
+          "cue": 2,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 1242.9681670000027,
+          "atMs": 12154.96975
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 755.0988340000004,
+          "atMs": 18835.105125000002
+        },
+        {
+          "cue": 5,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 503.9857090000005,
+          "atMs": 24663.986209000002
+        }
+      ],
+      "boundaries": [
+        {
+          "cue": 1,
+          "audioMs": 4832,
+          "startSample": 0,
+          "endSample": 77312,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "atMs": 5757
+        },
+        {
+          "cue": 2,
+          "audioMs": 6080,
+          "startSample": 77312,
+          "endSample": 174592,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "atMs": 12155
+        },
+        {
+          "cue": 4,
+          "audioMs": 5280,
+          "startSample": 204800,
+          "endSample": 289280,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "atMs": 18835
+        },
+        {
+          "cue": 5,
+          "audioMs": 6080,
+          "startSample": 289280,
+          "endSample": 386560,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "atMs": 24664
+        }
+      ],
+      "thermal": [
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    },
+    "negation": {
+      "label": "4.5.9 held-aside negation and fragment controls",
+      "rounds": 1,
+      "summary": {
+        "durationMs": 26536.426499999998,
+        "asrCalls": 26,
+        "asrMs": 11161.378375999988,
+        "translationCalls": 6,
+        "translationMs": 1208.4359579999946,
+        "finals": 5,
+        "failed": 0
+      },
+      "completed": [
+        {
+          "cue": 1,
+          "source": "明日は参加できませんが、来週は参加できます。",
+          "translated": "明天我無法參加，但下週我可以參加。",
+          "endToChineseMs": 741.7596669999994,
+          "atMs": 4805.769708999999
+        },
+        {
+          "cue": 3,
+          "source": "右じゃなくて左の扉を開けてください。",
+          "translated": "請打開左邊的門，而不是右邊的門。",
+          "endToChineseMs": 663.2279589999998,
+          "atMs": 10039.228416999998
+        },
+        {
+          "cue": 5,
+          "source": "まだ食べてないです。後で食べます。",
+          "translated": "還沒有吃呢。之後再吃吧。",
+          "endToChineseMs": 632.5938339999993,
+          "atMs": 14552.594291999998
+        },
+        {
+          "cue": 7,
+          "source": "あと3回ではなく、2回だけ挑戦します。",
+          "translated": "我會只嘗試兩次而已，而不是三次。",
+          "endToChineseMs": 999.036208999998,
+          "atMs": 20231.037
+        },
+        {
+          "cue": 9,
+          "source": "それはちょっと",
+          "translated": "那個有點……",
+          "endToChineseMs": 2.143624999996973,
+          "atMs": 23458.145583999998
+        }
+      ],
+      "boundaries": [
+        {
+          "cue": 1,
+          "audioMs": 4064,
+          "startSample": 0,
+          "endSample": 65024,
+          "source": "明日は参加できませんが、来週は参加できます。",
+          "atMs": 4806
+        },
+        {
+          "cue": 3,
+          "audioMs": 3936,
+          "startSample": 87040,
+          "endSample": 150016,
+          "source": "右じゃなくて左の扉を開けてください。",
+          "atMs": 10039
+        },
+        {
+          "cue": 5,
+          "audioMs": 3328,
+          "startSample": 169472,
+          "endSample": 222720,
+          "source": "まだ食べてないです。後で食べます。",
+          "atMs": 14553
+        },
+        {
+          "cue": 7,
+          "audioMs": 4032,
+          "startSample": 243200,
+          "endSample": 307712,
+          "source": "あと3回ではなく、2回だけ挑戦します。",
+          "atMs": 20231
+        },
+        {
+          "cue": 9,
+          "audioMs": 2752,
+          "startSample": 331264,
+          "endSample": 375296,
+          "source": "それはちょっと",
+          "atMs": 23458
+        }
+      ],
+      "thermal": [
+        {
+          "thermalState": "nominal",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 0,
+          "previewDutyCycle": 0.85,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    }
+  }
+}

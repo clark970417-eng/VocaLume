@@ -2,6 +2,13 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.9 - 2026-10-26
+
+- Stop stale unfinished-sentence feedback from blocking a later breath in browser-to-desktop speech captions. Keep fresh negations/hanging clauses protected and ignore older out-of-order feedback.
+- Use completed Japanese predicates at acoustic pauses even without ASR punctuation. Allow a substantial breath after 2.5 seconds to close a useful caption fragment; retain existing bounded long-speech handling without increasing capture waiting.
+- Preserve adjacent audio samples, context recovery and final-caption ordering. A new sentence does not cancel the previous accepted translation. See [boundary tests, measured comparison and limits](docs/retests/4.5.9.md).
+- App and extension source/local version is 4.5.9. Public preview downloads remain 4.4.5.
+
 ## 4.5.8 - 2026-10-26
 
 - Validate local model output before its native cache accepts it, including candidates reused by speech captions. Quickly failed final translations can recover once from invalid output, lost name markers or a worker exit without recognizing the audio again. Slow, cancelled and overloaded requests are not retried; persistent failures remain visible.

@@ -17,3 +17,15 @@ export function completeSentence(text,language='auto') {
  }
  return value.replace(trailing,'').length>=4;
 }
+
+// A recognizer need not insert punctuation for an audible sentence to finish.
+// Only use this additional evidence at an acoustic pause; it must not turn a
+// rolling text hypothesis into a final caption on its own.
+export function completeSpokenClause(text,language='auto') {
+ const value=String(text||'').trim();
+ if(!value)return false;
+ if(completeSentence(value,language))return true;
+ // Do not infer boundaries from arbitrary unpunctuated Latin/Han words.
+ if(language!=='ja'&&!(language==='auto'&&/[ぁ-ゖァ-ヺ]/u.test(value)))return false;
+ return completeSentence(value.replace(trailing,'')+'。','ja');
+}
