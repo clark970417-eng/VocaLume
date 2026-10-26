@@ -12,7 +12,7 @@ parser.add_argument('--ffmpeg', default=shutil.which('ffmpeg'))
 args = parser.parse_args()
 if not args.ffmpeg or not shutil.which('say'):
     parser.error('Requires macOS say with Kyoko voice, and --ffmpeg or ffmpeg on PATH')
-manifest = Path(__file__).resolve().parents[2] / 'tests/corpus/recognition.json'
+manifest = Path(__file__).resolve().parents[2] / 'extension/tests/corpus/recognition.json'
 args.output.mkdir(parents=True, exist_ok=True)
 for row in json.loads(manifest.read_text()):
     source = args.output / (row['id'] + '.txt')

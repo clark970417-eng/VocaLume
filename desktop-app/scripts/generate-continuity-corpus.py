@@ -13,7 +13,7 @@ from pathlib import Path
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', type=Path, required=True)
 parser.add_argument('--ffmpeg', default=shutil.which('ffmpeg'))
-parser.add_argument('--manifest', default='tests/corpus/continuity.json',
+parser.add_argument('--manifest', default='extension/tests/corpus/continuity.json',
                     help='manifest path relative to the repository root')
 args = parser.parse_args()
 if not args.ffmpeg or not shutil.which('say'):

@@ -6,8 +6,8 @@ import { fileURLToPath } from 'url'
 const root = fileURLToPath(new URL('../..', import.meta.url)).replace(/\/$/, '')
 const require = createRequire(root + '/desktop-app/package.json')
 const ort = require('onnxruntime-node')
-const { SpeechWindows, SpeechGain } = await import(root + '/streaming.mjs')
-const session = await ort.InferenceSession.create(root + '/vendor/silero/silero_vad_v5.onnx')
+const { SpeechWindows, SpeechGain } = await import(root + '/extension/streaming.mjs')
+const session = await ort.InferenceSession.create(root + '/extension/vendor/silero/silero_vad_v5.onnx')
 const sr = new ort.Tensor('int64', BigInt64Array.from([16000n]), [])
 
 function wav(path) {

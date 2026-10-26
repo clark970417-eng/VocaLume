@@ -1,8 +1,8 @@
 import io
 import struct
 import unittest
-from desktop.host import read_message
-from desktop.translation_support import TranslationCache, glossary_prompt
+from extension.desktop.host import read_message
+from extension.desktop.translation_support import TranslationCache, glossary_prompt
 
 
 class SupportTests(unittest.TestCase):
