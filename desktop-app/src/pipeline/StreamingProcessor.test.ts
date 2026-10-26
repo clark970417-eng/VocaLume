@@ -4,6 +4,33 @@ import { StreamingProcessor, type StreamingDeps } from './StreamingProcessor'
 import { LocalAgreement } from './LocalAgreement'
 import { ContextBuffer } from './ContextBuffer'
 import * as pressure from '../main/performance-state'
+import {contextualShortReply} from '../engines/translator/contextual-short-reply'
+
+it.each(['serial','overlap'])('keeps Chinese reply context scoped to the adjacent cue (%s)', async mode => {
+  let source='準備好了嗎？'
+  const calls: unknown[]=[]
+  const translator={id:'hunyuan-mt-15',translate:async()=> 'ordinary'}
+  const p=new StreamingProcessor({
+    emitter:new EventEmitter(),agreement:new LocalAgreement(),contextBuffer:new ContextBuffer(),
+    getSTTEngine:()=>({processAudio:async()=>({text:source,language:'zh'})}),getTranslator:()=>translator,
+    getSourceLanguage:()=> 'zh',getGlossary:()=>[],getSimulMtConfig:()=>({enabled:false,waitK:3}),resolveTargetLanguage:()=> 'ja',
+    translateFinal:async(text:string,from:string,to:string,_confidence:number|undefined,context:string|undefined)=>{
+      calls.push(context);return contextualShortReply(text,from,to,context)||'ordinary'
+    },incrementProcessing(){},decrementProcessing(){}
+  } as unknown as StreamingDeps)
+  const run=async(segment:string,start:number)=>{
+    const audio=new Float32Array(16000),evidence={segment,speechSeconds:1,captureStartSample:start,captureEndSample:start+16000}
+    if(mode==='serial')return p.finalizeStreaming(audio,16000,evidence)
+    return (await p.prepareFinalStreaming(audio,16000,evidence))?.completion
+  }
+  try{
+    await run('question',0);source='好了。'
+    expect((await run('reply',16000))?.translatedText).toBe('準備できました。')
+    p.resetSourceContext()
+    expect((await run('after-seek',0))?.translatedText).toBe('ordinary')
+    expect(calls).toEqual([undefined,'準備好了嗎？',undefined])
+  }finally{p.reset()}
+})
 
 it.each([false,true])('uses visible source context for final captions, including negation, with SimulMT=%s', async enabled => {
   let source = '今日は配信する。'

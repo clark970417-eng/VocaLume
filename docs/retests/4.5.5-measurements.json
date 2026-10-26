@@ -1,0 +1,5161 @@
+{
+  "date": "2026-10-26",
+  "baseline": "e9a7d016a2ec166748f3e88417dc4386d5f7c52d",
+  "candidateVersion": "4.5.5",
+  "machine": {
+    "chip": "Apple M5",
+    "memoryGiB": 16,
+    "os": "macOS 26.4.1"
+  },
+  "models": {
+    "asr": "MLX Whisper large-v3-turbo",
+    "translation": "HY-MT1.5-1.8B Q4_K_M",
+    "quantizedKV": true
+  },
+  "scope": "Synthetic development controls and real local models. Not a blind translation score. Context tests use scripted ASR. Timing across sequential loaded-machine runs is not an end-to-end speed claim. Artificial cuts bypass natural VAD.",
+  "fixtureHash": "4430b6dda94b3d8b46c7fe49c68dc42ac292b3cec144fc2ab127a0d4ec821703",
+  "pairedDecode": [
+    {
+      "id": "ja-past",
+      "compact": false,
+      "text": "昨日は最後まで見られませんでした",
+      "ms": 372.9372089728713,
+      "segments": 1
+    },
+    {
+      "id": "ja-past",
+      "compact": true,
+      "text": "昨日は最後まで見られませんでした",
+      "ms": 354.3862081132829,
+      "segments": 1
+    },
+    {
+      "id": "ja-future",
+      "compact": true,
+      "text": "明日は参加できませんが、来週は参加できます。",
+      "ms": 387.01725006103516,
+      "segments": 1
+    },
+    {
+      "id": "ja-future",
+      "compact": false,
+      "text": "明日は参加できませんが、来週は参加できます。",
+      "ms": 413.39591587893665,
+      "segments": 1
+    },
+    {
+      "id": "ja-correction",
+      "compact": false,
+      "text": "右じゃなくて、左の扉を開けてください。",
+      "ms": 398.7572081387043,
+      "segments": 1
+    },
+    {
+      "id": "ja-correction",
+      "compact": true,
+      "text": "右じゃなくて、左の扉を開けてください。",
+      "ms": 364.66925009153783,
+      "segments": 1
+    },
+    {
+      "id": "ja-not-yet",
+      "compact": true,
+      "text": "まだ食べてないです。後で食べます。",
+      "ms": 362.7494580578059,
+      "segments": 1
+    },
+    {
+      "id": "ja-not-yet",
+      "compact": false,
+      "text": "まだ食べてないです。後で食べます。",
+      "ms": 379.65608411468565,
+      "segments": 1
+    },
+    {
+      "id": "ja-accidental",
+      "compact": false,
+      "text": "間違えてセーブデータを消しちゃった。",
+      "ms": 392.0543340500444,
+      "segments": 1
+    },
+    {
+      "id": "ja-accidental",
+      "compact": true,
+      "text": "間違えてセーブデータを消しちゃった。",
+      "ms": 376.90675002522767,
+      "segments": 1
+    },
+    {
+      "id": "ja-number",
+      "compact": true,
+      "text": "あと3回ではなく、2回だけ挑戦します。",
+      "ms": 372.5455410312861,
+      "segments": 1
+    },
+    {
+      "id": "ja-number",
+      "compact": false,
+      "text": "あと3回ではなく、2回だけ挑戦します。",
+      "ms": 390.5992088839412,
+      "segments": 1
+    },
+    {
+      "id": "ja-quote",
+      "compact": false,
+      "text": "今日は来ないって言っていました。",
+      "ms": 370.022458024323,
+      "segments": 1
+    },
+    {
+      "id": "ja-quote",
+      "compact": true,
+      "text": "今日は来ないって言っていました。",
+      "ms": 347.5483749061823,
+      "segments": 1
+    },
+    {
+      "id": "ja-incomplete",
+      "compact": true,
+      "text": "それはちょっと。",
+      "ms": 334.6380421426147,
+      "segments": 1
+    },
+    {
+      "id": "ja-incomplete",
+      "compact": false,
+      "text": "それはちょっと。",
+      "ms": 351.66495898738503,
+      "segments": 1
+    },
+    {
+      "id": "zh-present",
+      "compact": false,
+      "text": "今天没办法看到最后,明天再来看。",
+      "ms": 404.1908751241863,
+      "segments": 1
+    },
+    {
+      "id": "zh-present",
+      "compact": true,
+      "text": "今天没办法看到最后,明天再来看。",
+      "ms": 374.79870789684355,
+      "segments": 1
+    },
+    {
+      "id": "zh-past",
+      "compact": true,
+      "text": "我昨天没能来,今天终于赶上了。",
+      "ms": 380.28312497772276,
+      "segments": 1
+    },
+    {
+      "id": "zh-past",
+      "compact": false,
+      "text": "我昨天没能来,今天终于赶上了。",
+      "ms": 406.81916708126664,
+      "segments": 1
+    },
+    {
+      "id": "zh-correction",
+      "compact": false,
+      "text": "不是右边,是左边哦",
+      "ms": 379.9133750144392,
+      "segments": 1
+    },
+    {
+      "id": "zh-correction",
+      "compact": true,
+      "text": "不是右边,是左边哦",
+      "ms": 353.53545821271837,
+      "segments": 1
+    },
+    {
+      "id": "zh-not-yet",
+      "compact": true,
+      "text": "我还没吃饭,等一下再吃。",
+      "ms": 363.9704161323607,
+      "segments": 1
+    },
+    {
+      "id": "zh-not-yet",
+      "compact": false,
+      "text": "我还没吃饭,等一下再吃。",
+      "ms": 388.2457499857992,
+      "segments": 1
+    },
+    {
+      "id": "zh-future",
+      "compact": false,
+      "text": "明天不能参加,下个星期可以。",
+      "ms": 397.505208151415,
+      "segments": 1
+    },
+    {
+      "id": "zh-future",
+      "compact": true,
+      "text": "明天不能参加,下个星期可以。",
+      "ms": 376.33379199542105,
+      "segments": 1
+    },
+    {
+      "id": "zh-number",
+      "compact": true,
+      "text": "不是三次,只要再是两次。",
+      "ms": 362.58954205550253,
+      "segments": 1
+    },
+    {
+      "id": "zh-number",
+      "compact": false,
+      "text": "不是三次,只要再是两次。",
+      "ms": 385.90541714802384,
+      "segments": 1
+    },
+    {
+      "id": "zh-quote",
+      "compact": false,
+      "text": "他说今天不会来。",
+      "ms": 363.7786249164492,
+      "segments": 1
+    },
+    {
+      "id": "zh-quote",
+      "compact": true,
+      "text": "他说今天不会来。",
+      "ms": 342.84441685304046,
+      "segments": 1
+    },
+    {
+      "id": "zh-incomplete",
+      "compact": true,
+      "text": "這個有點",
+      "ms": 336.35512506589293,
+      "segments": 1
+    },
+    {
+      "id": "zh-incomplete",
+      "compact": false,
+      "text": "這個有點",
+      "ms": 348.1059998739511,
+      "segments": 1
+    }
+  ],
+  "audio": [
+    {
+      "id": "ja-past",
+      "before": {
+        "id": "ja-past",
+        "from": "ja",
+        "to": "zh",
+        "reference": "昨日は最後まで見られませんでした。",
+        "recognized": "昨日は最後まで見られませんでした",
+        "translated": "昨天，我直到最後一刻都沒有能夠看到它。",
+        "asrMs": 508.03037499999937,
+        "translationMs": 222.18737499999952,
+        "audioMs": 2746.8125,
+        "CER": 0,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-past",
+        "from": "ja",
+        "to": "zh",
+        "reference": "昨日は最後まで見られませんでした。",
+        "recognized": "昨日は最後まで見られませんでした",
+        "translated": "昨天，我直到最後一刻都沒有能夠看到它。",
+        "asrMs": 1011.4917910000004,
+        "translationMs": 775.805292,
+        "audioMs": 2746.8125,
+        "CER": 0,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-future",
+      "before": {
+        "id": "ja-future",
+        "from": "ja",
+        "to": "zh",
+        "reference": "明日は参加できませんが、来週は参加できます。",
+        "recognized": "明日は参加できませんが、来週は参加できます。",
+        "translated": "明天我無法參加，但下週我可以參加。",
+        "asrMs": 426.2733330000001,
+        "translationMs": 255.8760000000002,
+        "audioMs": 3890.4375,
+        "CER": 0,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-future",
+        "from": "ja",
+        "to": "zh",
+        "reference": "明日は参加できませんが、来週は参加できます。",
+        "recognized": "明日は参加できませんが、来週は参加できます。",
+        "translated": "明天我無法參加，但下週我可以參加。",
+        "asrMs": 824.7889159999995,
+        "translationMs": 434.50733299999956,
+        "audioMs": 3890.4375,
+        "CER": 0,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-correction",
+      "before": {
+        "id": "ja-correction",
+        "from": "ja",
+        "to": "zh",
+        "reference": "右じゃなくて、左の扉を開けてください。",
+        "recognized": "右じゃなくて、左の扉を開けてください。",
+        "translated": "請打開左邊的門吧，而不是右邊的門。",
+        "asrMs": 390.54312500000015,
+        "translationMs": 297.19045800000004,
+        "audioMs": 3152.5625,
+        "CER": 0,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-correction",
+        "from": "ja",
+        "to": "zh",
+        "reference": "右じゃなくて、左の扉を開けてください。",
+        "recognized": "右じゃなくて、左の扉を開けてください。",
+        "translated": "請打開左邊的門吧，而不是右邊的門。",
+        "asrMs": 756.1875839999993,
+        "translationMs": 777.9699999999993,
+        "audioMs": 3152.5625,
+        "CER": 0,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-not-yet",
+      "before": {
+        "id": "ja-not-yet",
+        "from": "ja",
+        "to": "zh",
+        "reference": "まだ食べてないです。あとで食べます。",
+        "recognized": "まだ食べてないです。後で食べます。",
+        "translated": "還沒有吃呢。之後再吃吧。",
+        "asrMs": 382.58229200000005,
+        "translationMs": 214.72450000000026,
+        "audioMs": 2550.1875,
+        "CER": 0.125,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-not-yet",
+        "from": "ja",
+        "to": "zh",
+        "reference": "まだ食べてないです。あとで食べます。",
+        "recognized": "まだ食べてないです。後で食べます。",
+        "translated": "還沒有吃呢。之後再吃吧。",
+        "asrMs": 732.3572910000003,
+        "translationMs": 463.1443330000002,
+        "audioMs": 2550.1875,
+        "CER": 0.125,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-accidental",
+      "before": {
+        "id": "ja-accidental",
+        "from": "ja",
+        "to": "zh",
+        "reference": "間違えてセーブデータを消しちゃった。",
+        "recognized": "間違えてセーブデータを消しちゃった。",
+        "translated": "我不小心把儲存的数据給刪掉了。",
+        "asrMs": 399.14279199999964,
+        "translationMs": 212.2720420000005,
+        "audioMs": 2537.375,
+        "CER": 0,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-accidental",
+        "from": "ja",
+        "to": "zh",
+        "reference": "間違えてセーブデータを消しちゃった。",
+        "recognized": "間違えてセーブデータを消しちゃった。",
+        "translated": "我不小心把儲存的数据給刪掉了。",
+        "asrMs": 839.618625000001,
+        "translationMs": 474.22520799999984,
+        "audioMs": 2537.375,
+        "CER": 0,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-number",
+      "before": {
+        "id": "ja-number",
+        "from": "ja",
+        "to": "zh",
+        "reference": "あと三回ではなく、二回だけ挑戦します。",
+        "recognized": "あと3回ではなく、2回だけ挑戦します。",
+        "translated": "我會只嘗試兩次而已，而不是三次。",
+        "asrMs": 393.7379999999994,
+        "translationMs": 228.59937499999978,
+        "audioMs": 3483.1875,
+        "CER": 0.11764705882352941,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-number",
+        "from": "ja",
+        "to": "zh",
+        "reference": "あと三回ではなく、二回だけ挑戦します。",
+        "recognized": "あと3回ではなく、2回だけ挑戦します。",
+        "translated": "我會只嘗試兩次而已，而不是三次。",
+        "asrMs": 818.9705830000003,
+        "translationMs": 491.5703330000015,
+        "audioMs": 3483.1875,
+        "CER": 0.11764705882352941,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-quote",
+      "before": {
+        "id": "ja-quote",
+        "from": "ja",
+        "to": "zh",
+        "reference": "今日は来ないって言っていました。",
+        "recognized": "今日は来ないって言っていました。",
+        "translated": "他說今天不會來的。",
+        "asrMs": 366.85070799999994,
+        "translationMs": 153.61520800000108,
+        "audioMs": 2351.5,
+        "CER": 0,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-quote",
+        "from": "ja",
+        "to": "zh",
+        "reference": "今日は来ないって言っていました。",
+        "recognized": "今日は来ないって言っていました。",
+        "translated": "他說今天不會來的。",
+        "asrMs": 800.2624590000014,
+        "translationMs": 363.47949999999764,
+        "audioMs": 2351.5,
+        "CER": 0,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-incomplete",
+      "before": {
+        "id": "ja-incomplete",
+        "from": "ja",
+        "to": "zh",
+        "reference": "それはちょっと。",
+        "recognized": "それはちょっと。",
+        "translated": "那個有點……",
+        "asrMs": 348.8470410000009,
+        "translationMs": 0.026959000000715605,
+        "audioMs": 924.1875,
+        "CER": 0,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-incomplete",
+        "from": "ja",
+        "to": "zh",
+        "reference": "それはちょっと。",
+        "recognized": "それはちょっと。",
+        "translated": "那個有點……",
+        "asrMs": 788.3696660000023,
+        "translationMs": 0.09583399999974063,
+        "audioMs": 924.1875,
+        "CER": 0,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-present",
+      "before": {
+        "id": "zh-present",
+        "from": "zh",
+        "to": "ja",
+        "reference": "今天沒辦法看到最後，明天再來看。",
+        "recognized": "今天没办法看到最后,明天再来看。",
+        "translated": "今日は最後を見ることができませんので、明日また見に来ます。",
+        "asrMs": 396.7369170000002,
+        "translationMs": 391.9994999999999,
+        "audioMs": 3491.625,
+        "CER": 0.2857142857142857,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-present",
+        "from": "zh",
+        "to": "ja",
+        "reference": "今天沒辦法看到最後，明天再來看。",
+        "recognized": "今天没办法看到最后,明天再来看。",
+        "translated": "今日は最後を見ることができませんので、明日また見に来ます。",
+        "asrMs": 937.2247499999976,
+        "translationMs": 914.5792920000022,
+        "audioMs": 3491.625,
+        "CER": 0.2857142857142857,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-past",
+      "before": {
+        "id": "zh-past",
+        "from": "zh",
+        "to": "ja",
+        "reference": "我昨天沒能來，今天終於趕上了。",
+        "recognized": "我昨天没能来,今天终于赶上了。",
+        "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました。",
+        "asrMs": 410.3937500000011,
+        "translationMs": 338.6891660000001,
+        "audioMs": 3095.8125,
+        "CER": 0.38461538461538464,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-past",
+        "from": "zh",
+        "to": "ja",
+        "reference": "我昨天沒能來，今天終於趕上了。",
+        "recognized": "我昨天没能来,今天终于赶上了。",
+        "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました。",
+        "asrMs": 1003.257666999998,
+        "translationMs": 756.8579580000005,
+        "audioMs": 3095.8125,
+        "CER": 0.38461538461538464,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-correction",
+      "before": {
+        "id": "zh-correction",
+        "from": "zh",
+        "to": "ja",
+        "reference": "不是右邊，是左邊喔。",
+        "recognized": "不是右边,是左边哦",
+        "translated": "右側ではなく、左側ですよ。",
+        "asrMs": 368.8109999999997,
+        "translationMs": 150.6180000000004,
+        "audioMs": 2071.4375,
+        "CER": 0.375,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-correction",
+        "from": "zh",
+        "to": "ja",
+        "reference": "不是右邊，是左邊喔。",
+        "recognized": "不是右边,是左边哦",
+        "translated": "右側ではなく、左側ですよ。",
+        "asrMs": 1720.329916999999,
+        "translationMs": 313.48966599999767,
+        "audioMs": 2071.4375,
+        "CER": 0.375,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-not-yet",
+      "before": {
+        "id": "zh-not-yet",
+        "from": "zh",
+        "to": "ja",
+        "reference": "我還沒吃飯，等一下再吃。",
+        "recognized": "我还没吃饭,等一下再吃。",
+        "translated": "まだ食事をしていないので、少し待ってから食べることにする。",
+        "asrMs": 383.6201660000006,
+        "translationMs": 352.55458400000134,
+        "audioMs": 2619.8125,
+        "CER": 0.3,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-not-yet",
+        "from": "zh",
+        "to": "ja",
+        "reference": "我還沒吃飯，等一下再吃。",
+        "recognized": "我还没吃饭,等一下再吃。",
+        "translated": "まだ食事をしていないので、少し待ってから食べることにする。",
+        "asrMs": 1199.706124999997,
+        "translationMs": 808.7155840000014,
+        "audioMs": 2619.8125,
+        "CER": 0.3,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-future",
+      "before": {
+        "id": "zh-future",
+        "from": "zh",
+        "to": "ja",
+        "reference": "明天不能參加，下個星期可以。",
+        "recognized": "明天不能参加,下个星期可以。",
+        "translated": "明日は参加できませんが、来週なら参加できます。",
+        "asrMs": 388.712375000001,
+        "translationMs": 256.56225000000086,
+        "audioMs": 3084.6875,
+        "CER": 0.16666666666666666,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-future",
+        "from": "zh",
+        "to": "ja",
+        "reference": "明天不能參加，下個星期可以。",
+        "recognized": "明天不能参加,下个星期可以。",
+        "translated": "明日は参加できませんが、来週なら参加できます。",
+        "asrMs": 1025.0691669999978,
+        "translationMs": 578.4146249999976,
+        "audioMs": 3084.6875,
+        "CER": 0.16666666666666666,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-number",
+      "before": {
+        "id": "zh-number",
+        "from": "zh",
+        "to": "ja",
+        "reference": "不是三次，只要再試兩次。",
+        "recognized": "不是三次,只要再是两次。",
+        "translated": "三回ではなく、もう二回だけです。",
+        "asrMs": 379.6131669999995,
+        "translationMs": 228.53850000000057,
+        "audioMs": 2675.1875,
+        "CER": 0.2,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-number",
+        "from": "zh",
+        "to": "ja",
+        "reference": "不是三次，只要再試兩次。",
+        "recognized": "不是三次,只要再是两次。",
+        "translated": "三回ではなく、もう二回だけです。",
+        "asrMs": 946.1570419999989,
+        "translationMs": 558.0667499999981,
+        "audioMs": 2675.1875,
+        "CER": 0.2,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-quote",
+      "before": {
+        "id": "zh-quote",
+        "from": "zh",
+        "to": "ja",
+        "reference": "他說今天不會來。",
+        "recognized": "他说今天不会来。",
+        "translated": "彼は今日は来ないと言っていました。",
+        "asrMs": 366.05099999999766,
+        "translationMs": 205.14495800000077,
+        "audioMs": 1663.125,
+        "CER": 0.42857142857142855,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-quote",
+        "from": "zh",
+        "to": "ja",
+        "reference": "他說今天不會來。",
+        "recognized": "他说今天不会来。",
+        "translated": "彼は今日は来ないと言っていました。",
+        "asrMs": 1090.565375000002,
+        "translationMs": 481.783583000004,
+        "audioMs": 1663.125,
+        "CER": 0.42857142857142855,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-incomplete",
+      "before": {
+        "id": "zh-incomplete",
+        "from": "zh",
+        "to": "ja",
+        "reference": "這個有點。",
+        "recognized": "這個有點",
+        "translated": "これは少し…",
+        "asrMs": 354.52100000000064,
+        "translationMs": 92.71466700000019,
+        "audioMs": 788.3125,
+        "CER": 0,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-incomplete",
+        "from": "zh",
+        "to": "ja",
+        "reference": "這個有點。",
+        "recognized": "這個有點",
+        "translated": "これは少し…",
+        "asrMs": 1163.4719160000022,
+        "translationMs": 282.9462080000012,
+        "audioMs": 788.3125,
+        "CER": 0,
+        "meaningChecksPassed": true
+      }
+    }
+  ],
+  "text": [
+    {
+      "id": "ja-past",
+      "before": {
+        "id": "ja-past",
+        "source": "昨日は最後まで見られませんでした。",
+        "translated": "昨天，我直到最後一刻都沒有能夠看到它。",
+        "ms": 212.46129199999996,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-past",
+        "source": "昨日は最後まで見られませんでした。",
+        "translated": "昨天，我直到最後一刻都沒有能夠看到它。",
+        "ms": 477.9267089999994,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-future",
+      "before": {
+        "id": "ja-future",
+        "source": "明日は参加できませんが、来週は参加できます。",
+        "translated": "明天我無法參加，但下週我可以參加。",
+        "ms": 0.2798750000001746,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-future",
+        "source": "明日は参加できませんが、来週は参加できます。",
+        "translated": "明天我無法參加，但下週我可以參加。",
+        "ms": 0.3858749999999418,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-correction",
+      "before": {
+        "id": "ja-correction",
+        "source": "右じゃなくて、左の扉を開けてください。",
+        "translated": "請打開左邊的門吧，而不是右邊的門。",
+        "ms": 0.2899170000000595,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-correction",
+        "source": "右じゃなくて、左の扉を開けてください。",
+        "translated": "請打開左邊的門吧，而不是右邊的門。",
+        "ms": 0.428249999999025,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-not-yet",
+      "before": {
+        "id": "ja-not-yet",
+        "source": "まだ食べてないです。あとで食べます。",
+        "translated": "還沒有吃呢。之後再吃吧。",
+        "ms": 210.6934169999995,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-not-yet",
+        "source": "まだ食べてないです。あとで食べます。",
+        "translated": "還沒有吃呢。之後再吃吧。",
+        "ms": 371.4783329999991,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-accidental",
+      "before": {
+        "id": "ja-accidental",
+        "source": "間違えてセーブデータを消しちゃった。",
+        "translated": "我不小心把儲存的数据給刪掉了。",
+        "ms": 0.25279199999931734,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-accidental",
+        "source": "間違えてセーブデータを消しちゃった。",
+        "translated": "我不小心把儲存的数据給刪掉了。",
+        "ms": 0.279500000000553,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-number",
+      "before": {
+        "id": "ja-number",
+        "source": "あと三回ではなく、二回だけ挑戦します。",
+        "translated": "我會只嘗試兩次，而不是三次。",
+        "ms": 228.93983300000036,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-number",
+        "source": "あと三回ではなく、二回だけ挑戦します。",
+        "translated": "我會只嘗試兩次，而不是三次。",
+        "ms": 455.9381250000006,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-quote",
+      "before": {
+        "id": "ja-quote",
+        "source": "今日は来ないって言っていました。",
+        "translated": "他說今天不會來的。",
+        "ms": 0.09691700000075798,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-quote",
+        "source": "今日は来ないって言っていました。",
+        "translated": "他說今天不會來的。",
+        "ms": 0.32062500000029104,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "ja-incomplete",
+      "before": {
+        "id": "ja-incomplete",
+        "source": "それはちょっと。",
+        "translated": "那個有點……",
+        "ms": 0.015124999999898137,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "ja-incomplete",
+        "source": "それはちょっと。",
+        "translated": "那個有點……",
+        "ms": 0.03979099999924074,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-present",
+      "before": {
+        "id": "zh-present",
+        "source": "今天沒辦法看到最後，明天再來看。",
+        "translated": "今日は最後を見ることができませんが、明日また見に来ます。",
+        "ms": 378.55941600000006,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-present",
+        "source": "今天沒辦法看到最後，明天再來看。",
+        "translated": "今日は最後を見ることができませんが、明日また見に来ます。",
+        "ms": 685.141166999998,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-past",
+      "before": {
+        "id": "zh-past",
+        "source": "我昨天沒能來，今天終於趕上了。",
+        "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました。",
+        "ms": 323.51324999999997,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-past",
+        "source": "我昨天沒能來，今天終於趕上了。",
+        "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました。",
+        "ms": 944.8256250000013,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-correction",
+      "before": {
+        "id": "zh-correction",
+        "source": "不是右邊，是左邊喔。",
+        "translated": "右側ではなく、左側ですよ。",
+        "ms": 188.03112500000134,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-correction",
+        "source": "不是右邊，是左邊喔。",
+        "translated": "右側ではなく、左側ですよ。",
+        "ms": 349.9104589999988,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-not-yet",
+      "before": {
+        "id": "zh-not-yet",
+        "source": "我還沒吃飯，等一下再吃。",
+        "translated": "まだ食事をしていないので、少し待ってから食べます。",
+        "ms": 322.1140410000007,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-not-yet",
+        "source": "我還沒吃飯，等一下再吃。",
+        "translated": "まだ食事をしていないので、少し待ってから食べます。",
+        "ms": 671.1223750000026,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-future",
+      "before": {
+        "id": "zh-future",
+        "source": "明天不能參加，下個星期可以。",
+        "translated": "明日は参加できませんが、来週なら参加できます。",
+        "ms": 254.7686250000006,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-future",
+        "source": "明天不能參加，下個星期可以。",
+        "translated": "明日は参加できませんが、来週なら参加できます。",
+        "ms": 675.1437919999989,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-number",
+      "before": {
+        "id": "zh-number",
+        "source": "不是三次，只要再試兩次。",
+        "translated": "三回ではなく、もう二回試みればいい。",
+        "ms": 262.1784580000003,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-number",
+        "source": "不是三次，只要再試兩次。",
+        "translated": "三回ではなく、もう二回試みればいい。",
+        "ms": 590.5750000000007,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-quote",
+      "before": {
+        "id": "zh-quote",
+        "source": "他說今天不會來。",
+        "translated": "彼は今日は来ないと言いました。",
+        "ms": 194.26454199999716,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-quote",
+        "source": "他說今天不會來。",
+        "translated": "彼は今日は来ないと言いました。",
+        "ms": 470.29529199999524,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "zh-incomplete",
+      "before": {
+        "id": "zh-incomplete",
+        "source": "這個有點。",
+        "translated": "これは少し…",
+        "ms": 90.89433399999689,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "zh-incomplete",
+        "source": "這個有點。",
+        "translated": "これは少し…",
+        "ms": 214.21341600000596,
+        "meaningChecksPassed": true
+      }
+    }
+  ],
+  "context": [
+    {
+      "id": "refuse-offer",
+      "before": {
+        "id": "refuse-offer",
+        "previous": "もう一杯お茶はいかがですか？",
+        "text": "もう大丈夫です。",
+        "meaning": "Declining more tea, no invented illness.",
+        "must": [
+          "不用|不需要|夠了|可以了"
+        ],
+        "mustNot": [
+          "病|康復|受傷"
+        ],
+        "source": "もう大丈夫です。",
+        "translated": "已經沒問題了。",
+        "ms": 91.80158300000039,
+        "meaningChecksPassed": false
+      },
+      "after": {
+        "id": "refuse-offer",
+        "previous": "もう一杯お茶はいかがですか？",
+        "text": "もう大丈夫です。",
+        "meaning": "Declining more tea, no invented illness.",
+        "must": [
+          "不用|不需要|夠了|可以了"
+        ],
+        "mustNot": [
+          "病|康復|受傷"
+        ],
+        "source": "もう大丈夫です。",
+        "translated": "不用再加了。",
+        "ms": 2.9839589999974123,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "answer-safety",
+      "before": {
+        "id": "answer-safety",
+        "previous": "怪我はありませんか？",
+        "text": "大丈夫です。",
+        "meaning": "Reassuring they are okay.",
+        "must": [
+          "沒事|沒問題|很好|不要緊"
+        ],
+        "mustNot": [
+          "不用了"
+        ],
+        "source": "大丈夫です。",
+        "translated": "沒關係的。",
+        "ms": 78.49266599999828,
+        "meaningChecksPassed": false
+      },
+      "after": {
+        "id": "answer-safety",
+        "previous": "怪我はありませんか？",
+        "text": "大丈夫です。",
+        "meaning": "Reassuring they are okay.",
+        "must": [
+          "沒事|沒問題|很好|不要緊"
+        ],
+        "mustNot": [
+          "不用了"
+        ],
+        "source": "大丈夫です。",
+        "translated": "沒事。",
+        "ms": 0.944707999995444,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "negative-answer",
+      "before": {
+        "id": "negative-answer",
+        "previous": "もうボスを倒したの？",
+        "text": "まだです。",
+        "meaning": "Not yet, not not-needed.",
+        "must": [
+          "還沒|尚未"
+        ],
+        "source": "まだです。",
+        "translated": "還沒有。",
+        "ms": 54.614166999999725,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "negative-answer",
+        "previous": "もうボスを倒したの？",
+        "text": "まだです。",
+        "meaning": "Not yet, not not-needed.",
+        "must": [
+          "還沒|尚未"
+        ],
+        "source": "まだです。",
+        "translated": "還沒有。",
+        "ms": 152.86745800000062,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "positive-answer",
+      "before": {
+        "id": "positive-answer",
+        "previous": "準備はできましたか？",
+        "text": "できました。",
+        "meaning": "Ready/completed, no invented ability.",
+        "must": [
+          "好了|完成|準備"
+        ],
+        "source": "できました。",
+        "translated": "完成了。",
+        "ms": 44.631790999999794,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "positive-answer",
+        "previous": "準備はできましたか？",
+        "text": "できました。",
+        "meaning": "Ready/completed, no invented ability.",
+        "must": [
+          "好了|完成|準備"
+        ],
+        "source": "できました。",
+        "translated": "準備好了。",
+        "ms": 0.8441249999959837,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "open-topic",
+      "before": {
+        "id": "open-topic",
+        "previous": "明日は配信を休みます。",
+        "text": "ところで、それは？",
+        "meaning": "Topic change: do not carry over the streaming plan.",
+        "mustNot": [
+          "休息|直播|明天"
+        ],
+        "source": "ところで、それは？",
+        "translated": "對了，那個是什麼呢？",
+        "ms": 159.25283299999865,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "open-topic",
+        "previous": "明日は配信を休みます。",
+        "text": "ところで、それは？",
+        "meaning": "Topic change: do not carry over the streaming plan.",
+        "mustNot": [
+          "休息|直播|明天"
+        ],
+        "source": "ところで、それは？",
+        "translated": "對了，那個是什麼呢？",
+        "ms": 365.65920899999765,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "quote-guard",
+      "before": {
+        "id": "quote-guard",
+        "previous": "彼は来ないと言っていました。",
+        "text": "「大丈夫」と言った。",
+        "meaning": "Quoted okay, not a response to previous speaker.",
+        "must": [
+          "說"
+        ],
+        "source": "「大丈夫」と言った。",
+        "translated": "「沒關係啦」我這樣說道。",
+        "ms": 185.78145799999766,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "quote-guard",
+        "previous": "彼は来ないと言っていました。",
+        "text": "「大丈夫」と言った。",
+        "meaning": "Quoted okay, not a response to previous speaker.",
+        "must": [
+          "說"
+        ],
+        "source": "「大丈夫」と言った。",
+        "translated": "「沒關係啦」我這樣說道。",
+        "ms": 282.5562079999945,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "fragment-masu",
+      "before": {
+        "id": "fragment-masu",
+        "previous": "まだ終わってい",
+        "text": "ません。",
+        "cut": true,
+        "meaning": "Not finished yet, preserve negative.",
+        "must": [
+          "還沒|尚未",
+          "結束|完成"
+        ],
+        "source": "まだ終わっていません。",
+        "translated": "還沒有結束呢。",
+        "ms": 87.15591700000004,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "fragment-masu",
+        "previous": "まだ終わってい",
+        "text": "ません。",
+        "cut": true,
+        "meaning": "Not finished yet, preserve negative.",
+        "must": [
+          "還沒|尚未",
+          "結束|完成"
+        ],
+        "source": "まだ終わっていません。",
+        "translated": "還沒有結束呢。",
+        "ms": 126.90512500000477,
+        "meaningChecksPassed": true
+      }
+    },
+    {
+      "id": "fragment-past",
+      "before": {
+        "id": "fragment-past",
+        "previous": "魚を全部食べてしまい",
+        "text": "ました。",
+        "cut": true,
+        "meaning": "Already ate all fish, past completion.",
+        "must": [
+          "魚",
+          "吃",
+          "了"
+        ],
+        "source": "魚を全部食べてしまいました。",
+        "translated": "我吃光了所有的魚。",
+        "ms": 111.16570899999715,
+        "meaningChecksPassed": true
+      },
+      "after": {
+        "id": "fragment-past",
+        "previous": "魚を全部食べてしまい",
+        "text": "ました。",
+        "cut": true,
+        "meaning": "Already ate all fish, past completion.",
+        "must": [
+          "魚",
+          "吃",
+          "了"
+        ],
+        "source": "魚を全部食べてしまいました。",
+        "translated": "我吃光了所有的魚。",
+        "ms": 174.0608329999959,
+        "meaningChecksPassed": true
+      }
+    }
+  ],
+  "cuts": [
+    {
+      "id": "ja-past",
+      "fraction": 0.55,
+      "reference": "昨日は最後まで見られませんでした。",
+      "before": [
+        {
+          "source": "昨日は最後まで",
+          "translated": "昨天，直到最後一刻都沒有停止。",
+          "ms": 2794.595375
+        },
+        {
+          "source": "見られませんでした。",
+          "translated": "沒有被看到啊。",
+          "ms": 1102.358792
+        }
+      ],
+      "after": [
+        {
+          "source": "昨日は最後まで",
+          "translated": "昨天，直到最後一刻都沒有停止。",
+          "ms": 717.1864169999999
+        },
+        {
+          "source": "見られませんでした。",
+          "translated": "沒有被看到啊。",
+          "ms": 612.3510419999993
+        }
+      ]
+    },
+    {
+      "id": "ja-past",
+      "fraction": 0.75,
+      "reference": "昨日は最後まで見られませんでした。",
+      "before": [
+        {
+          "source": "昨日は最後まで見られます",
+          "translated": "昨天可以完整觀看至最後一幕。",
+          "ms": 1349.839082999999
+        },
+        {
+          "source": "でした",
+          "translated": "是的。",
+          "ms": 1556.4601249999996
+        }
+      ],
+      "after": [
+        {
+          "source": "昨日は最後まで見られます",
+          "translated": "昨天可以完整觀看至最後一幕。",
+          "ms": 784.421542
+        },
+        {
+          "source": "昨日は最後まで見られませんでした。",
+          "translated": "昨天，我直到最後一刻都沒有能夠看到它。",
+          "ms": 750.5542500000001
+        }
+      ]
+    },
+    {
+      "id": "ja-future",
+      "fraction": 0.55,
+      "reference": "明日は参加できませんが、来週は参加できます。",
+      "before": [
+        {
+          "source": "明日は参加できませんが。",
+          "translated": "明天我無法參加活動了。",
+          "ms": 1497.5670840000002
+        },
+        {
+          "source": "来週は参加できます。",
+          "translated": "下週可以參加。",
+          "ms": 1522.4430000000011
+        }
+      ],
+      "after": [
+        {
+          "source": "明日は参加できませんが。",
+          "translated": "明天我無法參加活動了。",
+          "ms": 616.037542
+        },
+        {
+          "source": "来週は参加できます。",
+          "translated": "下週可以參加。",
+          "ms": 610.165167000001
+        }
+      ]
+    },
+    {
+      "id": "ja-future",
+      "fraction": 0.75,
+      "reference": "明日は参加できませんが、来週は参加できます。",
+      "before": [
+        {
+          "source": "明日は参加できませんが、来週はさらに、",
+          "translated": "明天我無法參加，但下週會再來的。",
+          "ms": 1932.6810000000005
+        },
+        {
+          "source": "できます",
+          "translated": "可以啊。",
+          "ms": 1048.5411249999997
+        }
+      ],
+      "after": [
+        {
+          "source": "明日は参加できませんが、来週はさらに、",
+          "translated": "明天我無法參加，但下週會再來的。",
+          "ms": 819.6982919999991
+        },
+        {
+          "source": "明日は参加できませんが、来週は参加できます",
+          "translated": "明天我無法參加，但下週我可以參加。",
+          "ms": 747.6345000000001
+        }
+      ]
+    },
+    {
+      "id": "ja-not-yet",
+      "fraction": 0.55,
+      "reference": "まだ食べてないです。あとで食べます。",
+      "before": [
+        {
+          "source": "まだ食べてないです。",
+          "translated": "還沒有吃呢。",
+          "ms": 1565.2564999999995
+        },
+        {
+          "source": "後で食べます",
+          "translated": "之後再吃吧。",
+          "ms": 1417.0591669999994
+        }
+      ],
+      "after": [
+        {
+          "source": "まだ食べてないです。",
+          "translated": "還沒有吃呢。",
+          "ms": 578.3546249999999
+        },
+        {
+          "source": "後で食べます",
+          "translated": "之後再吃吧。",
+          "ms": 567.2380000000012
+        }
+      ]
+    },
+    {
+      "id": "ja-not-yet",
+      "fraction": 0.75,
+      "reference": "まだ食べてないです。あとで食べます。",
+      "before": [
+        {
+          "source": "まだ食べてないです。あとで",
+          "translated": "還沒有吃呢。之後再吃吧。",
+          "ms": 1834.0106670000023
+        },
+        {
+          "source": "食べます",
+          "translated": "吃啊",
+          "ms": 1259.1208330000009
+        }
+      ],
+      "after": [
+        {
+          "source": "まだ食べてないです。あとで",
+          "translated": "還沒有吃呢。之後再吃吧。",
+          "ms": 702.9007499999989
+        },
+        {
+          "source": "食べます",
+          "translated": "吃啊",
+          "ms": 557.7038749999992
+        }
+      ]
+    },
+    {
+      "id": "ja-number",
+      "fraction": 0.55,
+      "reference": "あと三回ではなく、二回だけ挑戦します。",
+      "before": [
+        {
+          "source": "あと3回ではなく、2回。",
+          "translated": "不是還有3次，而是2次而已。",
+          "ms": 1500.8703750000022
+        },
+        {
+          "source": "だけ挑戦します",
+          "translated": "我會嘗試一下的。",
+          "ms": 1413.689666000002
+        }
+      ],
+      "after": [
+        {
+          "source": "あと3回ではなく、2回。",
+          "translated": "不是還有3次，而是2次而已。",
+          "ms": 834.5541670000002
+        },
+        {
+          "source": "だけ挑戦します",
+          "translated": "我會嘗試一下的。",
+          "ms": 599.4849170000016
+        }
+      ]
+    },
+    {
+      "id": "ja-number",
+      "fraction": 0.75,
+      "reference": "あと三回ではなく、二回だけ挑戦します。",
+      "before": [
+        {
+          "source": "あと3回ではなく、2回だけちょうど",
+          "translated": "不是還有3次，而是只有2次而已。正好適中。",
+          "ms": 1797.058291999998
+        },
+        {
+          "source": "します",
+          "translated": "會這樣做。",
+          "ms": 1269.9338749999988
+        }
+      ],
+      "after": [
+        {
+          "source": "あと3回ではなく、2回だけちょうど、",
+          "translated": "不是還有3次，而是只有2次而已，正好適中。",
+          "ms": 750.6815420000003
+        },
+        {
+          "source": "あと3回ではなく、2回だけ挑戦します",
+          "translated": "我只會嘗試兩次而已，而不是三次。",
+          "ms": 678.4889160000002
+        }
+      ]
+    },
+    {
+      "id": "zh-past",
+      "fraction": 0.55,
+      "reference": "我昨天沒能來，今天終於趕上了。",
+      "before": [
+        {
+          "source": "我昨天没能来,",
+          "translated": "昨日は来ることができませんでした。",
+          "ms": 1695.144959000001
+        },
+        {
+          "source": "今天终于赶上了",
+          "translated": "今日、ついに間に合った。",
+          "ms": 2070.183624999998
+        }
+      ],
+      "after": [
+        {
+          "source": "我昨天没能来,",
+          "translated": "昨日は来ることができませんでした。",
+          "ms": 781.9227080000019
+        },
+        {
+          "source": "今天终于赶上了",
+          "translated": "今日、ついに間に合った。",
+          "ms": 701.3607499999998
+        }
+      ]
+    },
+    {
+      "id": "zh-past",
+      "fraction": 0.75,
+      "reference": "我昨天沒能來，今天終於趕上了。",
+      "before": [
+        {
+          "source": "我昨天没能来,今天终于",
+          "translated": "昨日は来ることができませんでしたが、今日ついに",
+          "ms": 1967.1449999999968
+        },
+        {
+          "source": "改上了",
+          "translated": "変わった",
+          "ms": 1128.5578749999986
+        }
+      ],
+      "after": [
+        {
+          "source": "我昨天没能来,今天终于",
+          "translated": "昨日は来ることができませんでしたが、今日ついに",
+          "ms": 847.2122090000012
+        },
+        {
+          "source": "我昨天没能来,今天终于赶上了。",
+          "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました。",
+          "ms": 869.2875419999982
+        }
+      ]
+    },
+    {
+      "id": "zh-not-yet",
+      "fraction": 0.55,
+      "reference": "我還沒吃飯，等一下再吃。",
+      "before": [
+        {
+          "source": "我还没吃饭,",
+          "translated": "まだ食事をしていません。",
+          "ms": 2268.2055000000037
+        },
+        {
+          "source": "等一下再吃",
+          "translated": "もう少し待ってから食べましょう",
+          "ms": 1612.5629589999953
+        }
+      ],
+      "after": [
+        {
+          "source": "我还没吃饭,",
+          "translated": "まだ食事をしていません。",
+          "ms": 678.7085000000006
+        },
+        {
+          "source": "等一下再吃",
+          "translated": "もう少し待ってから食べましょう",
+          "ms": 683.7027080000007
+        }
+      ]
+    },
+    {
+      "id": "zh-not-yet",
+      "fraction": 0.75,
+      "reference": "我還沒吃飯，等一下再吃。",
+      "before": [
+        {
+          "source": "我还没吃饭,等一下。",
+          "translated": "まだ食事をしていないので、少し待ってください。",
+          "ms": 1849.1037089999954
+        },
+        {
+          "source": "再吃",
+          "translated": "もう一度食べる",
+          "ms": 1742.1029590000035
+        }
+      ],
+      "after": [
+        {
+          "source": "我还没吃饭,等一下。",
+          "translated": "まだ食事をしていないので、少し待ってください。",
+          "ms": 780.7248330000002
+        },
+        {
+          "source": "我还没吃饭,等一下再吃。",
+          "translated": "まだ食事をしていないので、少し待ってから食べることにする。",
+          "ms": 846.7309580000001
+        }
+      ]
+    },
+    {
+      "id": "zh-future",
+      "fraction": 0.55,
+      "reference": "明天不能參加，下個星期可以。",
+      "before": [
+        {
+          "source": "明天不能参加",
+          "translated": "明日は参加できません",
+          "ms": 1175.0663750000022
+        },
+        {
+          "source": "下个星期可以。",
+          "translated": "来週なら可能です。",
+          "ms": 1582.223834000004
+        }
+      ],
+      "after": [
+        {
+          "source": "明天不能参加。",
+          "translated": "明日は参加できません。",
+          "ms": 603.8684580000008
+        },
+        {
+          "source": "下个星期可以。",
+          "translated": "来週なら可能です。",
+          "ms": 613.3591670000023
+        }
+      ]
+    },
+    {
+      "id": "zh-future",
+      "fraction": 0.75,
+      "reference": "明天不能參加，下個星期可以。",
+      "before": [
+        {
+          "source": "明天不能参加,下个新的节目。",
+          "translated": "明日は参加できません。次の新しいプログラムに参加しません。",
+          "ms": 1677.5542920000007
+        },
+        {
+          "source": "请不吝点赞 订阅 转发 打赏支持明镜与点点栏目",
+          "translated": "どうぞ惜しみなくいいねをして、購読してください。シェアして、ご支援をください。明鏡と点点のコラムを応援してください。",
+          "ms": 2838.2069580000025
+        }
+      ],
+      "after": [
+        {
+          "source": "明天不能参加,下个新的节目。",
+          "translated": "明日は参加できません。次の新しいプログラムに参加しません。",
+          "ms": 866.5096660000017
+        },
+        {
+          "source": "明天不能参加,下个星期可以",
+          "translated": "明日は参加できません。来週なら参加できます。",
+          "ms": 730.1790000000001
+        }
+      ]
+    },
+    {
+      "id": "zh-number",
+      "fraction": 0.55,
+      "reference": "不是三次，只要再試兩次。",
+      "before": [
+        {
+          "source": "不是三次,",
+          "translated": "三回ではありません。",
+          "ms": 1637.4940829999978
+        },
+        {
+          "source": "不要再试两次",
+          "translated": "もう二度試す必要はありません。",
+          "ms": 1533.2396249999947
+        }
+      ],
+      "after": [
+        {
+          "source": "不是三次,只要",
+          "translated": "三回ではなく、ただ",
+          "ms": 647.8411659999983
+        },
+        {
+          "source": "不要再试两次",
+          "translated": "もう二度試す必要はありません。",
+          "ms": 693.481416999999
+        }
+      ]
+    },
+    {
+      "id": "zh-number",
+      "fraction": 0.75,
+      "reference": "不是三次，只要再試兩次。",
+      "before": [
+        {
+          "source": "不是三次,只要再是",
+          "translated": "三回ではなく、もう一度だけです。",
+          "ms": 1839.6743750000023
+        },
+        {
+          "source": "2次",
+          "translated": "2回",
+          "ms": 2183.538542000002
+        }
+      ],
+      "after": [
+        {
+          "source": "不是三次,只要再是",
+          "translated": "三回ではなく、もう一度だけです。",
+          "ms": 707.7095829999998
+        },
+        {
+          "source": "不是三次,只要再是两次。",
+          "translated": "三回ではなく、もう二回だけです。",
+          "ms": 730.9050000000025
+        }
+      ]
+    },
+    {
+      "id": "ja-correction",
+      "fraction": 0.55,
+      "reference": "右じゃなくて、左の扉を開けてください。",
+      "before": [
+        {
+          "source": "右じゃなくて、左のトイレを押してください。",
+          "translated": "請不要選擇右邊的廁所，而是選擇左邊的廁所吧。",
+          "ms": 1926.242083
+        },
+        {
+          "source": "扉を開けてください。",
+          "translated": "請打開這扇門吧。",
+          "ms": 1049.1924999999992
+        }
+      ],
+      "after": [
+        {
+          "source": "右じゃなくて、左のトレー。",
+          "translated": "不是右邊的，而是左邊的那個托架。",
+          "ms": 885.5046659999998
+        },
+        {
+          "source": "扉を開けてください。",
+          "translated": "請打開這扇門吧。",
+          "ms": 683.284791
+        }
+      ]
+    },
+    {
+      "id": "ja-correction",
+      "fraction": 0.75,
+      "reference": "右じゃなくて、左の扉を開けてください。",
+      "before": [
+        {
+          "source": "右じゃなくて、左の扉を開け、",
+          "translated": "不是打開右邊的門，而是打開左邊的門。",
+          "ms": 1267.2629159999997
+        },
+        {
+          "source": "てください",
+          "translated": "請您這樣做吧。",
+          "ms": 1266.3463339999998
+        }
+      ],
+      "after": [
+        {
+          "source": "右じゃなくて、左の扉を開け、",
+          "translated": "不是打開右邊的門，而是打開左邊的門。",
+          "ms": 919.4111249999996
+        },
+        {
+          "source": "右じゃなくて、左の扉を開け、てください。",
+          "translated": "請不要打開右邊的門，而是打開左邊的門吧。",
+          "ms": 897.0137500000001
+        }
+      ]
+    },
+    {
+      "id": "ja-accidental",
+      "fraction": 0.55,
+      "reference": "間違えてセーブデータを消しちゃった。",
+      "before": [
+        {
+          "source": "間違えてセーブで",
+          "translated": "不小心用「セーブ」來保存了",
+          "ms": 1105.5555000000004
+        },
+        {
+          "source": "データを消しちゃった。",
+          "translated": "我把數據刪掉了。",
+          "ms": 1019.7681250000005
+        }
+      ],
+      "after": [
+        {
+          "source": "間違えてセーブで",
+          "translated": "不小心用「セーブ」來保存了",
+          "ms": 727.7784579999998
+        },
+        {
+          "source": "データを消しちゃった",
+          "translated": "我把數據刪掉了。",
+          "ms": 717.207292
+        }
+      ]
+    },
+    {
+      "id": "ja-accidental",
+      "fraction": 0.75,
+      "reference": "間違えてセーブデータを消しちゃった。",
+      "before": [
+        {
+          "source": "間違えてセーブデータを消えてください。",
+          "translated": "請不要誤刪除已儲存的數據。",
+          "ms": 1234.0398750000004
+        },
+        {
+          "source": "しちゃった",
+          "translated": "搞砸了",
+          "ms": 817.8002090000009
+        }
+      ],
+      "after": [
+        {
+          "source": "間違えてセーブデータを消えてください。",
+          "translated": "請不要誤刪除已儲存的數據。",
+          "ms": 881.648000000001
+        },
+        {
+          "source": "間違えてセーブデータを消しちゃった。",
+          "translated": "我不小心把儲存的数据給刪掉了。",
+          "ms": 722.4671669999989
+        }
+      ]
+    },
+    {
+      "id": "ja-quote",
+      "fraction": 0.55,
+      "reference": "今日は来ないって言っていました。",
+      "before": [
+        {
+          "source": "今日は来ない",
+          "translated": "今天不會來了。",
+          "ms": 906.0316669999993
+        },
+        {
+          "source": "って言っていました。",
+          "translated": "他們是這樣說的。",
+          "ms": 996.476999999999
+        }
+      ],
+      "after": [
+        {
+          "source": "今日は来ない",
+          "translated": "今天不會來了。",
+          "ms": 631.8204999999998
+        },
+        {
+          "source": "って言っていました。",
+          "translated": "他們是這樣說的。",
+          "ms": 872.8392920000006
+        }
+      ]
+    },
+    {
+      "id": "ja-quote",
+      "fraction": 0.75,
+      "reference": "今日は来ないって言っていました。",
+      "before": [
+        {
+          "source": "今日は来ないって言って",
+          "translated": "今天說不要來的話了。",
+          "ms": 1031.4209999999985
+        },
+        {
+          "source": "今日は来ないって言っていました",
+          "translated": "他說今天不會來的。",
+          "ms": 954.7260840000017
+        }
+      ],
+      "after": [
+        {
+          "source": "今日は来ないって言って",
+          "translated": "今天說不要來的話了。",
+          "ms": 772.7484590000004
+        },
+        {
+          "source": "今日は来ないって言っていました。",
+          "translated": "他說今天不會來的。",
+          "ms": 1448.1616670000003
+        }
+      ]
+    },
+    {
+      "id": "zh-present",
+      "fraction": 0.55,
+      "reference": "今天沒辦法看到最後，明天再來看。",
+      "before": [
+        {
+          "source": "今天没办法看到最后。",
+          "translated": "今日は最後を見ることができません。",
+          "ms": 1293.9648330000018
+        },
+        {
+          "source": "明天再来看",
+          "translated": "明日また来てみる",
+          "ms": 962.9292920000007
+        }
+      ],
+      "after": [
+        {
+          "source": "今天没办法看到最后。",
+          "translated": "今日は最後を見ることができません。",
+          "ms": 1194.9584169999998
+        },
+        {
+          "source": "明天再来看",
+          "translated": "明日また来てみる",
+          "ms": 754.691041
+        }
+      ]
+    },
+    {
+      "id": "zh-present",
+      "fraction": 0.75,
+      "reference": "今天沒辦法看到最後，明天再來看。",
+      "before": [
+        {
+          "source": "今天没办法看到最后,明天",
+          "translated": "今日は最後を見ることができません。明日は参加できません。",
+          "ms": 1296.2767080000012
+        },
+        {
+          "source": "先再來看",
+          "translated": "まずは、これから見ていきましょう。",
+          "ms": 1189.8502079999998
+        }
+      ],
+      "after": [
+        {
+          "source": "今天没办法看到最后,明天",
+          "translated": "今日は最後を見ることができません。明日は参加できません。",
+          "ms": 1193.9677499999998
+        },
+        {
+          "source": "今天没办法看到最后,明天再来看。",
+          "translated": "今日は最後を見ることができませんので、明日また見に来ます。",
+          "ms": 1040.1145419999993
+        }
+      ]
+    },
+    {
+      "id": "zh-correction",
+      "fraction": 0.55,
+      "reference": "不是右邊，是左邊喔。",
+      "before": [
+        {
+          "source": "不是右邊",
+          "translated": "右側ではない",
+          "ms": 996.2222910000019
+        },
+        {
+          "source": "是左邊哦",
+          "translated": "左側ですよ。",
+          "ms": 961.2854589999988
+        }
+      ],
+      "after": [
+        {
+          "source": "不是右邊",
+          "translated": "右側ではない",
+          "ms": 728.499708000003
+        },
+        {
+          "source": "不是右边,是左边哦",
+          "translated": "右側ではなく、左側ですよ。",
+          "ms": 971.9426249999997
+        }
+      ]
+    },
+    {
+      "id": "zh-correction",
+      "fraction": 0.75,
+      "reference": "不是右邊，是左邊喔。",
+      "before": [
+        {
+          "source": "不是右边,是左边。",
+          "translated": "右側ではなく、左側です。",
+          "ms": 1256.3731249999983
+        },
+        {
+          "source": "好邊哦",
+          "translated": "いい雰囲気だね",
+          "ms": 1217.2309999999998
+        }
+      ],
+      "after": [
+        {
+          "source": "不是右边,是左边。",
+          "translated": "右側ではなく、左側です。",
+          "ms": 876.7712500000016
+        },
+        {
+          "source": "不是右边,是左边哦",
+          "translated": "右側ではなく、左側ですよ。",
+          "ms": 658.9733750000014
+        }
+      ]
+    },
+    {
+      "id": "zh-quote",
+      "fraction": 0.55,
+      "reference": "他說今天不會來。",
+      "before": [
+        {
+          "source": "他说今天",
+          "translated": "彼は今日を言っています。",
+          "ms": 1303.386333999999
+        },
+        {
+          "source": "不会来",
+          "translated": "来ないだろう",
+          "ms": 1169.4863750000004
+        }
+      ],
+      "after": [
+        {
+          "source": "他说今天",
+          "translated": "彼は今日を言っています。",
+          "ms": 880.0135420000006
+        },
+        {
+          "source": "不会来",
+          "translated": "来ないだろう",
+          "ms": 757.096292000002
+        }
+      ]
+    },
+    {
+      "id": "zh-quote",
+      "fraction": 0.75,
+      "reference": "他說今天不會來。",
+      "before": [
+        {
+          "source": "他说今天不会",
+          "translated": "彼は今日は参加しないと言っていました。",
+          "ms": 1365.8867499999978
+        },
+        {
+          "source": "未来",
+          "translated": "未来については、「明日は参加できません」と表現します。昨日は「昨日は参加できませんでした」と表現します。これらの参考句は不要です。",
+          "ms": 1983.622209000001
+        }
+      ],
+      "after": [
+        {
+          "source": "他说今天不会。",
+          "translated": "彼は今日は参加できないと言いました。",
+          "ms": 1009.1604579999985
+        },
+        {
+          "source": "他说今天不会来。",
+          "translated": "彼は今日は来ないと言っていました。",
+          "ms": 1048.096458
+        }
+      ]
+    }
+  ],
+  "paced": [
+    {
+      "label": "baseline-a",
+      "fixedCues": true,
+      "summary": {
+        "durationMs": 66241.689333,
+        "asrCalls": 58,
+        "asrMs": 30175.695296000013,
+        "translationCalls": 2,
+        "translationMs": 1364.7027929999986,
+        "finals": 10,
+        "failed": 0
+      },
+      "medianFinalWindowEndToChineseMs": 836.9695420000007,
+      "p95FinalWindowEndToChineseMs": 1782.4248750000006,
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1782.4248750000006,
+          "atMs": 6614.428333
+        },
+        {
+          "cue": 2,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 1114.9391250000008,
+          "atMs": 12026.939999999999
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 823.2061250000006,
+          "atMs": 18903.206583
+        },
+        {
+          "cue": 5,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 679.4275830000006,
+          "atMs": 24839.428875
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 844.2205419999991,
+          "atMs": 32172.2225
+        },
+        {
+          "cue": 8,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 636.934957999998,
+          "atMs": 38044.935375
+        },
+        {
+          "cue": 10,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 921.0795000000071,
+          "atMs": 45497.079708000005
+        },
+        {
+          "cue": 11,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 657.3198330000014,
+          "atMs": 51313.320167
+        },
+        {
+          "cue": 13,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 863.1054580000055,
+          "atMs": 58687.105792
+        },
+        {
+          "cue": 14,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 829.7185420000023,
+          "atMs": 64733.718708
+        }
+      ],
+      "capturePositions": [
+        {
+          "cue": 1,
+          "start": 0,
+          "end": 77312
+        },
+        {
+          "cue": 2,
+          "start": 77312,
+          "end": 174592
+        },
+        {
+          "cue": 4,
+          "start": 204800,
+          "end": 289280
+        },
+        {
+          "cue": 5,
+          "start": 289280,
+          "end": 386560
+        },
+        {
+          "cue": 7,
+          "start": 416768,
+          "end": 501248
+        },
+        {
+          "cue": 8,
+          "start": 501248,
+          "end": 598528
+        },
+        {
+          "cue": 10,
+          "start": 628736,
+          "end": 713216
+        },
+        {
+          "cue": 11,
+          "start": 713216,
+          "end": 810496
+        },
+        {
+          "cue": 13,
+          "start": 840704,
+          "end": 925184
+        },
+        {
+          "cue": 14,
+          "start": 925184,
+          "end": 1022464
+        }
+      ],
+      "thermal": [
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    },
+    {
+      "label": "candidate-a",
+      "fixedCues": true,
+      "summary": {
+        "durationMs": 66248.489084,
+        "asrCalls": 59,
+        "asrMs": 29681.579668000035,
+        "translationCalls": 2,
+        "translationMs": 915.1134579999998,
+        "finals": 10,
+        "failed": 0
+      },
+      "medianFinalWindowEndToChineseMs": 797.8107294999991,
+      "p95FinalWindowEndToChineseMs": 1326.3103339999943,
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1264.4856670000008,
+          "atMs": 6096.493458999999
+        },
+        {
+          "cue": 2,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 968.3816670000015,
+          "atMs": 11880.3825
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 760.1811249999992,
+          "atMs": 18840.182042
+        },
+        {
+          "cue": 5,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 545.2232089999998,
+          "atMs": 24705.224792
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 742.0839589999996,
+          "atMs": 32070.086124999998
+        },
+        {
+          "cue": 8,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 536.4876249999943,
+          "atMs": 37944.490709000005
+        },
+        {
+          "cue": 10,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 835.440333999999,
+          "atMs": 45411.440459000005
+        },
+        {
+          "cue": 11,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 1326.3103339999943,
+          "atMs": 51982.31054200001
+        },
+        {
+          "cue": 13,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 983.7297499999986,
+          "atMs": 58807.730125
+        },
+        {
+          "cue": 14,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 750.0722499999974,
+          "atMs": 64654.072541999994
+        }
+      ],
+      "capturePositions": [
+        {
+          "cue": 1,
+          "start": 0,
+          "end": 77312
+        },
+        {
+          "cue": 2,
+          "start": 77312,
+          "end": 174592
+        },
+        {
+          "cue": 4,
+          "start": 204800,
+          "end": 289280
+        },
+        {
+          "cue": 5,
+          "start": 289280,
+          "end": 386560
+        },
+        {
+          "cue": 7,
+          "start": 416768,
+          "end": 501248
+        },
+        {
+          "cue": 8,
+          "start": 501248,
+          "end": 598528
+        },
+        {
+          "cue": 10,
+          "start": 628736,
+          "end": 713216
+        },
+        {
+          "cue": 11,
+          "start": 713216,
+          "end": 810496
+        },
+        {
+          "cue": 13,
+          "start": 840704,
+          "end": 925184
+        },
+        {
+          "cue": 14,
+          "start": 925184,
+          "end": 1022464
+        }
+      ],
+      "thermal": [
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    },
+    {
+      "label": "candidate-b",
+      "fixedCues": true,
+      "summary": {
+        "durationMs": 66241.335625,
+        "asrCalls": 50,
+        "asrMs": 35476.866375999976,
+        "translationCalls": 2,
+        "translationMs": 1398.696833,
+        "finals": 10,
+        "failed": 0
+      },
+      "medianFinalWindowEndToChineseMs": 1335.6668954999968,
+      "p95FinalWindowEndToChineseMs": 2971.6533750000017,
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1577.516291,
+          "atMs": 6409.526333
+        },
+        {
+          "cue": 2,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 1852.8680830000012,
+          "atMs": 12764.869541
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1451.9418330000008,
+          "atMs": 19531.942916
+        },
+        {
+          "cue": 5,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 686.3769580000007,
+          "atMs": 24846.377666
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1179.2197499999966,
+          "atMs": 32507.221875000003
+        },
+        {
+          "cue": 8,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 1104.0146660000028,
+          "atMs": 38512.015625
+        },
+        {
+          "cue": 10,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 2971.6533750000017,
+          "atMs": 47547.653583
+        },
+        {
+          "cue": 11,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 2521.6435409999976,
+          "atMs": 53177.644
+        },
+        {
+          "cue": 13,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1219.3919579999929,
+          "atMs": 59043.392166000005
+        },
+        {
+          "cue": 14,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 1182.9752500000031,
+          "atMs": 65086.97558300001
+        }
+      ],
+      "capturePositions": [
+        {
+          "cue": 1,
+          "start": 0,
+          "end": 77312
+        },
+        {
+          "cue": 2,
+          "start": 77312,
+          "end": 174592
+        },
+        {
+          "cue": 4,
+          "start": 204800,
+          "end": 289280
+        },
+        {
+          "cue": 5,
+          "start": 289280,
+          "end": 386560
+        },
+        {
+          "cue": 7,
+          "start": 416768,
+          "end": 501248
+        },
+        {
+          "cue": 8,
+          "start": 501248,
+          "end": 598528
+        },
+        {
+          "cue": 10,
+          "start": 628736,
+          "end": 713216
+        },
+        {
+          "cue": 11,
+          "start": 713216,
+          "end": 810496
+        },
+        {
+          "cue": 13,
+          "start": 840704,
+          "end": 925184
+        },
+        {
+          "cue": 14,
+          "start": 925184,
+          "end": 1022464
+        }
+      ],
+      "thermal": [
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    },
+    {
+      "label": "baseline-b",
+      "fixedCues": true,
+      "summary": {
+        "durationMs": 66443.83,
+        "asrCalls": 34,
+        "asrMs": 37842.213122999994,
+        "translationCalls": 2,
+        "translationMs": 2311.8995829999985,
+        "finals": 10,
+        "failed": 0
+      },
+      "medianFinalWindowEndToChineseMs": 2143.4090005,
+      "p95FinalWindowEndToChineseMs": 4495.991499999998,
+      "completed": [
+        {
+          "cue": 1,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 3378.424208999999,
+          "atMs": 8210.429999999998
+        },
+        {
+          "cue": 2,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 4495.991499999998,
+          "atMs": 15407.993583999998
+        },
+        {
+          "cue": 4,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 1256.327541999999,
+          "atMs": 19336.328500000003
+        },
+        {
+          "cue": 5,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 715.2983339999992,
+          "atMs": 24875.299124999998
+        },
+        {
+          "cue": 7,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 2263.5313339999993,
+          "atMs": 33591.533375
+        },
+        {
+          "cue": 8,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 1487.237874999999,
+          "atMs": 38895.241459
+        },
+        {
+          "cue": 10,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 2023.2866670000003,
+          "atMs": 46599.28725
+        },
+        {
+          "cue": 11,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 731.3035420000015,
+          "atMs": 51387.303792
+        },
+        {
+          "cue": 13,
+          "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+          "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+          "endToChineseMs": 3010.9824589999916,
+          "atMs": 60834.982791999995
+        },
+        {
+          "cue": 14,
+          "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+          "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+          "endToChineseMs": 2445.038916999998,
+          "atMs": 66349.039542
+        }
+      ],
+      "capturePositions": [
+        {
+          "cue": 1,
+          "start": 0,
+          "end": 77312
+        },
+        {
+          "cue": 2,
+          "start": 77312,
+          "end": 174592
+        },
+        {
+          "cue": 4,
+          "start": 204800,
+          "end": 289280
+        },
+        {
+          "cue": 5,
+          "start": 289280,
+          "end": 386560
+        },
+        {
+          "cue": 7,
+          "start": 416768,
+          "end": 501248
+        },
+        {
+          "cue": 8,
+          "start": 501248,
+          "end": 598528
+        },
+        {
+          "cue": 10,
+          "start": 628736,
+          "end": 713216
+        },
+        {
+          "cue": 11,
+          "start": 713216,
+          "end": 810496
+        },
+        {
+          "cue": 13,
+          "start": 840704,
+          "end": 925184
+        },
+        {
+          "cue": 14,
+          "start": 925184,
+          "end": 1022464
+        }
+      ],
+      "thermal": [
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "desktop": 814,
+    "extension": 193,
+    "pythonBridge": 6,
+    "package": {
+      "version": "4.5.5",
+      "entries": 7090,
+      "runtimeMatches": true,
+      "rendererAssetsPresent": true,
+      "signatureValid": true,
+      "portableAddon": true
+    }
+  },
+  "sustainedRun": {
+    "scope": "Production-cadence, ASR-heavy repeated authored fixture; normal translation caching enabled. Not varied live speech or uncached translation stress.",
+    "rounds": 46,
+    "summary": {
+      "durationMs": 609417.8268749999,
+      "asrCalls": 382,
+      "asrMs": 285238.5731529995,
+      "translationCalls": 4,
+      "translationMs": 3440.11950000001,
+      "finals": 92,
+      "failed": 0
+    },
+    "maxSampledQueuedJobs": 0,
+    "thermalSamples": {
+      "fair": 46
+    },
+    "endToChineseMs": {
+      "p50": 940.9886664999794,
+      "p95ObservedSample": 2444.8580410000286
+    },
+    "completed": [
+      {
+        "cue": 1,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 1921.2207499999986,
+        "atMs": 6753.223833
+      },
+      {
+        "cue": 2,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1633.6875830000008,
+        "atMs": 12545.688625
+      },
+      {
+        "cue": 4,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 1652.7422910000023,
+        "atMs": 19732.743000000002
+      },
+      {
+        "cue": 5,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 2246.948040999996,
+        "atMs": 26406.948832999995
+      },
+      {
+        "cue": 7,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 575.2157079999961,
+        "atMs": 31903.216957999997
+      },
+      {
+        "cue": 8,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1966.5172909999965,
+        "atMs": 39374.51775
+      },
+      {
+        "cue": 10,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 1144.5211659999986,
+        "atMs": 45720.521415999996
+      },
+      {
+        "cue": 11,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1945.1458749999947,
+        "atMs": 52601.146083
+      },
+      {
+        "cue": 13,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 1473.7551660000026,
+        "atMs": 62017.75525
+      },
+      {
+        "cue": 14,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 1215.1322079999954,
+        "atMs": 65759.132791
+      },
+      {
+        "cue": 16,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 2746.988041000004,
+        "atMs": 76538.988583
+      },
+      {
+        "cue": 17,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 750.5905829999974,
+        "atMs": 78542.590833
+      },
+      {
+        "cue": 19,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 1089.4779160000035,
+        "atMs": 88129.478916
+      },
+      {
+        "cue": 20,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 252.20837500000198,
+        "atMs": 91292.20870799999
+      },
+      {
+        "cue": 22,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 976.7591249999969,
+        "atMs": 98544.759833
+      },
+      {
+        "cue": 23,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1243.3580409999995,
+        "atMs": 104891.358083
+      },
+      {
+        "cue": 25,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 703.1168329999928,
+        "atMs": 111519.117541
+      },
+      {
+        "cue": 26,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1493.2776250000024,
+        "atMs": 118389.277875
+      },
+      {
+        "cue": 28,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 1985.8545409999933,
+        "atMs": 128769.854791
+      },
+      {
+        "cue": 29,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 1853.6037910000014,
+        "atMs": 132637.60425
+      },
+      {
+        "cue": 31,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 848.1401660000265,
+        "atMs": 138160.140958
+      },
+      {
+        "cue": 32,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 938.1100000000151,
+        "atMs": 144330.110458
+      },
+      {
+        "cue": 34,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 1641.9664160000102,
+        "atMs": 154921.966916
+      },
+      {
+        "cue": 35,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 2227.081375000009,
+        "atMs": 159507.08158300002
+      },
+      {
+        "cue": 37,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 1179.2432499999995,
+        "atMs": 164987.243541
+      },
+      {
+        "cue": 38,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1992.2123750000028,
+        "atMs": 171880.21291600002
+      },
+      {
+        "cue": 40,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 580.2607500000158,
+        "atMs": 180356.260916
+      },
+      {
+        "cue": 41,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 573.6933330000029,
+        "atMs": 184349.69387500003
+      },
+      {
+        "cue": 43,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 1989.0469580000208,
+        "atMs": 192293.048125
+      },
+      {
+        "cue": 44,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 2840.64279100002,
+        "atMs": 199224.643
+      },
+      {
+        "cue": 46,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 2302.127375000011,
+        "atMs": 208574.1275
+      },
+      {
+        "cue": 47,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 78.5496250000142,
+        "atMs": 210350.54991600002
+      },
+      {
+        "cue": 49,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 820.5042079999985,
+        "atMs": 220340.50437500002
+      },
+      {
+        "cue": 50,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 493.8456250000163,
+        "atMs": 224013.84591600002
+      },
+      {
+        "cue": 52,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 667.0222910000011,
+        "atMs": 233435.022625
+      },
+      {
+        "cue": 53,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 668.592083000025,
+        "atMs": 237436.592458
+      },
+      {
+        "cue": 55,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 738.2487079999992,
+        "atMs": 246754.249083
+      },
+      {
+        "cue": 56,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 2332.6707500000193,
+        "atMs": 252348.670833
+      },
+      {
+        "cue": 58,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 2802.9727910000365,
+        "atMs": 262066.97304100002
+      },
+      {
+        "cue": 59,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 1780.088665999996,
+        "atMs": 265044.089083
+      },
+      {
+        "cue": 61,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 2301.71325000003,
+        "atMs": 274813.71375
+      },
+      {
+        "cue": 62,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 485.94437500002095,
+        "atMs": 276997.944458
+      },
+      {
+        "cue": 64,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 1412.2573749999865,
+        "atMs": 287172.257583
+      },
+      {
+        "cue": 65,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 495.1341250000405,
+        "atMs": 290255.1345
+      },
+      {
+        "cue": 67,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 2272.014415999991,
+        "atMs": 301280.01475000003
+      },
+      {
+        "cue": 68,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 110.74962499999674,
+        "atMs": 303118.74987500004
+      },
+      {
+        "cue": 70,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 530.0350830000243,
+        "atMs": 312786.03529100004
+      },
+      {
+        "cue": 71,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 508.26225000002887,
+        "atMs": 316764.262708
+      },
+      {
+        "cue": 73,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 504.7822499999893,
+        "atMs": 326008.782583
+      },
+      {
+        "cue": 74,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 248.3023750000284,
+        "atMs": 329752.30275000003
+      },
+      {
+        "cue": 76,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 645.1435410000267,
+        "atMs": 336677.14383300004
+      },
+      {
+        "cue": 77,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1915.0230830000364,
+        "atMs": 344027.023375
+      },
+      {
+        "cue": 79,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 482.1187500000233,
+        "atMs": 349762.119083
+      },
+      {
+        "cue": 80,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 461.1693749999977,
+        "atMs": 355821.1695
+      },
+      {
+        "cue": 82,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 957.4701249999925,
+        "atMs": 363485.470625
+      },
+      {
+        "cue": 83,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1014.3350409999839,
+        "atMs": 370006.335333
+      },
+      {
+        "cue": 85,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 495.3646249999874,
+        "atMs": 378991.36508300004
+      },
+      {
+        "cue": 86,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 460.07675000000745,
+        "atMs": 382956.077041
+      },
+      {
+        "cue": 88,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 1436.2910830000183,
+        "atMs": 390460.29129100003
+      },
+      {
+        "cue": 89,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 995.8448750000098,
+        "atMs": 396099.845166
+      },
+      {
+        "cue": 91,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 2444.8580410000286,
+        "atMs": 407436.85841600003
+      },
+      {
+        "cue": 92,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 1.447708000021521,
+        "atMs": 408993.447875
+      },
+      {
+        "cue": 94,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 1051.012665999995,
+        "atMs": 419291.01329100004
+      },
+      {
+        "cue": 95,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 2707.61950000003,
+        "atMs": 424947.61987500003
+      },
+      {
+        "cue": 97,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 802.2045410000137,
+        "atMs": 429570.204958
+      },
+      {
+        "cue": 98,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1624.7733330000192,
+        "atMs": 436472.774083
+      },
+      {
+        "cue": 100,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 807.9729159999988,
+        "atMs": 442823.973208
+      },
+      {
+        "cue": 101,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1596.5472910000244,
+        "atMs": 449692.547625
+      },
+      {
+        "cue": 103,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 502.4752500000177,
+        "atMs": 458486.475416
+      },
+      {
+        "cue": 104,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 459.53125,
+        "atMs": 462443.531541
+      },
+      {
+        "cue": 106,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 1203.3675410000142,
+        "atMs": 469715.367791
+      },
+      {
+        "cue": 107,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 622.0111250000191,
+        "atMs": 475214.011541
+      },
+      {
+        "cue": 109,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 952.3212080000085,
+        "atMs": 482712.3215
+      },
+      {
+        "cue": 110,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 718.0487079999875,
+        "atMs": 488558.049041
+      },
+      {
+        "cue": 112,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 767.1920410000021,
+        "atMs": 498495.192291
+      },
+      {
+        "cue": 113,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 483.1490830000257,
+        "atMs": 502211.149333
+      },
+      {
+        "cue": 115,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 617.5305829999852,
+        "atMs": 511593.530833
+      },
+      {
+        "cue": 116,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 957.7490410000319,
+        "atMs": 515933.749375
+      },
+      {
+        "cue": 118,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 556.1459579999791,
+        "atMs": 524780.1460409999
+      },
+      {
+        "cue": 119,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 564.6242499999935,
+        "atMs": 528788.6246659999
+      },
+      {
+        "cue": 121,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 431.8769999999786,
+        "atMs": 535183.877416
+      },
+      {
+        "cue": 122,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1814.6656249999069,
+        "atMs": 542646.665875
+      },
+      {
+        "cue": 124,
+        "source": "みなさん、こんにちは。今日は、一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げて...",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚逃走了……",
+        "endToChineseMs": 1405.4594579999102,
+        "atMs": 552125.459791
+      },
+      {
+        "cue": 125,
+        "source": "魚が逃げてしまいました。来てくれてありがとうございます",
+        "translated": "魚兒逃走了。謝謝你們的到來。",
+        "endToChineseMs": 335.7650829999475,
+        "atMs": 555055.7655829999
+      },
+      {
+        "cue": 127,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 943.8673329999438,
+        "atMs": 562191.867625
+      },
+      {
+        "cue": 128,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 713.6952499999898,
+        "atMs": 568041.6956249999
+      },
+      {
+        "cue": 130,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 729.9042909999844,
+        "atMs": 575225.904458
+      },
+      {
+        "cue": 131,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 1821.1823749999749,
+        "atMs": 582397.182958
+      },
+      {
+        "cue": 133,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 473.0643749999581,
+        "atMs": 588217.064666
+      },
+      {
+        "cue": 134,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 646.6172909999732,
+        "atMs": 594470.617625
+      },
+      {
+        "cue": 136,
+        "source": "みなさん、こんにちは。今日は一緒にゲームを楽しみましょう。",
+        "translated": "各位，大家好。今天，就讓我們一起享受遊戲的樂趣吧。",
+        "endToChineseMs": 869.0671249999432,
+        "atMs": 601861.067416
+      },
+      {
+        "cue": 137,
+        "source": "ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+        "translated": "請稍等一下。魚兒已經逃走了。謝謝您來。",
+        "endToChineseMs": 788.2509999999311,
+        "atMs": 607860.25125
+      }
+    ],
+    "metrics": [
+      {
+        "round": 1,
+        "atMs": 13248.397124999998,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 73449472,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 72048
+          },
+          {
+            "type": "GPU",
+            "kb": 29232
+          },
+          {
+            "type": "Utility",
+            "kb": 22912
+          },
+          {
+            "type": "Utility",
+            "kb": 1277936
+          }
+        ]
+      },
+      {
+        "round": 2,
+        "atMs": 26495.869790999997,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 78036992,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 76224
+          },
+          {
+            "type": "GPU",
+            "kb": 29312
+          },
+          {
+            "type": "Utility",
+            "kb": 23488
+          },
+          {
+            "type": "Utility",
+            "kb": 1243472
+          }
+        ]
+      },
+      {
+        "round": 3,
+        "atMs": 39746.335041,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 76300288,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 74624
+          },
+          {
+            "type": "GPU",
+            "kb": 28576
+          },
+          {
+            "type": "Utility",
+            "kb": 22832
+          },
+          {
+            "type": "Utility",
+            "kb": 1215168
+          }
+        ]
+      },
+      {
+        "round": 4,
+        "atMs": 52992.362208,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 81526784,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 79728
+          },
+          {
+            "type": "GPU",
+            "kb": 31248
+          },
+          {
+            "type": "Utility",
+            "kb": 24608
+          },
+          {
+            "type": "Utility",
+            "kb": 1214528
+          }
+        ]
+      },
+      {
+        "round": 5,
+        "atMs": 66240.244125,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 75923456,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 74272
+          },
+          {
+            "type": "GPU",
+            "kb": 29776
+          },
+          {
+            "type": "Utility",
+            "kb": 23616
+          },
+          {
+            "type": "Utility",
+            "kb": 1257408
+          }
+        ]
+      },
+      {
+        "round": 6,
+        "atMs": 79488.353458,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 51396608,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 50816
+          },
+          {
+            "type": "GPU",
+            "kb": 22176
+          },
+          {
+            "type": "Utility",
+            "kb": 18256
+          },
+          {
+            "type": "Utility",
+            "kb": 1190144
+          }
+        ]
+      },
+      {
+        "round": 7,
+        "atMs": 92737.087291,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 60047360,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 58736
+          },
+          {
+            "type": "GPU",
+            "kb": 24304
+          },
+          {
+            "type": "Utility",
+            "kb": 18288
+          },
+          {
+            "type": "Utility",
+            "kb": 1189056
+          }
+        ]
+      },
+      {
+        "round": 8,
+        "atMs": 105985.04020799999,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 58572800,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 57568
+          },
+          {
+            "type": "GPU",
+            "kb": 21920
+          },
+          {
+            "type": "Utility",
+            "kb": 16816
+          },
+          {
+            "type": "Utility",
+            "kb": 1189424
+          }
+        ]
+      },
+      {
+        "round": 9,
+        "atMs": 119232.267041,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 66142208,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 64672
+          },
+          {
+            "type": "GPU",
+            "kb": 28192
+          },
+          {
+            "type": "Utility",
+            "kb": 18288
+          },
+          {
+            "type": "Utility",
+            "kb": 1188912
+          }
+        ]
+      },
+      {
+        "round": 10,
+        "atMs": 132479.81845800002,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 58507264,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 57472
+          },
+          {
+            "type": "GPU",
+            "kb": 26016
+          },
+          {
+            "type": "Utility",
+            "kb": 17536
+          },
+          {
+            "type": "Utility",
+            "kb": 1189808
+          }
+        ]
+      },
+      {
+        "round": 11,
+        "atMs": 145728.39920800002,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 58441728,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 57168
+          },
+          {
+            "type": "GPU",
+            "kb": 25632
+          },
+          {
+            "type": "Utility",
+            "kb": 18016
+          },
+          {
+            "type": "Utility",
+            "kb": 1188464
+          }
+        ]
+      },
+      {
+        "round": 12,
+        "atMs": 158975.797041,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 59342848,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 58064
+          },
+          {
+            "type": "GPU",
+            "kb": 24496
+          },
+          {
+            "type": "Utility",
+            "kb": 16816
+          },
+          {
+            "type": "Utility",
+            "kb": 1188432
+          }
+        ]
+      },
+      {
+        "round": 13,
+        "atMs": 172224.657833,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 57131008,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 55904
+          },
+          {
+            "type": "GPU",
+            "kb": 25568
+          },
+          {
+            "type": "Utility",
+            "kb": 17744
+          },
+          {
+            "type": "Utility",
+            "kb": 1188432
+          }
+        ]
+      },
+      {
+        "round": 14,
+        "atMs": 185472.65825,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 65519616,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 64064
+          },
+          {
+            "type": "GPU",
+            "kb": 26192
+          },
+          {
+            "type": "Utility",
+            "kb": 18080
+          },
+          {
+            "type": "Utility",
+            "kb": 1189104
+          }
+        ]
+      },
+      {
+        "round": 15,
+        "atMs": 198721.118416,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 61865984,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 60576
+          },
+          {
+            "type": "GPU",
+            "kb": 23568
+          },
+          {
+            "type": "Utility",
+            "kb": 17488
+          },
+          {
+            "type": "Utility",
+            "kb": 1189184
+          }
+        ]
+      },
+      {
+        "round": 16,
+        "atMs": 211968.529958,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 70303744,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 68688
+          },
+          {
+            "type": "GPU",
+            "kb": 23504
+          },
+          {
+            "type": "Utility",
+            "kb": 17488
+          },
+          {
+            "type": "Utility",
+            "kb": 1188368
+          }
+        ]
+      },
+      {
+        "round": 17,
+        "atMs": 225216.776,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 60178432,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 58928
+          },
+          {
+            "type": "GPU",
+            "kb": 23504
+          },
+          {
+            "type": "Utility",
+            "kb": 17488
+          },
+          {
+            "type": "Utility",
+            "kb": 1188320
+          }
+        ]
+      },
+      {
+        "round": 18,
+        "atMs": 238464.88487500002,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 64339968,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 62960
+          },
+          {
+            "type": "GPU",
+            "kb": 23600
+          },
+          {
+            "type": "Utility",
+            "kb": 17728
+          },
+          {
+            "type": "Utility",
+            "kb": 1185760
+          }
+        ]
+      },
+      {
+        "round": 19,
+        "atMs": 251712.95445800002,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 65241088,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 63888
+          },
+          {
+            "type": "GPU",
+            "kb": 22912
+          },
+          {
+            "type": "Utility",
+            "kb": 17312
+          },
+          {
+            "type": "Utility",
+            "kb": 1162432
+          }
+        ]
+      },
+      {
+        "round": 20,
+        "atMs": 264962.20754100004,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 56016896,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 55376
+          },
+          {
+            "type": "GPU",
+            "kb": 23296
+          },
+          {
+            "type": "Utility",
+            "kb": 18288
+          },
+          {
+            "type": "Utility",
+            "kb": 344704
+          }
+        ]
+      },
+      {
+        "round": 21,
+        "atMs": 278208.80016600003,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 62914560,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 61440
+          },
+          {
+            "type": "GPU",
+            "kb": 23184
+          },
+          {
+            "type": "Utility",
+            "kb": 17872
+          },
+          {
+            "type": "Utility",
+            "kb": 144096
+          }
+        ]
+      },
+      {
+        "round": 22,
+        "atMs": 291456.353625,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 65191936,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 63664
+          },
+          {
+            "type": "GPU",
+            "kb": 23280
+          },
+          {
+            "type": "Utility",
+            "kb": 17504
+          },
+          {
+            "type": "Utility",
+            "kb": 34528
+          }
+        ]
+      },
+      {
+        "round": 23,
+        "atMs": 304705.03025,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 72155136,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 70464
+          },
+          {
+            "type": "GPU",
+            "kb": 23392
+          },
+          {
+            "type": "Utility",
+            "kb": 17744
+          },
+          {
+            "type": "Utility",
+            "kb": 35504
+          }
+        ]
+      },
+      {
+        "round": 24,
+        "atMs": 317953.67979100003,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 69468160,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 67952
+          },
+          {
+            "type": "GPU",
+            "kb": 23984
+          },
+          {
+            "type": "Utility",
+            "kb": 18048
+          },
+          {
+            "type": "Utility",
+            "kb": 36128
+          }
+        ]
+      },
+      {
+        "round": 25,
+        "atMs": 331200.529708,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 68943872,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 67424
+          },
+          {
+            "type": "GPU",
+            "kb": 23088
+          },
+          {
+            "type": "Utility",
+            "kb": 17440
+          },
+          {
+            "type": "Utility",
+            "kb": 35120
+          }
+        ]
+      },
+      {
+        "round": 26,
+        "atMs": 344448.442625,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 64307200,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 62944
+          },
+          {
+            "type": "GPU",
+            "kb": 23088
+          },
+          {
+            "type": "Utility",
+            "kb": 17440
+          },
+          {
+            "type": "Utility",
+            "kb": 34832
+          }
+        ]
+      },
+      {
+        "round": 27,
+        "atMs": 357697.319875,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 69550080,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 67920
+          },
+          {
+            "type": "GPU",
+            "kb": 23200
+          },
+          {
+            "type": "Utility",
+            "kb": 17680
+          },
+          {
+            "type": "Utility",
+            "kb": 34848
+          }
+        ]
+      },
+      {
+        "round": 28,
+        "atMs": 370944.919375,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 75612160,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 73952
+          },
+          {
+            "type": "GPU",
+            "kb": 23216
+          },
+          {
+            "type": "Utility",
+            "kb": 17440
+          },
+          {
+            "type": "Utility",
+            "kb": 35152
+          }
+        ]
+      },
+      {
+        "round": 29,
+        "atMs": 384192.5415,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 76496896,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 74704
+          },
+          {
+            "type": "GPU",
+            "kb": 23664
+          },
+          {
+            "type": "Utility",
+            "kb": 18160
+          },
+          {
+            "type": "Utility",
+            "kb": 35216
+          }
+        ]
+      },
+      {
+        "round": 30,
+        "atMs": 397440.729833,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 74203136,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 72464
+          },
+          {
+            "type": "GPU",
+            "kb": 23776
+          },
+          {
+            "type": "Utility",
+            "kb": 18160
+          },
+          {
+            "type": "Utility",
+            "kb": 35872
+          }
+        ]
+      },
+      {
+        "round": 31,
+        "atMs": 410688.292541,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 73416704,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 71824
+          },
+          {
+            "type": "GPU",
+            "kb": 23088
+          },
+          {
+            "type": "Utility",
+            "kb": 17440
+          },
+          {
+            "type": "Utility",
+            "kb": 34608
+          }
+        ]
+      },
+      {
+        "round": 32,
+        "atMs": 423937.222291,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 62488576,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 61200
+          },
+          {
+            "type": "GPU",
+            "kb": 21984
+          },
+          {
+            "type": "Utility",
+            "kb": 16688
+          },
+          {
+            "type": "Utility",
+            "kb": 33376
+          }
+        ]
+      },
+      {
+        "round": 33,
+        "atMs": 437195.669208,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 70565888,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 69024
+          },
+          {
+            "type": "GPU",
+            "kb": 23760
+          },
+          {
+            "type": "Utility",
+            "kb": 17984
+          },
+          {
+            "type": "Utility",
+            "kb": 32288
+          }
+        ]
+      },
+      {
+        "round": 34,
+        "atMs": 450432.757416,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 68665344,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 67200
+          },
+          {
+            "type": "GPU",
+            "kb": 23088
+          },
+          {
+            "type": "Utility",
+            "kb": 17440
+          },
+          {
+            "type": "Utility",
+            "kb": 34512
+          }
+        ]
+      },
+      {
+        "round": 35,
+        "atMs": 463680.841166,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 68911104,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 67456
+          },
+          {
+            "type": "GPU",
+            "kb": 22624
+          },
+          {
+            "type": "Utility",
+            "kb": 16720
+          },
+          {
+            "type": "Utility",
+            "kb": 34592
+          }
+        ]
+      },
+      {
+        "round": 36,
+        "atMs": 476940.42075,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 72384512,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 71264
+          },
+          {
+            "type": "GPU",
+            "kb": 23168
+          },
+          {
+            "type": "Utility",
+            "kb": 18224
+          },
+          {
+            "type": "Utility",
+            "kb": 35776
+          }
+        ]
+      },
+      {
+        "round": 37,
+        "atMs": 490177.07587500004,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 70598656,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 69040
+          },
+          {
+            "type": "GPU",
+            "kb": 23088
+          },
+          {
+            "type": "Utility",
+            "kb": 17808
+          },
+          {
+            "type": "Utility",
+            "kb": 35088
+          }
+        ]
+      },
+      {
+        "round": 38,
+        "atMs": 503423.45041600004,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 66289664,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 64880
+          },
+          {
+            "type": "GPU",
+            "kb": 23536
+          },
+          {
+            "type": "Utility",
+            "kb": 18176
+          },
+          {
+            "type": "Utility",
+            "kb": 34912
+          }
+        ]
+      },
+      {
+        "round": 39,
+        "atMs": 516673.55279100005,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 72024064,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 70464
+          },
+          {
+            "type": "GPU",
+            "kb": 23072
+          },
+          {
+            "type": "Utility",
+            "kb": 17456
+          },
+          {
+            "type": "Utility",
+            "kb": 32048
+          }
+        ]
+      },
+      {
+        "round": 40,
+        "atMs": 529920.0769999999,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 72597504,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 71024
+          },
+          {
+            "type": "GPU",
+            "kb": 22960
+          },
+          {
+            "type": "Utility",
+            "kb": 17456
+          },
+          {
+            "type": "Utility",
+            "kb": 34592
+          }
+        ]
+      },
+      {
+        "round": 41,
+        "atMs": 543167.671583,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 74285056,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 72544
+          },
+          {
+            "type": "GPU",
+            "kb": 22112
+          },
+          {
+            "type": "Utility",
+            "kb": 16960
+          },
+          {
+            "type": "Utility",
+            "kb": 35392
+          }
+        ]
+      },
+      {
+        "round": 42,
+        "atMs": 556416.271416,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 72187904,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 70656
+          },
+          {
+            "type": "GPU",
+            "kb": 22976
+          },
+          {
+            "type": "Utility",
+            "kb": 18240
+          },
+          {
+            "type": "Utility",
+            "kb": 35776
+          }
+        ]
+      },
+      {
+        "round": 43,
+        "atMs": 569664.854833,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 77561856,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 75744
+          },
+          {
+            "type": "GPU",
+            "kb": 23664
+          },
+          {
+            "type": "Utility",
+            "kb": 18224
+          },
+          {
+            "type": "Utility",
+            "kb": 35248
+          }
+        ]
+      },
+      {
+        "round": 44,
+        "atMs": 582912.774166,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 68632576,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 67152
+          },
+          {
+            "type": "GPU",
+            "kb": 22960
+          },
+          {
+            "type": "Utility",
+            "kb": 17456
+          },
+          {
+            "type": "Utility",
+            "kb": 31920
+          }
+        ]
+      },
+      {
+        "round": 45,
+        "atMs": 596159.956625,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 75808768,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 74032
+          },
+          {
+            "type": "GPU",
+            "kb": 23040
+          },
+          {
+            "type": "Utility",
+            "kb": 18704
+          },
+          {
+            "type": "Utility",
+            "kb": 35248
+          }
+        ]
+      },
+      {
+        "round": 46,
+        "atMs": 609408.4386659999,
+        "queued": 0,
+        "thermal": {
+          "thermalState": "fair",
+          "speedLimit": 100,
+          "memoryPressure": "unknown",
+          "previewFloorMs": 900,
+          "previewDutyCycle": 0.65,
+          "previewsPaused": false,
+          "coolingDown": false
+        },
+        "rss": 77987840,
+        "processes": [
+          {
+            "type": "Browser",
+            "kb": 76288
+          },
+          {
+            "type": "GPU",
+            "kb": 23072
+          },
+          {
+            "type": "Utility",
+            "kb": 18944
+          },
+          {
+            "type": "Utility",
+            "kb": 36832
+          }
+        ]
+      }
+    ]
+  },
+  "installedApp": {
+    "version": "4.5.5",
+    "originalIconPreserved": true,
+    "localSignatureVerified": true,
+    "checks": [
+      {
+        "elapsedMs": 6050,
+        "type": "window-status",
+        "id": 1,
+        "ok": true,
+        "result": {
+          "desktopUI": false,
+          "desktopOverlay": false,
+          "captureActive": false
+        },
+        "ms": 1
+      },
+      {
+        "elapsedMs": 8402,
+        "type": "draft",
+        "id": 2,
+        "ok": true,
+        "result": {
+          "text": "今日は最後を見ることができませんが、明日また見に来ます！"
+        },
+        "ms": 2351
+      },
+      {
+        "elapsedMs": 11512,
+        "type": "init",
+        "id": 3,
+        "ok": true,
+        "result": {
+          "model": "mlx-whisper + hunyuan-mt-15",
+          "dtype": "native"
+        },
+        "ms": 3110
+      },
+      {
+        "elapsedMs": 13871,
+        "type": "authored-caption",
+        "captions": [
+          {
+            "event": "decode-result",
+            "result": {
+              "text": "皆さん、こんにちは。今日は一緒にゲームを楽しみましょう。ちょっと待ってください。魚が逃げてしまいました。来てくれてありがとうございます。",
+              "translated": "各位，大家好。今天就讓我們一起享受遊戲的樂趣吧。請稍等一下，有條魚不小心跑掉了。感謝大家的參與，謝謝大家。",
+              "targetLanguage": "zh",
+              "performance": {
+                "thermalState": "fair",
+                "speedLimit": 100,
+                "memoryPressure": "warning",
+                "previewFloorMs": 1500,
+                "previewDutyCycle": 0.4,
+                "previewsPaused": false,
+                "coolingDown": false
+              }
+            }
+          }
+        ],
+        "stopMs": 505
+      },
+      {
+        "elapsedMs": 14473,
+        "type": "responsive-after-idle",
+        "id": 6,
+        "ok": true,
+        "result": {
+          "text": "明日は参加できませんので、次回で一緒に遊びましょう。"
+        },
+        "ms": 601
+      }
+    ],
+    "backgroundMediaServices": {
+      "audio": 0,
+      "video": 0
+    },
+    "completed": true,
+    "idleMinutes": 0
+  },
+  "operaGX": {
+    "extensionVersion": "4.5.5",
+    "installedAppVersion": "4.5.5",
+    "method": "Native Opera GX UI with the production tab-capture path and authored local test pages. No external message posted.",
+    "recordMode": {
+      "cycles": 6,
+      "completed": true,
+      "retainedGroups": 4,
+      "allSessionRecordsDone": true,
+      "fishClausePresent": true,
+      "noInstructionLeak": true,
+      "metrics": {
+        "queueMs": {
+          "count": 27,
+          "p50": 0,
+          "p95": 96
+        },
+        "decodeMs": {
+          "count": 27,
+          "p50": 786,
+          "p95": 2467
+        },
+        "firstJapaneseMs": {
+          "count": 12,
+          "p50": 4562,
+          "p95": 6703
+        },
+        "audioLagMs": {
+          "count": 12,
+          "p50": 756,
+          "p95": 1999
+        },
+        "cueMs": {
+          "count": 12,
+          "p50": 5280,
+          "p95": 8000
+        }
+      }
+    },
+    "realtimeMode": {
+      "cycles": 1,
+      "completed": true,
+      "captionUpdates": 5,
+      "chineseForBothFinalCues": true,
+      "hiddenAfterExpiry": true,
+      "observedHideDriftMs": 4,
+      "metrics": {
+        "queueMs": {
+          "count": 4,
+          "p50": 0,
+          "p95": 0
+        },
+        "decodeMs": {
+          "count": 4,
+          "p50": 1579,
+          "p95": 2401
+        },
+        "firstJapaneseMs": {
+          "count": 2,
+          "p50": 1149,
+          "p95": 1149
+        },
+        "audioLagMs": {
+          "count": 2,
+          "p50": 637,
+          "p95": 637
+        },
+        "cueMs": {
+          "count": 2,
+          "p50": 5280,
+          "p95": 5280
+        }
+      }
+    },
+    "nativeDraft": {
+      "ok": true,
+      "source": "今天直播辛苦了！看到你玩得這麼開心，我也很開心。",
+      "draft": "今日の配信、お疲れさまでした！あなたが楽しそうにしているのを見て、私も嬉しくなりました。",
+      "msIncludingInitialization": 3082,
+      "posted": false
+    }
+  }
+}

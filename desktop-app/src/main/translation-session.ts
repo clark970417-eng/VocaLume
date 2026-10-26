@@ -10,9 +10,13 @@ export function resetTranslationHistory(
 
 /** Small translation models can translate reference history instead of the input.
  * Keep terminology but do not prepend earlier utterances to these models. */
-export function translationContextForModel<T extends { previousSegments?: unknown[] }>(
+export function translationContextForModel<T extends { previousSegments?: unknown[]; sourceContext?: string }>(
   context: T | undefined, modelType: string
 ): T | undefined {
   if (!context || !['hunyuan-mt-15', 'hunyuan-mt-2'].includes(modelType)) return context
-  return { ...context, previousSegments: [] }
+  // The adjacent source question is used by conservative reply rules only.
+  // Passing it into this small model caused question/answer leakage in A/B tests.
+  const safe = { ...context, previousSegments: [] }
+  delete safe.sourceContext
+  return safe
 }

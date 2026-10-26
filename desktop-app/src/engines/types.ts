@@ -291,6 +291,8 @@ export interface GlossaryEntry {
 
 /** Context passed to translators that support context-aware translation */
 export interface TranslateContext {
+  /** One validated adjacent source question for a short spoken reply. */
+  sourceContext?: string
   /** Optional register for written drafts. Undefined preserves the original tone. */
   writingStyle?: 'general' | 'viewer' | 'polite'
   /** Cumulative provisional output; never serialized to a provider. */

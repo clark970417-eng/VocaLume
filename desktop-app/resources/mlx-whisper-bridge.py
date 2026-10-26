@@ -60,7 +60,7 @@ def init_model(model_name="mlx-community/whisper-large-v3-turbo"):
         with contextlib.redirect_stdout(sys.stderr):
             mlx_whisper.transcribe(np.zeros(16000, dtype=np.float32),
                 path_or_hf_repo=whisper_model, language='ja', verbose=False,
-                condition_on_previous_text=False, temperature=0)
+                condition_on_previous_text=False, temperature=0, without_timestamps=True)
         output({"ready": True, "model": model_name})
     except ImportError:
         output({"error": "mlx-whisper not installed. Run: pip install mlx-whisper"})
@@ -107,6 +107,10 @@ def transcribe(audio_path=None, sample_rate=16000, language=None, initial_prompt
                 language=language, condition_on_previous_text=False,
                 temperature=0, verbose=False,
                 sample_len=min(448, max(48, int(len(audio) / 16000 * 24) + 24)),
+                # Bounded JA/ZH captions already carry capture positions. Avoid
+                # generating unused timestamp tokens and timestamp-driven tail
+                # re-decodes. Long files/other languages keep the original path.
+                without_timestamps=language in ('ja', 'zh') and len(audio) <= 192000,
                 **hints,
             )
 

@@ -2,6 +2,15 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.5 - 2026-10-26
+
+- Establish reproducible Japanese/Chinese audio, text, context and forced-cut controls against 4.5.4. Separate ASR-only timing from paced caption latency and retain before/after outputs.
+- Skip unused timestamps in short Japanese/Chinese MLX recognition. Reuse stable punctuation revisions only when the existing acoustic checks also pass.
+- Restore short endings after proven adjacent audio cuts using already captured audio and literal source anchors, preserving negation and clause punctuation. Add no capture waiting or second recognition request.
+- Use narrow source-question context for ambiguous short replies in both directions; keep glossary precedence and ordinary translation for unsupported senses.
+- Reduce repeated optional preview work without dropping accepted final captions. See [measurements and limits](docs/retests/4.5.5.md); overall latency gains and broad live-speech accuracy are not established.
+- Public preview installer assets remain 4.4.5; this is a source/local-app update.
+
 ## 4.5.4 - 2026-10-25
 
 - Defer desktop windows and microphone access for browser-only companion launches. Open the UI on demand for settings and desktop capture; retain hidden playback windows when TTS or virtual-microphone routing is enabled. Stop the original microphone stream when audio setup fails.

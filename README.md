@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current desktop and extension source: **4.5.4**. Browser-only desktop translation now defers desktop windows and microphone access until needed. The desktop runtime is updated, and a conservative Chinese → Japanese correction preserves explicit current/future inability instead of an invented past tense. This adds **no audio waiting time or second model request**. Recognition reuse, memory-pressure protection, [244 vocabulary pairs](docs/game-vocabulary.md) and optional [tone/laughter settings](docs/speech-tone.md) remain. See the [4.5.4 verification report](docs/retests/4.5.4.md) for measurements and the postponed Opera GX capture check. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+Current desktop and extension source: **4.5.5**. Local Japanese ↔ Chinese speech uses less unnecessary recognition work, protects some very short endings after audio cuts, and uses conservative context for short replies. Repeated optional previews are reduced under load. **Capture waiting and silence thresholds are unchanged.** See the [4.5.5 measurements and verification](docs/retests/4.5.5.md), including remaining fragment errors and why an overall latency improvement is not yet established. Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 
@@ -61,7 +61,7 @@ The extension never publishes a message automatically. Its optional writing assi
 
 Audio is captured from the active tab with Chromium's tab capture API. An `AudioWorklet` streams samples to a resampler and a Silero V5 worker. Speech windows are sent to a separate Whisper worker so interface updates, detection, and recognition do not block one another.
 
-The desktop path sends growing speech windows to the upstream streaming processor, with an eight-second normal bound, up to twelve seconds for a recently recognized unfinished clause, and no cross-window audio overlap. Local agreement aligns recognition hypotheses. Japanese output is published first; asynchronous translation fills the matching line without starting a duplicate browser translation request. The browser-only fallback keeps its existing bounded overlapping windows. Ordered-record mode retains completed utterances while translations finish.
+The desktop path sends growing speech windows to the upstream streaming processor, with an eight-second normal bound, up to twelve seconds for a recently recognized unfinished clause, with capture windows kept contiguous. A final fragment of at most one second after a proven forced cut can reuse up to two seconds of already captured audio for recognition, with bounded source reconstruction. Local agreement aligns recognition hypotheses. Japanese output is published first; asynchronous translation fills the matching line without starting a duplicate browser translation request. The browser-only fallback keeps its existing bounded overlapping windows. Ordered-record mode retains completed utterances while translations finish.
 
 This is windowed incremental recognition rather than a stateful streaming acoustic model. It reduces perceived latency, but it cannot provide zero-delay transcription or perfect recognition.
 
@@ -114,9 +114,8 @@ Run the automated suite with:
 node --test tests/*.test.mjs
 ```
 
-Extension **4.5.4 passes 192 automated tests** and the desktop passes **803 tests**, with five additional Python bridge checks. These cover caption ordering, bounded audio windows, cancellation, source/translation pairing, terminology, tone settings, Japanese continuation, recognition reuse, memory pressure, deferred desktop windows, tense guards and capture shortcuts. Local model and installed-app checks are described in the [4.5.4 verification report](docs/retests/4.5.4.md). Opera GX tab-capture testing for this patch was postponed at the user's request; prior-version browser checks do not verify this version.
-These tests do not establish long-session or commercial-product parity. See
-[3.8 verification](docs/retests/RETEST-3.8.0.md) and the [upstream comparison](COMPARISON-LIVETRANSLATE.md).
+Extension **4.5.5 passes 193 automated tests** and the desktop passes **814 tests**, with six Python bridge checks. These cover caption ordering, source/translation pairing, recognition reuse, short-reply context, negation at audio cuts, bounded previews and existing recovery paths. Local model measurements, installed-app checks and Opera GX verification are recorded in the [4.5.5 report](docs/retests/4.5.5.md). These tests do not establish general live-speech accuracy, long-session reliability or commercial-product parity.
+See also [3.8 verification](docs/retests/RETEST-3.8.0.md) and the [upstream comparison](COMPARISON-LIVETRANSLATE.md).
 
 The end-to-end browser fixture at `tests/capture.html` uses the production capture
 and caption path with a 10.7-second synthetic Japanese recording. Historical

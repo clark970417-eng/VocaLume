@@ -56,6 +56,24 @@ describe('Japanese caption continuation', () => {
     expect(context.resolve('来てくれてありがとうございます。','ja','zh')).toBe('来てくれてありがとうございます。')
   })
 
+  it('references only an adjacent question for an ambiguous spoken reply', () => {
+    const context=new JapaneseCaptionContext()
+    const prior={segment:'a',speechSeconds:1,captureStartSample:0,captureEndSample:16000}
+    const current={segment:'b',speechSeconds:1,captureStartSample:16000,captureEndSample:32000}
+    context.remember('もう一杯お茶はいかがですか？','ja','zh',prior,0)
+    expect(context.referenceFor('もう大丈夫です。','ja','zh',current,0)).toBe('もう一杯お茶はいかがですか？')
+    for(const text of ['ところで、大丈夫です。','「大丈夫」と言った。','大丈夫ですか？','明日は休みます。'])
+      expect(context.referenceFor(text,'ja','zh',current,0)).toBeUndefined()
+    expect(context.referenceFor('大丈夫です。','ja','zh',current,1)).toBeUndefined()
+    expect(context.referenceFor('大丈夫です。','ja','zh',{...current,captureStartSample:50000},0)).toBeUndefined()
+    expect(context.referenceFor('大丈夫です。','ja','zh')).toBeUndefined()
+    context.remember('準備好了嗎？','zh','ja',prior)
+    expect(context.referenceFor('好了。','zh','ja',current)).toBe('準備好了嗎？')
+    context.remember('準備好了嗎？','zh','ja',{...prior,continuationExpected:true})
+    expect(context.referenceFor('好了。','zh','ja',current)).toBeUndefined()
+    context.reset();expect(context.referenceFor('好了。','zh','ja',current)).toBeUndefined()
+  })
+
   it('joins a bare verb ending only at a proven, adjacent capture cut', () => {
     const context = new JapaneseCaptionContext()
     context.remember('薬は飲み', 'ja', 'zh', {speechSeconds:7,segment:'a',captureStartSample:0,captureEndSample:128000,continuationExpected:true})

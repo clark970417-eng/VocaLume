@@ -146,15 +146,15 @@ export class TranslationPipeline extends EventEmitter {
         return this.translationCache.get(text, from, to)
       },
       canReuseInterimTranslation: () => !this.adaptiveRouter.getConfig().enabled,
-      translateFinal: async (text, from, to, recognitionConfidence) => {
+      translateFinal: async (text, from, to, recognitionConfidence, sourceContext) => {
         const glossaryVersion = this.glossary
-        const cached = this.translationCache.get(text, from, to)
+        const cached = this.translationCache.get(text, from, to, sourceContext)
         if (cached !== undefined) return cached
-        const context = this.contextBuffer.getContext(this.glossary.length ? this.glossary : undefined)
+        const context = { ...this.contextBuffer.getContext(this.glossary.length ? this.glossary : undefined), ...(sourceContext && {sourceContext}) }
         const translated = this.adaptiveRouter.getConfig().enabled && this.adaptiveRouter.isReady
           ? (await this.adaptiveRouter.translate(text, from, to, context, recognitionConfidence)).translated
           : await this.engineManager.translator!.translate(text, from, to, context)
-        if (glossaryVersion === this.glossary) this.translationCache.set(text, from, to, translated)
+        if (glossaryVersion === this.glossary) this.translationCache.set(text, from, to, translated, sourceContext)
         return translated
       },
       getSimulMtConfig: () => ({ enabled: this.simulMtEnabled, waitK: this.simulMtWaitK }),

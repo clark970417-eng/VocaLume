@@ -1,4 +1,5 @@
 import type { Language, SpeechEvidence } from '../engines/types'
+import { contextualShortReply } from '../engines/translator/contextual-short-reply'
 
 const terminal = /[。．.!！?？、，,\s]+$/u
 const dependentStart = /^(?:しま(?:いました|います|った|う|わない|わなかった)|ください|くれ(?:ました|ます|た|る)|いただ(?:き|い|く)|い(?:ました|ます|ません|ない|なかった|る|た)|お(?:きます|いた|く)|み(?:ます|ました|たい|る)|ほしい)/u
@@ -50,6 +51,24 @@ export class JapaneseCaptionContext {
   }
 
   reset(): void { this.previous = undefined }
+
+  /** Only a nearby, complete source question may disambiguate a short reply.
+   * Never feed generated translations, an entire conversation, or a cut clause
+   * back into the model. This snapshot is captured before remembering this cue.
+   */
+  referenceFor(text: string, from: Language, to: Language, evidence?: SpeechEvidence, speaker?: number): string | undefined {
+    const prior=this.previous
+    if (!prior || !((from==='ja'&&to==='zh')||(from==='zh'&&to==='ja')) || prior.from!==from || prior.to!==to ||
+        prior.evidence?.continuationExpected || !evidence?.segment || !prior.evidence?.segment || evidence.segment===prior.evidence.segment ||
+        (prior.speaker!==undefined && speaker!==undefined && prior.speaker!==speaker)) return undefined
+    const start=evidence.captureStartSample,end=prior.evidence.captureEndSample
+    if (start===undefined || end===undefined || start<end || start>end+32000) return undefined
+    const previous=prior.text.trim(),current=text.trim()
+    if (previous.length>80 || /[\n「」『』"<>]/u.test(previous) || !/[?？]$/u.test(previous)) return undefined
+    // Unhandled senses keep ordinary preparation and cache reuse: a reference
+    // that cannot improve the reply must not add work or postpone its display.
+    return contextualShortReply(current, from, to, previous) !== undefined ? previous : undefined
+  }
 
   resolve(text: string, from: Language, to: Language, evidence?: SpeechEvidence, speaker?: number): string {
     const prior = this.previous

@@ -66,3 +66,16 @@ it('reuses two agreeing speech hypotheses only after verified quiet and unchange
  expect(cache.reuse(padded,16000,{...evidence,speechEndSample:18512})).toBeNull()
  expect(cache.reuse(padded,16000,{...evidence,speechSeconds:1.032})).toBeNull()
 })
+
+it('accepts punctuation-only agreement but never treats a changed negative or tense as stable',()=>{
+ const cache=new RecognitionCheckpoint(), speech=audio.slice(0,16000)
+ cache.remember(speech,16000,evidence,result)
+ cache.remember(speech,16000,evidence,{...result,text:'今日は、行きません…'})
+ expect(cache.reuse(audio,16000,evidence)?.text).toBe('今日は、行きません…')
+ cache.clear();cache.remember(speech,16000,evidence,result)
+ cache.remember(speech,16000,evidence,{...result,text:'今日は行きます。'})
+ expect(cache.reuse(audio,16000,evidence)).toBeNull()
+ cache.clear();cache.remember(speech,16000,evidence,result)
+ cache.remember(speech,16000,evidence,{...result,text:'今日は行きませんでした。'})
+ expect(cache.reuse(audio,16000,evidence)).toBeNull()
+})

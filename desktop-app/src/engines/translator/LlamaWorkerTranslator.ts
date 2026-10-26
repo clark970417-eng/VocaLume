@@ -9,6 +9,7 @@ import { createLogger } from '../../main/logger'
 import { greetingTranslation, normalizeGreetingSource } from '../../../../streamer-vocabulary.mjs'
 import { gameTermTranslation, selectGameTerminology } from '../../../../game-vocabulary.mjs'
 import { shortJaZhTranslation } from './ja-zh-short'
+import { contextualShortReply } from './contextual-short-reply'
 
 export interface GGUFVariantConfig {
   filename: string
@@ -135,6 +136,8 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     context?.signal?.throwIfAborted()
     this.interruption.signal.throwIfAborted()
     if (!context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) {
+      const reply = contextualShortReply(text, from, to, context?.sourceContext)
+      if (reply !== undefined) return reply
       const term = gameTermTranslation(text, from, to)
       if (term) return term
     }

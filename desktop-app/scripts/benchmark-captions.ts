@@ -16,7 +16,8 @@ app.setPath('userData',COMPARE_PROFILE)
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,Math.max(0,ms)))
 
 app.whenReady().then(async()=>{
- const report:any={label:COMPARE_LABEL,rounds:Number(process.env.COMPARE_ROUNDS||4),source:COMPARE_AUDIO,events:[],completed:[],metrics:[]}
+ const fixedCues=process.env.COMPARE_FIXED_CUES==='1'
+ const report:any={label:COMPARE_LABEL,rounds:Number(process.env.COMPARE_ROUNDS||4),source:COMPARE_AUDIO,fixedCues,events:[],completed:[],metrics:[]}
  const pipeline=new TranslationPipeline(), stt=new MlxWhisperEngine({language:'ja'}), translator=new HunyuanMT15Translator({kvCacheQuant:true})
  let asrCalls=0,asrMs=0,translationCalls=0,translationMs=0
  const recognize=stt.processAudio.bind(stt);stt.processAudio=async(...args)=>{const start=performance.now();asrCalls++;try{return await recognize(...args)}finally{asrMs+=performance.now()-start}}
@@ -68,11 +69,12 @@ app.whenReady().then(async()=>{
      : await pipeline.finalizeStreaming(job.audio,16000,evidence).then(final=>final?{sourceText:final.sourceText,completion:Promise.resolve(final)}:null))
      : await pipeline.processStreaming(job.audio,16000,evidence)
     const source=result?.sourceText||''
+    budget.observeSource?.(source,job.final)
     if(source){
-     windows.hint(source,job.utteranceId,job.id,job.sampleCount)
+     if(!fixedCues)windows.hint(source,job.utteranceId,job.id,job.sampleCount)
      if(!first.has(job.id)){first.add(job.id);record({type:'first-source',cue:job.id,text:source,latencyMs:performance.now()-start-job.speechStartSample/16})}
     }
-    record({type:'decode',cue:job.id,final:job.final,ms:performance.now()-t,audioMs:job.audio.length/16,source})
+    record({type:'decode',cue:job.id,final:job.final,ms:performance.now()-t,audioMs:job.audio.length/16,startSample:job.startSample,endSample:job.endSample,source})
     if(job.final){
      const completion=(async()=>{
       const final=await result?.completion
@@ -89,7 +91,7 @@ app.whenReady().then(async()=>{
    for(let i=0;i<frames.length;i++){
     await sleep((round*frames.length+i+1)*32-(performance.now()-start))
     if(fatal)throw fatal
-    const frame=frames[i]!,job=windows.push(frame.audio,frame.probability,budget.intervalMs(performanceState())/1000)
+    const frame=frames[i]!,job=windows.push(frame.audio,frame.probability,fixedCues ? 0.5 : budget.intervalMs(performanceState())/1000)
     if(job){queue.push(job);void drain()}
    }
    report.metrics.push({round:round+1,atMs:performance.now()-start,queued:queue.jobs.length,

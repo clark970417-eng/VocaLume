@@ -103,6 +103,13 @@ describe('TranslationCache', () => {
     expect(TranslationCache.buildKey('hello', 'en', 'ja')).toBe('hello:en:ja')
   })
 
+  it('never reuses a short answer across different source questions or without context', () => {
+    cache.set('大丈夫です。','ja','zh','沒事。','怪我はありませんか？')
+    expect(cache.get('大丈夫です。','ja','zh','怪我はありませんか？')).toBe('沒事。')
+    expect(cache.get('大丈夫です。','ja','zh','もう一杯お茶はいかがですか？')).toBeUndefined()
+    expect(cache.get('大丈夫です。','ja','zh')).toBeUndefined()
+  })
+
   it('handles colons in source text correctly', () => {
     cache.set('time: 3:00', 'en', 'ja', '時間: 3:00')
     cache.set('time: 4:00', 'en', 'ja', '時間: 4:00')

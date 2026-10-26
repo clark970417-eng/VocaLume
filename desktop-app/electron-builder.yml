@@ -8,6 +8,8 @@ files:
   - '!out/main/benchmark-*.cjs'
   - '!out/main/verify-*.cjs'
   - '!out/main/soak-*.cjs'
+  - '!out/benchmark-*/**'
+  - '!out/speech-benchmark-*/**'
 extraResources:
   - from: 'resources/'
     to: 'bridge-scripts/'

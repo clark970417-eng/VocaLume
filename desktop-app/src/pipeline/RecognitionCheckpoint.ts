@@ -17,7 +17,10 @@ export class RecognitionCheckpoint {
         audio.length > rate * 20 || audio.length < rate) return
     const stable = !!previous && previous.rate === rate && previous.context === context &&
       previous.evidence.segment === evidence.segment && previous.evidence.captureStartSample === evidence.captureStartSample &&
-      previous.result.text === result.text && previous.result.language === result.language &&
+      // Punctuation-only revisions do not introduce a new spoken word. Keep
+      // the latest punctuation, while still checking PCM and every quiet frame.
+      previous.result.text.replace(/[\p{P}\s]/gu, '') === result.text.replace(/[\p{P}\s]/gu, '') &&
+      previous.result.language === result.language &&
       audio.length >= previous.audio.length && previous.audio.every((sample, i) => sample === audio[i])
     this.value = { audio: audio.slice(), rate, evidence: { ...evidence }, result: { ...result }, context, stable }
   }

@@ -27,13 +27,13 @@ export class TranslationCache {
   }
 
   /** Build cache key from translation parameters */
-  static buildKey(sourceText: string, sourceLang: string, targetLang: string): string {
-    return `${sourceText}:${sourceLang}:${targetLang}`
+  static buildKey(sourceText: string, sourceLang: string, targetLang: string, sourceContext?: string): string {
+    return sourceContext ? JSON.stringify([sourceText,sourceLang,targetLang,sourceContext]) : `${sourceText}:${sourceLang}:${targetLang}`
   }
 
   /** Look up a cached translation. Returns undefined on miss. */
-  get(sourceText: string, sourceLang: string, targetLang: string): string | undefined {
-    const key = TranslationCache.buildKey(sourceText, sourceLang, targetLang)
+  get(sourceText: string, sourceLang: string, targetLang: string, sourceContext?: string): string | undefined {
+    const key = TranslationCache.buildKey(sourceText, sourceLang, targetLang,sourceContext)
     const value = this.cache.get(key)
     if (value !== undefined) {
       // Move to end (most recently used) by re-inserting
@@ -47,8 +47,8 @@ export class TranslationCache {
   }
 
   /** Store a translation result in the cache. */
-  set(sourceText: string, sourceLang: string, targetLang: string, translatedText: string): void {
-    const key = TranslationCache.buildKey(sourceText, sourceLang, targetLang)
+  set(sourceText: string, sourceLang: string, targetLang: string, translatedText: string, sourceContext?: string): void {
+    const key = TranslationCache.buildKey(sourceText, sourceLang, targetLang,sourceContext)
 
     // If key already exists, delete first to refresh position
     if (this.cache.has(key)) {

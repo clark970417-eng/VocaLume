@@ -24,3 +24,8 @@ it('omits prior utterances for translation models while preserving terminology',
   expect(context.previousSegments).toHaveLength(1)
   expect(translationContextForModel(context, 'lfm2')).toBe(context)
 })
+
+it('keeps source-question rules local and omits all history from the small model prompt',()=>{
+ const context={previousSegments:[{source:'unrelated history',translated:'old Chinese'}],sourceContext:'準備はできましたか？'}
+ expect(translationContextForModel(context,'hunyuan-mt-15')).toEqual({previousSegments:[]})
+})

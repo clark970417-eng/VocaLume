@@ -43,6 +43,7 @@ function stopCapture(drain){
  return s.stopPromise;
 }
 function resetAudio(s){
+ s.previewBudget.resetSource();
  s.epoch++;s.queue.clear();s.filter.reset();s.agreement.reset();s.vadQueue=[];s.lastId=null;s.previewId=null;s.origin=Date.now();
  s.vad?.postMessage({type:'reset',epoch:s.epoch,origin:s.origin,rate:s.context.sampleRate,desktop:s.desktop});
 }
@@ -111,6 +112,7 @@ function initializeWorker(s){
   s.previewBudget.complete(s.decodeMs,performance.now());
   if(data.performance)s.performance=data.performance;
   const job=s.busy;
+  if(job)s.previewBudget.observeSource(data.text||'',job.final);
   if(job&&data.text)s.vad?.postMessage({type:'transcript',epoch:s.epoch,id:job.id,utteranceId:job.utteranceId,sampleCount:job.sampleCount,text:data.text});
   if(job&&job.epoch===s.epoch&&!s.nativeUntil&&(s.recording||Date.now()-job.audioEndAt<5000)){
    if(s.desktop&&data.text&&s.lastId!==job.id){s.lastId=job.id;s.metrics.add('firstJapaneseMs',Date.now()-job.speechAt);s.metrics.add('audioLagMs',Date.now()-job.audioEndAt);}

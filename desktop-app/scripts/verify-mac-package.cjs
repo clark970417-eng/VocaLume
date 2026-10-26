@@ -10,7 +10,7 @@ const resources = path.join(app, 'Contents/Resources')
 const archive = path.join(resources, 'app.asar')
 const entries = asar.listPackage(archive)
 for (const entry of entries) {
-  assert(!/(?:^|\/)(?:\.test-out|benchmark-[^/]*|[^/]*\.gguf)(?:\/|$)/.test(entry), `Test artifact in package: ${entry}`)
+  assert(!/(?:^|\/)(?:\.test-out|(?:speech-)?benchmark-[^/]*|[^/]*\.gguf)(?:\/|$)/.test(entry), `Test artifact in package: ${entry}`)
 }
 for (const file of ['main/index.js', 'main/slm-worker.js', 'preload/index.js', 'renderer/index.html']) {
   assert.deepEqual(asar.extractFile(archive, 'out/' + file), fs.readFileSync(path.join(build, file)), `Runtime mismatch: ${file}`)

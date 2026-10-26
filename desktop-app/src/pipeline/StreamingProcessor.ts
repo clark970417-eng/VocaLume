@@ -2,6 +2,7 @@ import { performanceState } from '../main/performance-state'
 import { PreviewBudget } from '../../../preview-budget.mjs'
 import { completeSentence } from '../../../sentence-boundary.mjs'
 import { RecognitionCheckpoint } from './RecognitionCheckpoint'
+import { RecognitionBoundary } from './RecognitionBoundary'
 import { recognitionVocabulary } from '../engines/stt/recognition-vocabulary'
 import { JapaneseCaptionContext } from './JapaneseCaptionContext'
 import { SpeechToneAnalyzer } from './SpeechToneAnalyzer'
@@ -43,7 +44,7 @@ export interface StreamingDeps {
   getGlossary(): GlossaryEntry[]
   getCachedTranslation?(text: string, from: Language, to: Language): string | undefined
   canReuseInterimTranslation?(): boolean
-  translateFinal?(text: string, from: Language, to: Language, recognitionConfidence?: number): Promise<string>
+  translateFinal?(text: string, from: Language, to: Language, recognitionConfidence?: number, sourceContext?: string): Promise<string>
   getSimulMtConfig(): { enabled: boolean; waitK: number }
   resolveTargetLanguage(detectedLang: Language): Language
   /** Notify that processing count changed */
@@ -70,6 +71,7 @@ export interface StreamingDeps {
 export class StreamingProcessor {
   private readonly previewBudget = new PreviewBudget()
   private readonly recognitionCheckpoint = new RecognitionCheckpoint()
+  private readonly recognitionBoundary = new RecognitionBoundary()
   private recognitionSource = ''
   private recognitionContextRevision = 0
   private readonly japaneseContext = new JapaneseCaptionContext()
@@ -161,6 +163,7 @@ export class StreamingProcessor {
     this.recognitionSource = ''
     this.recognitionContextRevision++
     this.recognitionCheckpoint.clear()
+    this.recognitionBoundary.clear()
   }
 
   private beginTone(audio: Float32Array, sampleRate: number) {
@@ -188,6 +191,7 @@ export class StreamingProcessor {
   }
 
   private resetUtterance(): void {
+    this.previewBudget.resetSource()
     this.recognitionCheckpoint.clear()
     this.recognitionSource = ''
     this.preparation?.controller.abort()
@@ -238,9 +242,13 @@ export class StreamingProcessor {
     return JSON.stringify([stt.id, language, vocabulary, this.recognitionContextRevision])
   }
 
-  private async recognize(stt: STTEngine, audio: Float32Array, sampleRate: number, evidence?: SpeechEvidence) {
+  private async recognize(stt: STTEngine, audio: Float32Array, sampleRate: number, evidence?: SpeechEvidence, final = false) {
     const started = performance.now()
-    try { return await stt.processAudio(audio, sampleRate, evidence) }
+    try {
+      const boundary = final && this.recognitionBoundary.prepare(audio, sampleRate, evidence, this.deps.getSourceLanguage?.() || 'auto')
+      const result = await stt.processAudio(boundary ? boundary.audio : audio, sampleRate, boundary ? boundary.evidence : evidence)
+      return result && boundary ? { ...result, text: boundary.restore(result.text) } : result
+    }
     finally { this.previewBudget.complete(performance.now() - started, performance.now()) }
   }
 
@@ -302,6 +310,7 @@ export class StreamingProcessor {
         this.recognitionSource = sttResult.language === 'ja' ? sttResult.text.slice(-120) : ''
       }
       this.primaryRevision = revision
+      this.previewBudget.observeSource(sttResult.text)
       log.info(`STT: ${sttMs}ms → "${sttResult.text}" [${sttResult.language}]`)
 
       const agreement = this.deps.agreement.update(sttResult.text)
@@ -319,8 +328,10 @@ export class StreamingProcessor {
       if (completeSentenceOnly) {
         // Prepare at most one agreed, complete sentence. Never publish a
         // speculative Chinese/Japanese result before the final source agrees.
-        this.prepareSentence(fullSourceText, agreement.confirmedText, sttResult.language, targetLang,
-          !!evidence?.speechEndSample && audioBuffer.length - evidence.speechEndSample >= sampleRate * .192)
+        if (!this.japaneseContext.referenceFor(fullSourceText, sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)) {
+          this.prepareSentence(fullSourceText, agreement.confirmedText, sttResult.language, targetLang,
+            !!evidence?.speechEndSample && audioBuffer.length - evidence.speechEndSample >= sampleRate * .192)
+        }
       } else if (useSimulMt) {
         // SimulMT mode (#550): translate at clause boundaries using KV cache reuse
         this.handleSimulMtStreaming(
@@ -479,7 +490,7 @@ export class StreamingProcessor {
     try {
       const recognitionKey = this.recognitionKey(stt)
       let sttResult = this.recognitionCheckpoint.reuse(audioChunk, sampleRate, evidence, recognitionKey) ||
-        await this.recognize(stt, audioChunk, sampleRate, evidence)
+        await this.recognize(stt, audioChunk, sampleRate, evidence, true)
       const nonverbal = !sttResult?.text.trim()
       if (!sttResult?.text.trim()) sttResult = this.toneOnly(tone)
       if (!this.isCurrentGeneration(gen, utterance) || finalGeneration !== this.finalGeneration) return null
@@ -489,15 +500,18 @@ export class StreamingProcessor {
         return null
       }
       const recognizedText = this.deps.agreement.finalize(sttResult.text).confirmedText
+      this.recognitionBoundary.remember(audioChunk, sampleRate, evidence, recognizedText, sttResult.language)
       const targetLanguage = this.deps.resolveTargetLanguage(sttResult.language)
       const sourceText = nonverbal ? recognizedText : this.japaneseContext.resolve(recognizedText,
         sttResult.language, targetLanguage, evidence, this.currentSpeaker()?.speakerIndex)
+      const sourceContext = !nonverbal && sourceText===recognizedText ? this.japaneseContext.referenceFor(recognizedText,
+        sttResult.language,targetLanguage,evidence,this.currentSpeaker()?.speakerIndex) : undefined
       if (nonverbal) this.japaneseContext.reset()
       else this.japaneseContext.remember(recognizedText, sttResult.language, targetLanguage, evidence, this.currentSpeaker()?.speakerIndex)
       const translator = this.deps.getTranslator()
       const glossary = this.deps.getGlossary().map(entry => ({ ...entry }))
       const preparation = this.preparation
-      const prepared = preparation && preparation.text === sourceText && preparation.from === sttResult.language &&
+      const prepared = !sourceContext && preparation && preparation.text === sourceText && preparation.from === sttResult.language &&
         preparation.to === targetLanguage && preparation.translator === translator &&
         preparation.glossary === JSON.stringify(glossary) && this.deps.canReuseInterimTranslation?.() !== false
         ? preparation.completion : null
@@ -505,7 +519,7 @@ export class StreamingProcessor {
       // must not cancel it; session reset still cancels every live preparation.
       if (prepared) this.preparation = undefined
       const speaker = this.currentSpeaker()
-      const reused = this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === sourceText
+      const reused = !sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === sourceText
         ? this.lastTranslatedConfirmed : ''
       const valid = (): boolean => finalGeneration === this.finalGeneration &&
         (gen === undefined || gen === this.deps.getGeneration?.())
@@ -519,9 +533,9 @@ export class StreamingProcessor {
           const candidate = reused || (prepared ? await prepared : '')
           if (!valid()) return null
           const translatedText = nonverbal ? '' : candidate || (translator ? this.deps.translateFinal
-            ? await this.deps.translateFinal(sourceText, sttResult.language, targetLanguage, sttResult.confidence)
+            ? await this.deps.translateFinal(sourceText, sttResult.language, targetLanguage, sttResult.confidence, sourceContext)
             : await translator.translate(sourceText, sttResult.language, targetLanguage,
-              this.deps.contextBuffer.getContext(glossary.length ? glossary : undefined)) : '')
+              { ...this.deps.contextBuffer.getContext(glossary.length ? glossary : undefined), ...(sourceContext && {sourceContext}) }) : '')
           if (!valid()) return null
           if (!nonverbal) this.deps.contextBuffer.add(sourceText, translatedText)
           const result: TranslationResult = {
@@ -615,7 +629,7 @@ export class StreamingProcessor {
     try {
       const recognitionKey = this.recognitionKey(sttEngine)
       let sttResult = this.recognitionCheckpoint.reuse(audioChunk, sampleRate, evidence, recognitionKey) ||
-        await this.recognize(sttEngine, audioChunk, sampleRate, evidence)
+        await this.recognize(sttEngine, audioChunk, sampleRate, evidence, true)
       const nonverbal = !sttResult?.text.trim()
       if (!sttResult?.text.trim()) sttResult = this.toneOnly(tone)
       if (!this.isCurrentGeneration(gen, utterance)) return null
@@ -628,6 +642,9 @@ export class StreamingProcessor {
       const agreement = this.deps.agreement.finalize(sttResult.text)
       const targetLang = this.deps.resolveTargetLanguage(sttResult.language)
       const recognizedText = agreement.confirmedText
+      this.recognitionBoundary.remember(audioChunk, sampleRate, evidence, recognizedText, sttResult.language)
+      const sourceContext = !nonverbal ? this.japaneseContext.referenceFor(recognizedText,
+        sttResult.language,targetLang,evidence,this.currentSpeaker()?.speakerIndex) : undefined
       if (nonverbal) this.japaneseContext.reset()
       else {
         agreement.confirmedText = this.japaneseContext.resolve(recognizedText,
@@ -666,20 +683,20 @@ export class StreamingProcessor {
         translator.resetSimulMtSession?.()
       } else if (!nonverbal && translator && agreement.confirmedText.trim()) {
         const preparation = this.preparation
-        const matches = preparation && preparation.text === agreement.confirmedText &&
+        const matches = !sourceContext && preparation && preparation.text === agreement.confirmedText &&
           preparation.from === sttResult.language && preparation.to === targetLang &&
           preparation.translator === translator && preparation.glossary === JSON.stringify(glossaryEntries) &&
           this.deps.canReuseInterimTranslation?.() !== false
         if (!matches) { preparation?.controller.abort(); this.preparation = undefined }
         const candidate = matches ? await preparation.completion : ''
         if (!this.isCurrentGeneration(gen, utterance)) return null
-        translatedText = candidate || ((this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === agreement.confirmedText && this.lastTranslatedConfirmed)
+        translatedText = candidate || ((!sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === agreement.confirmedText && this.lastTranslatedConfirmed)
           ? this.lastTranslatedConfirmed
-          : this.deps.translateFinal ? await this.deps.translateFinal(agreement.confirmedText, sttResult.language, targetLang, sttResult.confidence) : await translator.translate(
+          : this.deps.translateFinal ? await this.deps.translateFinal(agreement.confirmedText, sttResult.language, targetLang, sttResult.confidence, sourceContext) : await translator.translate(
           agreement.confirmedText,
           sttResult.language,
           targetLang,
-          this.deps.contextBuffer.getContext(glossary)
+          { ...this.deps.contextBuffer.getContext(glossary), ...(sourceContext && {sourceContext}) }
         ))
         if (!this.isCurrentGeneration(gen, utterance)) return null
         this.deps.contextBuffer.add(agreement.confirmedText, translatedText)

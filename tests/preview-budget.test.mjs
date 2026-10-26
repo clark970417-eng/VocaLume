@@ -31,6 +31,16 @@ test('brief inference keeps normal responsiveness, and invalid timings do not po
  assert.equal(b.remainingMs(100,{previewFloorMs:900}),890);
 });
 
+test('unchanged words reduce only optional refreshes; new words, finals and seeks reset that limit',()=>{
+ const b=new PreviewBudget();b.complete(300,500);
+ for(const text of ['今日は行きません','今日は、行きません。','今日は行きません…'])b.observeSource(text);
+ assert.equal(b.intervalMs(),900);assert.ok(b.remainingMs(500)>=600);
+ b.observeSource('今日は行きませんでした。');assert.equal(b.intervalMs(),500);
+ for(let i=0;i<8;i++)b.observeSource('同じ文章です。');assert.equal(b.intervalMs(),1100);
+ b.observeSource('同じ文章です。',true);assert.equal(b.intervalMs(),500);
+ b.observeSource('同じ文章です。');b.resetSource();assert.equal(b.intervalMs(),500);
+});
+
 test('pausing previews retains all final acoustic utterances and flushes the last one',()=>{
  const windows=new SpeechWindows();windows.sentenceMode=true;windows.maxSamples=320000;
  const jobs=[],frame=new Float32Array(512).fill(.1);

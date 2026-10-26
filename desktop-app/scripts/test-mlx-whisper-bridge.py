@@ -76,6 +76,13 @@ class AudioTransportTest(unittest.TestCase):
         self.assertNotIn('initial_prompt', self.calls[2][1])
         self.assertFalse(self.calls[0][1]['condition_on_previous_text'])
 
+    def test_compact_decoding_is_bounded_by_audio_length_and_language(self):
+        for language, seconds, compact in [('ja', 12, True), ('zh', 2, True),
+                                           ('ja', 13, False), ('en', 2, False), (None, 2, False)]:
+            audio = base64.b64encode(np.full(seconds * 16000, 1000, dtype='<i2').tobytes()).decode()
+            self.request(audio_pcm16=audio, language=language)
+            self.assertEqual(self.calls[-1][1]['without_timestamps'], compact)
+
 
 if __name__ == '__main__':
     unittest.main()
