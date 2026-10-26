@@ -99,7 +99,7 @@ async function translateSingle(text,direction,priority=false){
   // to the selected local engine when the network is unavailable.
   try{const raw=await freeTranslate(text,from==='zh'?'zh-TW':from,to==='zh'?'zh-TW':to);return checkedPageTranslation(to==='zh'?polishChinese(text,raw):raw,direction,text);}catch(_error){}
  }
- if(direction==='ja-zh')return translateCaption(text);
+ if(direction==='ja-zh')return translateCaption(text,undefined,direction);
  try{return await localTranslation(text,direction,15000);}catch(_error){return checkedTranslation(await freeTranslate(text,from==='zh'?'zh-TW':from,to==='zh'?'zh-TW':to),direction,text);}
 }
 async function translate(text,direction,priority=false){
@@ -168,10 +168,10 @@ function presentDesktopCaption(segment){
  },Math.max(0,hold-(Date.now()-desktopSettledAt)));
 }
 function cancelTranslations(){translationPending=null;publishedId=-1;for(const controller of captionRequests.values())controller.abort();captionRequests.clear();}
-async function translateCaption(text,signal){
- const direction=pair(speechFrom,speechTo),phrase=phraseTranslation(text,direction);if(phrase)return phrase;
+async function translateCaption(text,signal,direction=pair(speechFrom,speechTo)){
+ const phrase=phraseTranslation(text,direction);if(phrase)return phrase;
  if(direction==='ja-zh')text=normalizeGreetingSource(text);
- const from=speechFrom,to=speechTo;
+ const {from,to}=parseDirection(direction);
  const configured=await settings();
  if(engineMode==='desktop'||configured.speechMode==='desktop')return localTranslation(text,direction,12000);
  const primary=async s=>{const raw=await freeTranslate(text,from==='zh'?'zh-TW':from,to==='zh'?'zh-TW':to,s);return checkedTranslation(to==='zh'?polishChinese(text,raw):raw,direction,text);};

@@ -39,3 +39,25 @@ test('a text request retries once on a fresh host, but never retries a logical e
  ports[1].receive({id:ports[1].sent.id,ok:false,error:'Invalid text'});
  await assert.rejects(logical,/Invalid text/);assert.equal(ports.length,2);client.close();
 });
+
+test('a busy text queue retries once on the same port and never replays audio',async()=>{
+ let connects=0;const sent=[];
+ const port={onMessage:{addListener:f=>port.receive=f},onDisconnect:{addListener(){}},disconnect(){},postMessage:m=>sent.push(m)};
+ const client=new NativeClient({connectNative(){connects++;return port;}});
+ const pending=client.request('translate',{text:'こんばんは'},2000);
+ port.receive({id:sent[0].id,ok:false,error:'Desktop queue is full; please retry'});
+ await new Promise(resolve=>setTimeout(resolve,450));assert.equal(sent.length,2);assert.equal(connects,1);
+ port.receive({id:sent[1].id,ok:true,result:{text:'晚上好'}});assert.equal((await pending).text,'晚上好');
+ const audio=client.request('decode',{},2000),rejected=assert.rejects(audio,/queue is full/);
+ port.receive({id:sent[2].id,ok:false,error:'Desktop queue is full'});await rejected;
+ assert.equal(sent.length,3);client.close();
+});
+
+test('busy retry remains bounded and respects a request budget too short for backoff',async()=>{
+ let attempts=0;
+ const port={onMessage:{addListener:f=>port.receive=f},onDisconnect:{addListener(){}},disconnect(){},postMessage:m=>{attempts++;queueMicrotask(()=>port.receive({id:m.id,ok:false,error:'Desktop queue is full'}));}};
+ const client=new NativeClient({connectNative:()=>port});
+ await assert.rejects(client.request('translate',{},2000),/queue is full/);assert.equal(attempts,2);
+ await assert.rejects(client.request('translate',{},100),/queue is full/);assert.equal(attempts,3);
+ client.close();
+});

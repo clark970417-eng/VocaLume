@@ -1,0 +1,287 @@
+{
+  "baselineCommit": "3c2b642bc15db34c5c6cda129ddab9a261c7e9f3",
+  "model": "HY-MT1.5-1.8B-Q4_K_M",
+  "scope": "Authored selected regression cases through production chunker/policy/local translator; excludes browser/native IPC, audio and recognition. Sequential single run per version. Not a general accuracy or latency benchmark.",
+  "before": {
+    "label": "4.5.6",
+    "provenance": "Authored regression examples. No private user messages. Checks are limited to literal retention, selected meanings and successful validation, not general translation accuracy.",
+    "results": [
+      {
+        "id": "ja-emoji-date-url",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日は楽しかったです。\n🎉🎉\n7/14\nhttps://example.invalid/live/123",
+        "literal": [
+          "🎉🎉",
+          "7/14",
+          "https://example.invalid/live/123"
+        ],
+        "must": [
+          "開心|开心|愉快|快樂|快乐|有趣"
+        ],
+        "error": "Error: 翻譯服務未回傳繁體中文",
+        "ms": 262,
+        "modelCalls": 2,
+        "pass": false
+      },
+      {
+        "id": "ja-name-emoji",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろは明日来ません。\n😭",
+        "literal": [
+          "まほろ",
+          "😭"
+        ],
+        "must": [
+          "不|沒|没"
+        ],
+        "error": "Error: 翻譯服務未回傳繁體中文",
+        "ms": 195,
+        "modelCalls": 2,
+        "pass": false
+      },
+      {
+        "id": "zh-ja-emoji-date",
+        "from": "zh",
+        "to": "ja",
+        "text": "明天晚上八點開始直播。\n🎮\n10/26",
+        "literal": [
+          "🎮",
+          "10/26"
+        ],
+        "must": [
+          "明日",
+          "配信|放送|ライブ"
+        ],
+        "error": "Error: 翻譯服務未回傳日文",
+        "ms": 364,
+        "modelCalls": 2,
+        "pass": false
+      },
+      {
+        "id": "ja-handles",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日は配信を休みます。\n@viewer_123 #123",
+        "literal": [
+          "@viewer_123 #123"
+        ],
+        "must": [
+          "休|停"
+        ],
+        "error": "Error: 翻譯服務未回傳繁體中文",
+        "ms": 303,
+        "modelCalls": 2,
+        "pass": false
+      },
+      {
+        "id": "ja-url-first",
+        "from": "ja",
+        "to": "zh",
+        "text": "https://example.invalid/schedule\n明日は配信しません。",
+        "literal": [
+          "https://example.invalid/schedule"
+        ],
+        "must": [
+          "不|沒|没"
+        ],
+        "error": "Error: 翻譯服務未回傳繁體中文",
+        "ms": 104,
+        "modelCalls": 1,
+        "pass": false
+      },
+      {
+        "id": "emoji-only",
+        "from": "ja",
+        "to": "zh",
+        "text": "🎉🎮",
+        "unchanged": true,
+        "error": "Error: 翻譯服務未回傳繁體中文",
+        "ms": 92,
+        "modelCalls": 1,
+        "pass": false
+      },
+      {
+        "id": "date-only",
+        "from": "zh",
+        "to": "ja",
+        "text": "7/14",
+        "unchanged": true,
+        "error": "Error: 翻譯服務未回傳日文",
+        "ms": 133,
+        "modelCalls": 1,
+        "pass": false
+      },
+      {
+        "id": "ja-prose-control",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日は学校に行きません。",
+        "must": [
+          "不|沒|没",
+          "學校|学校"
+        ],
+        "translated": "今天我不去學校了。",
+        "ms": 147,
+        "modelCalls": 1,
+        "pass": true
+      },
+      {
+        "id": "zh-prose-control",
+        "from": "zh",
+        "to": "ja",
+        "text": "我明天會再來看直播。",
+        "must": [
+          "明日",
+          "配信|放送|ライブ"
+        ],
+        "translated": "明日も配信を見に来ます。",
+        "ms": 227,
+        "modelCalls": 1,
+        "pass": true
+      }
+    ]
+  },
+  "after": {
+    "label": "4.5.7",
+    "provenance": "Authored regression examples. No private user messages. Checks are limited to literal retention, selected meanings and successful validation, not general translation accuracy.",
+    "results": [
+      {
+        "id": "ja-emoji-date-url",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日は楽しかったです。\n🎉🎉\n7/14\nhttps://example.invalid/live/123",
+        "literal": [
+          "🎉🎉",
+          "7/14",
+          "https://example.invalid/live/123"
+        ],
+        "must": [
+          "開心|开心|愉快|快樂|快乐|有趣"
+        ],
+        "translated": "今天真是快樂的一天啊。🎉🎉7/14https://example.invalid/live/123",
+        "ms": 168,
+        "modelCalls": 1,
+        "pass": true
+      },
+      {
+        "id": "ja-name-emoji",
+        "from": "ja",
+        "to": "zh",
+        "text": "まほろは明日来ません。\n😭",
+        "literal": [
+          "まほろ",
+          "😭"
+        ],
+        "must": [
+          "不|沒|没"
+        ],
+        "translated": "まほろ明天不會來了。😭",
+        "ms": 160,
+        "modelCalls": 1,
+        "pass": true
+      },
+      {
+        "id": "zh-ja-emoji-date",
+        "from": "zh",
+        "to": "ja",
+        "text": "明天晚上八點開始直播。\n🎮\n10/26",
+        "literal": [
+          "🎮",
+          "10/26"
+        ],
+        "must": [
+          "明日",
+          "配信|放送|ライブ"
+        ],
+        "translated": "明日の夜8時から配信を開始します。🎮10/26",
+        "ms": 270,
+        "modelCalls": 1,
+        "pass": true
+      },
+      {
+        "id": "ja-handles",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日は配信を休みます。\n@viewer_123 #123",
+        "literal": [
+          "@viewer_123 #123"
+        ],
+        "must": [
+          "休|停"
+        ],
+        "translated": "今天我會暫停直播。@viewer_123 #123",
+        "ms": 191,
+        "modelCalls": 1,
+        "pass": true
+      },
+      {
+        "id": "ja-url-first",
+        "from": "ja",
+        "to": "zh",
+        "text": "https://example.invalid/schedule\n明日は配信しません。",
+        "literal": [
+          "https://example.invalid/schedule"
+        ],
+        "must": [
+          "不|沒|没"
+        ],
+        "translated": "https://example.invalid/schedule明天不會進行直播。",
+        "ms": 96,
+        "modelCalls": 1,
+        "pass": true
+      },
+      {
+        "id": "emoji-only",
+        "from": "ja",
+        "to": "zh",
+        "text": "🎉🎮",
+        "unchanged": true,
+        "translated": "🎉🎮",
+        "ms": 0,
+        "modelCalls": 0,
+        "pass": true
+      },
+      {
+        "id": "date-only",
+        "from": "zh",
+        "to": "ja",
+        "text": "7/14",
+        "unchanged": true,
+        "translated": "7/14",
+        "ms": 0,
+        "modelCalls": 0,
+        "pass": true
+      },
+      {
+        "id": "ja-prose-control",
+        "from": "ja",
+        "to": "zh",
+        "text": "今日は学校に行きません。",
+        "must": [
+          "不|沒|没",
+          "學校|学校"
+        ],
+        "translated": "今天我不去學校了。",
+        "ms": 122,
+        "modelCalls": 1,
+        "pass": true
+      },
+      {
+        "id": "zh-prose-control",
+        "from": "zh",
+        "to": "ja",
+        "text": "我明天會再來看直播。",
+        "must": [
+          "明日",
+          "配信|放送|ライブ"
+        ],
+        "translated": "明日も配信を見に来ます。",
+        "ms": 228,
+        "modelCalls": 1,
+        "pass": true
+      }
+    ]
+  }
+}

@@ -10,7 +10,7 @@ import { greetingTranslation, normalizeGreetingSource } from '../../../../stream
 import { gameTermTranslation, selectGameTerminology } from '../../../../game-vocabulary.mjs'
 import { shortJaZhTranslation } from './ja-zh-short'
 import { contextualShortReply } from './contextual-short-reply'
-import { protectNames, alreadyTargetLanguage } from '../../../../translation-guards.mjs'
+import { protectNames, alreadyTargetLanguage, isNonLinguisticText } from '../../../../translation-guards.mjs'
 
 export interface GGUFVariantConfig {
   filename: string
@@ -136,10 +136,12 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     if (from === to) return text
     context?.signal?.throwIfAborted()
     this.interruption.signal.throwIfAborted()
+    const hasGlossary = context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))
+    if (isNonLinguisticText(text) && !hasGlossary) return text
     const protectedSource = protectNames(text, context?.glossary)
-    if (alreadyTargetLanguage(text, from, to) && !context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) return text
+    if (alreadyTargetLanguage(text, from, to) && !hasGlossary) return text
     if (protectedSource.entries.length && !/[\p{L}\p{N}]/u.test(protectedSource.body)) return protectedSource.restore(protectedSource.text)
-    if (!context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) {
+    if (!hasGlossary) {
       const reply = contextualShortReply(text, from, to, context?.sourceContext)
       if (reply !== undefined) return reply
       const term = gameTermTranslation(text, from, to)
@@ -147,7 +149,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     }
     // User terminology wins. Otherwise known standalone greetings need no GPU
     // inference, and a longer opening is normalized without touching names.
-    if (from === 'ja' && to === 'zh' && !context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))) {
+    if (from === 'ja' && to === 'zh' && !hasGlossary) {
       context?.signal?.throwIfAborted()
       this.interruption.signal.throwIfAborted()
       const greeting = greetingTranslation(text)
@@ -189,7 +191,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   ): Promise<string> {
     if (!text.trim()) return previousOutput || ''
     if (from === to) return text
-    if (protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
+    if (isNonLinguisticText(text) || protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
     if (!this.initialized) {
       throw new Error(`[${this.id}-worker] Not initialized`)
     }
@@ -223,7 +225,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   ): Promise<string> {
     if (!text.trim()) return previousOutput || ''
     if (from === to) return text
-    if (protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
+    if (isNonLinguisticText(text) || protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
     if (!this.initialized) {
       throw new Error(`[${this.id}-worker] Not initialized`)
     }
@@ -261,7 +263,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
   ): Promise<string> {
     if (!text.trim()) return previousOutput || ''
     if (from === to) return text
-    if (protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
+    if (isNonLinguisticText(text) || protectNames(text, context?.glossary).entries.length || alreadyTargetLanguage(text, from, to)) return this.translate(text, from, to, context)
     if (!this.initialized) {
       throw new Error(`[${this.id}-worker] Not initialized`)
     }

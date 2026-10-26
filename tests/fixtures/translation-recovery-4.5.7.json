@@ -1,0 +1,14 @@
+{
+  "provenance": "Authored regression examples. No private user messages. Checks are limited to literal retention, selected meanings and successful validation, not general translation accuracy.",
+  "cases": [
+    {"id":"ja-emoji-date-url", "from":"ja", "to":"zh", "text":"今日は楽しかったです。\n🎉🎉\n7/14\nhttps://example.invalid/live/123", "literal":["🎉🎉","7/14","https://example.invalid/live/123"], "must":["開心|开心|愉快|快樂|快乐|有趣"]},
+    {"id":"ja-name-emoji", "from":"ja", "to":"zh", "text":"まほろは明日来ません。\n😭", "literal":["まほろ","😭"], "must":["不|沒|没"]},
+    {"id":"zh-ja-emoji-date", "from":"zh", "to":"ja", "text":"明天晚上八點開始直播。\n🎮\n10/26", "literal":["🎮","10/26"], "must":["明日","配信|放送|ライブ"]},
+    {"id":"ja-handles", "from":"ja", "to":"zh", "text":"今日は配信を休みます。\n@viewer_123 #123", "literal":["@viewer_123 #123"], "must":["休|停"]},
+    {"id":"ja-url-first", "from":"ja", "to":"zh", "text":"https://example.invalid/schedule\n明日は配信しません。", "literal":["https://example.invalid/schedule"], "must":["不|沒|没"]},
+    {"id":"emoji-only", "from":"ja", "to":"zh", "text":"🎉🎮", "unchanged":true},
+    {"id":"date-only", "from":"zh", "to":"ja", "text":"7/14", "unchanged":true},
+    {"id":"ja-prose-control", "from":"ja", "to":"zh", "text":"今日は学校に行きません。", "must":["不|沒|没", "學校|学校"]},
+    {"id":"zh-prose-control", "from":"zh", "to":"ja", "text":"我明天會再來看直播。", "must":["明日", "配信|放送|ライブ"]}
+  ]
+}

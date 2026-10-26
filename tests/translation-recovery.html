@@ -1,0 +1,12 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8">
+<title>VocaLume 翻譯恢復測試</title>
+<link rel="stylesheet" href="../content.css">
+<style>body{font:18px system-ui;background:#111827;color:#e5e7eb;margin:32px;max-width:1000px}button{padding:12px}section{padding:16px;margin:12px 0;border:1px solid #475569}pre{white-space:pre-wrap;line-height:1.6}.jtl-translation{color:#86efac}yt-live-chat-text-message-renderer{display:block}#message{white-space:pre-wrap}</style>
+<h1>翻譯失敗與恢復</h1>
+<p>使用自製留言測試正式翻譯流程。只有「重試測試」這一則會模擬兩次失敗；請按其下方的「再試一次」完成測試。不會發送留言或啟動收音，完成後恢復原本設定。</p>
+<button id="test">開始測試</button><pre id="result" role="status">尚未開始</pre>
+<div id="cases"></div>
+<script src="../streamer-vocabulary.js"></script><script src="../translation-guards.js"></script>
+<script src="../caption-window.js"></script><script src="../content.js"></script>
+<script src="translation-recovery-browser.js"></script>
+</html>

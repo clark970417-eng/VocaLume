@@ -1,7 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import '../streamer-vocabulary.mjs';
-import {protectNames,alreadyTargetLanguage,shouldTranslateReading} from '../translation-guards.mjs';
+import {protectNames,alreadyTargetLanguage,shouldTranslateReading,isNonLinguisticText} from '../translation-guards.mjs';
+
+test('literal-only lines bypass translation without hiding real language or Han-only words',()=>{
+ for(const text of ['🎉🎉','7/14','123.45%','https://example.invalid/live/123','@kano_123 #Live','viewer@example.invalid','🐟 08:30 / 10:00'])assert.equal(isNonLinguisticText(text),true,text);
+ for(const text of ['','無料','有料','好き','好開心','See you','https://example.invalid/live ありがとう','@kano 明日ね'])assert.equal(isNonLinguisticText(text),false,text);
+});
 
 test('names and honorifics survive translation without invented kanji or substring replacements',()=>{
  const protectedText=protectNames('まほろちゃんと鹿乃まほろ、Mahoroとマホロさん。まほろばとマホロア。');

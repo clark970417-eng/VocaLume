@@ -8,6 +8,17 @@
   const honorific = /^(?:ちゃん|さん|さま|様|くん|君|たん)/u;
   const chineseEvidence = /[這这們们嗎吗麼么覺觉讓让還还會会說说]|你好|您好|謝謝|谢谢|今天|明天|昨天|辛苦了|喜歡|喜欢|已經|已经|真的|中文|[我你您][是有在不沒没想要也很能愛爱]|(?:好|太)(?:可愛|可爱|看|聽|听)/u;
 
+  function isNonLinguisticText(value) {
+    const text = String(value || '').trim();
+    if (!text) return false;
+    // Preserve literal-only lines in otherwise translatable comments. Ordinary
+    // words (including Han-only Japanese) must still enter the normal route.
+    const body = text.replace(/https?:\/\/\S+/giu, '')
+      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/gu, '')
+      .replace(/(?:^|\s)[@#][A-Za-z0-9_]+\b/gu, '');
+    return !/\p{L}/u.test(body);
+  }
+
   function nameSpans(value, glossary = []) {
     const text = String(value || '');
     const entries = new Map(names.map(source => [source, source]));
@@ -83,5 +94,5 @@
     const pattern = {ja:kana, zh:han, ko:/[\uac00-\ud7af]/u, ru:/[\u0400-\u04ff]/u, ar:/[\u0600-\u06ff]/u, th:/[\u0e00-\u0e7f]/u}[from] || /[A-Za-zÀ-ž]/u;
     return pattern.test(body);
   }
-  globalThis.VocaLumeTranslationGuards = Object.freeze({protectNames,alreadyTargetLanguage,shouldTranslateReading});
+  globalThis.VocaLumeTranslationGuards = Object.freeze({protectNames,alreadyTargetLanguage,shouldTranslateReading,isNonLinguisticText});
 })();

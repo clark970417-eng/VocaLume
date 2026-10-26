@@ -65,6 +65,27 @@ it('keeps already-Chinese content and name-only messages out of the model', asyn
   expect(pool.acquire).not.toHaveBeenCalled();expect(pool.sendRequest).not.toHaveBeenCalled()
 })
 
+it('preserves literal-only input across decoding modes without loading a model', async () => {
+  const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  for (const text of ['🎉🎉', '7/14', 'https://example.invalid/live/123', '@viewer #123']) {
+    for (const run of [
+      ()=>engine.translate(text,'ja','zh'),
+      ()=>engine.translate(text,'zh','ja'),
+      ()=>engine.translateIncremental(text,'','ja','zh'),
+      ()=>engine.translateSSBD(text,'','ja','zh'),
+      ()=>engine.translateSimulMt(text,'','ja','zh',true)
+    ]) await expect(run()).resolves.toBe(text)
+  }
+  expect(pool.acquire).not.toHaveBeenCalled(); expect(pool.sendRequest).not.toHaveBeenCalled()
+  const cancelled=new AbortController(); cancelled.abort(new Error('Cancelled'))
+  await expect(engine.translate('🎉','ja','zh',{previousSegments:[],signal:cancelled.signal})).rejects.toThrow('Cancelled')
+  await engine.initialize(); pool.sendRequest.mockResolvedValueOnce('七月十四日')
+  await expect(engine.translate('7/14','ja','zh',{previousSegments:[],glossary:[{source:'7/14',target:'七月十四日'}]})).resolves.toBe('七月十四日')
+  expect(pool.sendRequest).toHaveBeenCalledTimes(1)
+  engine.interrupt('Stopped')
+  await expect(engine.translate('🎉','ja','zh')).rejects.toBeInstanceOf(WorkerTerminatedError)
+})
+
 it('rejects lost names and protects alternate decoding paths without leaking internal tokens', async () => {
   const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
   await engine.initialize()

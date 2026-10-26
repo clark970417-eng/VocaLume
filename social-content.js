@@ -246,7 +246,7 @@
       try { result = await requestTranslation(source, isTitle, order, valid); }
       catch (firstError) {
         if (!valid()) throw firstError;
-        line.textContent = '中：第一次失敗，正在重試…';
+        line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
         result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid);
       }
       if (!valid()) { discard(); return; }
@@ -254,7 +254,20 @@
     } catch (_) {
       // Keep the failed source marked after one retry so the status mutation
       // cannot cause the page observer to resubmit it forever.
-      if (valid()) line.textContent = '中：翻譯失敗，請稍後重新整理再試';
+      if (valid()) {
+        line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯暫時失敗。`;
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.textContent = '再試一次';
+        retry.addEventListener('click', event => {
+          event.preventDefault(); event.stopPropagation();
+          if (!valid()) return;
+          retry.disabled = true;
+          translated.delete(node);
+          void translateNode(node, isTitle, 1_000_000_000 + ++translationOrder);
+        });
+        line.append(retry);
+      }
       else discard();
     }
   }

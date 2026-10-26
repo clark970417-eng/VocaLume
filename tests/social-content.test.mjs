@@ -114,8 +114,13 @@ test('social live chat stops after its bounded retry fails',async()=>{
  const t=setup('live.bilibili.com');await settle();
  t.requests[0].reply({ok:false,error:'first'});await settle();
  t.requests[1].reply({ok:false,error:'second'});await settle();
- assert.equal(t.translationLines[0].textContent,'中：翻譯失敗，請稍後重新整理再試');
+ assert.equal(t.translationLines[0].textContent,'中：翻譯暫時失敗。');
  assert.equal(t.requests.filter(x=>x.message.type==='translate').length,2);
+ t.scan();await settle();assert.equal(t.requests.length,2);
+ const retry=t.translationLines[0].children[0];assert.equal(retry.textContent,'再試一次');
+ retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,3);
+ t.requests[2].reply({ok:true,text:'恢復翻譯'});await settle();
+ assert.equal(t.translationLines[0].textContent,'中：恢復翻譯');
 });
 
 test('long social chat is translated once instead of being silently skipped',async()=>{

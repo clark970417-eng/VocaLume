@@ -2,7 +2,7 @@
 
 # VocaLume
 
-Current desktop and extension source: **4.5.6**. Known creator names such as `まほろ` retain their original spelling in Japanese ↔ Chinese translation. Reading translation skips Chinese sentences containing these names, and speech no longer switches to Japanese when recognition already returns the selected Chinese target. Explicit Chinese → Japanese drafts remain available. **Capture waiting and silence thresholds are unchanged.** See the [4.5.6 regression checks and limits](docs/retests/4.5.6.md) and the preceding [speech measurements](docs/retests/4.5.5.md). Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
+Current desktop and extension source: **4.5.7**. Fix intermittent failures when a multi-line message contains an emoji, date, URL or handle on its own line; reading translation keeps its own language pair when speech uses another pair. Busy local text requests get one bounded retry, and failed page translations offer **Try again** without refreshing the page. Known-name protection and the Chinese-language guard remain in place. **Capture waiting and silence thresholds are unchanged.** See the [4.5.7 regression checks and limits](docs/retests/4.5.7.md) and [4.5.6 name-preservation checks](docs/retests/4.5.6.md). Public preview downloads above remain **4.4.5**; source updates have not been relabelled as published installers.
 
 ![Extension icon](./icon-preview.png)
 

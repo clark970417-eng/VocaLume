@@ -98,7 +98,7 @@ async function translateElement(element, className, priority = false, queueOrder
     try { result = await requestTranslation(text, direction('read'), priority, queueOrder, valid); }
     catch (firstError) {
       if (!valid()) throw firstError;
-      line.textContent = "中：第一次失敗，正在重試…";
+      line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
       result = await requestTranslation(text, direction('read'), true, (queueOrder??0)+1000000, valid);
     }
     if (!valid() || !result) {discard();return false;}
@@ -107,7 +107,20 @@ async function translateElement(element, className, priority = false, queueOrder
   } catch (error) {
     // Keep the failed source marked after the one bounded retry. Otherwise our
     // own status DOM mutation starts another scan and creates an endless loop.
-    if (valid()) line.textContent = "中：翻譯失敗，請稍後重新整理再試";
+    if (valid()) {
+      line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯暫時失敗。`;
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.textContent = '再試一次';
+      retry.addEventListener('click', event => {
+        event.preventDefault(); event.stopPropagation();
+        if (!valid()) return;
+        retry.disabled = true;
+        translated.delete(element);
+        void translateElement(element, className, true);
+      });
+      line.append(retry);
+    }
     else discard();
     return false;
   }

@@ -10,7 +10,7 @@ function setup(semanticOnly=false,titleConfig=null){
  const makeLine=()=>({className:'',textContent:'',dataset:{},children:[],isConnected:false,
   classList:{add(){},remove(){},toggle(){}},style:{setProperty(){}},
   setAttribute(){},append(...kids){this.children.push(...kids);},replaceChildren(...kids){this.children=kids;},
-  addEventListener(){},insertAdjacentElement(){},remove(){this.removed=true;}});
+  addEventListener(name,fn){this['on'+name]=fn;},insertAdjacentElement(){},remove(){this.removed=true;}});
  const makeNode=text=>{
   const lines=[];
   const node={textContent:text,isConnected:true,lines,
@@ -159,9 +159,15 @@ test('a second live-chat failure stops instead of creating a retry loop',async()
  t.chat.push(node);t.scan();await settle();
  t.requests[0].reply({ok:false,error:'first'});await settle();
  t.requests[1].reply({ok:false,error:'second'});await settle();
- assert.equal(node.lines[0].textContent,'中：翻譯失敗，請稍後重新整理再試');
+ assert.equal(node.lines[0].textContent,'中：翻譯暫時失敗。');
  t.scan();t.scan();await settle();
  assert.equal(t.requests.length,2);
+ const retry=node.lines[0].children[0];assert.equal(retry.textContent,'再試一次');
+ retry.onclick({preventDefault(){},stopPropagation(){}});await settle();
+ assert.equal(t.requests.length,3);
+ retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,3);
+ t.requests[2].reply({ok:true,text:'重試成功'});await settle();
+ assert.equal(node.lines[0].textContent,'中：重試成功');
 });
 
 test('YouTube live chat survives selector changes through its semantic log region',async()=>{

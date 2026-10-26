@@ -1,6 +1,6 @@
 import {greetingTranslation,normalizeGreetingSource,creatorNames} from './streamer-vocabulary.mjs';
 import {gameTermTranslation,selectGameTerminology} from './game-vocabulary.mjs';
-import {protectNames,alreadyTargetLanguage} from './translation-guards.mjs';
+import {protectNames,alreadyTargetLanguage,isNonLinguisticText} from './translation-guards.mjs';
 export {protectNames,alreadyTargetLanguage};
 export {normalizeGreetingSource};
 export function gameTerminologyPrompt(text,from,to){const terms=selectGameTerminology(text,from,to);return terms.length?'\nFor the game terms that occur in this input, use these names without changing the rest of the meaning: '+terms.map(e=>JSON.stringify(e.source)+' → '+JSON.stringify(e.target)).join('; '):'';}
@@ -48,6 +48,7 @@ const zhPhrases = new Map([
 const phraseKey = text => text.trim().replace(/[。.!！]+$/u,'');
 export function phraseTranslation(text,direction){
  const [from,to]=direction.split('-');
+ if(isNonLinguisticText(text))return text;
  if(alreadyTargetLanguage(text,from,to))return text;
  const names=protectNames(text);
  if(names.entries.length&&!/[\p{L}\p{N}]/u.test(names.body))return names.restore(names.text);
@@ -66,6 +67,7 @@ export const chinesePrompt = `Translate Japanese into fluent Taiwan Traditional 
 export function validateTranslation(value,direction,source=''){
  const text=String(value||'').trim();
  if(!text || /<think>|```|^(?:Translation|翻譯|译文)\s*[:：]/iu.test(text))throw new Error('翻譯服務回傳格式不正確');
+ if(isNonLinguisticText(source) && text===source.trim())return text;
  // Nonverbal-only captions legitimately have no target-language characters.
  // Require explicit laughter in the whole source, so ordinary speech cannot
  // pass the language/completeness check merely by returning "ww" or "草".

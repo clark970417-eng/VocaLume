@@ -28,6 +28,15 @@ test('standalone laugh captions can use the chosen style without accepting untra
  for(const source of ['こんにちは','笑った','草原','www.example.com','こんにちは（笑）'])assert.throws(()=>validateTranslation('ww','ja-zh',source));
  assert.throws(()=>validateTranslation('hello','ja-zh','（笑）'));
 });
+
+test('literal-only chat chunks stay verbatim and cannot disguise missing translated prose',()=>{
+ for(const direction of ['ja-zh','zh-ja','ko-en'])for(const text of ['🎉🎉','7/14','https://example.invalid/live/123']) {
+  assert.equal(phraseTranslation(text,direction),text);
+  assert.equal(validateTranslation(text,direction,text),text);
+ }
+ assert.throws(()=>validateTranslation('🎉🎉','ja-zh','今日は楽しかったです。🎉🎉'));
+ assert.throws(()=>validateTranslation('https://example.invalid/live','ja-zh','この配信が好きです。'));
+});
 test('memo shares concurrent work, retries failures and evicts least recently used',async()=>{
  const memo=new TranslationMemo(2);let calls=0;
  const work=async()=>{calls++;return '結果';};

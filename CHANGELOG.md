@@ -2,6 +2,15 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.5.7 - 2026-10-26
+
+- Keep literal-only chunks (emoji, dates, URLs, handles and punctuation) unchanged instead of rejecting an otherwise valid multi-line translation. Ordinary Japanese, Chinese and English still use the translation route; a model cannot replace real prose with an emoji and pass validation.
+- Use the requested page-reading language pair independently of the active speech pair. Japanese → Chinese reading no longer accidentally follows Korean → English captions.
+- Retry a temporarily full native text queue once within the existing deadline, without closing the shared port or replaying audio/control operations.
+- Add a per-row **再試一次** button after bounded automatic retries on YouTube and social sites. Preserve stale-node, language-setting and opt-in guards; observers cannot resubmit a failed row forever.
+- Verify both reproduced failures, bounded recovery, desktop behavior and nine selected real-model examples. See [results and limits](docs/retests/4.5.7.md).
+- Keep capture waiting, silence thresholds, models, icon and saved preferences unchanged. Public preview installer assets remain 4.4.5; this is a source/local-app update.
+
 ## 4.5.6 - 2026-10-26
 
 - Preserve known creator names, including standalone `まほろ`, full names and attached honorifics, instead of allowing a translation model to invent a Chinese spelling. Validate restored names before caching a local result; suppress incomplete internal markers in partial output.

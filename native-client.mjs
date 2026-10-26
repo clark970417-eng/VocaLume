@@ -27,8 +27,11 @@ export class NativeClient {
    catch(error){
     // Only stateless work may be replayed. Audio/control recovery belongs to
     // the capture session, which must initialize a new decoder first.
-    if(attempt||generation!==this.generation||!['translate','settings'].includes(op)||!/host has exited|disconnected|port.*closed|port.*disconnect/i.test(error.message)||Date.now()-started+250>=timeout)throw error;
-    await new Promise(resolve=>setTimeout(resolve,200));
+    const busy=/queue is full/i.test(error.message);
+    const retryable=busy||/host has exited|disconnected|port.*closed|port.*disconnect/i.test(error.message);
+    const delay=busy?400:200;
+    if(attempt||generation!==this.generation||!['translate','settings'].includes(op)||!retryable||Date.now()-started+delay+50>=timeout)throw error;
+    await new Promise(resolve=>setTimeout(resolve,delay));
     if(generation!==this.generation)throw error;
    }
   }
