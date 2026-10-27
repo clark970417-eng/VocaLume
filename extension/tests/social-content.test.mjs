@@ -283,11 +283,16 @@ test('holding the reply button drags it without translating or modifying the dra
  const controls=t.controls[0], button=controls.children[0];
  controls.getBoundingClientRect=()=>({left:100,top:200,width:100,height:30});
  const event={button:0,pointerId:1,clientX:110,clientY:210,preventDefault(){},stopPropagation(){}};
+ let captures=0;
+ button.setPointerCapture=()=>{captures++;};
+ // A relocated button must capture again after entering the floating layer.
+ controls.parentElement={};
  const before=t.requests.length;
  button.onpointerdown(event);
  button.onpointermove({...event,clientX:210,clientY:260});
  button.onpointerup(event);
  await button.onclick(event);
+ assert.equal(captures,2);
  assert.equal(controls.dataset.placement,'floating');
  assert.equal(controls.style.left,'200px');
  assert.equal(controls.style.top,'250px');

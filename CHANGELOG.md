@@ -4,6 +4,9 @@ This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` t
 
 ## Unreleased - 2026-10-27
 
+- Ignore late X subtitle responses after a Space closes or its panel is replaced; avoid redundant status writes and caption renders. Keep the start/stop label consistent.
+- Reacquire pointer capture when dragging inline social reply controls into the floating layer so the pointer can leave the button without losing the drag.
+
 - Keep X Spaces caption controls outside the native dialog layout. Preserve the dialog’s positioning and reuse the controls across scans, preventing repeated panel removal and vertical jumping.
 
 - Remove the outer frame around social reply translation controls. Hold the language button for 350 ms to drag it; release without translating. Keep the chosen position for the current page and clamp it to the viewport.

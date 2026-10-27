@@ -23,6 +23,7 @@
   let panel,captionBox;
   let listening = false;
   let polling = false;
+  let subtitleSignature;
 
   function message(payload) {
     return new Promise((resolve, reject) => chrome.runtime.sendMessage(payload, reply => {
@@ -161,6 +162,7 @@
     const host = findSpaceHost();
     if (!host) return;
     if (panel?.isConnected) return;
+    subtitleSignature = undefined;
     panel = document.createElement('section');
     panel.className = 'jtl-x-live';
     panel.setAttribute('aria-label', '日文直播語音字幕');
@@ -184,7 +186,7 @@
           listening = true;
           status.textContent = '等待此分頁的日文聲音。';
         }
-        toggle.textContent = listening ? '隱藏字幕' : '開始日文語音字幕';
+        toggle.textContent = listening ? '停止語音字幕' : '開始日文語音字幕';
       } catch (error) { status.textContent = error.message; }
       finally { toggle.disabled = false; }
     });
@@ -234,17 +236,28 @@
 
   async function poll() {
     if (polling || !panel?.isConnected) return;
+    const currentPanel = panel, currentCaption = captionBox;
     polling = true;
+    const updateText = (node, text) => { if (node && node.textContent !== text) node.textContent = text; };
     try {
-      const data = await message({type: 'subtitles'});listening=Boolean(data.running);panel.querySelector('button').textContent=listening?'停止語音字幕':'開始日文語音字幕';
+      const data = await message({type: 'subtitles'});
+      // A response for a closed Space must not change a newly opened panel.
+      if (panel !== currentPanel || !currentPanel.isConnected) return;
+      listening = Boolean(data.running);
+      updateText(currentPanel.querySelector('button'), listening ? '停止語音字幕' : '開始日文語音字幕');
       const item = data.items?.slice().sort((a, b) => b.id - a.id)[0];
       const fresh = data.running && item && !item.expired && Date.now()/1000 < (item.expiresAt??item.updatedAt+3);
-      const rows=data.running?(item?.recordingRows||(fresh?[item]:[])):[];
-      if(captionBox){captionBox.controller.render(rows);captionBox.hidden=!rows.length;}
-      panel.querySelector('.jtl-x-live-status').textContent = data.running
-        ? '正在接收分頁聲音 · 日文 → 繁中' : '字幕已停止，可重新開始。';
-    } catch (error) { panel.querySelector('.jtl-x-live-status').textContent = error.message; }
-    finally { polling = false; }
+      const rows = data.running ? (item?.recordingRows || (fresh ? [item] : [])) : [];
+      const signature = JSON.stringify(rows);
+      if (currentCaption && captionBox === currentCaption) {
+        if (subtitleSignature !== signature) { currentCaption.controller.render(rows); subtitleSignature = signature; }
+        currentCaption.hidden = !rows.length;
+      }
+      updateText(currentPanel.querySelector('.jtl-x-live-status'), data.running
+        ? '正在接收分頁聲音 · 日文 → 繁中' : '字幕已停止，可重新開始。');
+    } catch (error) {
+      if (panel === currentPanel && currentPanel.isConnected) updateText(currentPanel.querySelector('.jtl-x-live-status'), error.message);
+    } finally { polling = false; }
   }
 
   function scan() {

@@ -81,3 +81,32 @@ test('X Spaces controls stay outside native positioning and are reused on repeat
  assert.doesNotMatch(css,/\.jtl-space-host\s*\{/);
  assert.match(css,/\.jtl-x-live\s*\{\s*position:\s*fixed/);
 });
+
+function pollingFixture() {
+ let reply, reject, renders=0, writes=0;
+ const tracked=()=>{let text='';return {get textContent(){return text;},set textContent(value){writes++;text=value;}};};
+ const toggle=tracked(),status=tracked();
+ const panel={isConnected:true,querySelector:s=>s==='button'?toggle:status};
+ const captionBox={controller:{render(){renders++;}}};
+ const api=vm.runInNewContext('let polling=false,listening=false,subtitleSignature; let panel=initialPanel,captionBox=initialCaption;\n'+source.slice(source.indexOf('  async function poll()'),source.indexOf('  function scan()'))+'\n({poll,close(){panel.isConnected=false;panel=null;captionBox=null;},replace(value){panel=value;},getListening:()=>listening})',{
+  initialPanel:panel,initialCaption:captionBox,Date,JSON,
+  message:()=>new Promise((resolve,fail)=>{reply=resolve;reject=fail;})
+ });
+ return {api,panel,respond:data=>reply(data),reject:error=>reject(error),counts:()=>({renders,writes})};
+}
+test('X discards subtitle results after closing or replacing the Space',async()=>{
+ for(const fail of [false,true]){
+  const t=pollingFixture();const pending=t.api.poll();t.api.close();
+  if(fail)t.reject(Error('disconnected'));else t.respond({running:true,items:[]});
+  await pending;assert.deepEqual(t.counts(),{renders:0,writes:0});
+ }
+ const t=pollingFixture();const pending=t.api.poll();
+ t.api.replace({isConnected:true,querySelector(){throw Error('stale response reached new panel');}});
+ t.respond({running:true,items:[]});await pending;
+ assert.equal(t.api.getListening(),false);
+});
+test('X does not rewrite unchanged subtitle status or rerender the same rows',async()=>{
+ const t=pollingFixture();
+ for(let i=0;i<3;i++){const pending=t.api.poll();t.respond({running:false,items:[]});await pending;}
+ assert.deepEqual(t.counts(),{renders:1,writes:2});
+});

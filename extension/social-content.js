@@ -466,7 +466,7 @@
     button.textContent = `${langLabel(languageSettings.typeSource)} → ${langLabel(languageSettings.typeTarget)}`;
     button.setAttribute('aria-label', `將留言從${langLabel(languageSettings.typeSource)}文翻成${langLabel(languageSettings.typeTarget)}文草稿`);
     button.title = '點一下翻譯；長按可拖曳位置，確認後自行送出';
-    let press, holdTimer, suppressClick = false;
+    let press, holdTimer, suppressClick = false, movingControls = false;
     const finishDrag = event => {
       if (!press || event.pointerId !== press.id) return;
       clearTimeout(holdTimer);
@@ -485,7 +485,13 @@
         press.left = rect.left; press.top = rect.top;
         suppressClick = true;
         controls.dataset.placement = 'floating';
-        (document.body || composerHost(box))?.append(controls);
+        const target = document.body || composerHost(box);
+        // Reparenting an inline button releases pointer capture in Chromium.
+        // Reacquire it after the move so dragging continues outside the pill.
+        movingControls = true;
+        if (controls.parentElement !== target) target?.append(controls);
+        button.setPointerCapture?.(press.id);
+        movingControls = false;
         composerPosition = {left: rect.left, top: rect.top};
         positionComposerControls(box, controls);
       }, 350);
@@ -502,7 +508,7 @@
     });
     button.addEventListener('pointerup', finishDrag);
     button.addEventListener('pointercancel', finishDrag);
-    button.addEventListener('lostpointercapture', finishDrag);
+    button.addEventListener('lostpointercapture', event => { if (!movingControls) finishDrag(event); });
     button.addEventListener('mousedown', event => event.preventDefault());
     const status = document.createElement('span');
     status.className = 'jtl-social-status';
