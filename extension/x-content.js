@@ -190,8 +190,9 @@
     });
     panel.append(toggle, status);
     captionBox=document.createElement('div');captionBox.className='jtl-caption-window';captionBox.hidden=true;captionBox.controller=new window.JtlCaptionWindow(captionBox,'xCaptionRect');document.body.append(captionBox);
-    host.classList.add('jtl-space-host');
-    host.append(panel);
+    // Keep extension UI outside React-owned dialog layout. Changing a fixed
+    // host to relative made host detection alternate on every mutation.
+    document.body.append(panel);
   }
 
   function findSpaceHost() {
@@ -220,13 +221,8 @@
   function syncSpacePanel() {
     const host = findSpaceHost();
     if (host) {
-      if (panel?.isConnected && panel.parentElement !== host) {
-        panel.parentElement?.classList.remove('jtl-space-host');
-        host.classList.add('jtl-space-host');
-        host.append(panel);if(captionBox)document.body.append(captionBox);
-      } else installPanel();
+      if (!panel?.isConnected) installPanel();
     } else if (panel?.isConnected) {
-      panel.parentElement?.classList.remove('jtl-space-host');
       panel.remove();captionBox?.remove();captionBox=null;
       panel = null;
       if (listening) {

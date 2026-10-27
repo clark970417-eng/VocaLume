@@ -60,3 +60,24 @@ test('X capture shortcut reaches only its own mounted editor before competing ha
  dispatch({composedPath:()=>[unrelated]});assert.equal(count,1);
  composers.get(box).isConnected=false;dispatch(event);assert.equal(count,1);
 });
+
+test('X Spaces controls stay outside native positioning and are reused on repeated scans',()=>{
+ let adds=0, hostWrites=0;
+ const make=()=>({isConnected:false,children:[],setAttribute(){},append(...nodes){this.children.push(...nodes);},remove(){this.isConnected=false;}});
+ const host={classList:{add(){hostWrites++;},remove(){hostWrites++;}},append(){hostWrites++;}};
+ const body={append(node){node.isConnected=true;adds++;}};
+ const document={body,createElement:make};
+ const code=source.slice(source.indexOf('  function installPanel'),source.indexOf('  async function poll'));
+ // Use the real mounting/synchronization logic with a stable native dialog.
+ const api=vm.runInNewContext('let panel,captionBox,listening=false;\n'+code+'\nfindSpaceHost=()=>host; ({syncSpacePanel,getPanel:()=>panel})',{
+  document,host,button:make,window:{JtlCaptionWindow:class{}},message(){throw Error('must not start a model');}
+ });
+ api.syncSpacePanel();const original=api.getPanel();
+ for(let i=0;i<20;i++)api.syncSpacePanel();
+ assert.equal(api.getPanel(),original);
+ assert.equal(adds,2); // One caption surface and one control panel.
+ assert.equal(hostWrites,0);
+ const css=fs.readFileSync(new URL('../x-content.css',import.meta.url),'utf8');
+ assert.doesNotMatch(css,/\.jtl-space-host\s*\{/);
+ assert.match(css,/\.jtl-x-live\s*\{\s*position:\s*fixed/);
+});
