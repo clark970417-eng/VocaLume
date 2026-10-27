@@ -4,6 +4,9 @@ This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` t
 
 ## Unreleased - 2026-10-27
 
+- Remove the outer frame around social reply translation controls. Hold the language button for 350 ms to drag it; release without translating. Keep the chosen position for the current page and clamp it to the viewport.
+- Detect invalidated extension connections, stop futile retries, and show instructions to preserve unsent text before refreshing the page.
+
 - Insert translated Discord/Twitch reply drafts through the editor's input or plain-text paste transaction, keeping its submission state in sync. Preserve a selectable draft if the site rejects insertion instead of changing only the visible DOM. Keep line breaks and emoji, protect active IME composition, and never submit a message automatically.
 - Place Discord/Twitch translation controls in a separate row before the native composer. Anchor other floating controls outside the composer and its Send area, including after scrolling or resizing.
 - Style failed page/chat translation retry buttons consistently with a refresh icon, rounded mint treatment, hover feedback, accessible labels and keyboard focus. Keep the existing bounded automatic retry and manual recovery.

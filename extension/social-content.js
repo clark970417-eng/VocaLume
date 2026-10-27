@@ -126,6 +126,11 @@
   let activeComposer;
   let activeControls;
   let composerLayoutObserver;
+  let composerPosition;
+  let contextInvalid = false;
+  let pollTimer;
+  let pageObserver;
+  const contextRecoveryMessage = '擴充功能已重新載入。請先保留未送出的留言，再重新整理此頁恢復翻譯。';
   const cache = new Map();
   const translationInFlight = new Map();
   const translationQueue = [];
@@ -171,12 +176,39 @@
     return candidates.sort((a, b) => clean(a.innerText || a.textContent).length - clean(b.innerText || b.textContent).length)[0] || node;
   }
 
+  function bridgeError(error) {
+    const description = String(error?.message || error || '本機翻譯服務未啟動');
+    if (!contextInvalid && !/extension context invalidated/i.test(description)) return new Error(description);
+    if (!contextInvalid) {
+      contextInvalid = true;
+      if (pollTimer != null) clearInterval(pollTimer);
+      pageObserver?.disconnect?.();
+      composerLayoutObserver?.disconnect();
+      if (captionBox) captionBox.hidden = true;
+      const button = activeControls?.children[0], status = activeControls?.children[1];
+      if (button) { button.disabled = true; button.title = contextRecoveryMessage; }
+      if (status) status.textContent = contextRecoveryMessage;
+      for (const task of translationQueue.splice(0)) {
+        translationInFlight.delete(task.key);
+        task.reject(new Error(contextRecoveryMessage));
+      }
+    }
+    return new Error(contextRecoveryMessage);
+  }
+
   function message(payload) {
-    return new Promise((resolve, reject) => chrome.runtime.sendMessage(payload, reply => {
-      if (chrome.runtime.lastError || !reply?.ok) {
-        reject(new Error(reply?.error || '本機翻譯服務未啟動'));
-      } else resolve(reply.text);
-    }));
+    return new Promise((resolve, reject) => {
+      if (contextInvalid) { reject(bridgeError(contextRecoveryMessage)); return; }
+      try {
+        chrome.runtime.sendMessage(payload, reply => {
+          try {
+            const error = chrome.runtime.lastError;
+            if (contextInvalid || error || !reply?.ok) reject(bridgeError(error || reply?.error));
+            else resolve(reply.text);
+          } catch (error) { reject(bridgeError(error)); }
+        });
+      } catch (error) { reject(bridgeError(error)); }
+    });
   }
 
   function pumpTranslations() {
@@ -218,7 +250,7 @@
   }
 
   async function translateNode(node, isTitle = false, order) {
-    if (!enabled || !node?.isConnected || node.closest?.('.jtl-social-translation,.jtl-social-controls')) return;
+    if (contextInvalid || !enabled || !node?.isConnected || node.closest?.('.jtl-social-translation,.jtl-social-controls')) return;
     if (!isTitle) node = messageTextNode(node);
     const source = clean(node.innerText || node.textContent);
     const parent = node.parentElement;
@@ -253,6 +285,7 @@
       let result;
       try { result = await requestTranslation(source, isTitle, order, valid); }
       catch (firstError) {
+        if (contextInvalid) throw firstError;
         if (!valid()) throw firstError;
         line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
         result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid);
@@ -263,6 +296,7 @@
       // Keep the failed source marked after one retry so the status mutation
       // cannot cause the page observer to resubmit it forever.
       if (valid()) {
+        if (contextInvalid) { line.textContent = contextRecoveryMessage; return; }
         line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯暫時失敗。`;
         const retry = document.createElement('button');
         retry.type = 'button';
@@ -357,6 +391,15 @@
 
   function positionComposerControls(box, controls) {
     if (controls.dataset.placement !== 'floating' || !box?.isConnected || !controls.isConnected) return;
+    if (composerPosition) {
+      const size = controls.getBoundingClientRect();
+      const left = Math.max(8, Math.min(composerPosition.left, window.innerWidth - size.width - 8));
+      const top = Math.max(8, Math.min(composerPosition.top, window.innerHeight - size.height - 8));
+      controls.style.left = `${left}px`;
+      controls.style.top = `${top}px`;
+      controls.style.visibility = 'visible';
+      return;
+    }
     const editorRect = box.getBoundingClientRect();
     const hostRect = composerHost(box)?.getBoundingClientRect?.();
     const rect = hostRect && hostRect.height < window.innerHeight * .65 && hostRect.top <= editorRect.top && hostRect.bottom >= editorRect.bottom
@@ -376,7 +419,7 @@
   }
 
   function mountComposerControls(box, controls) {
-    const anchor = site === 'discord' ? box.closest('form') || box.closest('[class*="channelTextArea"]') || composerHost(box)
+    const anchor = composerPosition ? null : site === 'discord' ? box.closest('form') || box.closest('[class*="channelTextArea"]') || composerHost(box)
       : site === 'twitch' ? box.closest('.chat-input') || box.closest('form') || composerHost(box) : null;
     if (anchor?.parentElement && anchor.insertAdjacentElement) {
       controls.dataset.placement = 'inline';
@@ -405,7 +448,7 @@
   }
 
   function installComposer(box, force = false) {
-    if (!enabled || !box?.isConnected) return;
+    if (contextInvalid || !enabled || !box?.isConnected) return;
     if (activeComposer === box && activeControls?.isConnected) return;
     // Dynamic pages contain many unrelated text fields. Once a real composer
     // is selected, background scans must not rebind the single visible button
@@ -422,7 +465,44 @@
     button.className = 'jtl-social-language';
     button.textContent = `${langLabel(languageSettings.typeSource)} → ${langLabel(languageSettings.typeTarget)}`;
     button.setAttribute('aria-label', `將留言從${langLabel(languageSettings.typeSource)}文翻成${langLabel(languageSettings.typeTarget)}文草稿`);
-    button.title = '翻譯留言草稿，確認後自行送出';
+    button.title = '點一下翻譯；長按可拖曳位置，確認後自行送出';
+    let press, holdTimer, suppressClick = false;
+    const finishDrag = event => {
+      if (!press || event.pointerId !== press.id) return;
+      clearTimeout(holdTimer);
+      if (press.dragging) { event.preventDefault(); event.stopPropagation(); }
+      press = null;
+    };
+    button.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || press) return;
+      suppressClick = false;
+      press = {id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false};
+      button.setPointerCapture?.(event.pointerId);
+      holdTimer = setTimeout(() => {
+        if (!press || !controls.isConnected) return;
+        const rect = controls.getBoundingClientRect();
+        press.dragging = true;
+        press.left = rect.left; press.top = rect.top;
+        suppressClick = true;
+        controls.dataset.placement = 'floating';
+        (document.body || composerHost(box))?.append(controls);
+        composerPosition = {left: rect.left, top: rect.top};
+        positionComposerControls(box, controls);
+      }, 350);
+    });
+    button.addEventListener('pointermove', event => {
+      if (!press || event.pointerId !== press.id) return;
+      if (!press.dragging) {
+        if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > 8) clearTimeout(holdTimer);
+        return;
+      }
+      event.preventDefault(); event.stopPropagation();
+      composerPosition = {left: press.left + event.clientX - press.x, top: press.top + event.clientY - press.y};
+      positionComposerControls(box, controls);
+    });
+    button.addEventListener('pointerup', finishDrag);
+    button.addEventListener('pointercancel', finishDrag);
+    button.addEventListener('lostpointercapture', finishDrag);
     button.addEventListener('mousedown', event => event.preventDefault());
     const status = document.createElement('span');
     status.className = 'jtl-social-status';
@@ -437,6 +517,7 @@
     button.addEventListener('click', async event => {
       event.preventDefault();
       event.stopPropagation();
+      if (suppressClick) { suppressClick = false; return; }
       if (composing.has(box)) { status.textContent = '請先完成輸入法選字，再翻譯。'; return; }
       const source = editableText(box);
       const currentEpoch = epoch;
@@ -457,9 +538,9 @@
         status.textContent = inserted ? '已放入譯文，確認後自行送出'
           : '留言框未接受譯文；請複製下方草稿後貼入。';
       } catch (error) {
-        status.textContent = `翻譯失敗：${error.message}`;
+        status.textContent = contextInvalid ? contextRecoveryMessage : `翻譯失敗：${error.message}`;
       } finally {
-        button.disabled = false;
+        button.disabled = contextInvalid;
       }
     });
     controls.append(button, status, preview);
@@ -508,7 +589,7 @@
   }
 
   async function pollSubtitles() {
-    if (window.top !== window || polling) return;
+    if (contextInvalid || window.top !== window || polling) return;
     polling = true;
     try { renderSubtitles(await message({type: 'subtitles'})); }
     catch (_) { /* The popup reports actionable capture/desktop errors. */ }
@@ -516,6 +597,7 @@
   }
 
   function scan() {
+    if (contextInvalid) return;
     if (activeControls) positionComposerControls(activeComposer, activeControls);
     if (window.top === window) installCaptionBox();
     if (!enabled) return;
@@ -580,11 +662,13 @@
     if (area === 'local' && changes.languageSettings) {languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();cache.clear();document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());activeComposer=null;activeControls=null;scan();}
   });
   let scheduled = false;
-  new MutationObserver(() => {
+  pageObserver = new MutationObserver(() => {
+    if (contextInvalid) return;
     if (scheduled) return;
     scheduled = true;
     setTimeout(() => { scheduled = false; scan(); }, 250);
-  }).observe(document.documentElement, {subtree: true, childList: true, attributes: true, attributeFilter: ['contenteditable']});
+  });
+  pageObserver.observe(document.documentElement, {subtree: true, childList: true, attributes: true, attributeFilter: ['contenteditable']});
   document.addEventListener('focusin', focusedComposer, true);
   document.addEventListener('compositionstart', event => {
     const box = event.target?.closest?.('textarea,input,[contenteditable="true"]');
@@ -598,5 +682,5 @@
   window.addEventListener?.('resize', reposition, {passive: true});
   document.addEventListener('scroll', reposition, {capture: true, passive: true});
   scan();
-  if (window.top === window) setInterval(pollSubtitles, 700);
+  if (window.top === window) pollTimer = setInterval(pollSubtitles, 700);
 })();

@@ -46,7 +46,7 @@ function editor(site = 'discord', handler = 'beforeinput') {
       }
       return !event.defaultPrevented;
     }};
-  const api = vm.runInNewContext(helpers + '\n({replaceEditable,editableText,mountComposerControls,positionComposerControls,isUsableComposer})',
+  const api = vm.runInNewContext('let composerPosition;\n' + helpers + '\n({replaceEditable,editableText,mountComposerControls,positionComposerControls,isUsableComposer})',
     {site,window:view,document,InputEvent,Event,ClipboardEvent,DataTransfer,setTimeout});
   return {...api,box,view,document,events,ranges,submittedValue:()=>model,directWrites:()=>directWrites,nativeCalls:()=>nativeCalls};
 }

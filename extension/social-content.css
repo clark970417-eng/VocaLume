@@ -24,10 +24,10 @@
   width: max-content !important;
   max-width: 100% !important;
   margin: 4px 0 !important;
-  padding: 6px 8px !important;
-  border: 1px solid #355344 !important;
+  padding: 0 !important;
+  border: 0 !important;
   border-radius: 12px !important;
-  background: #17251e !important;
+  background: transparent !important;
   font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif !important;
   color: #bdcec3 !important;
   pointer-events: auto !important;
@@ -40,7 +40,7 @@
   z-index: 2147483647 !important;
   max-width: calc(100vw - 16px) !important;
   margin: 0 !important;
-  box-shadow: 0 3px 12px #0003 !important;
+  box-shadow: none !important;
 }
 
 .jtl-social-controls[hidden], .jtl-social-controls [hidden] { display: none !important; }
@@ -60,7 +60,11 @@
   resize: vertical !important;
 }
 
+.jtl-social-status:empty { display: none !important; }
+
 .jtl-social-language {
+  touch-action: none !important;
+  user-select: none !important;
   appearance: none !important;
   border: 1px solid #438668 !important;
   border-radius: 999px !important;

@@ -46,9 +46,9 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
  const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(){} apply(){}}};window.top=window;
  const chrome={runtime:{lastError:null,onMessage:{addListener(){}},sendMessage(message,reply){requests.push({message,reply});}},
   storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(){}}}};
- let scan;
- vm.runInNewContext(source,{VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},setTimeout:fn=>{fn();return 1;},setInterval(){},Event:class{},InputEvent:class{}});
- return {requests,translationLines,controls,box,shell,selectors,node:japanese,scan:()=>scan()};
+ let scan,poll,disconnected=false,pollStopped=false;
+ vm.runInNewContext(source,{VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout:fn=>{fn();return 1;},clearTimeout(){},setInterval(fn){poll=fn;return 42;},clearInterval(id){if(id===42)pollStopped=true;},Event:class{},InputEvent:class{}});
+ return {requests,translationLines,controls,box,shell,selectors,node:japanese,scan:()=>scan(),poll:()=>poll(),runtime:chrome.runtime,stopped:()=>disconnected&&pollStopped};
 }
 
 test('Twitch and general social reading skip Chinese sentences containing a kana name',async()=>{
@@ -125,6 +125,29 @@ test('social live chat stops after its bounded retry fails',async()=>{
  retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,3);
  t.requests[2].reply({ok:true,text:'恢復翻譯'});await settle();
  assert.equal(t.translationLines[0].textContent,'中：恢復翻譯');
+});
+
+test('Instagram reports a stale extension context clearly and stops invalid requests without editing the draft',async()=>{
+ const t=setup('www.instagram.com');await settle();
+ let attempts=0;
+ t.runtime.sendMessage=()=>{attempts++;throw new Error('Extension context invalidated.');};
+ await t.controls[0].children[0].onclick({preventDefault(){},stopPropagation(){}});
+ assert.match(t.controls[0].children[1].textContent,/擴充功能已重新載入.*保留未送出的留言.*重新整理/);
+ assert.equal(t.controls[0].children[0].disabled,true);
+ assert.equal(t.box.value,'今天也很可愛');
+ assert.equal(t.stopped(),true);
+ t.scan();await t.poll();await settle();
+ assert.equal(attempts,1);
+});
+
+test('a runtime context error in Instagram reading is not retried as a transient translation failure',async()=>{
+ const t=setup('www.instagram.com');await settle();
+ t.runtime.lastError={message:'Extension context invalidated.'};
+ t.requests[0].reply();await settle();
+ assert.equal(t.requests.length,1);
+ assert.match(t.translationLines[0].textContent,/重新整理此頁恢復翻譯/);
+ assert.equal(t.translationLines[0].children.length,0);
+ assert.equal(t.stopped(),true);
 });
 
 test('long social chat is translated once instead of being silently skipped',async()=>{
@@ -252,4 +275,22 @@ test('Discord leaves Korean messages alone when the reader explicitly selected J
  const body={textContent:'안녕하세요',innerText:'안녕하세요',isConnected:true,closest:()=>null,querySelectorAll(){return[];}};
  const t=setup('discord.com',body);await settle();
  assert.equal(t.requests.filter(r=>r.message.type==='translate').length,0);
+});
+
+
+test('holding the reply button drags it without translating or modifying the draft', async () => {
+ const t=setup('www.instagram.com');await settle();
+ const controls=t.controls[0], button=controls.children[0];
+ controls.getBoundingClientRect=()=>({left:100,top:200,width:100,height:30});
+ const event={button:0,pointerId:1,clientX:110,clientY:210,preventDefault(){},stopPropagation(){}};
+ const before=t.requests.length;
+ button.onpointerdown(event);
+ button.onpointermove({...event,clientX:210,clientY:260});
+ button.onpointerup(event);
+ await button.onclick(event);
+ assert.equal(controls.dataset.placement,'floating');
+ assert.equal(controls.style.left,'200px');
+ assert.equal(controls.style.top,'250px');
+ assert.equal(t.requests.length,before);
+ assert.equal(t.box.value,'今天也很可愛');
 });
