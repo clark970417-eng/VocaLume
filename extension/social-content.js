@@ -44,7 +44,13 @@
     twitch: {
       title: ['h1[data-a-target="stream-title"]', '[data-a-target="stream-title"]', 'h1'],
       text: ['[data-a-target="chat-line-message-body"]', '[data-test-selector="chat-line-message-body"]', '.chat-line__message'],
-      composer: ['[data-a-target="chat-input"]', 'textarea[data-a-target="chat-input"]', '[contenteditable="true"][data-a-target="chat-input"]']
+      composer: [
+        '[data-a-target="chat-input"] textarea',
+        '[data-a-target="chat-input"] [contenteditable="true"]',
+        '.chat-input [data-slate-editor="true"]',
+        'textarea[data-a-target="chat-input"]',
+        '[contenteditable="true"][data-a-target="chat-input"]'
+      ]
     },
     tiktok: {
       title: ['h1[data-e2e="browse-video-desc"]', '[data-e2e="browser-nickname"] + div', 'h1'],
@@ -116,8 +122,10 @@
   let translated = new WeakMap();
   const lineOwners = new WeakMap();
   const composers = new WeakMap();
+  const composing = new WeakSet();
   let activeComposer;
   let activeControls;
+  let composerLayoutObserver;
   const cache = new Map();
   const translationInFlight = new Map();
   const translationQueue = [];
@@ -258,7 +266,10 @@
         line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯暫時失敗。`;
         const retry = document.createElement('button');
         retry.type = 'button';
+        retry.className = 'jtl-retry';
         retry.textContent = '再試一次';
+        retry.setAttribute('aria-label', '重新翻譯這則內容');
+        retry.title = '保留原文，重新取得翻譯';
         retry.addEventListener('click', event => {
           event.preventDefault(); event.stopPropagation();
           if (!valid()) return;
@@ -273,38 +284,114 @@
   }
 
   function editableText(box) {
-    return clean('value' in box ? box.value : (box.innerText || box.textContent));
+    return String(('value' in box ? box.value : (box.innerText || box.textContent)) || '')
+      .replace(/\r\n/g, '\n').replace(/[\u200b\ufeff]/g, '').trim();
   }
 
-  function replaceEditable(box, text) {
-    box.focus();
+  async function replaceEditable(box, text) {
+    const doc = box.ownerDocument || document;
+    const view = doc.defaultView || window;
+    const source = editableText(box);
+    const expected = String(text).replace(/\r\n/g, '\n').replace(/[\u200b\ufeff]/g, '').trim();
+    const settle = async () => {
+      // Let the framework commit its editor transaction before verifying it.
+      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return box.isConnected && editableText(box) === expected;
+    };
+    box.focus({preventScroll: true});
     if ('value' in box) {
-      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(box), 'value')?.set;
+      // Bypass React's per-element value tracker so its input handler observes
+      // a real change instead of retaining the Chinese submission value.
+      const prototype = box.tagName === 'TEXTAREA' ? view.HTMLTextAreaElement?.prototype
+        : box.tagName === 'INPUT' ? view.HTMLInputElement?.prototype : null;
+      const setter = Object.getOwnPropertyDescriptor(prototype || Object.getPrototypeOf(box), 'value')?.set;
       if (setter) setter.call(box, text); else box.value = text;
-      box.dispatchEvent(new Event('input', {bubbles: true}));
-      box.dispatchEvent(new Event('change', {bubbles: true}));
-      return;
+      box.dispatchEvent(new InputEvent('input', {bubbles: true, composed: true, inputType: 'insertReplacementText', data: text}));
+      box.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+      return settle();
     }
-    const selection = window.getSelection();
-    const range = document.createRange();
+    const selection = view.getSelection();
+    if (!selection) return false;
+    const range = doc.createRange();
     range.selectNodeContents(box);
+    // Slate resolves leaf text points, including multi-line editors, reliably.
+    const leaves = [...(box.querySelectorAll?.('[data-slate-string], [data-slate-zero-width]') || [])];
+    const first = leaves[0]?.firstChild, last = leaves.at(-1)?.lastChild;
+    if (first?.nodeType === 3 && last?.nodeType === 3) {
+      range.setStart(first, 0); range.setEnd(last, last.textContent.length);
+    }
     selection.removeAllRanges();
     selection.addRange(range);
-    const inserted = document.execCommand?.('insertText', false, text);
-    // Some Bilibili editors expose a contenteditable surface but reject
-    // execCommand. Keep the visible editor and its framework input event in
-    // sync instead of silently leaving the Chinese source unchanged.
-    if (!inserted || clean(box.innerText || box.textContent) !== clean(text)) box.textContent = text;
-    box.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: text}));
-    box.dispatchEvent(new Event('change', {bubbles: true}));
+    doc.dispatchEvent?.(new Event('selectionchange'));
+    let targetRanges = [];
+    if (view.StaticRange) targetRanges = [new view.StaticRange({
+      startContainer: range.startContainer, startOffset: range.startOffset,
+      endContainer: range.endContainer, endOffset: range.endOffset
+    })];
+    // Slate/Lexical own the document model. Ask them to replace the selected
+    // range; changing textContent only changes the pixels, not what is sent.
+    const before = new InputEvent('beforeinput', {bubbles: true, composed: true, cancelable: true,
+      inputType: 'insertReplacementText', data: text, targetRanges});
+    box.dispatchEvent(before);
+    if (before.defaultPrevented) return settle();
+    if (editableText(box) !== source || !box.isConnected) return false;
+    if (typeof DataTransfer === 'function' && typeof ClipboardEvent === 'function') {
+      const data = new DataTransfer(); data.setData('text/plain', text);
+      const paste = new ClipboardEvent('paste', {bubbles: true, composed: true, cancelable: true, clipboardData: data});
+      box.dispatchEvent(paste);
+      if (paste.defaultPrevented) return settle();
+      if (editableText(box) !== source || !box.isConnected) return false;
+    }
+    const managed = site === 'discord' || site === 'twitch' || box.matches?.('[data-slate-editor], [data-lexical-editor]') || box.querySelector?.('[data-contents]');
+    if (managed) return false;
+    const inserted = doc.execCommand?.('insertText', false, text);
+    if (!inserted) return false;
+    box.dispatchEvent(new InputEvent('input', {bubbles: true, composed: true, inputType: 'insertText', data: text}));
+    return settle();
   }
 
   function composerHost(box) {
     return box.closest('[data-e2e="comment-input"], [data-e2e="chat-input"], .chat-input, .reply-box, .comment-box, .comment-send') || box.parentElement;
   }
 
+  function positionComposerControls(box, controls) {
+    if (controls.dataset.placement !== 'floating' || !box?.isConnected || !controls.isConnected) return;
+    const editorRect = box.getBoundingClientRect();
+    const hostRect = composerHost(box)?.getBoundingClientRect?.();
+    const rect = hostRect && hostRect.height < window.innerHeight * .65 && hostRect.top <= editorRect.top && hostRect.bottom >= editorRect.bottom
+      ? hostRect : editorRect;
+    if (!Number.isFinite(rect.top)) return;
+    const size = controls.getBoundingClientRect?.() || {width: 280, height: 36};
+    const margin = 8, width = window.innerWidth, height = window.innerHeight;
+    const above = rect.top - size.height - margin;
+    const below = rect.bottom + margin;
+    // Never dock over the native composer or its bottom-right Send button.
+    const top = above >= margin ? above : below + size.height <= height - margin ? below : null;
+    // Keep its measured dimensions while hidden, avoiding ResizeObserver loops.
+    controls.style.visibility = top === null || rect.bottom < 0 || rect.top > height ? 'hidden' : 'visible';
+    if (top === null) return;
+    controls.style.left = `${Math.max(margin, Math.min(rect.left, width - size.width - margin))}px`;
+    controls.style.top = `${top}px`;
+  }
+
+  function mountComposerControls(box, controls) {
+    const anchor = site === 'discord' ? box.closest('form') || box.closest('[class*="channelTextArea"]') || composerHost(box)
+      : site === 'twitch' ? box.closest('.chat-input') || box.closest('form') || composerHost(box) : null;
+    if (anchor?.parentElement && anchor.insertAdjacentElement) {
+      controls.dataset.placement = 'inline';
+      // A separate row before the native composer leaves its Send area free.
+      anchor.insertAdjacentElement('beforebegin', controls);
+    } else {
+      controls.dataset.placement = 'floating';
+      (document.body || composerHost(box))?.append(controls);
+      positionComposerControls(box, controls);
+    }
+  }
+
   function isUsableComposer(box) {
-    if (!box?.isConnected || box.matches?.('[disabled],[aria-disabled="true"]')) return false;
+    if (!box?.isConnected || box.readOnly || box.matches?.('[disabled],[aria-disabled="true"]') ||
+        box.closest?.('.jtl-social-controls,.jtl-social-translation')) return false;
     if (site === 'generic') {
       const purpose = clean([
         box.getAttribute?.('type'), box.getAttribute?.('name'), box.getAttribute?.('role'),
@@ -327,19 +414,30 @@
     const previous = composers.get(box);
     if (previous?.isConnected) return;
     activeControls?.remove();
+    composerLayoutObserver?.disconnect();
     const controls = document.createElement('div');
     controls.className = 'jtl-social-controls';
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'jtl-social-language';
-    button.textContent = `${langLabel(languageSettings.typeSource)}/${langLabel(languageSettings.typeTarget)}`;
-    button.setAttribute('aria-label', '將這則中文留言翻成日文草稿');
+    button.textContent = `${langLabel(languageSettings.typeSource)} → ${langLabel(languageSettings.typeTarget)}`;
+    button.setAttribute('aria-label', `將留言從${langLabel(languageSettings.typeSource)}文翻成${langLabel(languageSettings.typeTarget)}文草稿`);
+    button.title = '翻譯留言草稿，確認後自行送出';
+    button.addEventListener('mousedown', event => event.preventDefault());
     const status = document.createElement('span');
+    status.className = 'jtl-social-status';
     status.setAttribute('role', 'status');
     status.setAttribute('aria-live', 'polite');
+    const preview = document.createElement('textarea');
+    preview.className = 'jtl-social-draft';
+    preview.readOnly = true;
+    preview.hidden = true;
+    preview.setAttribute('aria-label', '翻譯草稿；可選取並複製後貼入留言框');
+    controls.addEventListener('keydown', event => event.stopPropagation());
     button.addEventListener('click', async event => {
       event.preventDefault();
       event.stopPropagation();
+      if (composing.has(box)) { status.textContent = '請先完成輸入法選字，再翻譯。'; return; }
       const source = editableText(box);
       const currentEpoch = epoch;
       if (!source || !matchesLanguage(source,languageSettings.typeSource)) { status.textContent = `請先輸入${langLabel(languageSettings.typeSource)}文`; return; }
@@ -349,22 +447,30 @@
         const result = await message({type: 'make-draft', text: source, direction: direction('type')});
         if (!enabled || currentEpoch !== epoch || !box.isConnected || !controls.isConnected) return;
         if (editableText(box) !== source) { status.textContent = '原文已修改，請重新翻譯'; return; }
-        if (!result?.draft) throw new Error('沒有收到日文草稿');
-        replaceEditable(box, result.draft);
-        status.textContent = `${result.mode || '日文草稿'}，確認後自行送出`;
+        if (composing.has(box)) { status.textContent = '請先完成輸入法選字，再重新翻譯。'; return; }
+        if (!result?.draft?.trim()) throw new Error('沒有收到翻譯草稿');
+        preview.value = result.draft;
+        preview.hidden = false;
+        const inserted = await replaceEditable(box, result.draft);
+        if (!enabled || currentEpoch !== epoch || !box.isConnected || !controls.isConnected) return;
+        preview.hidden = inserted;
+        status.textContent = inserted ? '已放入譯文，確認後自行送出'
+          : '留言框未接受譯文；請複製下方草稿後貼入。';
       } catch (error) {
         status.textContent = `翻譯失敗：${error.message}`;
       } finally {
         button.disabled = false;
       }
     });
-    controls.append(button, status);
-    // Bilibili and TikTok frequently reconcile their composer containers and
-    // delete foreign children. Keep our compact control under document.body.
-    (document.body || composerHost(box))?.append(controls);
+    controls.append(button, status, preview);
     composers.set(box, controls);
     activeComposer = box;
     activeControls = controls;
+    mountComposerControls(box, controls);
+    if (typeof ResizeObserver === 'function' && controls.dataset.placement === 'floating') {
+      composerLayoutObserver = new ResizeObserver(() => positionComposerControls(box, controls));
+      composerLayoutObserver.observe(box); composerLayoutObserver.observe(controls);
+    }
   }
 
   function focusedComposer(event) {
@@ -410,6 +516,7 @@
   }
 
   function scan() {
+    if (activeControls) positionComposerControls(activeComposer, activeControls);
     if (window.top === window) installCaptionBox();
     if (!enabled) return;
     if (window.top === window) config.title.forEach(selector => document.querySelectorAll(selector).forEach(node => translateNode(node, true, 1_000_000_000 + ++translationOrder)));
@@ -448,6 +555,7 @@
       document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node => node.remove());
       activeComposer = null;
       activeControls = null;
+      composerLayoutObserver?.disconnect();
     }
     else scan();
   }
@@ -478,6 +586,17 @@
     setTimeout(() => { scheduled = false; scan(); }, 250);
   }).observe(document.documentElement, {subtree: true, childList: true, attributes: true, attributeFilter: ['contenteditable']});
   document.addEventListener('focusin', focusedComposer, true);
+  document.addEventListener('compositionstart', event => {
+    const box = event.target?.closest?.('textarea,input,[contenteditable="true"]');
+    if (box) composing.add(box);
+  }, true);
+  document.addEventListener('compositionend', event => {
+    const box = event.target?.closest?.('textarea,input,[contenteditable="true"]');
+    if (box) composing.delete(box);
+  }, true);
+  const reposition = () => { if (activeControls) positionComposerControls(activeComposer, activeControls); };
+  window.addEventListener?.('resize', reposition, {passive: true});
+  document.addEventListener('scroll', reposition, {capture: true, passive: true});
   scan();
   if (window.top === window) setInterval(pollSubtitles, 700);
 })();

@@ -45,6 +45,8 @@ Play a video, open the extension's **語音字幕** (Speech captions) tab, choos
 
 For posts and chats, open **文字翻譯** (Text translation) and enable website translation when needed. It starts disabled. Allow the current site if prompted by the extension. For replies, type your message, use the translation button, review the result, and send it yourself. The extension never submits messages automatically.
 
+Discord and Twitch keep their own editor state. VocaLume updates that state through the editor's input flow; if a site rejects insertion, a selectable translated draft remains below the controls. Copy that draft and paste it into the original composer. Finish any IME character selection before translating. Failed page/chat translations have a **↻ 再試一次** (Retry) button.
+
 Subtitle appearance is under **字幕與設定** (Captions & settings). Desktop appearance is configured separately in the App's **Subtitles** tab. The text outline and caption background are separate controls.
 
 ## Optional Gemini and other APIs

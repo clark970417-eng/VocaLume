@@ -7,7 +7,7 @@ import {isStandaloneGreeting} from '../streamer-vocabulary.mjs';
 const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../social-content.js',import.meta.url),'utf8'));
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
-function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={}){
+function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={},wrappedComposer=false){
  const requests=[], selectors=[];
  const translationLines=[];
  const controls=[];
@@ -21,13 +21,17 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   matches(selector){return /textarea|textbox|contenteditable|comment|message|chat|reply/.test(selector);},
   getAttribute(name){return name==='role'?'textbox':name==='placeholder'?'Write a comment':'';},
   getBoundingClientRect(){return {width:300,height:40};},
-  closest(){return composerHost;},parentElement:composerHost};
+  closest(selector){return selector.includes('.jtl-social-controls')?null:composerHost;},parentElement:composerHost};
+ const shell={textContent:'今天也很可愛',isConnected:true,readOnly:false,closest:()=>null,
+  getBoundingClientRect(){return {width:300,height:40};},
+  dispatchEvent(){throw Error('must not edit the chat-input wrapper');},focus(){}};
  const makeElement=tag=>({tagName:tag.toUpperCase(),children:[],isConnected:false,className:'',textContent:'',dataset:{},style:{setProperty(){}},
   classList:{add(){}},setAttribute(){},addEventListener(name,fn){this['on'+name]=fn;},append(...kids){this.children.push(...kids);},
   querySelector(){return null;},remove(){this.isConnected=false;}});
  const document={documentElement:{},body:{append(node){node.isConnected=true;if(node.className==='jtl-social-controls')controls.push(node);}},
   querySelectorAll(selector){
    selectors.push(selector);
+   if(wrappedComposer&&selector==='[data-a-target="chat-input"]')return [shell];
    if(hostname.endsWith('discord.com')&&selector==='[id^="message-content-"]')return Array.isArray(japanese)?japanese:[japanese];
    if(!semanticOnly&&(selector.includes('danmaku-content')||selector.includes('chat-message')||selector.includes('chat-line-message-body')||
       ((hostname.includes('facebook')||hostname.includes('instagram'))&&selector.includes('[dir="auto"]'))||
@@ -44,7 +48,7 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(){}}}};
  let scan;
  vm.runInNewContext(source,{VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},setTimeout:fn=>{fn();return 1;},setInterval(){},Event:class{},InputEvent:class{}});
- return {requests,translationLines,controls,box,selectors,node:japanese,scan:()=>scan()};
+ return {requests,translationLines,controls,box,shell,selectors,node:japanese,scan:()=>scan()};
 }
 
 test('Twitch and general social reading skip Chinese sentences containing a kana name',async()=>{
@@ -189,6 +193,16 @@ test('Twitch discovers stream chat and installs a translated composer',async()=>
  request.reply({ok:true,text:'謝謝直播'});await settle();
  assert.equal(t.translationLines[0].textContent,'中：謝謝直播');
  assert.equal(t.controls.length,1);
+});
+
+test('Twitch edits the nested text input rather than its chat-input wrapper',async()=>{
+ const t=setup('www.twitch.tv',null,null,false,false,{},true);await settle();
+ t.controls[0].children[0].onclick({preventDefault(){},stopPropagation(){}});await settle();
+ const draft=t.requests.find(x=>x.message.type==='make-draft');
+ assert.ok(draft);
+ draft.reply({ok:true,text:{draft:'今日も可愛いですね！',mode:'本機草稿'}});await settle();
+ assert.equal(t.box.value,'今日も可愛いですね！');
+ assert.equal(t.shell.textContent,'今天也很可愛');
 });
 
 for(const [site,hostname,genericEnabled] of [['Facebook','www.facebook.com',false],['Instagram','www.instagram.com',false],['general website','example.com',true]]){

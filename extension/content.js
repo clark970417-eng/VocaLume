@@ -111,7 +111,10 @@ async function translateElement(element, className, priority = false, queueOrder
       line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯暫時失敗。`;
       const retry = document.createElement('button');
       retry.type = 'button';
+      retry.className = 'jtl-retry';
       retry.textContent = '再試一次';
+      retry.setAttribute('aria-label', '重新翻譯這則內容');
+      retry.title = '保留原文，重新取得翻譯';
       retry.addEventListener('click', event => {
         event.preventDefault(); event.stopPropagation();
         if (!valid()) return;
