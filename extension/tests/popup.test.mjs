@@ -104,6 +104,18 @@ test('new popup keeps opt-in off, all languages, saved captions and engine setti
   assert.equal(h.writes.length, 0, 'opening the redesigned popup must not rewrite existing settings');
 });
 
+test('diagnostics distinguish missing timing data from a real zero and label the queue interval', async () => {
+ const empty=await harness();
+ assert.match(empty.get('#diagnostics').textContent,/最近翻譯：尚無資料/);
+ assert.match(empty.get('#diagnostics').textContent,/片段結束到最近譯文：尚無資料/);
+ const measured=await harness({health:{running:false,diagnostics:{decodeMs:0,translationMs:37,chineseLagMs:1600,metrics:{queueMs:{p50:20,p95:40}}}}});
+ const text=measured.get('#diagnostics').textContent;
+ assert.match(text,/單段處理（依模式可能不含譯文）：0 ms/);
+ assert.match(text,/最近翻譯：37 ms/);
+ assert.match(text,/片段結束到最近譯文：1600 ms/);
+ assert.match(text,/片段結束至開始處理 P50\/P95：20 \/ 40 ms/);
+});
+
 test('task navigation remembers the page without enabling translation or capture', async () => {
   const h = await harness();
   await h.click('#tab-speech');
