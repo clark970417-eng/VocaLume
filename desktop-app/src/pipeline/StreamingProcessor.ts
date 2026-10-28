@@ -104,6 +104,8 @@ export class StreamingProcessor {
   private recognitionRevision = 0
   private primaryRevision = 0
   private lastSourceTextForTranslate = ''
+  private translationDirectionKey = ''
+  private translationDirectionRevision = 0
 
   /** SimulMT state: last boundary we translated up to (#550) */
   private simulMtLastBoundaryText = ''
@@ -111,6 +113,7 @@ export class StreamingProcessor {
   private simulMtInFlight = false
   /** Latest recognition revision that arrived while SimulMT was busy. */
   private simulMtPending: (() => void) | null = null
+  private simulMtResetPending = false
 
   /** Last diarization result for merging with STT output (#549) */
   private lastDiarizationResult: DiarizationResult | null = null
@@ -147,6 +150,55 @@ export class StreamingProcessor {
     return contextRevision === this.recognitionContextRevision && utterance === this.utteranceGeneration && (gen === undefined || this.deps.getGeneration?.() === gen)
   }
 
+  /**
+   * Keep interim work scoped to the current source/target pair. In auto-source
+   * mode the detected language can change mid-cue; old translations must not
+   * overwrite a pass-through caption or seed a new SimulMT direction.
+   */
+  private updateTranslationDirection(from: Language, to: Language): number {
+    const key = `${from}\u0000${to}`
+    if (key === this.translationDirectionKey) return this.translationDirectionRevision
+
+    const hadDirection = this.translationDirectionKey !== ''
+    this.translationDirectionKey = key
+    this.translationDirectionRevision++
+    if (!hadDirection) return this.translationDirectionRevision
+
+    this.interimAbort.abort()
+    this.interimAbort = new AbortController()
+    if (this.translateDebounceTimer) {
+      clearTimeout(this.translateDebounceTimer)
+      this.translateDebounceTimer = null
+    }
+    this.pendingTranslation = null
+    this.lastSourceTextForTranslate = ''
+    this.lastTranslatedSource = ''
+    this.lastTranslatedConfirmed = ''
+    this.clauseTranslatedPrefix = ''
+    this.clauseTranslation = ''
+    this.clauseTranslationInFlight = false
+    this.debouncedTranslationInFlight = false
+    this.preparation?.controller.abort()
+    this.preparation = undefined
+    this.preparedThisCue = false
+    this.simulMtPending = null
+
+    if (this.simulMtInFlight) {
+      // Reset the shared KV session after its current non-reentrant request
+      // completes; starting a new direction before then could corrupt both.
+      this.simulMtResetPending = true
+    } else {
+      this.simulMtPreviousOutput = ''
+      this.simulMtLastBoundaryText = ''
+      this.deps.getTranslator()?.resetSimulMtSession?.()
+    }
+    return this.translationDirectionRevision
+  }
+
+  private isCurrentTranslationDirection(revision: number): boolean {
+    return revision === this.translationDirectionRevision
+  }
+
   /** Reset all streaming state */
   reset(): void {
     this.resetSourceContext()
@@ -180,6 +232,9 @@ export class StreamingProcessor {
     this.japaneseContext.reset()
     this.recognitionSource = ''
     this.recognitionContextRevision++
+    this.translationDirectionKey = ''
+    this.translationDirectionRevision++
+    this.simulMtResetPending = false
     this.recognitionCheckpoint.clear()
     this.recognitionBoundary.clear()
   }
@@ -229,10 +284,13 @@ export class StreamingProcessor {
       this.translateDebounceTimer = null
     }
     this.lastSourceTextForTranslate = ''
+    this.translationDirectionKey = ''
+    this.translationDirectionRevision++
     this.pendingTranslation = null
     this.simulMtLastBoundaryText = ''
     this.simulMtInFlight = false
     this.simulMtPending = null
+    this.simulMtResetPending = false
     this.clauseTranslatedPrefix = ''
     this.clauseTranslation = ''
     this.clauseTranslationInFlight = false
@@ -334,6 +392,8 @@ export class StreamingProcessor {
 
       const agreement = this.deps.agreement.update(sttResult.text)
       const targetLang = this.deps.resolveTargetLanguage(sttResult.language)
+      const translationDirectionRevision = this.updateTranslationDirection(sttResult.language, targetLang)
+      const sameLanguage = sttResult.language === targetLang
 
       const fullSourceText = this.japaneseContext.resolve(agreement.confirmedText + agreement.interimText,
         sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)
@@ -344,7 +404,20 @@ export class StreamingProcessor {
 
       const completeSentenceOnly = ['hunyuan-mt', 'hunyuan-mt-15', 'hunyuan-mt-2'].includes(translator?.id || '') &&
         ['ja', 'zh'].includes(sttResult.language) && ['ja', 'zh'].includes(targetLang)
-      if (completeSentenceOnly) {
+      if (sameLanguage) {
+        // Keep text already in the selected target language verbatim and avoid
+        // spending a model decode on a no-op translation.
+        if (this.translateDebounceTimer) {
+          clearTimeout(this.translateDebounceTimer)
+          this.translateDebounceTimer = null
+        }
+        this.pendingTranslation = null
+        this.lastSourceTextForTranslate = fullSourceText
+        this.lastTranslatedSource = fullSourceText
+        this.lastTranslatedConfirmed = fullSourceText
+        this.clauseTranslatedPrefix = fullSourceText
+        this.clauseTranslation = fullSourceText
+      } else if (completeSentenceOnly) {
         // Prepare at most one agreed, complete sentence. Never publish a
         // speculative Chinese/Japanese result before the final source agrees.
         if (!this.japaneseContext.referenceFor(fullSourceText, sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)) {
@@ -359,7 +432,8 @@ export class StreamingProcessor {
           targetLang,
           agreement.confirmedText,
           agreement.interimText,
-          simulMtConfig.waitK
+          simulMtConfig.waitK,
+          translationDirectionRevision
         )
       } else {
         // Fire clause-level overlap translation when new confirmed text is available (#615).
@@ -370,7 +444,8 @@ export class StreamingProcessor {
             agreement.confirmedText,
             fullSourceText,
             sttResult.language,
-            targetLang
+            targetLang,
+            translationDirectionRevision
           )
         }
 
@@ -383,6 +458,7 @@ export class StreamingProcessor {
           this.pendingTranslation = null
           const translateWhenIdle = (): void => {
             this.translateDebounceTimer = null
+            if (!this.isCurrentTranslationDirection(translationDirectionRevision)) return
             if (!this.isCurrentGeneration(gen, utterance, contextRevision)) return
             if (this.pendingFinals || this.clauseTranslationInFlight || this.debouncedTranslationInFlight) {
               this.pendingTranslation = translateWhenIdle
@@ -396,7 +472,8 @@ export class StreamingProcessor {
             // Partial speech must not borrow words from earlier complete utterances.
             const ctx = { glossary, previousSegments: [], signal: this.interimAbort.signal,
               onPartial: (translatedText: string): void => {
-                if (!this.isCurrentGeneration(gen, utterance, contextRevision) || fullSourceText !== this.lastSourceTextForTranslate) return
+                if (!this.isCurrentTranslationDirection(translationDirectionRevision) ||
+                    !this.isCurrentGeneration(gen, utterance, contextRevision) || fullSourceText !== this.lastSourceTextForTranslate) return
                 this.deps.emitter.emit('interim-result', {
                   sourceText: this.lastSourceTextForTranslate, confirmedText: agreement.confirmedText,
                   interimText: agreement.interimText, translatedText, sourceLanguage: sttResult.language,
@@ -426,7 +503,8 @@ export class StreamingProcessor {
             translatePromise.then((translated) => {
               // Drop stale results before mutating shared state, so a switch mid-flight
               // cannot leave a resurfacing translatedText for the next generation (#719).
-              if (!this.isCurrentGeneration(gen, utterance, contextRevision) || !this.samePrefix(fullSourceText, this.lastSourceTextForTranslate)) return
+              if (!this.isCurrentTranslationDirection(translationDirectionRevision) ||
+                  !this.isCurrentGeneration(gen, utterance, contextRevision) || !this.samePrefix(fullSourceText, this.lastSourceTextForTranslate)) return
               this.lastTranslatedSource = fullSourceText
               this.lastTranslatedConfirmed = translated
               const debouncedResult: TranslationResult = {
@@ -441,9 +519,11 @@ export class StreamingProcessor {
               }
               this.deps.emitter.emit('interim-result', debouncedResult)
             }).catch((err) => {
-              if (this.isCurrentGeneration(gen, utterance, contextRevision)) log.warn('Debounced translation failed:', err)
+              if (this.isCurrentTranslationDirection(translationDirectionRevision) && this.isCurrentGeneration(gen, utterance, contextRevision)) {
+                log.warn('Debounced translation failed:', err)
+              }
             }).finally(() => {
-              if (this.isCurrentGeneration(gen, utterance, contextRevision)) {
+              if (this.isCurrentTranslationDirection(translationDirectionRevision) && this.isCurrentGeneration(gen, utterance, contextRevision)) {
                 this.debouncedTranslationInFlight = false
                 this.drainPendingTranslation()
               }
@@ -522,6 +602,8 @@ export class StreamingProcessor {
       const recognizedText = this.deps.agreement.finalize(sttResult.text).confirmedText
       this.recognitionBoundary.remember(audioChunk, sampleRate, evidence, recognizedText, sttResult.language)
       const targetLanguage = this.deps.resolveTargetLanguage(sttResult.language)
+      this.updateTranslationDirection(sttResult.language, targetLanguage)
+      const sameLanguage = sttResult.language === targetLanguage
       const sourceText = nonverbal ? recognizedText : this.japaneseContext.resolve(recognizedText,
         sttResult.language, targetLanguage, evidence, this.currentSpeaker()?.speakerIndex)
       const sourceContext = !nonverbal && sourceText===recognizedText ? this.japaneseContext.referenceFor(recognizedText,
@@ -531,7 +613,7 @@ export class StreamingProcessor {
       const translator = this.deps.getTranslator()
       const glossary = this.deps.getGlossary().map(entry => ({ ...entry }))
       const preparation = this.preparation
-      const prepared = !sourceContext && preparation && preparation.text === sourceText && preparation.from === sttResult.language &&
+      const prepared = !sameLanguage && !sourceContext && preparation && preparation.text === sourceText && preparation.from === sttResult.language &&
         preparation.to === targetLanguage && preparation.translator === translator &&
         preparation.glossary === JSON.stringify(glossary) && this.deps.canReuseInterimTranslation?.() !== false
         ? preparation.completion : null
@@ -539,7 +621,7 @@ export class StreamingProcessor {
       // must not cancel it; session reset still cancels every live preparation.
       if (prepared) this.preparation = undefined
       const speaker = this.currentSpeaker()
-      const reused = !sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === sourceText
+      const reused = !sameLanguage && !sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === sourceText
         ? this.lastTranslatedConfirmed : ''
       const valid = (): boolean => contextRevision === this.recognitionContextRevision && finalGeneration === this.finalGeneration &&
         (gen === undefined || gen === this.deps.getGeneration?.())
@@ -550,9 +632,9 @@ export class StreamingProcessor {
       const completion = this.finalTail.then(async (): Promise<TranslationResult | null> => {
         if (!valid()) return null
         try {
-          const candidate = reused || (prepared ? await prepared : '')
+          const candidate = sameLanguage ? '' : reused || (prepared ? await prepared : '')
           if (!valid()) return null
-          const translatedText = nonverbal ? '' : candidate || (translator ? this.deps.translateFinal
+          const translatedText = nonverbal ? '' : sameLanguage ? sourceText : candidate || (translator ? this.deps.translateFinal
             ? await this.deps.translateFinal(sourceText, sttResult.language, targetLanguage, sttResult.confidence, sourceContext)
             : await translator.translate(sourceText, sttResult.language, targetLanguage,
               { ...this.deps.contextBuffer.getContext(glossary.length ? glossary : undefined), ...(sourceContext && {sourceContext}) }) : '')
@@ -605,7 +687,7 @@ export class StreamingProcessor {
       this.preparation = undefined
     }
     const translator = this.deps.getTranslator()
-    if (this.preparedThisCue || this.pendingFinals || !translator ||
+    if (this.preparedThisCue || this.pendingFinals || !translator || from === to ||
         !['hunyuan-mt-15', 'hunyuan-mt-2'].includes(translator.id) ||
         this.deps.canReuseInterimTranslation?.() === false || performanceState().previewDutyCycle < .85 ||
         (text !== confirmed && !acousticPause) || text.length < 6 || !completeSentence(text, from)) return
@@ -662,6 +744,8 @@ export class StreamingProcessor {
 
       const agreement = this.deps.agreement.finalize(sttResult.text)
       const targetLang = this.deps.resolveTargetLanguage(sttResult.language)
+      this.updateTranslationDirection(sttResult.language, targetLang)
+      const sameLanguage = sttResult.language === targetLang
       const recognizedText = agreement.confirmedText
       this.recognitionBoundary.remember(audioChunk, sampleRate, evidence, recognizedText, sttResult.language)
       const sourceContext = !nonverbal ? this.japaneseContext.referenceFor(recognizedText,
@@ -686,7 +770,10 @@ export class StreamingProcessor {
       let translatedText = ''
       let translationStage: 'simulmt-revised' | undefined
 
-      if (!nonverbal && useSimulMt && translator && agreement.confirmedText.trim()) {
+      if (!nonverbal && sameLanguage) {
+        // Preserve target-language speech exactly instead of running a model.
+        translatedText = agreement.confirmedText
+      } else if (!nonverbal && useSimulMt && translator && agreement.confirmedText.trim()) {
         // SimulMT revision: retranslate the full clause for accuracy (#550)
         let usedRevision = true
         const context = { ...this.deps.contextBuffer.getContext(glossary), ...(sourceContext && {sourceContext}) }
@@ -807,16 +894,20 @@ export class StreamingProcessor {
     targetLang: Language,
     confirmedText: string,
     interimText: string,
-    waitK: number
+    waitK: number,
+    translationDirectionRevision: number
   ): void {
     const translator = this.deps.getTranslator()
-    if (!translator?.translateSimulMt || !fullSourceText.trim()) return
+    if (!translator?.translateSimulMt || !fullSourceText.trim() || sourceLang === targetLang ||
+        !this.isCurrentTranslationDirection(translationDirectionRevision)) return
 
     // Retain the newest revision while translation is busy. Dropping it here
     // leaves a long Japanese hypothesis visible with no Chinese until another
     // recognition window happens to arrive.
     if (this.simulMtInFlight) {
-      this.simulMtPending = () => this.handleSimulMtStreaming(fullSourceText,sourceLang,targetLang,confirmedText,interimText,waitK)
+      this.simulMtPending = () => this.handleSimulMtStreaming(
+        fullSourceText, sourceLang, targetLang, confirmedText, interimText, waitK, translationDirectionRevision
+      )
       return
     }
 
@@ -849,7 +940,8 @@ export class StreamingProcessor {
       false, // not a revision — incremental
       this.deps.contextBuffer.getContext(glossary)
     ).then((translated) => {
-      if (!this.isCurrentGeneration(gen, utterance, contextRevision)) return
+      if (!this.isCurrentTranslationDirection(translationDirectionRevision) ||
+          !this.isCurrentGeneration(gen, utterance, contextRevision)) return
 
       this.simulMtPreviousOutput = translated
       this.lastTranslatedConfirmed = translated
@@ -868,10 +960,16 @@ export class StreamingProcessor {
 
       this.deps.emitter.emit('interim-result', simulMtResult)
     }).catch((err) => {
-      log.warn('SimulMT translation failed:', err)
+      if (this.isCurrentTranslationDirection(translationDirectionRevision)) log.warn('SimulMT translation failed:', err)
     }).finally(() => {
       if (this.isCurrentGeneration(gen, utterance, contextRevision)) {
         this.simulMtInFlight = false
+        if (this.simulMtResetPending) {
+          this.simulMtResetPending = false
+          this.simulMtPreviousOutput = ''
+          this.simulMtLastBoundaryText = ''
+          this.deps.getTranslator()?.resetSimulMtSession?.()
+        }
         const pending = this.simulMtPending
         this.simulMtPending = null
         pending?.()
@@ -956,10 +1054,12 @@ export class StreamingProcessor {
     confirmedText: string,
     fullSourceText: string,
     sourceLang: Language,
-    targetLang: Language
+    targetLang: Language,
+    translationDirectionRevision: number
   ): void {
     const translator = this.deps.getTranslator()
-    if (!translator || !confirmedText.trim()) return
+    if (!translator || !confirmedText.trim() || sourceLang === targetLang ||
+        !this.isCurrentTranslationDirection(translationDirectionRevision)) return
 
     // Skip if already translating a clause or nothing new to translate
     if (this.pendingFinals || this.clauseTranslationInFlight || this.debouncedTranslationInFlight) return
@@ -1012,7 +1112,8 @@ export class StreamingProcessor {
       const clauseMs = (performance.now() - t0).toFixed(0)
       log.info(`Clause translation: ${clauseMs}ms → "${translated}" (prefix: "${textToTranslate}")`)
 
-      if (!this.isCurrentGeneration(gen, utterance, contextRevision) || !this.samePrefix(fullSourceText, this.lastSourceTextForTranslate)) return
+      if (!this.isCurrentTranslationDirection(translationDirectionRevision) ||
+          !this.isCurrentGeneration(gen, utterance, contextRevision) || !this.samePrefix(fullSourceText, this.lastSourceTextForTranslate)) return
 
       this.clauseTranslatedPrefix = textToTranslate
       this.clauseTranslation = translated
@@ -1029,9 +1130,11 @@ export class StreamingProcessor {
       }
       this.deps.emitter.emit('interim-result', clauseResult)
     }).catch((err) => {
-      log.warn('Clause translation error (non-fatal):', err instanceof Error ? err.message : err)
+      if (this.isCurrentTranslationDirection(translationDirectionRevision)) {
+        log.warn('Clause translation error (non-fatal):', err instanceof Error ? err.message : err)
+      }
     }).finally(() => {
-      if (this.isCurrentGeneration(gen, utterance, contextRevision)) {
+      if (this.isCurrentTranslationDirection(translationDirectionRevision) && this.isCurrentGeneration(gen, utterance, contextRevision)) {
         this.clauseTranslationInFlight = false
         this.drainPendingTranslation()
       }

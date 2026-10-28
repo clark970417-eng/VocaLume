@@ -4,6 +4,7 @@ This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` t
 
 ## Unreleased - 2026-10-28
 
+- Pass speech through unchanged when its detected language already matches the selected target, and discard interim work from a previous language direction. This avoids unnecessary model calls and prevents an older direction from replacing the current subtitle. Keep rolling-audio checkpoint comparison exact while removing per-sample callback overhead.
 - Reduce idle social/general-page subtitle status requests to one per ten seconds and stop hidden-page polling/scanning. Returning to a tab refreshes immediately; capture pushes and active caption polling keep their existing response path. Ignore an older status response after a newer pushed caption.
 - Bind social reading jobs to their language-setting revision, preserve shared work while any matching message still needs it, and keep late cleanup from deleting a newer job. Bound each page's translation cache to 500 recent entries.
 - Suppress stale desktop recognition, translation and error results after a language/glossary change or stop. Clear speculative translations and old-language context without releasing a busy recognition lock. See [focused checks and limits](docs/retests/2026-10-28-idle-and-stale-results.md).

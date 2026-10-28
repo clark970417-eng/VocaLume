@@ -15,13 +15,27 @@ export class RecognitionCheckpoint {
     if (!result.text.trim() || !evidence?.segment || !Number.isSafeInteger(evidence.speechEndSample) ||
         !Number.isFinite(rate) || rate <= 0 || evidence.speechEndSample! <= 0 || evidence.speechEndSample! > audio.length ||
         audio.length > rate * 20 || audio.length < rate) return
+    let sameAudioPrefix = false
+    if (previous && previous.rate === rate && previous.context === context &&
+        previous.evidence.segment === evidence.segment && previous.evidence.captureStartSample === evidence.captureStartSample &&
+        audio.length >= previous.audio.length) {
+      sameAudioPrefix = true
+      // Avoid a per-sample callback allocation for rolling buffers that may
+      // contain several seconds of PCM; keep the exact sample comparison.
+      for (let i = 0; i < previous.audio.length; i++) {
+        if (previous.audio[i] !== audio[i]) {
+          sameAudioPrefix = false
+          break
+        }
+      }
+    }
     const stable = !!previous && previous.rate === rate && previous.context === context &&
       previous.evidence.segment === evidence.segment && previous.evidence.captureStartSample === evidence.captureStartSample &&
       // Punctuation-only revisions do not introduce a new spoken word. Keep
       // the latest punctuation, while still checking PCM and every quiet frame.
       previous.result.text.replace(/[\p{P}\s]/gu, '') === result.text.replace(/[\p{P}\s]/gu, '') &&
       previous.result.language === result.language &&
-      audio.length >= previous.audio.length && previous.audio.every((sample, i) => sample === audio[i])
+      sameAudioPrefix
     this.value = { audio: audio.slice(), rate, evidence: { ...evidence }, result: { ...result }, context, stable }
   }
 
