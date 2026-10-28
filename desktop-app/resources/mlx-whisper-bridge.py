@@ -99,9 +99,9 @@ def transcribe(audio_path=None, sample_rate=16000, language=None, initial_prompt
             output({"text": "", "language": "ja"})
             return
         with contextlib.redirect_stdout(sys.stderr):
-            # The caller supplies a short vocabulary list, never previous
-            # Chinese captions. Other languages and auto detection stay unbiased.
-            hints = {"initial_prompt": initial_prompt} if language == 'ja' and isinstance(initial_prompt, str) and len(initial_prompt) <= 128 else {}
+            # The caller supplies bounded vocabulary, never previous translated
+            # captions. Chinese uses explicit personal terms only; auto stays unbiased.
+            hints = {"initial_prompt": initial_prompt} if language in ('ja', 'zh') and isinstance(initial_prompt, str) and len(initial_prompt) <= 128 else {}
             result = mlx_whisper.transcribe(
                 audio, path_or_hf_repo=whisper_model,
                 language=language, condition_on_previous_text=False,

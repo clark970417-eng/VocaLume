@@ -6,6 +6,56 @@ import { ContextBuffer } from './ContextBuffer'
 import * as pressure from '../main/performance-state'
 import {contextualShortReply} from '../engines/translator/contextual-short-reply'
 
+for (const language of ['ja', 'zh'] as const) for (const simul of [false, true]) {
+  it('preserves ' + language + ' target-language captions without model work (SimulMT=' + simul + ')', async () => {
+    vi.useFakeTimers()
+    const source = language === 'ja' ? 'まほろさん、今日は参加できません。' : '今天不能參加，明天再見！'
+    const translate = vi.fn(async () => '不應該出現的改寫')
+    const translateFinal = vi.fn(translate)
+    const translator = {id:'hunyuan-mt-15',translate,translateSimulMt:vi.fn(translate),resetSimulMtSession:vi.fn()}
+    const p = new StreamingProcessor({emitter:new EventEmitter(),agreement:new LocalAgreement(),contextBuffer:new ContextBuffer(),
+      getSTTEngine:()=>({processAudio:async()=>({text:source,language})}),getTranslator:()=>translator,
+      getGlossary:()=>[],getSimulMtConfig:()=>({enabled:simul,waitK:1}),resolveTargetLanguage:()=>language,
+      translateFinal,incrementProcessing(){},decrementProcessing(){}
+    } as unknown as StreamingDeps)
+    try {
+      expect((await p.processStreaming(new Float32Array(16000),16000))?.translatedText).toBe(source)
+      await vi.advanceTimersByTimeAsync(1500)
+      expect((await p.processStreaming(new Float32Array(24000),16000))?.translatedText).toBe(source)
+      expect((await p.finalizeStreaming(new Float32Array(32000),16000))?.translatedText).toBe(source)
+      expect(translate).not.toHaveBeenCalled()
+      expect(translateFinal).not.toHaveBeenCalled()
+      expect(translator.translateSimulMt).not.toHaveBeenCalled()
+    } finally {p.reset();vi.useRealTimers()}
+  })
+}
+
+it('rejects an older interim after auto-language changes away and back to the same direction', async () => {
+  vi.useFakeTimers()
+  let language = 'ja', source = '今日は参加できません。', finish!: (value:string)=>void
+  const updates: Array<{translatedText:string}> = [], emitter = new EventEmitter()
+  emitter.on('interim-result', r=>updates.push(r))
+  const translate = vi.fn().mockImplementationOnce(()=>new Promise<string>(resolve=>finish=resolve)).mockResolvedValue('今天不能參加。')
+  const p = new StreamingProcessor({emitter,agreement:new LocalAgreement(),contextBuffer:new ContextBuffer(),
+    getSTTEngine:()=>({processAudio:async()=>({text:source,language})}),getTranslator:()=>({id:'test',translate}),
+    getGlossary:()=>[],getSimulMtConfig:()=>({enabled:false,waitK:1}),resolveTargetLanguage:()=> 'zh',
+    incrementProcessing(){},decrementProcessing(){}
+  } as unknown as StreamingDeps)
+  try {
+    await p.processStreaming(new Float32Array(16000),16000);await vi.advanceTimersByTimeAsync(1500)
+    expect(translate).toHaveBeenCalledOnce()
+    language='zh';source='這句已經是中文。'
+    expect((await p.processStreaming(new Float32Array(24000),16000))?.translatedText).toBe(source)
+    language='ja';source='今日は参加できません。'
+    await vi.advanceTimersByTimeAsync(1500);await p.processStreaming(new Float32Array(32000),16000)
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(translate).toHaveBeenCalledTimes(2)
+    finish('過期而錯誤的翻譯');await Promise.resolve();await Promise.resolve()
+    expect(updates.at(-1)?.translatedText).toBe('今天不能參加。')
+    expect(updates.some(r=>r.translatedText==='過期而錯誤的翻譯')).toBe(false)
+  } finally {p.reset();vi.useRealTimers()}
+})
+
 it.each([false,true])('discards a final from older settings without releasing active recognition (SimulMT=%s)', async simul => {
   let finish!: (text:string) => void
   let glossary: Array<{source:string;target:string}> = []

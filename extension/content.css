@@ -10,6 +10,7 @@
 #movie_player.jtl-native-active .ytp-caption-window-container { opacity: 0; }
 
 .jtl-composer-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.jtl-compose-draft:not([hidden]) { box-sizing: border-box; flex-basis: 100%; min-height: 64px; padding: 8px; border: 1px solid #438668; border-radius: 8px; background: #13281f; color: #d8f6e5; font: inherit; }
 
 .jtl-compose, .jtl-comment-action { background: #fff; color: #111; border: 1px solid #d4d4d4; border-radius: 12px; padding: 3px 8px; margin: 3px 4px; font: 600 12px/1.4 -apple-system, sans-serif; }
 

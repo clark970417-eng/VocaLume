@@ -184,7 +184,8 @@ export class TranslationPipeline extends EventEmitter {
       emitter: this,
       getTranslator: () => this.engineManager.translator,
       getGlossary: () => this.glossary,
-      getGeneration: () => this.generation
+      getGeneration: () => this.generation,
+      getConfigurationRevision: () => this.configurationRevision
     })
   }
 

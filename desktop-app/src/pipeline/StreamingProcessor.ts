@@ -4,7 +4,7 @@ import { completeSentence } from '../../../extension/sentence-boundary.mjs'
 import { RecognitionCheckpoint } from './RecognitionCheckpoint'
 import { RecognitionBoundary } from './RecognitionBoundary'
 import { recoverFinalTranslation } from './FinalTranslationRecovery'
-import { recognitionVocabulary } from '../engines/stt/recognition-vocabulary'
+import { recognitionVocabulary, boundedRecognitionVocabulary } from '../engines/stt/recognition-vocabulary'
 import { JapaneseCaptionContext } from './JapaneseCaptionContext'
 import { SpeechToneAnalyzer } from './SpeechToneAnalyzer'
 import { applySpeechTone, laughterMarker, type SpeechToneMode } from './SpeechTone'
@@ -313,7 +313,9 @@ export class StreamingProcessor {
 
   private recognitionKey(stt: STTEngine): string {
     const language = this.deps.getSourceLanguage?.() || 'auto'
-    const vocabulary = language === 'ja' ? recognitionVocabulary(this.deps.getGlossary().map(term => term.source), this.recognitionSource) : []
+    const personal = this.deps.getGlossary().map(term => term.source)
+    const vocabulary = language === 'ja' ? recognitionVocabulary(personal, this.recognitionSource)
+      : language === 'zh' ? boundedRecognitionVocabulary(personal.filter(term => !/[ぁ-んァ-ヶ]/u.test(term))) : []
     stt.setVocabularyHints?.(vocabulary)
     return JSON.stringify([stt.id, language, vocabulary, this.recognitionContextRevision])
   }

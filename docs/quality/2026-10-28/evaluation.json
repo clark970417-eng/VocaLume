@@ -1,0 +1,752 @@
+{
+  "label": "release-readiness-20261028",
+  "fixtureHash": "23948a2024894752cd414766981bad08ec5039cf523f802f43716b988107fc17",
+  "corpusHash": "629ef59e8fb8f3bbdecafc2274b5a10eea45a6b3392a255b6a464a46d1022673",
+  "scope": "Authored bilingual regression controls, synthesized with macOS voices. Speed, game-like effects and speaker overlap are synthetic stress controls. Japanese speaker changes are pitch changes of one voice. Not live-speech, accent diversity or human quality validation. Audio hashes freeze each rendered set before measurement.",
+  "system": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "os": "25.4.0",
+    "cpu": "Apple M5",
+    "memoryBytes": 17179869184,
+    "electron": "44.9.3"
+  },
+  "engines": {
+    "asr": "mlx-community/whisper-large-v3-turbo",
+    "translator": "HY-MT1.5-1.8B Q4_K_M"
+  },
+  "cachePolicy": "Audio and text run in separate passes; translator disposed and reinitialized between passes. No source examples are used for warmup.",
+  "audio": [
+    {
+      "id": "ja-past",
+      "from": "ja",
+      "to": "zh",
+      "reference": "昨日は最後まで見られませんでした。",
+      "recognized": "昨日は最後まで見られませんでした",
+      "translated": "昨天，我直到最後一刻都沒有能夠看到它。",
+      "asrMs": 435.9435000000003,
+      "translationMs": 213.20279200000004,
+      "audioMs": 3046.8125,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-future",
+      "from": "ja",
+      "to": "zh",
+      "reference": "明日は参加できませんが、来週は参加できます。",
+      "recognized": "明日は参加できませんが、来週は参加できます。",
+      "translated": "明天我無法參加，但下週我可以參加。",
+      "asrMs": 377.6745000000001,
+      "translationMs": 199.77224999999999,
+      "audioMs": 4190.4375,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-correction",
+      "from": "ja",
+      "to": "zh",
+      "reference": "右じゃなくて、左の扉を開けてください。",
+      "recognized": "右じゃなくて、左の扉を開けてください。",
+      "translated": "請打開左邊的門吧，而不是右邊的門。",
+      "asrMs": 351.0998330000002,
+      "translationMs": 236.80083300000024,
+      "audioMs": 3452.5625,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-not-yet",
+      "from": "ja",
+      "to": "zh",
+      "reference": "まだ食べてないです。あとで食べます。",
+      "recognized": "まだ食べてないです。後で食べます。",
+      "translated": "還沒有吃呢。之後再吃吧。",
+      "asrMs": 344.05120800000077,
+      "translationMs": 168.59854199999972,
+      "audioMs": 2850.1875,
+      "CER": 0.125,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-accidental",
+      "from": "ja",
+      "to": "zh",
+      "reference": "間違えてセーブデータを消しちゃった。",
+      "recognized": "間違えてセーブデータを消しちゃった。",
+      "translated": "我不小心把儲存的数据給刪掉了。",
+      "asrMs": 356.90999999999985,
+      "translationMs": 180.67862500000047,
+      "audioMs": 2837.375,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-number",
+      "from": "ja",
+      "to": "zh",
+      "reference": "あと三回ではなく、二回だけ挑戦します。",
+      "recognized": "あと3回ではなく、2回だけ挑戦します。",
+      "translated": "我會只嘗試兩次而已，而不是三次。",
+      "asrMs": 355.67145900000105,
+      "translationMs": 188.74645799999962,
+      "audioMs": 3783.1875,
+      "CER": 0.11764705882352941,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-quote",
+      "from": "ja",
+      "to": "zh",
+      "reference": "今日は来ないって言っていました。",
+      "recognized": "今日は来ないって言っていました。",
+      "translated": "他說今天不會來的。",
+      "asrMs": 336.78754200000003,
+      "translationMs": 132.2247920000009,
+      "audioMs": 2651.5,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-incomplete",
+      "from": "ja",
+      "to": "zh",
+      "reference": "それはちょっと。",
+      "recognized": "それはちょっと。",
+      "translated": "那個有點……",
+      "asrMs": 320.6128749999989,
+      "translationMs": 0.05812500000138243,
+      "audioMs": 1224.1875,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-present",
+      "from": "zh",
+      "to": "ja",
+      "reference": "今天沒辦法看到最後，明天再來看。",
+      "recognized": "今天没办法看到最后,明天再来看。",
+      "translated": "今日は最後を見ることができませんので、明日また見に来ます。",
+      "asrMs": 358.87424999999894,
+      "translationMs": 328.42854100000113,
+      "audioMs": 3791.625,
+      "CER": 0.2857142857142857,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-past",
+      "from": "zh",
+      "to": "ja",
+      "reference": "我昨天沒能來，今天終於趕上了。",
+      "recognized": "我昨天没能来,今天终于赶上了。",
+      "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました。",
+      "asrMs": 361.3701250000013,
+      "translationMs": 286.09570899999926,
+      "audioMs": 3395.8125,
+      "CER": 0.38461538461538464,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-correction",
+      "from": "zh",
+      "to": "ja",
+      "reference": "不是右邊，是左邊喔。",
+      "recognized": "不是右边,是左边哦",
+      "translated": "右側ではなく、左側ですよ。",
+      "asrMs": 339.22712499999943,
+      "translationMs": 147.1693750000013,
+      "audioMs": 2371.4375,
+      "CER": 0.375,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-not-yet",
+      "from": "zh",
+      "to": "ja",
+      "reference": "我還沒吃飯，等一下再吃。",
+      "recognized": "我还没吃饭,等一下再吃。",
+      "translated": "まだ食事をしていないので、少し待ってから食べることにする。",
+      "asrMs": 355.2435000000005,
+      "translationMs": 291.05912499999977,
+      "audioMs": 2919.8125,
+      "CER": 0.3,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-future",
+      "from": "zh",
+      "to": "ja",
+      "reference": "明天不能參加，下個星期可以。",
+      "recognized": "明天不能参加,下个星期可以。",
+      "translated": "明日は参加できませんが、来週なら参加できます。",
+      "asrMs": 356.5621250000004,
+      "translationMs": 198.22679199999948,
+      "audioMs": 3384.6875,
+      "CER": 0.16666666666666666,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-number",
+      "from": "zh",
+      "to": "ja",
+      "reference": "不是三次，只要再試兩次。",
+      "recognized": "不是三次,只要再是两次。",
+      "translated": "三回ではなく、もう二回だけです。",
+      "asrMs": 345.09450000000106,
+      "translationMs": 178.17199999999866,
+      "audioMs": 2975.1875,
+      "CER": 0.2,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-quote",
+      "from": "zh",
+      "to": "ja",
+      "reference": "他說今天不會來。",
+      "recognized": "他说今天不会来。",
+      "translated": "彼は今日は来ないと言っていました。",
+      "asrMs": 329.3888339999994,
+      "translationMs": 159.02416599999924,
+      "audioMs": 1963.125,
+      "CER": 0.42857142857142855,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-incomplete",
+      "from": "zh",
+      "to": "ja",
+      "reference": "這個有點。",
+      "recognized": "這個有點",
+      "translated": "これは少し…",
+      "asrMs": 319.89045799999985,
+      "translationMs": 80.45241600000008,
+      "audioMs": 1088.3125,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-fast",
+      "from": "ja",
+      "to": "zh",
+      "reference": "敵は右じゃなくて左に二人います。まだ撃たないでください。",
+      "recognized": "敵は右じゃなくて左に2人います。まだ撃たないでください。",
+      "translated": "敵人不是在右邊，而是有兩個人在左邊。請先不要開槍為好。",
+      "asrMs": 387.1501669999998,
+      "translationMs": 402.7239160000008,
+      "audioMs": 3702.75,
+      "CER": 0.038461538461538464,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-fast",
+      "from": "zh",
+      "to": "ja",
+      "reference": "敵人不是在右邊，是左邊有兩個，先不要開槍。",
+      "recognized": "敌人不是在右边,是左边有两个,先不要开枪。",
+      "translated": "敵は右側にいない。左側に二人いるので、まずは発砲しないでください。",
+      "asrMs": 385.0855410000004,
+      "translationMs": 421.57945800000016,
+      "audioMs": 3703.3125,
+      "CER": 0.3888888888888889,
+      "meaningChecksPassed": false
+    },
+    {
+      "id": "ja-colloquial",
+      "from": "ja",
+      "to": "zh",
+      "reference": "それ取っといて。まだ使わないから。",
+      "recognized": "それ取っといて、まだ使わないから。",
+      "translated": "先不理它吧，反正還沒有使用過它呢。",
+      "asrMs": 347.9367910000001,
+      "translationMs": 259.06791599999997,
+      "audioMs": 2791.5,
+      "CER": 0,
+      "meaningChecksPassed": false
+    },
+    {
+      "id": "zh-colloquial",
+      "from": "zh",
+      "to": "ja",
+      "reference": "那個先留著啦，等等才要用。",
+      "recognized": "那个先留着啦,等等才要有。",
+      "translated": "そのものは後で取っておきます。待ってから使います。昨日は参加できませんでした。",
+      "asrMs": 347.1961670000019,
+      "translationMs": 430.3943339999969,
+      "audioMs": 2793.0625,
+      "CER": 0.2727272727272727,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-name",
+      "from": "ja",
+      "to": "zh",
+      "reference": "まほろちゃんは今日は配信しません。明日また来ます。",
+      "recognized": "まほろちゃんは、今日は配信しません。明日また来ます。",
+      "translated": "まほろちゃん今天不會進行直播了。我會在明天再來一次。",
+      "asrMs": 378.8553329999995,
+      "translationMs": 317.1041670000013,
+      "audioMs": 4417.5,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-name",
+      "from": "zh",
+      "to": "ja",
+      "reference": "鹿乃今天不開直播，明天才會來。",
+      "recognized": "陆乃今天不开直播,明天才会来。",
+      "translated": "陸乃は今日は配信を行わないので、明日来ることになります。",
+      "asrMs": 370.9514589999999,
+      "translationMs": 364.034040999999,
+      "audioMs": 3511.625,
+      "CER": 0.3076923076923077,
+      "meaningChecksPassed": false
+    },
+    {
+      "id": "ja-game-effects",
+      "from": "ja",
+      "to": "zh",
+      "reference": "ピカチュウはまだ倒れていません。回復してから交代します。",
+      "recognized": "ピカチュウはまだ倒れていません。回復してから後退します。",
+      "translated": "皮卡丘還沒有倒下。等它恢復之後，就會退縮吧。",
+      "asrMs": 385.8119169999991,
+      "translationMs": 366.51483299999745,
+      "audioMs": 4989.3125,
+      "CER": 0.07692307692307693,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-game-effects",
+      "from": "zh",
+      "to": "ja",
+      "reference": "皮卡丘還沒有倒下，先恢復再換人。",
+      "recognized": "皮卡丘还没有倒下,先恢复再换人。",
+      "translated": "ピカチュウはまだ倒れていません。先に回復させてから、別の人を迎え入れます。",
+      "asrMs": 374.1225000000013,
+      "translationMs": 475.4041670000006,
+      "audioMs": 3867.9375,
+      "CER": 0.2857142857142857,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-speaker-turns",
+      "from": "ja",
+      "to": "zh",
+      "reference": "もう終わりましたか。いいえ、まだ終わっていません。",
+      "recognized": "もう終わりましたか?いいえ、まだ終わっていません。",
+      "translated": "已經結束了嗎？不，還沒有結束呢。",
+      "asrMs": 365.2149160000008,
+      "translationMs": 277.3772919999974,
+      "audioMs": 3661.0625,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-speaker-turns",
+      "from": "zh",
+      "to": "ja",
+      "reference": "你已經做完了嗎？還沒，我明天才會完成。",
+      "recognized": "你已经做完了吗?还没,我明天才会完成。",
+      "translated": "もう終わりましたか？まだです、明日までに完成します。",
+      "asrMs": 366.0152080000007,
+      "translationMs": 328.80916600000273,
+      "audioMs": 4530.75,
+      "CER": 0.3125,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-speaker-overlap",
+      "from": "ja",
+      "to": "zh",
+      "reference": "右の扉を開けてください。違います、左の扉です。",
+      "recognized": "右の扉を開けてください。違います。左の扉です。",
+      "translated": "請打開右邊的門吧。不是這個，是左邊的門。",
+      "asrMs": 370.6916670000028,
+      "translationMs": 332.40799999999945,
+      "audioMs": 3987.75,
+      "CER": 0,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-speaker-overlap",
+      "from": "zh",
+      "to": "ja",
+      "reference": "請打開右邊的門。不對，是左邊的門。",
+      "recognized": "請打開右邊的門不對,是左邊的門",
+      "translated": "右側のドアを開けてください。左側のドアではありません。",
+      "asrMs": 357.26879199999894,
+      "translationMs": 338.96887499999866,
+      "audioMs": 3237.1875,
+      "CER": 0,
+      "meaningChecksPassed": true
+    }
+  ],
+  "text": [
+    {
+      "id": "ja-past",
+      "source": "昨日は最後まで見られませんでした。",
+      "translated": "昨天，我直到最後一刻都沒有能夠看到它。",
+      "ms": 294.07254199999807,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-future",
+      "source": "明日は参加できませんが、来週は参加できます。",
+      "translated": "明天我無法參加，但下週我可以參加。",
+      "ms": 199.65204099999755,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-correction",
+      "source": "右じゃなくて、左の扉を開けてください。",
+      "translated": "請打開左邊的門吧，而不是右邊的門。",
+      "ms": 232.9772499999999,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-not-yet",
+      "source": "まだ食べてないです。あとで食べます。",
+      "translated": "還沒有吃呢。之後再吃吧。",
+      "ms": 165.5543749999997,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-accidental",
+      "source": "間違えてセーブデータを消しちゃった。",
+      "translated": "我不小心把儲存的数据給刪掉了。",
+      "ms": 176.21825000000172,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-number",
+      "source": "あと三回ではなく、二回だけ挑戦します。",
+      "translated": "我會只嘗試兩次，而不是三次。",
+      "ms": 176.76429199999984,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-quote",
+      "source": "今日は来ないって言っていました。",
+      "translated": "他說今天不會來的。",
+      "ms": 133.6777089999996,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-incomplete",
+      "source": "それはちょっと。",
+      "translated": "那個有點……",
+      "ms": 0.03908400000000256,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-present",
+      "source": "今天沒辦法看到最後，明天再來看。",
+      "translated": "今日は最後を見ることができませんが、明日また見に来ます。",
+      "ms": 361.78900000000067,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-past",
+      "source": "我昨天沒能來，今天終於趕上了。",
+      "translated": "昨日は来ることができませんでしたが、今日はやっと間に合いました。",
+      "ms": 291.7157909999987,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-correction",
+      "source": "不是右邊，是左邊喔。",
+      "translated": "右側ではなく、左側ですよ。",
+      "ms": 153.890790999998,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-not-yet",
+      "source": "我還沒吃飯，等一下再吃。",
+      "translated": "まだ食事をしていないので、少し待ってから食べます。",
+      "ms": 244.01150000000052,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-future",
+      "source": "明天不能參加，下個星期可以。",
+      "translated": "明日は参加できませんが、来週なら参加できます。",
+      "ms": 198.86262499999793,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-number",
+      "source": "不是三次，只要再試兩次。",
+      "translated": "三回ではなく、もう二回試みればいい。",
+      "ms": 207.70987499999683,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-quote",
+      "source": "他說今天不會來。",
+      "translated": "彼は今日は来ないと言いました。",
+      "ms": 150.16754100000253,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-incomplete",
+      "source": "這個有點。",
+      "translated": "これは少し…",
+      "ms": 80.37000000000262,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-fast",
+      "source": "敵は右じゃなくて左に二人います。まだ撃たないでください。",
+      "translated": "敵人不是兩個人在右邊，而是兩個人在左邊。請先不要開槍為好。",
+      "ms": 408.2751250000001,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-fast",
+      "source": "敵人不是在右邊，是左邊有兩個，先不要開槍。",
+      "translated": "敵人は右側にいない。左側には二人いるので、まずは発砲しないでください。",
+      "ms": 428.69804099999965,
+      "meaningChecksPassed": false
+    },
+    {
+      "id": "ja-colloquial",
+      "source": "それ取っといて。まだ使わないから。",
+      "translated": "先別管那個了。反正我還沒有使用它的打算呢。",
+      "ms": 276.10491600000023,
+      "meaningChecksPassed": false
+    },
+    {
+      "id": "zh-colloquial",
+      "source": "那個先留著啦，等等才要用。",
+      "translated": "それは先に取っておきます。後で使う時です。",
+      "ms": 321.60183400000096,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-name",
+      "source": "まほろちゃんは今日は配信しません。明日また来ます。",
+      "translated": "まほろちゃん今天不會進行直播了。我會在明天再來一次。",
+      "ms": 310.91987500000323,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-name",
+      "source": "鹿乃今天不開直播，明天才會來。",
+      "translated": "鹿乃は今日は配信を行わないので、明日来るつもりです。",
+      "ms": 359.45558399999936,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-game-effects",
+      "source": "ピカチュウはまだ倒れていません。回復してから交代します。",
+      "translated": "皮卡丘還沒有倒下。等它恢復之後，就會被換下來。",
+      "ms": 345.86575000000084,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-game-effects",
+      "source": "皮卡丘還沒有倒下，先恢復再換人。",
+      "translated": "ピカチュウはまだ倒れていません。先に回復してから、次の人を迎えます。",
+      "ms": 444.1610409999994,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-speaker-turns",
+      "source": "もう終わりましたか。いいえ、まだ終わっていません。",
+      "translated": "已經結束了嗎？不，還沒有結束呢。",
+      "ms": 278.2674999999981,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-speaker-turns",
+      "source": "你已經做完了嗎？還沒，我明天才會完成。",
+      "translated": "もう終わりましたか？まだです、明日までに完成します。",
+      "ms": 332.1547079999982,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "ja-speaker-overlap",
+      "source": "右の扉を開けてください。違います、左の扉です。",
+      "translated": "請打開右邊的門吧。不對，是左邊的門。",
+      "ms": 327.947959000001,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "zh-speaker-overlap",
+      "source": "請打開右邊的門。不對，是左邊的門。",
+      "translated": "右側のドアを開けてください。いや、左側のドアです。",
+      "ms": 356.06137500000114,
+      "meaningChecksPassed": true
+    }
+  ],
+  "context": [
+    {
+      "id": "refuse-offer",
+      "previous": "もう一杯お茶はいかがですか？",
+      "text": "もう大丈夫です。",
+      "meaning": "Declining more tea, no invented illness.",
+      "must": [
+        "不用|不需要|夠了|可以了"
+      ],
+      "mustNot": [
+        "病|康復|受傷"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ],
+      "source": "もう大丈夫です。",
+      "translated": "不用再加了。",
+      "ms": 0.2854159999988042,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "answer-safety",
+      "previous": "怪我はありませんか？",
+      "text": "大丈夫です。",
+      "meaning": "Reassuring they are okay.",
+      "must": [
+        "沒事|沒問題|很好|不要緊"
+      ],
+      "mustNot": [
+        "不用了"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ],
+      "source": "大丈夫です。",
+      "translated": "沒事。",
+      "ms": 0.12887500000215368,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "negative-answer",
+      "previous": "もうボスを倒したの？",
+      "text": "まだです。",
+      "meaning": "Not yet, not not-needed.",
+      "must": [
+        "還沒|尚未"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ],
+      "source": "まだです。",
+      "translated": "還沒有。",
+      "ms": 54.25024999999732,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "positive-answer",
+      "previous": "準備はできましたか？",
+      "text": "できました。",
+      "meaning": "Ready/completed, no invented ability.",
+      "must": [
+        "好了|完成|準備"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ],
+      "source": "できました。",
+      "translated": "準備好了。",
+      "ms": 0.09645799999998417,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "open-topic",
+      "previous": "明日は配信を休みます。",
+      "text": "ところで、それは？",
+      "meaning": "Topic change: do not carry over the streaming plan.",
+      "mustNot": [
+        "休息|直播|明天"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ],
+      "source": "ところで、それは？",
+      "translated": "對了，那個是什麼呢？",
+      "ms": 152.53329099999974,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "quote-guard",
+      "previous": "彼は来ないと言っていました。",
+      "text": "「大丈夫」と言った。",
+      "meaning": "Quoted okay, not a response to previous speaker.",
+      "must": [
+        "說"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ],
+      "source": "「大丈夫」と言った。",
+      "translated": "「沒關係啦」我這樣說道。",
+      "ms": 172.74745899999834,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "fragment-masu",
+      "previous": "まだ終わってい",
+      "text": "ません。",
+      "cut": true,
+      "meaning": "Not finished yet, preserve negative.",
+      "must": [
+        "還沒|尚未",
+        "結束|完成"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ],
+      "source": "まだ終わっていません。",
+      "translated": "還沒有結束呢。",
+      "ms": 84.6984999999986,
+      "meaningChecksPassed": true
+    },
+    {
+      "id": "fragment-past",
+      "previous": "魚を全部食べてしまい",
+      "text": "ました。",
+      "cut": true,
+      "meaning": "Already ate all fish, past completion.",
+      "must": [
+        "魚",
+        "吃",
+        "了"
+      ],
+      "from": "ja",
+      "to": "zh",
+      "categories": [
+        "context",
+        "short-fragment"
+      ],
+      "source": "魚を全部食べてしまいました。",
+      "translated": "我吃光了所有的魚。",
+      "ms": 105.82433299999684,
+      "meaningChecksPassed": true
+    }
+  ],
+  "errors": [],
+  "thermal": "nominal",
+  "rawReportSha256": "ed398d8b054d2adf2532ff41b32257cbaf9c363177fd9143ffd691ebe892fc24",
+  "qualification": "Authored synthetic controls only; no completed bilingual human review or commercial qualification."
+}

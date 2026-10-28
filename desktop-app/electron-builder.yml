@@ -10,6 +10,11 @@ files:
   - '!out/main/soak-*.cjs'
   - '!out/benchmark-*/**'
   - '!out/speech-benchmark-*/**'
+  - '!out/**/*.test.*'
+  - '!out/**/*.spec.*'
+  - '!out/**/*.tsbuildinfo'
+  - '!out/**/*.d.ts'
+  - '!out/**/*.d.ts.map'
 extraResources:
   - from: 'resources/'
     to: 'bridge-scripts/'
@@ -80,4 +85,5 @@ dmg:
       y: 220
       type: link
       path: /Applications
+beforePack: scripts/before-pack.cjs
 afterPack: scripts/after-pack.js

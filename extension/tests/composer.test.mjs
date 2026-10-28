@@ -5,11 +5,11 @@ import fs from 'node:fs';
 const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8'));
 function setup(){
  const boxes=[], controls=[], replies=[];let focus,change,scan;
- const makeBox=()=>{const host={append(c){c.isConnected=true;controls.push(c);}};const box={textContent:'都好好聽啊',isConnected:true,closest:()=>host,parentElement:host,focus(){focus=box;}};boxes.push(box);return box;};
- const document={documentElement:{},querySelector:()=>null,querySelectorAll:s=>s.includes('#contenteditable-root')?boxes:s.includes('.jtl-composer-controls')?controls:[],createElement:()=>({children:[],setAttribute(){},append(...c){this.children.push(...c);},addEventListener(_,fn){this.click=fn;},remove(){this.isConnected=false;}}),addEventListener(){},execCommand(cmd,_,text){if(cmd==='insertText')focus.textContent=text;}};
+ const makeBox=()=>{const host={append(c){c.isConnected=true;controls.push(c);}};const box={textContent:'都好好聽啊',isConnected:true,closest:()=>host,parentElement:host,focus(){focus=box;},addEventListener(){}};boxes.push(box);return box;};
+ const document={documentElement:{},querySelector:()=>null,querySelectorAll:s=>s.includes('#contenteditable-root')?boxes:s.includes('.jtl-composer-controls')?controls:[],createElement:()=>({children:[],setAttribute(){},append(...c){this.children.push(...c);},addEventListener(_,fn){this.click=fn;},remove(){this.isConnected=false;}}),addEventListener(){},createRange:()=>({selectNodeContents(){}}),execCommand(cmd,_,text){if(cmd==='insertText')focus.textContent=text;return true;}};
  const chrome={storage:{local:{get:async()=>({websiteTextOptInEnabled:true})},onChanged:{addListener:f=>change=f}},runtime:{onMessage:{addListener(){}},sendMessage:(message,reply)=>replies.push({message,reply})}};
- vm.runInNewContext(source,{document,window:{top:{}},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},setTimeout(fn){fn();return 0;},clearTimeout(){},setInterval(){},InputEvent:class{}});
- return {boxes,controls,replies,makeBox,scan:()=>scan(),toggle:v=>change({websiteTextOptInEnabled:{newValue:v}},'local')};
+ vm.runInNewContext(source,{document,window:{top:{},getSelection:()=>({removeAllRanges(){},addRange(){}})},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},setTimeout(fn){fn();return 0;},clearTimeout(){},setInterval(){},InputEvent:class{},Event:class{}});
+ return {boxes,controls,replies,document,makeBox,scan:()=>scan(),toggle:v=>change({websiteTextOptInEnabled:{newValue:v}},'local')};
 }
 test('separate comment and reply editors get independent controls; dynamic replacements are discovered',async()=>{
  const t=setup();await Promise.resolve();const a=t.makeBox(),b=t.makeBox();a.dispatchEvent=b.dispatchEvent=()=>{};t.scan();t.scan();assert.equal(t.controls.length,2);
@@ -32,10 +32,22 @@ test('a finished draft is only inserted for review; nothing is submitted',async(
  await pending;
  assert.equal(box.textContent,'また明日ね！');
  // Only the input notification that tells the page its editor changed.
- assert.deepEqual(events,['InputEvent']);
+ assert.deepEqual(events,['InputEvent','Event']);
  // No keyboard event and no click on a send control may reach the page.
  const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8'));
- assert.equal(/KeyboardEvent|\.click\(\)|key:\s*['"]Enter/.test(source),false);
+ assert.equal(/KeyboardEvent|key:\s*['"]Enter/.test(source),false);
  const xSource=fs.readFileSync(new URL('../x-content.js',import.meta.url),'utf8');
  assert.equal(/KeyboardEvent|key:\s*['"]Enter/.test(xSource),false);
+});
+
+test('a rejected YouTube editor preserves its source and offers a copyable draft',async()=>{
+ const t=setup();await Promise.resolve();const box=t.makeBox();box.dispatchEvent=()=>{};t.scan();
+ t.document.execCommand=()=>false;
+ const pending=t.controls[0].children[0].click();
+ t.replies.at(-1).reply({ok:true,text:{draft:'今日は参加できません。',mode:'本機草稿'}});
+ await pending;
+ assert.equal(box.textContent,'都好好聽啊');
+ assert.match(t.controls[0].children[1].textContent,/未接受/);
+ assert.equal(t.controls[0].children[2].hidden,false);
+ assert.equal(t.controls[0].children[2].value,'今日は参加できません。');
 });

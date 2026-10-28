@@ -1,5 +1,17 @@
 import { expect, it } from 'vitest'
-import { shortJaZhTranslation } from './ja-zh-short'
+import { shortJaZhTranslation, expandJapaneseContractions } from './ja-zh-short'
+
+it.each([
+  ['それ取っといて。まだ使わないから。','それ取っておいて。まだ使わないから。'],
+  ['受け取っといてください。','受け取っておいてください。'],
+  ['明日のために残しといて。','明日のために残しておいて。'],
+  ['保存しといて。','保存しておいて。'],
+  ['写真を撮っといて。','写真を撮っておいて。'],
+  ['今は放っといて。','今は放っておいて。'],
+  ['とっといて。','とっといて。']
+])('expands an explicit verb without guessing a homophone: %s',(source,expected)=>{
+  expect(expandJapaneseContractions(source)).toBe(expected)
+})
 
 it.each([
   ['本当に？', '真的？'], ['本当に!!', '真的！！'],

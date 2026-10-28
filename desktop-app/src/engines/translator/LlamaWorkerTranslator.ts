@@ -8,7 +8,7 @@ import { workerPool, WorkerTerminatedError, type WorkerPool } from '../../main/w
 import { createLogger } from '../../main/logger'
 import { greetingTranslation, normalizeGreetingSource } from '../../../../extension/streamer-vocabulary.mjs'
 import { gameTermTranslation, selectGameTerminology } from '../../../../extension/game-vocabulary.mjs'
-import { shortJaZhTranslation } from './ja-zh-short'
+import { shortJaZhTranslation, expandJapaneseContractions } from './ja-zh-short'
 import { contextualShortReply } from './contextual-short-reply'
 import { protectNames, alreadyTargetLanguage, isNonLinguisticText } from '../../../../extension/translation-guards.mjs'
 import { validateTranslation } from '../../../../extension/translation-policy.mjs'
@@ -157,7 +157,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
       if (greeting) return greeting
       const short = shortJaZhTranslation(text)
       if (short !== undefined) return short
-      text = normalizeGreetingSource(text)
+      text = expandJapaneseContractions(normalizeGreetingSource(text))
     }
     if (!this.initialized) {
       throw new Error(`[${this.id}-worker] Not initialized`)

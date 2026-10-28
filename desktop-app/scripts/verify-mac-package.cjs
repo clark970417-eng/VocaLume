@@ -4,13 +4,20 @@ const path = require('node:path')
 const assert = require('node:assert/strict')
 const { execFileSync } = require('node:child_process')
 const asar = require('@electron/asar')
+const { verifyBuild, manifestName } = require('./build-provenance.cjs')
 const app = path.resolve(process.argv[2] || 'dist/mac-arm64/VocaLume.app')
 const build = path.resolve(process.argv[3] || 'out')
 const resources = path.join(app, 'Contents/Resources')
 const archive = path.join(resources, 'app.asar')
 const entries = asar.listPackage(archive)
+const provenance = verifyBuild(path.dirname(build))
+assert.deepEqual(JSON.parse(asar.extractFile(archive, 'out/' + manifestName)), provenance, 'Build provenance mismatch')
+for (const file of provenance.outputs) {
+  assert.deepEqual(asar.extractFile(archive, file.path), fs.readFileSync(path.join(path.dirname(build), file.path)), 'Packaged file mismatch: ' + file.path)
+}
 for (const entry of entries) {
   assert(!/(?:^|\/)(?:\.test-out|(?:speech-)?benchmark-[^/]*|[^/]*\.gguf)(?:\/|$)/.test(entry), `Test artifact in package: ${entry}`)
+  assert(!/^\/out\/.*(?:\.(?:test|spec)\.|\.tsbuildinfo$|\.d\.ts(?:\.map)?$)/.test(entry), 'Development artifact in package: '+entry)
 }
 for (const file of ['main/index.js', 'main/slm-worker.js', 'preload/index.js', 'renderer/index.html']) {
   assert.deepEqual(asar.extractFile(archive, 'out/' + file), fs.readFileSync(path.join(build, file)), `Runtime mismatch: ${file}`)
@@ -34,4 +41,4 @@ const commands = execFileSync('otool', ['-l', addon], {encoding:'utf8'})
 const rpaths = [...commands.matchAll(/cmd LC_RPATH\n[\s\S]*?\n\s*path (.+?) \(offset /g)].map(m => m[1])
 assert(rpaths.includes('@loader_path') && rpaths.every(p => !/^\/(Users|home)\//.test(p)), 'Non-portable addon search path')
 execFileSync('codesign', ['--verify', '--deep', '--strict', app], {stdio:'pipe'})
-console.log(JSON.stringify({version, entries:entries.length, runtimeMatches:true, rendererAssetsPresent:true, signatureValid:true, portableAddon:true}))
+console.log(JSON.stringify({version, entries:entries.length, runtimeMatches:true, sourceMatches:true, rendererAssetsPresent:true, signatureValid:true, portableAddon:true}))

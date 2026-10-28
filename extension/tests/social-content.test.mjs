@@ -18,7 +18,7 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   parentElement:{querySelector:()=>translationLines.find(x=>x.isConnected)},
   insertAdjacentElement(_,line){line.isConnected=true;translationLines.push(line);}};
  const composerHost={append(node){node.isConnected=true;controls.push(node);}};
- const box={value:'今天也很可愛',isConnected:true,focus(){},dispatchEvent(){},
+ const box={value:'今天也很可愛',isConnected:true,focus(){},dispatchEvent(){},addEventListener(){},
   matches(selector){return /textarea|textbox|contenteditable|comment|message|chat|reply/.test(selector);},
   getAttribute(name){return name==='role'?'textbox':name==='placeholder'?'Write a comment':'';},
   getBoundingClientRect(){return {width:300,height:40};},

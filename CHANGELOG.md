@@ -4,6 +4,11 @@ This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` t
 
 ## Unreleased - 2026-10-28
 
+- Verify that packaged desktop code matches the current source and build outputs. Rebuild before packaging, reject missing/stale build records and development artifacts, and keep type checking from emitting files into the production App.
+- Use editor input transactions for YouTube and X reply drafts. If a site rejects replacement, preserve a copyable translation instead of changing only the visible text. Add Tab translation to YouTube and the shared social adapter, with active-IME and modifier-key protection; never send automatically.
+- Discard late optional recognition corrections after a session or configuration change, clear completed correction timers, and skip unnecessary same-language retranslation.
+- Expand explicit written Japanese contractions before JA→ZH translation while respecting custom terminology. Allow bounded personal recognition hints for explicit Chinese input, and clear hints when changing source languages. These changes do not add capture waiting; ambiguous pronouns and unknown names still need review.
+- Record the release-readiness checks, real-model limitations and Opera capture results separately from commercial qualification. See [the October 28 assessment](docs/quality/release-readiness-2026-10-28.md).
 - Pass speech through unchanged when its detected language already matches the selected target, and discard interim work from a previous language direction. This avoids unnecessary model calls and prevents an older direction from replacing the current subtitle. Keep rolling-audio checkpoint comparison exact while removing per-sample callback overhead.
 - Reduce idle social/general-page subtitle status requests to one per ten seconds and stop hidden-page polling/scanning. Returning to a tab refreshes immediately; capture pushes and active caption polling keep their existing response path. Ignore an older status response after a newer pushed caption.
 - Bind social reading jobs to their language-setting revision, preserve shared work while any matching message still needs it, and keep late cleanup from deleting a newer job. Bound each page's translation cache to 500 recent entries.

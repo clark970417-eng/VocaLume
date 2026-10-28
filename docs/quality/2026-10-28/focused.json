@@ -1,0 +1,38 @@
+{
+  "scope": "Supplemental authored controls after conservative contraction and explicit Chinese vocabulary fixes. Full corpus not rerun. Includes known semantic failures.",
+  "samples": [
+    {
+      "kind": "text",
+      "source": "それ取っといて。まだ使わないから。",
+      "translated": "請把它留著吧。反正我還沒有使用它的需求呢。",
+      "ms": 276.2577090000002
+    },
+    {
+      "kind": "text",
+      "source": "そのチケット取っといて。明日使うから。",
+      "translated": "請你把那張票收下吧。我明天會使用它。",
+      "ms": 219.6047920000001
+    },
+    {
+      "kind": "text",
+      "source": "今は放っといて。一人にして。",
+      "translated": "現在就讓它保持原狀吧。獨自一人就好。",
+      "ms": 215.64379199999985
+    },
+    {
+      "kind": "text",
+      "source": "写真を撮っといて。後で見たいから。",
+      "translated": "請先拍下照片吧。我之後會再去看的。",
+      "ms": 206.36758299999974
+    },
+    {
+      "kind": "audio-with-explicit-personal-vocabulary",
+      "vocabulary": [
+        "鹿乃"
+      ],
+      "recognized": "鹿乃今天不开直播明天才会来",
+      "ms": 363.2522920000001,
+      "translated": "鹿乃は今日は配信を行わず、明日になってから来ます。"
+    }
+  ]
+}

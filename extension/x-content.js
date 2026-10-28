@@ -69,10 +69,14 @@
     const status = document.createElement('span');
     status.setAttribute('role', 'status');
     const preview = document.createElement('textarea');
-    preview.setAttribute('aria-label', '日文留言草稿，可修改');
+    preview.setAttribute('aria-label', '翻譯留言草稿，可修改');
     preview.hidden = true;
     let source = '', applyAfterTranslation=false;
+    let composing = false;
+    box.addEventListener('compositionstart',()=>{composing=true;});
+    box.addEventListener('compositionend',()=>{composing=false;});
     const apply = button('放入留言框', () => {
+      if(composing){status.textContent='請先完成輸入法選字，再放入譯文。';return;}
       if (!box.isConnected || read(box) !== source) {
         status.textContent = '原文已修改，請重新翻譯，避免覆蓋新內容。';
         return;
@@ -84,22 +88,24 @@
       selection.removeAllRanges();
       selection.addRange(range);
       const inserted = document.execCommand?.('insertText', false, preview.value);
-      // X periodically changes its React editor implementation. Some versions
-      // return true from execCommand without updating the actual textbox.
+      // Do not replace the DOM surface directly: the page may keep the old
+      // Chinese text in its own submission model even if Japanese is visible.
       if (!inserted || read(box) !== preview.value.trim()) {
-        if(box.replaceChildren&&document.createTextNode)box.replaceChildren(document.createTextNode(preview.value));else box.textContent=preview.value;
+        status.textContent = '留言框未接受譯文；請從上方草稿複製後貼入。';
+        return;
       }
       box.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: preview.value}));
       box.dispatchEvent(new Event('change', {bubbles: true}));
       status.textContent = read(box) === preview.value.trim()
-        ? '已放入日文，確認後自行送出。'
-        : '未能放入，請從上方草稿複製日文。';
+        ? '已放入譯文，確認後自行送出。'
+        : '未能放入，請從上方草稿複製譯文。';
     });
     apply.hidden = true;
     const translate = button(`${langLabel(languageSettings.typeSource)}/${langLabel(languageSettings.typeTarget)}`, async () => {
+      if(composing){status.textContent='請先完成輸入法選字，再翻譯。';return;}
       source = read(box);
       const epoch = textEpoch;
-      if (!source) { status.textContent = '請先輸入中文。'; return; }
+      if (!source) { status.textContent = '請先輸入'+langLabel(languageSettings.typeSource)+'文。'; return; }
       translate.disabled = true;
       apply.hidden = true;
       status.textContent = '翻譯中…';
@@ -118,13 +124,13 @@
     // Tab translates the focused draft and replaces it only if it is unchanged.
     // Enter/posting always remains a separate action. IME and Shift+Tab pass through.
     controls.translateKey = event=>{
-      if(!websiteTextOptInEnabled||!controls.isConnected||event.key!=='Tab'||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||!matchesLanguage(read(box),languageSettings.typeSource))return;
+      if(!websiteTextOptInEnabled||!controls.isConnected||event.key!=='Tab'||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||composing||!matchesLanguage(read(box),languageSettings.typeSource))return;
       event.preventDefault();event.stopImmediatePropagation?.();event.stopPropagation();
       if(!translate.disabled){applyAfterTranslation=true;translate.click();}
     };
     box.addEventListener('keydown',controls.translateKey);
     translate.setAttribute('title','Tab：翻譯並放入留言框；確認後自行送出');
-    translate.setAttribute('aria-label', '中文翻成日文草稿');
+    translate.setAttribute('aria-label', '將留言從'+langLabel(languageSettings.typeSource)+'文翻成'+langLabel(languageSettings.typeTarget)+'文草稿');
     translate.classList.add('jtl-x-language');
     controls.append(translate, status, preview, apply);
     const anchor = box.closest('[data-testid$="RichTextInputContainer"]') || box.parentElement;

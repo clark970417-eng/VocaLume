@@ -35,6 +35,7 @@ export interface GERDeps {
   getGlossary(): GlossaryEntry[]
   /** Current pipeline session generation — used to drop stale async emits (#719) */
   getGeneration?(): number
+  getConfigurationRevision?(): number
 }
 
 /**
@@ -49,6 +50,7 @@ export class GERProcessor {
   private pendingTimestamp: number | null = null
   /** Last known translation for SSBD re-translation draft */
   private lastTranslation: string | null = null
+  private revision = 0
 
   constructor(deps: GERDeps) {
     this.deps = deps
@@ -56,6 +58,7 @@ export class GERProcessor {
 
   /** Enable or disable GER post-correction */
   setEnabled(enabled: boolean): void {
+    if (enabled !== this.enabled) this.reset()
     this.enabled = enabled
     log.info(`GER ${enabled ? 'enabled' : 'disabled'}`)
   }
@@ -109,10 +112,11 @@ export class GERProcessor {
 
     this.pendingTimestamp = timestamp
     this.lastTranslation = previousTranslation ?? null
+    const revision = this.revision
     this.runCorrection(sttText, language, targetLanguage, timestamp).catch((err) => {
       log.warn('GER correction failed:', err)
     }).finally(() => {
-      if (this.pendingTimestamp === timestamp) {
+      if (this.revision === revision && this.pendingTimestamp === timestamp) {
         this.pendingTimestamp = null
       }
     })
@@ -120,6 +124,7 @@ export class GERProcessor {
 
   /** Reset state (e.g., on pipeline stop) */
   reset(): void {
+    this.revision++
     this.pendingTimestamp = null
     this.lastTranslation = null
   }
@@ -132,6 +137,12 @@ export class GERProcessor {
   ): Promise<void> {
     const t0 = performance.now()
     const gen = this.deps.getGeneration?.()
+    const revision = this.revision
+    const configuration = this.deps.getConfigurationRevision?.()
+    const translator = this.deps.getTranslator()
+    const current = (): boolean => this.enabled && revision === this.revision &&
+      gen === this.deps.getGeneration?.() && configuration === this.deps.getConfigurationRevision?.() &&
+      translator === this.deps.getTranslator()
 
     const glossaryEntries = this.deps.getGlossary()
     const glossary = glossaryEntries.length > 0
@@ -139,7 +150,9 @@ export class GERProcessor {
       : undefined
 
     // Send GER request to the SLM worker with a timeout race
-    const correctedText = await Promise.race([
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    let correctedText: string
+    try { correctedText = await Promise.race([
       workerPool.sendRequest(
         {
           type: 'ger-correct',
@@ -150,9 +163,10 @@ export class GERProcessor {
         'ger-correct'
       ),
       new Promise<string>((_resolve, reject) =>
-        setTimeout(() => reject(new Error('GER timed out')), GER_TIMEOUT_MS)
+        timeout = setTimeout(() => reject(new Error('GER timed out')), GER_TIMEOUT_MS)
       )
-    ])
+    ]) } finally { if (timeout) clearTimeout(timeout) }
+    if (!current()) return
 
     const gerMs = performance.now() - t0
     log.info(`GER: ${gerMs.toFixed(0)}ms "${sttText}" → "${correctedText}"`)
@@ -167,14 +181,15 @@ export class GERProcessor {
 
     // Re-translate the corrected text, using SSBD if available for faster re-translation.
     // Since GER only makes small corrections, most of the previous translation remains valid.
-    const translator = this.deps.getTranslator()
     if (!translator) {
       log.warn('GER: no translator available for re-translation')
       return
     }
 
     let translatedText: string
-    if (translator.translateSSBD && this.lastTranslation) {
+    if (language === targetLanguage) {
+      translatedText = trimmedCorrected
+    } else if (translator.translateSSBD && this.lastTranslation) {
       try {
         translatedText = await translator.translateSSBD(
           trimmedCorrected,
@@ -184,6 +199,7 @@ export class GERProcessor {
         )
         log.info('GER: used SSBD for re-translation')
       } catch (ssbdErr) {
+        if (!current()) return
         log.warn('GER: SSBD failed, falling back to regular translate:', ssbdErr)
         translatedText = await translator.translate(trimmedCorrected, language, targetLanguage)
       }
@@ -206,7 +222,7 @@ export class GERProcessor {
     }
 
     // Drop the correction if the engine was switched/stopped while it was in flight (#719)
-    if (gen !== undefined && this.deps.getGeneration?.() !== gen) {
+    if (!current()) {
       log.info('GER: generation changed during correction, dropping stale result')
       return
     }

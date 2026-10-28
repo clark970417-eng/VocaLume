@@ -296,6 +296,7 @@ describe('TranslationPipeline switchEngine reset regression (#719)', () => {
       pipeline.registerSTT('stt', () => stt)
       pipeline.registerTranslator('tr', () => translator)
       pipeline.registerE2E('e2e', () => e2e)
+      pipeline.setLanguageConfig('en', 'zh')
 
       await pipeline.switchEngine({ mode: 'cascade', sttEngineId: 'stt', translatorEngineId: 'tr' })
       pipeline.start()

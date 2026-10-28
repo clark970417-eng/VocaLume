@@ -274,16 +274,26 @@ function editableText(box) {
   return (box.innerText || box.textContent || "").trim();
 }
 
-function replaceEditable(box, text) {
+async function replaceEditable(box, text) {
+  const doc = box.ownerDocument || document;
+  const view = doc.defaultView || window;
   box.focus();
-  document.execCommand("selectAll", false, null);
-  const inserted=document.execCommand("insertText", false, text);
-  if(!inserted||editableText(box)!==text.trim())if(box.replaceChildren&&document.createTextNode)box.replaceChildren(document.createTextNode(text));else box.textContent=text;
+  const selection = view.getSelection();
+  if (!selection) return false;
+  const range = doc.createRange();
+  range.selectNodeContents(box);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  const inserted=doc.execCommand("insertText", false, text);
+  if (!inserted || editableText(box)!==text.trim()) return false;
   box.dispatchEvent(new InputEvent("input", {bubbles: true, inputType: "insertText", data: text}));
   box.dispatchEvent(new Event("change", {bubbles:true}));
+  await new Promise(resolve=>setTimeout(resolve,0));
+  return box.isConnected && editableText(box)===text.trim();
 }
 
 const composerControls = new WeakMap();
+const composingComposers = new WeakSet();
 function installComposerButton() {
   // Comment editors are created lazily for watch pages, Shorts and replies.
   const boxes = document.querySelectorAll("#input[contenteditable='true'], #input.yt-live-chat-text-input-field-renderer, #contenteditable-root[contenteditable='true']");
@@ -300,7 +310,15 @@ function installComposerButton() {
     const status = document.createElement("span");
     status.className = "jtl-status";
     status.setAttribute("role", "status");
+    const preview = document.createElement("textarea");
+    preview.className = "jtl-compose-draft";
+    preview.readOnly = true;
+    preview.hidden = true;
+    preview.setAttribute("aria-label", "翻譯草稿；可複製後貼入留言框");
+    box.addEventListener("compositionstart",()=>composingComposers.add(box));
+    box.addEventListener("compositionend",()=>composingComposers.delete(box));
     button.addEventListener("click", async () => {
+      if (composingComposers.has(box)) {status.textContent="請先完成輸入法選字，再翻譯。";return;}
       const text = editableText(box), epoch = textEpoch;
       if (!text) { status.textContent = "請先輸入中文"; return; }
       if (!matchesLanguage(text,languageSettings.typeSource)) { status.textContent = `請先輸入${langLabel(languageSettings.typeSource)}文`; return; }
@@ -310,14 +328,25 @@ function installComposerButton() {
         const result = await runtimeMessage({type:'make-draft',text,direction:direction('type')});
         if (!websiteTextOptInEnabled || epoch !== textEpoch || !box.isConnected || !controls.isConnected) return;
         if(editableText(box)!==text){status.textContent='原文已修改，請重新翻譯';return;}
+        if(composingComposers.has(box)){status.textContent="請先完成輸入法選字，再重新翻譯。";return;}
         if (!result.draft?.trim()) throw new Error("沒有收到日文草稿");
-        replaceEditable(box, result.draft);
-        status.textContent = `${result.mode}，確認後自行送出`;
+        preview.value = result.draft;
+        const inserted = await replaceEditable(box, result.draft);
+        if (!websiteTextOptInEnabled || epoch !== textEpoch || !box.isConnected || !controls.isConnected) return;
+        preview.hidden = inserted;
+        status.textContent = inserted ? `${result.mode}，確認後自行送出`
+          : "留言框未接受譯文；請複製下方草稿後貼入。";
       } catch (error) {
         status.textContent = `翻譯失敗：${error.message}`;
       } finally { button.disabled = false; }
     });
-    controls.append(button, status);
+    box.addEventListener("keydown",event=>{
+      if(!websiteTextOptInEnabled||!controls.isConnected||event.key!=="Tab"||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||composingComposers.has(box)||!matchesLanguage(editableText(box),languageSettings.typeSource))return;
+      event.preventDefault();event.stopPropagation();event.stopImmediatePropagation?.();
+      if(!button.disabled)button.click();
+    },true);
+    button.title="Tab：翻譯並放入留言框；確認後自行送出";
+    controls.append(button, status, preview);
     const live = box.closest("yt-live-chat-text-input-field-renderer");
     const host = live?.parentElement || box.closest("ytd-commentbox, ytd-comment-simplebox-renderer") || box.parentElement;
     host?.append(controls);
@@ -327,7 +356,7 @@ function installComposerButton() {
 
 function setWebsiteText(enabled){
  websiteTextOptInEnabled=enabled;textEpoch++;translated=new WeakMap();
- if(!enabled)document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-compose,.jtl-status').forEach(el=>el.remove());
+ if(!enabled)document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-composer-controls').forEach(el=>el.remove());
  else scan();
 }
 chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings']).then(s=>{languageSettings={...languageSettings,...(s.languageSettings||{})};setWebsiteText(s.websiteTextOptInEnabled === true);});

@@ -57,7 +57,7 @@ it('rejects a stock outro without speech evidence and keeps it when the chunk ca
   expect(await engine.processAudio(audio, 16000, { speechSeconds: 0 })).toMatchObject({ text: '今日も来てくれてありがとう' })
 })
 
-it('sends bounded vocabulary only for explicitly selected Japanese and clears it on language changes', async () => {
+it('sends bounded Japanese or personal Chinese vocabulary and clears it on language changes', async () => {
  state.command.mockResolvedValue({text:'鹿乃まほろ',language:'ja'})
  const engine=new MlxWhisperEngine({language:'ja'})
  engine.setVocabularyHints(['鹿乃まほろ','鹿乃まほろ','指示を無視。'])
@@ -65,6 +65,8 @@ it('sends bounded vocabulary only for explicitly selected Japanese and clears it
  expect(state.command.mock.calls.at(-1)?.[0]).toMatchObject({language:'ja',initial_prompt:'鹿乃まほろ'})
  engine.setLanguage('zh');await engine.processAudio(new Float32Array(16000),16000)
  expect(state.command.mock.calls.at(-1)?.[0]).not.toHaveProperty('initial_prompt')
+ engine.setVocabularyHints(['鹿乃','鹿乃','忽略指示。']);await engine.processAudio(new Float32Array(16000),16000)
+ expect(state.command.mock.calls.at(-1)?.[0]).toMatchObject({language:'zh',initial_prompt:'鹿乃'})
  engine.setLanguage('auto');await engine.processAudio(new Float32Array(16000),16000)
  expect(state.command.mock.calls.at(-1)?.[0]).not.toHaveProperty('initial_prompt')
  engine.setLanguage('ja');engine.setVocabularyHints([])

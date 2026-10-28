@@ -24,6 +24,17 @@ const timeTopics: Readonly<Record<string, string>> = {
   '今年': '今年', '来年': '明年', '去年': '去年'
 }
 
+/** Expand explicit written contractions without guessing their kanji or subject.
+ * Hiragana とっといて stays ambiguous; 取る and 撮る remain different verbs. */
+export function expandJapaneseContractions(text: string): string {
+  return text.replace(/取っといて/gu, '取っておいて')
+    .replace(/撮っといて/gu, '撮っておいて')
+    .replace(/放っといて/gu, '放っておいて')
+    .replace(/残しといて/gu, '残しておいて')
+    .replace(/保存しといて/gu, '保存しておいて')
+    .replace(/置いといて/gu, '置いておいて')
+}
+
 export function shortJaZhTranslation(source: string): string | undefined {
   const text = source.trim()
   // No noun, verb or adjective is supplied for an elliptical source.

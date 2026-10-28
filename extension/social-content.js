@@ -480,7 +480,7 @@
     button.className = 'jtl-social-language';
     button.textContent = `${langLabel(languageSettings.typeSource)} → ${langLabel(languageSettings.typeTarget)}`;
     button.setAttribute('aria-label', `將留言從${langLabel(languageSettings.typeSource)}文翻成${langLabel(languageSettings.typeTarget)}文草稿`);
-    button.title = '點一下翻譯；長按可拖曳位置，確認後自行送出';
+    button.title = 'Tab 或點一下翻譯；長按可拖曳位置，確認後自行送出';
     let press, holdTimer, suppressClick = false, movingControls = false;
     const finishDrag = event => {
       if (!press || event.pointerId !== press.id) return;
@@ -565,6 +565,11 @@
       }
     });
     controls.append(button, status, preview);
+    box.addEventListener('keydown',event=>{
+      if(!enabled||!controls.isConnected||event.key!=='Tab'||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||composing.has(box)||!matchesLanguage(editableText(box),languageSettings.typeSource))return;
+      event.preventDefault();event.stopPropagation();event.stopImmediatePropagation?.();
+      if(!button.disabled)button.click();
+    },true);
     composers.set(box, controls);
     activeComposer = box;
     activeControls = controls;

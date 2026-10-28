@@ -36,7 +36,9 @@ export class MlxWhisperEngine extends SubprocessBridge implements STTEngine {
   }
 
   setLanguage(language: SourceLanguage): void {
-    this.language = language === 'auto' ? undefined : language
+    const next = language === 'auto' ? undefined : language
+    if (next !== this.language) this.vocabulary = []
+    this.language = next
   }
 
   setVocabularyHints(terms: readonly string[]): void {
@@ -120,7 +122,7 @@ export class MlxWhisperEngine extends SubprocessBridge implements STTEngine {
           ...(tempPath ? { audio_path: tempPath } : { audio_pcm16: encodePCM16(audioChunk).toString('base64') }),
           sample_rate: sampleRate,
           language: this.language,
-          ...(this.language === 'ja' && this.vocabulary.length ? { initial_prompt: this.vocabulary.join('、') } : {})
+          ...((this.language === 'ja' || this.language === 'zh') && this.vocabulary.length ? { initial_prompt: this.vocabulary.join('、') } : {})
         })
       } catch (err) {
         // Timeout or bridge error — return null per interface contract
