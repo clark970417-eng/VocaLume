@@ -248,7 +248,7 @@ function renderSubtitle(item) {
   if (!overlay) return;
   overlay.dataset.expiresAt=expiresAt;
   subtitleExpiryTimer=setTimeout(()=>renderSubtitle(null),Math.max(0,expiresAt*1000-Date.now()));
-  const key = `${item.id}:${item.original}:${item.translated}:${item.provisional}`;
+  const key = `${item.id}:${item.original}:${item.translated}:${item.provisional}:${item.pending}:${item.error}`;
   if (key === lastSubtitleKey) return;
   lastSubtitleKey = key;
   overlay.captionWindow.render([item]);

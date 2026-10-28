@@ -12,9 +12,13 @@ export function contextualShortReply(text: string, from: string, to: string, sou
         /いかが|要ります|いります|飲みます/u.test(sourceContext) && !/ない|ません/u.test(sourceContext)) return '不用再加了。'
     if (/^大丈夫(?:です)?$/u.test(reply) && /怪我|けが/u.test(sourceContext) && /ありませんか|ないですか/u.test(sourceContext)) return '沒事。'
     if (reply==='できました' && /^(?:もう)?準備はできましたか[?？]$/u.test(sourceContext.trim())) return '準備好了。'
+    if (/^まだ(?:です)?$/u.test(reply) && /^(?:もう)?準備はできましたか[?？]$/u.test(sourceContext.trim())) return '還沒準備好。'
+    if (/^まだ(?:です)?$/u.test(reply) && /^(?:もう)?終わりましたか[?？]$/u.test(sourceContext.trim())) return '還沒結束。'
   }
   if(from==='zh' && to==='ja') {
     if(reply==='好了' && /^(?:你|妳)?(?:準備|准备)好了[嗎吗][?？]$/u.test(sourceContext.trim())) return '準備できました。'
+    if(/^(?:還沒|还没|還沒有|还没有)$/u.test(reply) && /^(?:你|妳)?(?:準備|准备)好了[嗎吗][?？]$/u.test(sourceContext.trim())) return 'まだ準備できていません。'
+    if(/^(?:還沒|还没|還沒有|还没有)$/u.test(reply) && /^(?:結束|结束)了[嗎吗][?？]$/u.test(sourceContext.trim())) return 'まだ終わっていません。'
     if((reply==='會'||reply==='会'||reply==='不會'||reply==='不会') && /^(?:你|妳)?[會会](?:操作|使用).{1,30}[嗎吗][?？]$/u.test(sourceContext.trim())) return /^[不]/u.test(reply)?'できません。':'できます。'
   }
   return undefined

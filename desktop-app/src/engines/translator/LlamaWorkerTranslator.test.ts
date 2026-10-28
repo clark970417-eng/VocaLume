@@ -177,6 +177,17 @@ it('answers verified short Japanese without loading, queueing or starting model 
   await expect(engine.translate('本当に？', 'ja', 'zh')).rejects.toBeInstanceOf(WorkerTerminatedError)
 })
 
+it('uses an adjacent question for narrow incomplete replies without another model request', async () => {
+  const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+  await expect(engine.translate('まだです。','ja','zh',{previousSegments:[],sourceContext:'準備はできましたか？'})).resolves.toBe('還沒準備好。')
+  await expect(engine.translate('還沒。','zh','ja',{previousSegments:[],sourceContext:'結束了嗎？'})).resolves.toBe('まだ終わっていません。')
+  expect(pool.acquire).not.toHaveBeenCalled()
+  expect(pool.sendRequest).not.toHaveBeenCalled()
+  await engine.initialize();pool.sendRequest.mockResolvedValueOnce('自訂譯文')
+  await expect(engine.translate('まだです。','ja','zh',{previousSegments:[],sourceContext:'準備はできましたか？',glossary:[{source:'まだ',target:'自訂'}]})).resolves.toBe('自訂譯文')
+  expect(pool.sendRequest).toHaveBeenCalledOnce()
+})
+
 it('does not let the short path bypass user terminology, other languages or contextual full input', async () => {
   const { pool } = fakePool()
   const engine = new HunyuanMT2Translator({ pool: pool as unknown as WorkerPool })

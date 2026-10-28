@@ -144,6 +144,15 @@ const gate=new ResultGate();
 const cueCursor=new CueCursor();
 let nativeUntil=0, nativeText='', outputSequence=0, lastSpeechId=-1;
 let diagnostics={}, modelStatus='', controlBusy=false, controlAction='', translationPending=null, publishedId=-1;
+// Bounded, in-memory timing only; never retain the spoken text in diagnostics.
+let deliverySamples={};
+function recordDeliveryTime(name,value){
+ if(!Number.isFinite(value)||value<0||value>600000)return;
+ const samples=deliverySamples[name]??=[];samples.push(value);if(samples.length>120)samples.shift();
+ const sorted=[...samples].sort((a,b)=>a-b),percentile=p=>Math.round(sorted[Math.floor((sorted.length-1)*p)]);
+ diagnostics.deliveryMetrics??={};
+ diagnostics.deliveryMetrics[name]={count:sorted.length,p50:percentile(.5),p95:percentile(.95),p99:percentile(.99),max:Math.round(sorted.at(-1))};
+}
 const captionRequests=new Map();
 // Speech continues to be captured while the current subtitle finishes translating.
 // Display order is independent of recognition arrival order.
@@ -191,10 +200,17 @@ async function translateCaption(text,signal,direction=pair(speechFrom,speechTo))
  }
 }
 const translationCache=new Map();
+// The network path can time out after 3 s and then fall back to the local
+// translator. Do not discard that successful fallback at the same 3 s mark.
+const MAX_CAPTION_TRANSLATION_MS=20000;
 function desktopEvent(event){
  if(!['caption','source'].includes(event.event))return;
  const meta=desktopSegments.get(event.segment);if(!meta||((meta.session!==gate.session||!running)&&meta.mode!=='record'))return;
  const result=event.result||{text:event.text};
+ if(event.event==='source'&&meta.final&&!meta.finalSourceAt){
+  meta.finalSourceAt=Date.now();
+  recordDeliveryTime('endToSourceMs',meta.finalSourceAt-meta.audioEndAt);
+ }
  const original=String(result.text||(result.final?meta.caption?.original:'')||'').trim();if(!original){
   if(result.final&&meta.mode==='realtime'){
    const index=desktopOrder.indexOf(event.segment);if(index>=0)desktopOrder.splice(index,1);
@@ -212,6 +228,11 @@ function desktopEvent(event){
  // An old translation must never be paired with a new source hypothesis.
  if(previous?.original!==original&&!result.final&&translated===previous?.translated)translated='';
  const final=!!result.final||!!(result.correction&&previous?.final);
+ if(result.final&&translated&&!result.correction&&!meta.deliveryRecorded){
+  const completed=Date.now();meta.deliveryRecorded=true;
+  recordDeliveryTime('endToTranslationMs',completed-meta.audioEndAt);
+  if(meta.finalSourceAt)recordDeliveryTime('sourceToTranslationMs',completed-meta.finalSourceAt);
+ }
  if(previous?.final&&!previous.translated&&translated&&desktopOrder[0]===event.segment){
   if(desktopAdvanceTimer!==null)clearTimeout(desktopAdvanceTimer);
   desktopAdvanceTimer=null;desktopSettledAt=0;
@@ -230,7 +251,7 @@ function pushSubtitle(item){if(captureTabId)chrome.tabs.sendMessage(captureTabId
 async function translateItem(job){
  // Finish useful work; keep only the newest waiting revision. Repeatedly
  // aborting the oldest request starves subtitles on slower connections.
- if(Date.now()-job.started>3000||job.item.expired)return;
+ if(Date.now()-job.started>MAX_CAPTION_TRANSLATION_MS||job.item.expired)return;
  if(captionRequests.size>=2){translationPending=job;return;}
  const controller=new AbortController();captionRequests.set(job,controller);
  try {
@@ -238,11 +259,12 @@ async function translateItem(job){
   const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal);
   if(controller.signal.aborted)return;
   translationCache.set(key,result);if(translationCache.size>200)translationCache.delete(translationCache.keys().next().value);
-  if(gate.session===job.session&&job.item.id>publishedId&&!job.item.expired&&Date.now()-job.started<3000){
-   publishedId=job.item.id;job.item.translated=result;job.item.expiresAt=Date.now()/1000+captionHold;items.length=0;items.push(job.item);
+  if(gate.session===job.session&&job.item.id>publishedId&&!job.item.expired&&Date.now()-job.started<MAX_CAPTION_TRANSLATION_MS){
+   publishedId=job.item.id;job.item.translated=result;job.item.pending=false;job.item.error='';job.item.expiresAt=Date.now()/1000+captionHold;items.length=0;items.push(job.item);
+   if(job.item.source!=='native')cueCursor.markDelivered(job.item.speechId,job.fullSpeechText,job.item.original);
    lastError='';diagnostics.translationMs=Date.now()-job.started;diagnostics.chineseLagMs=job.item.audioEndAt?Date.now()-job.item.audioEndAt:diagnostics.translationMs;pushSubtitle(job.item);
   }
- } catch(e){if(!controller.signal.aborted&&gate.latest===job.item && gate.session===job.session)lastError='翻譯失敗：'+e.message;}
+ } catch(e){if(!controller.signal.aborted&&gate.latest===job.item && gate.session===job.session){lastError='翻譯失敗：'+e.message;if(job.item.pending){job.item.pending=false;job.item.error=lastError;job.item.expiresAt=Date.now()/1000+captionHold;if(items[0]===job.item)pushSubtitle(job.item);}}}
  finally{captionRequests.delete(job);if(translationPending&&captionRequests.size<2){const next=translationPending;translationPending=null;if(next.session===gate.session)translateItem(next);}}
 }
 function addTranscript(m){
@@ -251,6 +273,7 @@ function addTranscript(m){
  if(m.source!=='native'&&(Date.now()<nativeUntil||m.id<lastSpeechId))return;
  // Translate exactly the short source cue displayed, retaining the full ASR
  // hypothesis in the worker for agreement and overlap alignment.
+ const fullSpeechText=m.text;
  if(m.source!=='native'){
   m.text=cueCursor.select(m.text,m.id);
   // Keep the whole clause for translation; CSS controls visible line length.
@@ -260,12 +283,16 @@ function addTranscript(m){
   if(Date.now()<nativeUntil || m.id<lastSpeechId)return;
   lastSpeechId=m.id;
  }
- if(gate.latest?.original===m.text && gate.latest.speechId===m.id && gate.latest.source===m.source){gate.latest.provisional=Boolean(m.provisional);return;}
+ if(gate.latest?.original===m.text && gate.latest.speechId===m.id && gate.latest.source===m.source){
+  gate.latest.provisional=Boolean(m.provisional);
+  if(m.source!=='native'&&m.final&&!gate.latest.translated&&!gate.latest.pending){gate.latest.pending=true;gate.latest.expiresAt=Date.now()/1000+MAX_CAPTION_TRANSLATION_MS/1000;if(items[0]===gate.latest)pushSubtitle(gate.latest);}
+  return;
+ }
  const item=gate.accept(m.session,++outputSequence,m.text);if(!item)return;
- item.source=m.source;item.speechId=m.id;item.expiresAt=Date.now()/1000+captionHold;item.provisional=Boolean(m.provisional);item.audioEndAt=m.audioEndAt;item.stableText=m.stableText||'';
+ item.source=m.source;item.speechId=m.id;item.pending=m.source!=='native'&&Boolean(m.final);item.expiresAt=Date.now()/1000+(item.pending?MAX_CAPTION_TRANSLATION_MS/1000:captionHold);item.provisional=Boolean(m.provisional);item.audioEndAt=m.audioEndAt;item.stableText=m.stableText||'';
  if(!items[0]?.translated||!fresh(items[0])){items.length=0;items.push(item);pushSubtitle(item);}
  diagnostics.lastRecognition=Date.now();diagnostics.decodeMs=m.decodeMs;modelStatus='已辨識語音';
- translateItem({session:m.session,item,started:Date.now()});
+ translateItem({session:m.session,item,fullSpeechText,started:Date.now()});
 }
 async function ensureOffscreen(){if(await chrome.offscreen.hasDocument())return;await chrome.offscreen.createDocument({url:'offscreen.html',reasons:['USER_MEDIA'],justification:'擷取目前分頁音訊以產生字幕'});}
 function stopCapture(){
@@ -298,7 +325,7 @@ async function resetCapture(){
 }
 async function startCapture(tabId){
  if(!Number.isInteger(tabId))throw new Error('請先選擇影片分頁');
- await stopCapture();const prefs=(await settings()).subtitleSettings;setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record')await initRecording();captureTabId=tabId;diagnostics={};lastError='';
+ await stopCapture();const prefs=(await settings()).subtitleSettings;setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record')await initRecording();captureTabId=tabId;diagnostics={};deliverySamples={};lastError='';
  const configured=await settings(),langs={...languageDefaults,...(configured.languageSettings||{})};speechFrom=langs.speechSource;speechTo=langs.speechTarget;parseDirection(pair(speechFrom,speechTo));engineMode=configured.speechMode==='desktop'?'desktop':'browser';
  try{
  if(engineMode==='desktop'){modelStatus='正在載入桌面模型，首次可能需要下載…';await desktop.request('init',{sourceLanguage:speechFrom,targetLanguage:speechTo,speechToneMode:['off','natural','ww','笑','草'].includes(prefs?.speechToneMode)?prefs.speechToneMode:'off'},600000);}

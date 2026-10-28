@@ -67,3 +67,32 @@ test('single-pair mode waits for Chinese even when the next sentence has already
  assert.equal(updates.at(-1).item.translated,'第二句中文');
  await call({type:'subtitle-control',action:'stop'});assert.equal(timers.size,0);
 });
+
+test('desktop diagnostics measure final-source and final-translation delivery once per cue',async()=>{
+ let listener,client,clock=2000,segment;
+ class Clock extends Date {static now(){return clock;}}
+ class NativeClient {
+  constructor(){client=this;}
+  async request(op,fields){
+   if(op!=='decode')return {};
+   segment=fields.segment;
+   this.onEvent({event:'source',segment,text:'今日は遊びません。'});
+   return {text:'今日は遊びません。',pending:true};
+  }
+ }
+ const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'record'},recordedCaptions:[]}),set:async()=>{}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
+ const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ vm.runInNewContext(source,{...cloudApi,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock});
+ const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
+ await call({type:'subtitle-control',action:'start',tabId:7});
+ await call({type:'desktop-request',op:'decode',segment:'1',final:true,audio:'test',speechAt:500,audioEndAt:1000},{url:'chrome-extension://test/offscreen.html'});
+ clock=3500;
+ client.onEvent({event:'caption',segment,result:{text:'今日は遊びません。',translated:'今天不玩。',final:true}});
+ client.onEvent({event:'caption',segment,result:{text:'今日は遊びません。',translated:'今天不玩。',final:true}});
+ const health=(await call({type:'health'})).text.diagnostics.deliveryMetrics;
+ assert.equal(health.endToSourceMs.p50,1000);
+ assert.equal(health.sourceToTranslationMs.p50,1500);
+ assert.equal(health.endToTranslationMs.p95,2500);
+ assert.equal(health.endToTranslationMs.count,1);
+ await call({type:'subtitle-control',action:'stop'});
+});

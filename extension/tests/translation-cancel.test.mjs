@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import {CueCursor} from '../cue-cursor.mjs';
 import {ResultGate} from '../stream-core.mjs';
-import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from '../translation-policy.mjs';
+import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from '../translation-policy.mjs';
 test('slow translation still publishes paired captions; queue coalesces and stop aborts',async()=>{
  let listener,session;const requests=[];
  const chrome={storage:{local:{set:async()=>{},get:async()=>({subtitleSettings:{captionMode:'realtime'}})}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start')session=m.session;return{ok:true};}}};
@@ -27,4 +27,48 @@ test('slow translation still publishes paired captions; queue coalesces and stop
  requests[2].finish('你好四');await flush();assert.equal((await current()).original,'こんにちは4');
  listener({type:'speech-result',session,id:5,text:'こんにちは5'},{url:'chrome-extension://test/offscreen.html'},()=>{});
  await call({type:'subtitle-control',action:'stop'});assert.equal(requests.at(-1).signal.aborted,true);
+});
+
+test('multi-sentence speech is not dropped while its translation is pending',async()=>{
+ let listener,session;const requests=[],updates=[];
+ const chrome={storage:{local:{set:async()=>{},get:async()=>({subtitleSettings:{captionMode:'realtime'}})}},tabs:{sendMessage:async(_,m)=>updates.push(m),onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start')session=m.session;return{ok:true};}}};
+ const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ const fetch=()=>new Promise(resolve=>requests.push(text=>resolve({ok:true,json:async()=>[[[text]]]})));
+ vm.runInNewContext(src,{...cloudApi,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console,fetch});
+ const call=m=>new Promise(resolve=>listener(m,{},resolve)),flush=()=>new Promise(r=>setTimeout(r,0));
+ const emit=text=>listener({type:'speech-result',session,id:1,text},{url:'chrome-extension://test/offscreen.html'},()=>{});
+ await call({type:'subtitle-control',action:'start',tabId:7});
+ const first='魚が逃げました。来てくれてありがとうございます。';
+ emit(first);await flush();
+ assert.equal(updates.at(-1).item.original,first);
+ const second=first+'明日は休みません。';emit(second);await flush();
+ assert.equal(updates.at(-1).item.original,second,'unfinished earlier translation must not be skipped');
+ requests[0]('魚逃走了。謝謝你來。');await flush();
+ requests[1]('魚逃走了。謝謝你來。明天不休息。');await flush();
+ assert.equal(updates.at(-1).item.original,second);
+ assert.equal(updates.at(-1).item.translated,'魚逃走了。謝謝你來。明天不休息。');
+ emit(second+'来週は遊びます。');await flush();
+ assert.equal(requests.length,3,'only the next new clause needs translating after delivery');
+ requests[2]('下週要玩。');await flush();
+ assert.equal(updates.at(-1).item.original,'来週は遊びます。');
+ await call({type:'subtitle-control',action:'stop'});
+});
+
+test('a final caption can show a valid translation after the three-second network fallback threshold',async()=>{
+ let listener,session,now=100000,finish;const updates=[];
+ class Clock extends Date{static now(){return now;}}
+ const chrome={storage:{local:{set:async()=>{},get:async()=>({subtitleSettings:{captionMode:'realtime',holdSeconds:3}})}},tabs:{sendMessage:async(_,m)=>updates.push(m),onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start')session=m.session;return{ok:true};}}};
+ const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ const fetch=()=>new Promise(resolve=>finish=()=>resolve({ok:true,json:async()=>[[['今天不玩。']]]}));
+ vm.runInNewContext(src,{...cloudApi,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date:Clock,console,fetch});
+ const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve)),flush=()=>new Promise(r=>setTimeout(r,0));
+ const emit=final=>listener({type:'speech-result',session,id:1,text:'今日は遊びません。',final},{url:'chrome-extension://test/offscreen.html'},()=>{});
+ await call({type:'subtitle-control',action:'start',tabId:7});emit(false);await flush();emit(true);
+ now+=5000;
+ let rows=(await call({type:'subtitles'},{tab:{id:7}})).text.items;
+ assert.equal(rows[0].original,'今日は遊びません。');assert.equal(rows[0].pending,true);
+ finish();await flush();rows=(await call({type:'subtitles'},{tab:{id:7}})).text.items;
+ assert.equal(rows[0].translated,'今天不玩。');assert.equal(rows[0].pending,false);
+ assert.equal(updates.at(-1).item.translated,'今天不玩。');
+ await call({type:'subtitle-control',action:'stop'});
 });
