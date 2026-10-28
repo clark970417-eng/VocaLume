@@ -113,6 +113,7 @@ export class TranslationPipeline extends EventEmitter {
   // Session generation counter (#719). Bumped on every engine switch / stop so
   // async results scheduled under a previous engine are dropped instead of emitted.
   private generation = 0
+  private configurationRevision = 0
 
   // E2E streaming session state (#719)
   private streamingSession: E2EStreamingSession | null = null
@@ -241,6 +242,7 @@ export class TranslationPipeline extends EventEmitter {
 
   /** Set glossary terms for context-aware translation */
   setGlossary(glossary: GlossaryEntry[]): void {
+    this.configurationRevision++
     this.translationCache.clear()
     this.streaming.resetSourceContext()
     this.glossary = glossary.map(entry => ({ ...entry }))
@@ -255,8 +257,10 @@ export class TranslationPipeline extends EventEmitter {
     this.targetLanguage = target
     this.engineManager.sttEngine?.setLanguage?.(source)
     if (changed) {
+      this.configurationRevision++
       this.translationCache.clear()
       this.streaming.resetSourceContext()
+      this.contextBuffer.reset()
     }
   }
 
@@ -455,21 +459,25 @@ export class TranslationPipeline extends EventEmitter {
 
     this.processingCount++
     this.batchLock = true
+    const generation = this.generation, revision = this.configurationRevision
+    const current = (): boolean => this.running && generation === this.generation && revision === this.configurationRevision
     try {
       let result: TranslationResult | null = null
 
       if (this.engineManager.config.mode === 'e2e' && this.engineManager.e2eEngine) {
         result = await this.engineManager.e2eEngine.processAudio(audioChunk, sampleRate)
       } else if (this.engineManager.config.mode === 'cascade' && this.engineManager.sttEngine) {
-        result = await this.processCascade(audioChunk, sampleRate)
+        result = await this.processCascade(audioChunk, sampleRate, current)
       }
 
+      if (!current()) return null
       if (result) {
         this.consecutiveErrors = 0
         this.emit('result', result)
       }
       return result
     } catch (err) {
+      if (!current()) return null
       this.consecutiveErrors++
       const error = err instanceof Error ? err : new Error(String(err))
       this.emit('error', error)
@@ -491,12 +499,14 @@ export class TranslationPipeline extends EventEmitter {
 
   private async processCascade(
     audioChunk: Float32Array,
-    sampleRate: number
+    sampleRate: number,
+    current: () => boolean
   ): Promise<TranslationResult | null> {
     if (!this.engineManager.sttEngine) return null
 
     const t0 = performance.now()
     const sttResult = await this.engineManager.sttEngine.processAudio(audioChunk, sampleRate)
+    if (!current()) return null
     const sttMs = (performance.now() - t0).toFixed(0)
     if (!sttResult || !sttResult.isFinal || !sttResult.text.trim()) {
       log.info(`STT: ${sttMs}ms → (no result)`)
@@ -532,7 +542,7 @@ export class TranslationPipeline extends EventEmitter {
           this.contextBuffer.getContext(glossary)
         )
         translated = routeResult.translated
-        if (glossaryVersion === this.glossary) this.translationCache.set(sttResult.text, sttResult.language, targetLang, translated)
+        if (current() && glossaryVersion === this.glossary) this.translationCache.set(sttResult.text, sttResult.language, targetLang, translated)
       } else {
         const t1 = performance.now()
         const glossary = this.glossary.length > 0 ? this.glossary : undefined
@@ -544,9 +554,10 @@ export class TranslationPipeline extends EventEmitter {
         )
         const translateMs = (performance.now() - t1).toFixed(0)
         log.info(`Translate: ${translateMs}ms → "${translated}"`)
-        if (glossaryVersion === this.glossary) this.translationCache.set(sttResult.text, sttResult.language, targetLang, translated)
+        if (current() && glossaryVersion === this.glossary) this.translationCache.set(sttResult.text, sttResult.language, targetLang, translated)
       }
 
+      if (!current()) return null
       this.contextBuffer.add(sttResult.text, translated)
 
       // Fire-and-forget GER correction (async, non-blocking)
@@ -568,6 +579,7 @@ export class TranslationPipeline extends EventEmitter {
         confidence: sttResult.confidence
       }
     } catch (translatorErr) {
+      if (!current()) return null
       log.error('Translator error:', translatorErr)
       this.emit('error', new Error(`Translation failed: ${translatorErr instanceof Error ? translatorErr.message : translatorErr}`))
       return null

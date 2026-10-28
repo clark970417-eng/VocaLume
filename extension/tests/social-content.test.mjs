@@ -8,7 +8,8 @@ const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
 function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={},wrappedComposer=false){
- const requests=[], selectors=[];
+ const requests=[], selectors=[], documentEvents={}, storageListeners=[], rendered=[];
+ let now=0, runtimeListener;
  const translationLines=[];
  const controls=[];
  const japanese=japaneseOverride||{textContent:'配信ありがとう',innerText:'配信ありがとう',children:[],isConnected:true,
@@ -31,6 +32,7 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
  const document={documentElement:{},body:{append(node){node.isConnected=true;if(node.className==='jtl-social-controls')controls.push(node);}},
   querySelectorAll(selector){
    selectors.push(selector);
+   if(selector==='.jtl-social-translation,.jtl-social-controls')return [...translationLines,...controls].filter(node=>node.isConnected);
    if(wrappedComposer&&selector==='[data-a-target="chat-input"]')return [shell];
    if(hostname.endsWith('discord.com')&&selector==='[id^="message-content-"]')return Array.isArray(japanese)?japanese:[japanese];
    if(!semanticOnly&&(selector.includes('danmaku-content')||selector.includes('chat-message')||selector.includes('chat-line-message-body')||
@@ -42,14 +44,75 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
    if(composerDistractor&&selector.includes('textarea:not([disabled])'))return [composerDistractor];
    return [];
   },
-  createElement:makeElement,addEventListener(){},createRange:()=>({selectNodeContents(){}})};
- const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(){} apply(){}}};window.top=window;
- const chrome={runtime:{lastError:null,onMessage:{addListener(){}},sendMessage(message,reply){requests.push({message,reply});}},
-  storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(){}}}};
+  createElement:makeElement,addEventListener(name,fn){documentEvents[name]=fn;},createRange:()=>({selectNodeContents(){}})};
+ const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(rows){rendered.push(rows);} apply(){}}};window.top=window;
+ const chrome={runtime:{lastError:null,onMessage:{addListener(fn){runtimeListener=fn;}},sendMessage(message,reply){requests.push({message,reply});}},
+  storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(fn){storageListeners.push(fn);}}}};
  let scan,poll,disconnected=false,pollStopped=false;
- vm.runInNewContext(source,{VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout:fn=>{fn();return 1;},clearTimeout(){},setInterval(fn){poll=fn;return 42;},clearInterval(id){if(id===42)pollStopped=true;},Event:class{},InputEvent:class{}});
- return {requests,translationLines,controls,box,shell,selectors,node:japanese,scan:()=>scan(),poll:()=>poll(),runtime:chrome.runtime,stopped:()=>disconnected&&pollStopped};
+ vm.runInNewContext(source,{Date:{now:()=>now},VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout:fn=>{fn();return 1;},clearTimeout(){},setInterval(fn){poll=fn;return 42;},clearInterval(id){if(id===42)pollStopped=true;},Event:class{},InputEvent:class{}});
+ return {requests,translationLines,controls,box,shell,selectors,rendered,node:japanese,scan:()=>scan(),poll:()=>poll(),runtime:chrome.runtime,stopped:()=>disconnected&&pollStopped,
+  advance:ms=>now+=ms, visibility:hidden=>{document.hidden=hidden;documentEvents.visibilitychange();}, push:item=>runtimeListener({type:'subtitle-update',item}),
+  languages:value=>storageListeners.forEach(fn=>fn({languageSettings:{newValue:value}},'local'))};
 }
+
+test('idle social tabs back off status requests, hidden tabs stay quiet, and visibility or a push resumes captions',async()=>{
+ const t=setup('example.com');await settle();
+ void t.poll();t.requests.at(-1).reply({ok:true,text:{running:false,items:[]}});await settle();
+ for(let i=0;i<12;i++){t.advance(700);await t.poll();}
+ assert.equal(t.requests.length,1,'idle tabs do not keep waking the background worker every 700 ms');
+ t.visibility(true);t.advance(20000);await t.poll();assert.equal(t.requests.length,1);
+ t.visibility(false);assert.equal(t.requests.length,2,'returning to the tab refreshes immediately');
+ t.requests.at(-1).reply({ok:true,text:{running:false,items:[]}});await settle();
+ t.push(null);void t.poll();assert.equal(t.requests.length,3,'capture updates bypass the idle delay');
+ t.requests.at(-1).reply({ok:true,text:{running:true,items:[]}});await settle();
+ t.advance(700);void t.poll();assert.equal(t.requests.length,4,'active captions keep their existing polling cadence');
+ t.requests.at(-1).reply({ok:true,text:{running:false,items:[]}});await settle();
+});
+
+test('an older idle status response cannot erase a pushed caption or reinstate the idle delay',async()=>{
+ const t=setup('example.com');await settle();void t.poll();
+ t.push({original:'こんにちは',translated:'你好',expiresAt:20});
+ assert.equal(t.rendered.at(-1)[0].translated,'你好');
+ t.requests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
+ assert.equal(t.rendered.at(-1)[0].translated,'你好');
+ void t.poll();assert.equal(t.requests.length,2);
+ t.requests[1].reply({ok:true,text:{running:false,items:[]}});await settle();
+});
+
+test('changing reading language cannot reuse an older request or let its cleanup forget newer work',async()=>{
+ const t=setup('www.twitch.tv');await settle();
+ t.languages({readTarget:'en'});await settle();
+ t.languages({readTarget:'zh'});await settle();
+ assert.deepEqual(t.requests.map(r=>r.message.direction),['ja-zh','ja-en','ja-zh']);
+ t.requests[0].reply({ok:true,text:'舊設定結果'});t.requests[1].reply({ok:true,text:'old English result'});await settle();
+ assert.equal(t.translationLines.find(line=>line.isConnected).textContent,'中：翻譯中…');
+ t.scan();await settle();assert.equal(t.requests.length,3,'old completion must not unmark the newer source');
+ t.requests[2].reply({ok:true,text:'目前設定結果'});await settle();
+ assert.equal(t.translationLines.find(line=>line.isConnected).textContent,'中：目前設定結果');
+});
+
+test('queued translations capture their own language and obsolete queues do not occupy new requests',async()=>{
+ const nodes=Array.from({length:5},(_,index)=>({textContent:`新しいコメント${index}です`,innerText:`新しいコメント${index}です`,isConnected:true,
+  querySelector(){return null;},querySelectorAll(){return [];},closest:()=>null,parentElement:{querySelector(){return null;}},insertAdjacentElement(){}}));
+ const t=setup('www.twitch.tv',nodes);await settle();
+ t.languages({readTarget:'en'});await settle();assert.equal(t.requests.length,3);
+ for(let i=0;i<3;i++){t.requests[i].reply({ok:true,text:'舊結果'});await settle();}
+ assert.equal(t.requests.length,6);
+ assert.ok(t.requests.slice(3).every(r=>r.message.direction==='ja-en'));
+ for(let i=3;i<8;i++){t.requests[i].reply({ok:true,text:'new translation'});await settle();}
+ assert.equal(t.requests.length,8,'five current messages plus the three already active old messages');
+});
+
+test('a queued shared translation survives when its first message is recycled but another still needs it',async()=>{
+ const nodes=Array.from({length:5},(_,index)=>({textContent:index<2?'同じコメントです':`新しいコメント${index}です`,innerText:index<2?'同じコメントです':`新しいコメント${index}です`,isConnected:true,
+  querySelector(){return null;},querySelectorAll(){return [];},closest:()=>null,parentElement:{querySelector(){return null;}},insertAdjacentElement(){}}));
+ const t=setup('www.twitch.tv',nodes);await settle();assert.equal(t.requests.length,3);
+ nodes[1].isConnected=false;
+ t.requests[0].reply({ok:true,text:'中文'});await settle();
+ assert.equal(t.requests[3].message.text,'同じコメントです');
+ for(let i=1;i<4;i++)t.requests[i].reply({ok:true,text:'同一則留言'});
+ await settle();assert.equal(t.requests.length,4,'one live subscriber retains the shared request without wasting a retry');
+});
 
 test('Twitch and general social reading skip Chinese sentences containing a kana name',async()=>{
  const node=text=>({textContent:text,innerText:text,children:[],isConnected:true,querySelector(){return null;},querySelectorAll(){return [];},closest:()=>null,parentElement:{querySelector:()=>null},insertAdjacentElement(){}});

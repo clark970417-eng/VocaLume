@@ -373,6 +373,26 @@ it('invalidates completed translations after a glossary update, including an old
   } finally {await pipeline.dispose()}
 })
 
+it.each(['stop','language','glossary'] as const)('drops a late batch translation after %s and does not emit its result', async change => {
+  const pipeline = new TranslationPipeline(), results = vi.fn()
+  const translator = new MockTranslator('local', 'deferred')
+  pipeline.registerSTT('stt', () => new MockSTT('stt', {text:'明日は休みです。',language:'ja',isFinal:true} as STTResult))
+  pipeline.registerTranslator('local', () => translator)
+  await pipeline.switchEngine({mode:'cascade',sttEngineId:'stt',translatorEngineId:'local'})
+  pipeline.setLanguageConfig('ja','zh');pipeline.start();pipeline.on('result',results)
+  try {
+    const processing = pipeline.process(new Float32Array(16000),16000)
+    await vi.waitFor(() => expect(translator.pending).not.toBeNull())
+    if (change === 'stop') await pipeline.stop()
+    else if (change === 'language') pipeline.setLanguageConfig('ja','en')
+    else pipeline.setGlossary([{source:'休み',target:'休息'}])
+    translator.pending!.resolve('舊設定譯文')
+    expect(await processing).toBeNull()
+    expect(results).not.toHaveBeenCalled()
+    expect(pipeline.cacheStats.size).toBe(0)
+  } finally {await pipeline.dispose()}
+})
+
 it('local Japanese/Chinese captions show source previews but translate the complete sentence once', async () => {
   const pipeline = new TranslationPipeline()
   const stt = new MockSTT('stt', { text: '今日は行けません。', language: 'ja', isFinal: true } as STTResult)

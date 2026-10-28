@@ -137,11 +137,14 @@
   let activeTranslations = 0;
   let translationOrder = 0;
   const MAX_ACTIVE_TRANSLATIONS = 3;
+  const MAX_CACHED_TRANSLATIONS = 500;
   let enabled = false;
   let globalTextEnabled = true;
   let currentSiteEnabled = dedicatedSite;
   let epoch = 0;
   let polling = false;
+  let nextSubtitlePollAt = 0;
+  let subtitleRevision = 0;
   let lastSubtitleSignature = '';
   let captionBox;
   let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
@@ -189,7 +192,7 @@
       if (button) { button.disabled = true; button.title = contextRecoveryMessage; }
       if (status) status.textContent = contextRecoveryMessage;
       for (const task of translationQueue.splice(0)) {
-        translationInFlight.delete(task.key);
+        if (translationInFlight.get(task.key) === task) translationInFlight.delete(task.key);
         task.reject(new Error(contextRecoveryMessage));
       }
     }
@@ -215,38 +218,50 @@
     while (activeTranslations < MAX_ACTIVE_TRANSLATIONS && translationQueue.length) {
       translationQueue.sort((a, b) => b.order - a.order);
       const task = translationQueue.shift();
-      if (task.isValid && !task.isValid()) {
-        translationInFlight.delete(task.key);
+      if (task.epoch !== epoch || !enabled || ![...task.consumers].some(valid => valid())) {
+        if (translationInFlight.get(task.key) === task) translationInFlight.delete(task.key);
         task.reject(new Error('留言已離開畫面'));
         continue;
       }
       activeTranslations++;
-      message({type: 'translate', text: task.source, direction: direction('read'), priority: task.isTitle})
+      message({type: 'translate', text: task.source, direction: task.direction, priority: task.isTitle})
         .then(result => {
-          cache.set(task.key, result);
+          if (task.epoch === epoch && enabled) {
+            cache.delete(task.key);
+            cache.set(task.key, result);
+            if (cache.size > MAX_CACHED_TRANSLATIONS) cache.delete(cache.keys().next().value);
+          }
           task.resolve(result);
         }, error => {
-          translationInFlight.delete(task.key);
+          if (translationInFlight.get(task.key) === task) translationInFlight.delete(task.key);
           task.reject(error);
         })
         .finally(() => {
           activeTranslations--;
-          translationInFlight.delete(task.key);
+          if (translationInFlight.get(task.key) === task) translationInFlight.delete(task.key);
           pumpTranslations();
         });
     }
   }
 
   function requestTranslation(source, isTitle, order, isValid) {
-    const key = `${direction('read')}:${source}`;
-    if (cache.has(key)) return Promise.resolve(cache.get(key));
-    if (translationInFlight.has(key)) return translationInFlight.get(key);
-    const pending = new Promise((resolve, reject) => {
-      translationQueue.push({key, source, isTitle, isValid, order: order ?? ++translationOrder, resolve, reject});
-      pumpTranslations();
-    });
-    translationInFlight.set(key, pending);
-    return pending;
+    const readDirection = direction('read'), key = `${readDirection}:${source}`;
+    if (cache.has(key)) {
+      const result = cache.get(key);
+      cache.delete(key); cache.set(key, result);
+      return Promise.resolve(result);
+    }
+    let task = translationInFlight.get(key);
+    if (!task || task.epoch !== epoch) {
+      task = {key, source, isTitle, direction: readDirection, epoch, consumers: new Set(), order: order ?? ++translationOrder};
+      task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
+      // Register ownership before the pump can reject an obsolete task.
+      translationInFlight.set(key, task);
+      translationQueue.push(task);
+    }
+    task.consumers.add(isValid || (() => true));
+    pumpTranslations();
+    return task.promise;
   }
 
   async function translateNode(node, isTitle = false, order) {
@@ -277,7 +292,7 @@
     const ownsLine = () => lineOwners.get(line) === owner;
     const valid = () => ownsLine() && enabled && currentEpoch === epoch && node.isConnected && clean(node.innerText || node.textContent) === source;
     const discard = () => {
-      if (translated.get(node) === source) translated.delete(node);
+      if (currentEpoch === epoch && translated.get(node) === source) translated.delete(node);
       if (ownsLine()) line.remove();
     };
     line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯中…`;
@@ -581,6 +596,7 @@
   }
 
   function renderSubtitles(data) {
+    if (document.hidden) return;
     installCaptionBox();
     if (!captionBox) return;
     const item = data.running ? data.items?.at(-1) : null;
@@ -595,15 +611,21 @@
   }
 
   async function pollSubtitles() {
-    if (contextInvalid || window.top !== window || polling) return;
+    if (contextInvalid || document.hidden || window.top !== window || polling || Date.now() < nextSubtitlePollAt) return;
     polling = true;
-    try { renderSubtitles(await message({type: 'subtitles'})); }
-    catch (_) { /* The popup reports actionable capture/desktop errors. */ }
+    const revision = subtitleRevision;
+    try {
+      const data = await message({type: 'subtitles'});
+      if (revision !== subtitleRevision) return;
+      nextSubtitlePollAt = Date.now() + (data.running ? 0 : 10000);
+      renderSubtitles(data);
+    }
+    catch (_) { nextSubtitlePollAt = Date.now() + 10000; /* The popup reports actionable capture/desktop errors. */ }
     finally { polling = false; }
   }
 
   function scan() {
-    if (contextInvalid) return;
+    if (contextInvalid || document.hidden) return;
     if (activeControls) positionComposerControls(activeComposer, activeControls);
     if (window.top === window) installCaptionBox();
     if (!enabled) return;
@@ -653,7 +675,11 @@
   }
 
   chrome.runtime.onMessage.addListener(payload => {
-    if (payload.type === 'subtitle-update' && window.top === window) renderSubtitles({running: true, items: [payload.item]});
+    if (payload.type === 'subtitle-update' && window.top === window) {
+      subtitleRevision++;
+      nextSubtitlePollAt = 0;
+      renderSubtitles({running: true, items: [payload.item]});
+    }
   });
   chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess']).then(settings => {
     languageSettings={...languageSettings,...(settings.languageSettings||{})};
@@ -665,7 +691,7 @@
     if (area === 'local' && changes.websiteTextOptInEnabled) {globalTextEnabled=changes.websiteTextOptInEnabled.newValue === true;applyTextAccess();}
     if (area === 'local' && changes.genericSiteAccess && !dedicatedSite) {currentSiteEnabled=changes.genericSiteAccess.newValue?.[host] === true;applyTextAccess();}
     if (area === 'local' && changes.subtitleSettings) captionBox?.controller.apply(changes.subtitleSettings.newValue);
-    if (area === 'local' && changes.languageSettings) {languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();cache.clear();document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());activeComposer=null;activeControls=null;scan();}
+    if (area === 'local' && changes.languageSettings) {epoch++;languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();cache.clear();document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());activeComposer=null;activeControls=null;composerLayoutObserver?.disconnect();pumpTranslations();scan();}
   });
   let scheduled = false;
   pageObserver = new MutationObserver(() => {
@@ -676,6 +702,13 @@
   });
   pageObserver.observe(document.documentElement, {subtree: true, childList: true, attributes: true, attributeFilter: ['contenteditable']});
   document.addEventListener('focusin', focusedComposer, true);
+  document.addEventListener('visibilitychange', () => {
+    subtitleRevision++;
+    if (document.hidden || contextInvalid) return;
+    nextSubtitlePollAt = 0;
+    void pollSubtitles();
+    scan();
+  });
   document.addEventListener('compositionstart', event => {
     const box = event.target?.closest?.('textarea,input,[contenteditable="true"]');
     if (box) composing.add(box);

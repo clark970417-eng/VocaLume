@@ -6,6 +6,49 @@ import { ContextBuffer } from './ContextBuffer'
 import * as pressure from '../main/performance-state'
 import {contextualShortReply} from '../engines/translator/contextual-short-reply'
 
+it.each([false,true])('discards a final from older settings without releasing active recognition (SimulMT=%s)', async simul => {
+  let finish!: (text:string) => void
+  let glossary: Array<{source:string;target:string}> = []
+  const emitter = new EventEmitter(), result = vi.fn(), context = new ContextBuffer()
+  emitter.on('result',result)
+  const translate = vi.fn().mockImplementationOnce(() => new Promise<string>(resolve => finish=resolve)).mockResolvedValue('新設定譯文')
+  const translator = {id:'test',translate,translateSimulMt:translate,resetSimulMtSession:vi.fn()}
+  const p = new StreamingProcessor({emitter,agreement:new LocalAgreement(),contextBuffer:context,
+    getSTTEngine:()=>({processAudio:async()=>({text:'明日は休みです。',language:'ja'})}),getTranslator:()=>translator,
+    getGlossary:()=>glossary,getSimulMtConfig:()=>({enabled:simul,waitK:3}),resolveTargetLanguage:()=> 'zh',
+    incrementProcessing(){},decrementProcessing(){}
+  } as unknown as StreamingDeps)
+  try {
+    const pending = p.finalizeStreaming(new Float32Array(16000),16000)
+    await vi.waitFor(() => expect(translate).toHaveBeenCalledOnce())
+    glossary=[{source:'休み',target:'休息'}];p.resetSourceContext()
+    finish('舊設定譯文')
+    expect(await pending).toBeNull();expect(result).not.toHaveBeenCalled()
+    expect(context.getContext().previousSegments).toEqual([])
+    expect(await p.finalizeStreaming(new Float32Array(16000),16000)).toMatchObject({translatedText:'新設定譯文'})
+    expect(result).toHaveBeenCalledOnce()
+  } finally {p.reset()}
+})
+
+it('keeps recognition serialized when settings change during a decode', async () => {
+  let finish!: (value:unknown) => void
+  const recognize=vi.fn().mockImplementationOnce(()=>new Promise(resolve=>finish=resolve)).mockResolvedValue({text:'次の文章です。',language:'ja'})
+  const result=vi.fn(),emitter=new EventEmitter();emitter.on('result',result)
+  const p=new StreamingProcessor({emitter,agreement:new LocalAgreement(),contextBuffer:new ContextBuffer(),
+    getSTTEngine:()=>({processAudio:recognize}),getTranslator:()=>({translate:async()=> '中文'}),getGlossary:()=>[],
+    getSimulMtConfig:()=>({enabled:false,waitK:3}),resolveTargetLanguage:()=> 'zh',incrementProcessing(){},decrementProcessing(){}
+  } as unknown as StreamingDeps)
+  try {
+    const pending=p.finalizeStreaming(new Float32Array(16000),16000)
+    p.resetSourceContext()
+    expect(p.isLocked).toBe(true)
+    expect(await p.processStreaming(new Float32Array(16000),16000)).toBeNull()
+    expect(recognize).toHaveBeenCalledOnce()
+    finish({text:'舊語言結果',language:'ja'});expect(await pending).toBeNull();expect(result).not.toHaveBeenCalled()
+    expect(await p.finalizeStreaming(new Float32Array(16000),16000)).toMatchObject({translatedText:'中文'})
+  } finally {p.reset()}
+})
+
 it.each([false,true])('bounds other-language SimulMT final recovery and resets rejected cue state (persistent=%s)', async persistent => {
   const error=Object.assign(new Error('Invalid output'),{name:'TranslationValidationError'})
   const emitter=new EventEmitter(), errors=vi.fn();emitter.on('error',errors)

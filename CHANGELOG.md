@@ -4,6 +4,9 @@ This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` t
 
 ## Unreleased - 2026-10-28
 
+- Reduce idle social/general-page subtitle status requests to one per ten seconds and stop hidden-page polling/scanning. Returning to a tab refreshes immediately; capture pushes and active caption polling keep their existing response path. Ignore an older status response after a newer pushed caption.
+- Bind social reading jobs to their language-setting revision, preserve shared work while any matching message still needs it, and keep late cleanup from deleting a newer job. Bound each page's translation cache to 500 recent entries.
+- Suppress stale desktop recognition, translation and error results after a language/glossary change or stop. Clear speculative translations and old-language context without releasing a busy recognition lock. See [focused checks and limits](docs/retests/2026-10-28-idle-and-stale-results.md).
 - Show unavailable latency measurements as unavailable instead of 0 ms, and label the audio-window-to-decode interval without implying it is only queue time.
 - Preserve all recognized sentences in each rolling browser realtime hypothesis until the matching prefix has been displayed with a translation. Retain context for short continuations and Japanese endings that may reverse the preceding phrase. The current completed caption can remain visible while awaiting translation, and a result that takes longer than three seconds is not automatically thrown away; the existing bounded work queue and cancellation remain in effect.
 - Record bounded, local-only distributions for desktop caption delivery from audio-window end to final source, source to translation (including queueing), and audio-window end to translation. Surface p50/p95/p99 and sample counts in extension diagnostics.
