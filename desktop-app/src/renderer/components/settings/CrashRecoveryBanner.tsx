@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React from 'react'
 
 interface CrashRecoveryBannerProps {
@@ -16,12 +17,8 @@ export function CrashRecoveryBanner({ isStarting, onResume, onDismiss }: CrashRe
       marginBottom: '16px',
       fontSize: '13px'
     }}>
-      <div style={{ color: '#f59e0b', fontWeight: 600, marginBottom: '6px' }}>
-        Previous session ended unexpectedly
-      </div>
-      <div style={{ color: '#94a3b8', marginBottom: '8px' }}>
-        Resume with the same engine configuration?
-      </div>
+      <div style={{ color: '#f59e0b', fontWeight: 600, marginBottom: '6px' }}>{t("Previous session ended unexpectedly")} </div>
+      <div style={{ color: '#94a3b8', marginBottom: '8px' }}>{t("Resume with the same engine configuration?")} </div>
       <div style={{ display: 'flex', gap: '8px' }}>
         <button
           onClick={onResume}
@@ -37,9 +34,7 @@ export function CrashRecoveryBanner({ isStarting, onResume, onDismiss }: CrashRe
             background: '#16a34a',
             minHeight: '44px'
           }}
-        >
-          Resume
-        </button>
+        >{t("Resume")} </button>
         <button
           onClick={onDismiss}
           style={{
@@ -53,9 +48,7 @@ export function CrashRecoveryBanner({ isStarting, onResume, onDismiss }: CrashRe
             background: 'transparent',
             minHeight: '44px'
           }}
-        >
-          Dismiss
-        </button>
+        >{t("Dismiss")} </button>
       </div>
     </div>
   )

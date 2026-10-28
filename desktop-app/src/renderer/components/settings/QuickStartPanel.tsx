@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useEffect, useState } from 'react'
 import {
   LANGUAGE_LABELS,
@@ -79,12 +80,12 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
     return (
       <div style={panelStyle}>
         <div style={headerStyle}>
-          <h2 style={titleStyle}>Quick Start</h2>
-          <p style={subtitleStyle}>Detecting your hardware...</p>
+          <h2 style={titleStyle}>{t("Quick Start")}</h2>
+          <p style={subtitleStyle}>{t("Detecting your hardware...")}</p>
         </div>
         <div style={spinnerContainerStyle}>
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-          <div role="status" aria-label="Loading">
+          <style>{"@keyframes spin { to { transform: rotate(360deg) } }"}</style>
+          <div role="status" aria-label={t("Loading")}>
             <div style={spinnerStyle} />
           </div>
         </div>
@@ -95,33 +96,31 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
   return (
     <div style={panelStyle}>
       <div style={headerStyle}>
-        <h2 style={titleStyle}>Quick Start</h2>
-        <p style={subtitleStyle}>
-          Set up live translation in one click. We've detected your hardware and selected the best engines.
-        </p>
+        <h2 style={titleStyle}>{t("Quick Start")}</h2>
+        <p style={subtitleStyle}>{t("Set up live translation in one click. We've detected your hardware and selected the best engines.")} </p>
       </div>
 
       {error && (
-        <div role="alert" style={errorContainerStyle}>{error}</div>
+        <div role="alert" style={errorContainerStyle}>{t(error)}</div>
       )}
 
       {/* Hardware info */}
       {systemInfo && (
         <div style={infoCardStyle}>
           <div style={infoRowStyle}>
-            <span style={infoLabelStyle}>Platform</span>
+            <span style={infoLabelStyle}>{t("Platform")}</span>
             <span style={infoValueStyle}>
-              {systemInfo.platform === 'darwin' ? 'macOS' : systemInfo.platform === 'win32' ? 'Windows' : systemInfo.platform}
+              {systemInfo.platform === 'darwin' ? t("macOS") : systemInfo.platform === 'win32' ? t("Windows") : systemInfo.platform}
             </span>
           </div>
           <div style={infoRowStyle}>
-            <span style={infoLabelStyle}>Memory</span>
+            <span style={infoLabelStyle}>{t("Memory")}</span>
             <span style={infoValueStyle}>{Math.round(systemInfo.totalMemoryMB / 1024)}GB</span>
           </div>
           <div style={infoRowStyle}>
             <span style={infoLabelStyle}>GPU</span>
             <span style={{ color: systemInfo.gpuInfo.hasGpu ? '#22c55e' : '#f59e0b', fontSize: '12px' }}>
-              {systemInfo.gpuInfo.hasGpu ? systemInfo.gpuInfo.gpuNames.join(', ') : 'Not detected'}
+              {systemInfo.gpuInfo.hasGpu ? systemInfo.gpuInfo.gpuNames.join(', ') : t("Not detected")}
             </span>
           </div>
         </div>
@@ -130,48 +129,43 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
       {/* Recommendation */}
       {recommendation && (
         <div style={infoCardStyle}>
-          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '8px', fontWeight: 600 }}>
-            Recommended Configuration
-          </div>
+          <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '8px', fontWeight: 600 }}>{t("Recommended Configuration")} </div>
           <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px', lineHeight: '1.5' }}>
             {recommendation.reason}
           </div>
           {recommendation.needsDownload && (
             <div style={downloadInfoStyle}>
               <span style={{ fontSize: '12px' }}>
-                {recommendation.downloads.length} model{recommendation.downloads.length > 1 ? 's' : ''} to download
-              </span>
+                {recommendation.downloads.length} {t("model")}{recommendation.downloads.length > 1 ? 's' : ''} {t("to download")} </span>
               <span style={{ fontSize: '12px', fontWeight: 600 }}>
                 {recommendation.totalDownloadMB >= 1024
-                  ? `${(recommendation.totalDownloadMB / 1024).toFixed(1)}GB`
-                  : `${recommendation.totalDownloadMB}MB`
+                  ? t("{0}GB", [(recommendation.totalDownloadMB / 1024).toFixed(1)])
+                  : t("{0}MB", [recommendation.totalDownloadMB])
                 }
               </span>
             </div>
           )}
           {recommendation.needsDownload && recommendation.fallbackEngine && (
-            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>
-              Translation will start immediately using a lightweight fallback while models download.
-            </div>
+            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>{t("Translation will start immediately using a lightweight fallback while models download.")} </div>
           )}
         </div>
       )}
 
       {/* Language selection */}
       <div style={{ marginBottom: '16px' }}>
-        <div style={sectionLabelStyle}>Language</div>
+        <div style={sectionLabelStyle}>{t("Language")}</div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ flex: 1 }}>
-            <label style={fieldLabelStyle}>Source</label>
+            <label style={fieldLabelStyle}>{t("Source")}</label>
             <select
               value={sourceLanguage}
               onChange={(e) => setSourceLanguage(e.target.value as SourceLanguage)}
               style={selectStyle}
               disabled={phase === 'applying'}
             >
-              <option value="auto">Auto-detect</option>
+              <option value="auto">{t("Auto-detect")}</option>
               {Object.entries(LANGUAGE_LABELS).map(([code, label]) => (
-                <option key={code} value={code}>{label}</option>
+                <option key={code} value={code}>{t(label)}</option>
               ))}
             </select>
           </div>
@@ -179,7 +173,7 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
             →
           </div>
           <div style={{ flex: 1 }}>
-            <label style={fieldLabelStyle}>Target</label>
+            <label style={fieldLabelStyle}>{t("Target")}</label>
             <select
               value={targetLanguage}
               onChange={(e) => setTargetLanguage(e.target.value as Language)}
@@ -187,7 +181,7 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
               disabled={phase === 'applying'}
             >
               {Object.entries(LANGUAGE_LABELS).map(([code, label]) => (
-                <option key={code} value={code}>{label}</option>
+                <option key={code} value={code}>{t(label)}</option>
               ))}
             </select>
           </div>
@@ -204,16 +198,14 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
           opacity: phase === 'applying' ? 0.7 : 1
         }}
       >
-        {phase === 'applying' ? 'Setting up...' : 'Start Translating'}
+        {phase === 'applying' ? t("Setting up...") : t("Start Translating")}
       </button>
 
       <button
         onClick={handleSkip}
         disabled={phase === 'applying'}
         style={skipButtonStyle}
-      >
-        Skip — I'll configure manually
-      </button>
+      >{t("Skip — I'll configure manually")} </button>
     </div>
   )
 }

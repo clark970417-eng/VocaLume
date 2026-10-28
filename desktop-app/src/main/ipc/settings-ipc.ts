@@ -22,7 +22,7 @@ export function registerSettingsIpc(ctx: AppContext): void {
   const supportUrls = new Set([
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=translation-quality.yml',
-    'https://github.com/clark970417-eng/VocaLume/blob/main/PRIVACY.md',
+    'https://github.com/clark970417-eng/VocaLume/blob/main/docs/legal/privacy.md',
     'https://github.com/clark970417-eng/VocaLume/releases'
   ])
 

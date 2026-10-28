@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useEffect, useState } from 'react'
 import { Section } from './Section'
 
@@ -13,14 +14,14 @@ export function KeyboardShortcuts(): React.JSX.Element {
     window.api.getShortcutLabels?.().then(setShortcuts).catch(() => {})
   }, [])
 
-  if (!shortcuts) return <div style={{ color: '#64748b', fontSize: '12px' }}>Loading shortcuts...</div>
+  if (!shortcuts) return <div style={{ color: '#64748b', fontSize: '12px' }}>{t("Loading shortcuts...")}</div>
 
   return (
-    <Section label="Keyboard Shortcuts">
+    <Section label={t("Keyboard Shortcuts")}>
       <div style={containerStyle}>
         {Object.values(shortcuts).map((s) => (
           <div key={s.shortcut} style={rowStyle}>
-            <span style={actionStyle}>{s.action}</span>
+            <span style={actionStyle}>{t(s.action)}</span>
             <kbd style={kbdStyle}>{s.shortcut}</kbd>
           </div>
         ))}

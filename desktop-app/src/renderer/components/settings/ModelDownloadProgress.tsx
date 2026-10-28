@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useEffect, useState, useCallback } from 'react'
 
 interface ProgressiveDownloadStatus {
@@ -175,15 +176,11 @@ export function ModelDownloadProgress({
       return (
         <div style={bannerStyle} role="status" aria-live="polite">
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={tierBadgeStyle(true)}>Tier 1</span>
-            <span style={tierBadgeStyle(true)}>Tier 2</span>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#4ade80' }}>
-              Full quality models ready
-            </span>
+            <span style={tierBadgeStyle(true)}>{t("Tier 1")}</span>
+            <span style={tierBadgeStyle(true)}>{t("Tier 2")}</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#4ade80' }}>{t("Full quality models ready")} </span>
           </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
-            Higher quality STT and translation models have finished downloading. Upgrade for better accuracy.
-          </div>
+          <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>{t("Higher quality STT and translation models have finished downloading. Upgrade for better accuracy.")} </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={handleUpgradeToTier2}
@@ -193,9 +190,7 @@ export function ModelDownloadProgress({
                 background: '#22c55e',
                 color: '#fff'
               }}
-            >
-              Upgrade to full quality
-            </button>
+            >{t("Upgrade to full quality")} </button>
             <button
               onClick={handleDismiss}
               style={{
@@ -203,9 +198,7 @@ export function ModelDownloadProgress({
                 background: '#334155',
                 color: '#94a3b8'
               }}
-            >
-              Keep current
-            </button>
+            >{t("Keep current")} </button>
           </div>
         </div>
       )
@@ -215,14 +208,10 @@ export function ModelDownloadProgress({
     return (
       <div style={bannerStyle} role="status" aria-live="polite">
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-          <span style={tierBadgeStyle(true)}>Tier 2</span>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#4ade80' }}>
-            Full quality offline models ready
-          </span>
+          <span style={tierBadgeStyle(true)}>{t("Tier 2")}</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#4ade80' }}>{t("Full quality offline models ready")} </span>
         </div>
-        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
-          All models downloaded. Switch to offline translation for the best quality.
-        </div>
+        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>{t("All models downloaded. Switch to offline translation for the best quality.")} </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={handleUpgradeToTier2}
@@ -232,9 +221,7 @@ export function ModelDownloadProgress({
               background: '#22c55e',
               color: '#fff'
             }}
-          >
-            Switch to full quality
-          </button>
+          >{t("Switch to full quality")} </button>
           <button
             onClick={handleDismiss}
             style={{
@@ -242,9 +229,7 @@ export function ModelDownloadProgress({
               background: '#334155',
               color: '#94a3b8'
             }}
-          >
-            Keep cloud
-          </button>
+          >{t("Keep cloud")} </button>
         </div>
       </div>
     )
@@ -256,16 +241,16 @@ export function ModelDownloadProgress({
       return (
         <div style={bannerStyle} role="status" aria-live="polite">
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={tierBadgeStyle(true)}>Tier 1</span>
-            <span style={tierBadgeStyle(false)}>Tier 2</span>
+            <span style={tierBadgeStyle(true)}>{t("Tier 1")}</span>
+            <span style={tierBadgeStyle(false)}>{t("Tier 2")}</span>
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#60a5fa' }}>
-              {switchedToLocal ? 'Basic mode active' : 'Basic offline ready'}
+              {switchedToLocal ? t("Basic mode active") : t("Basic offline ready")}
             </span>
           </div>
           <div style={{ fontSize: '12px', color: '#94a3b8' }}>
             {switchedToLocal
-              ? 'Translating with fast models. Downloading full quality models in background...'
-              : 'Basic offline models ready. Full quality models downloading in background...'}
+              ? t("Translating with fast models. Downloading full quality models in background...")
+              : t("Basic offline models ready. Full quality models downloading in background...")}
           </div>
           <div style={progressBarContainerStyle}>
             <div
@@ -283,8 +268,7 @@ export function ModelDownloadProgress({
             />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-              Upgrading: {progress}%
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>{t("Upgrading:")} {progress}%
             </span>
             {!switchedToLocal && (
               <button
@@ -296,9 +280,7 @@ export function ModelDownloadProgress({
                   background: '#22c55e',
                   color: '#fff'
                 }}
-              >
-                Use basic offline now
-              </button>
+              >{t("Use basic offline now")} </button>
             )}
           </div>
         </div>
@@ -310,14 +292,10 @@ export function ModelDownloadProgress({
       return (
         <div style={bannerStyle} role="status" aria-live="polite">
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={tierBadgeStyle(true)}>Tier 1</span>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#4ade80' }}>
-              Basic offline models ready
-            </span>
+            <span style={tierBadgeStyle(true)}>{t("Tier 1")}</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#4ade80' }}>{t("Basic offline models ready")} </span>
           </div>
-          <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
-            Fast STT and translation models are ready. Switch now for instant offline translation, or wait for full quality models.
-          </div>
+          <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>{t("Fast STT and translation models are ready. Switch now for instant offline translation, or wait for full quality models.")} </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               onClick={handleSwitchToTier1}
@@ -327,9 +305,7 @@ export function ModelDownloadProgress({
                 background: '#22c55e',
                 color: '#fff'
               }}
-            >
-              Switch to basic offline
-            </button>
+            >{t("Switch to basic offline")} </button>
             <button
               onClick={handleDismiss}
               style={{
@@ -337,9 +313,7 @@ export function ModelDownloadProgress({
                 background: '#334155',
                 color: '#94a3b8'
               }}
-            >
-              Keep cloud
-            </button>
+            >{t("Keep cloud")} </button>
           </div>
         </div>
       )
@@ -353,12 +327,8 @@ export function ModelDownloadProgress({
   if (status === 'failed') {
     return (
       <div style={bannerStyle} role="alert">
-        <div style={{ fontSize: '13px', fontWeight: 600, color: '#f87171', marginBottom: '6px' }}>
-          Model download failed
-        </div>
-        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
-          Failed to download offline models. You can retry or continue with cloud translation.
-        </div>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#f87171', marginBottom: '6px' }}>{t("Model download failed")} </div>
+        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>{t("Failed to download offline models. You can retry or continue with cloud translation.")} </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={handleStartDownload}
@@ -368,9 +338,7 @@ export function ModelDownloadProgress({
               background: '#3b82f6',
               color: '#fff'
             }}
-          >
-            Retry download
-          </button>
+          >{t("Retry download")} </button>
           <button
             onClick={handleDismiss}
             style={{
@@ -378,9 +346,7 @@ export function ModelDownloadProgress({
               background: '#334155',
               color: '#94a3b8'
             }}
-          >
-            Dismiss
-          </button>
+          >{t("Dismiss")} </button>
         </div>
       </div>
     )
@@ -391,14 +357,10 @@ export function ModelDownloadProgress({
     return (
       <div style={bannerStyle} role="status" aria-live="polite">
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-          <span style={tierBadgeStyle(false)}>Tier 1</span>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#60a5fa' }}>
-            Downloading fast-start models...
-          </span>
+          <span style={tierBadgeStyle(false)}>{t("Tier 1")}</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#60a5fa' }}>{t("Downloading fast-start models...")} </span>
         </div>
-        <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-          Small models (~371MB) for instant offline translation. Cloud translation works while downloading.
-        </div>
+        <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Small models (~371MB) for instant offline translation. Cloud translation works while downloading.")} </div>
         <div style={progressBarContainerStyle}>
           <div
             style={{
@@ -415,8 +377,7 @@ export function ModelDownloadProgress({
           />
         </div>
         <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-          {progress}% complete
-        </div>
+          {progress}{t("% complete")} </div>
       </div>
     )
   }
@@ -424,14 +385,8 @@ export function ModelDownloadProgress({
   // Idle — show download prompt
   return (
     <div style={bannerStyle} role="status">
-      <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '4px' }}>
-        Offline translation available
-      </div>
-      <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
-        Download fast-start models (~371MB) for instant offline translation.
-        Full quality models download automatically in background.
-        Cloud translation continues to work while downloading.
-      </div>
+      <div style={{ fontSize: '13px', fontWeight: 600, color: '#e2e8f0', marginBottom: '4px' }}>{t("Offline translation available")} </div>
+      <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>{t("Download fast-start models (~371MB) for instant offline translation. Full quality models download automatically in background. Cloud translation continues to work while downloading.")} </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <button
           onClick={handleStartDownload}
@@ -441,9 +396,7 @@ export function ModelDownloadProgress({
             background: '#3b82f6',
             color: '#fff'
           }}
-        >
-          Download now
-        </button>
+        >{t("Download now")} </button>
         <button
           onClick={handleDismiss}
           style={{
@@ -451,9 +404,7 @@ export function ModelDownloadProgress({
             background: '#334155',
             color: '#94a3b8'
           }}
-        >
-          Skip
-        </button>
+        >{t("Skip")} </button>
       </div>
     </div>
   )

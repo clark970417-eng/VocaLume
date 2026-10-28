@@ -1,3 +1,4 @@
+import { t } from '../ui-language'
 import React, { useCallback, useEffect, useState } from 'react'
 import {
   AZURE_FREE_TIER_CHARS,
@@ -163,17 +164,15 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
   return (
     <div style={shellStyle}>
       <header style={headerStyle}>
-        <h2 style={titleStyle}>Welcome to VocaLume</h2>
-        <p style={subtitleStyle}>
-          Three quick steps to set up local-first translation. Skip anything you do not need.
-        </p>
+        <h2 style={titleStyle}>{t("Welcome to VocaLume")}</h2>
+        <p style={subtitleStyle}>{t("Three quick steps to set up local-first translation. Skip anything you do not need.")} </p>
         <StepIndicator current={step} />
       </header>
 
       {step === 'quick-start' && (
         <StepCard
           number={1}
-          title="Quick Start"
+          title={t("Quick Start")}
           subtitle={`Whisper Base + LFM2 350M (${formatSize(TIER1_TOTAL_MB)})`}
           description="Smallest viable speech-to-text and translation models for an instant offline start. Ready to translate in moments after download."
           status={download.status}
@@ -183,25 +182,20 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
           error={startError ?? download.error}
         >
           {!download.tier1Ready && download.status !== 'downloading-tier1' && (
-            <PrimaryButton onClick={handleStartTier1}>
-              Download & start ({formatSize(TIER1_TOTAL_MB)})
+            <PrimaryButton onClick={handleStartTier1}>{t("Download & start (")}{formatSize(TIER1_TOTAL_MB)})
             </PrimaryButton>
           )}
           {download.status === 'downloading-tier1' && (
-            <p style={hintStyle}>
-              Downloading… {download.progress}% complete. You can continue to the next step.
-            </p>
+            <p style={hintStyle}>{t("Downloading…")} {download.progress}{t("% complete. You can continue to the next step.")} </p>
           )}
           {download.tier1Ready && (
             <>
-              <p style={readyStyle}>Ready — translation can start immediately.</p>
-              <PrimaryButton onClick={handleSwitchToTier1Now}>
-                Use Quick Start now
-              </PrimaryButton>
+              <p style={readyStyle}>{t("Ready — translation can start immediately.")}</p>
+              <PrimaryButton onClick={handleSwitchToTier1Now}>{t("Use Quick Start now")} </PrimaryButton>
             </>
           )}
           <SkipButton onClick={() => advance('quick-start')}>
-            {download.tier1Ready ? 'Next: Quality upgrade' : 'Skip — continue'}
+            {download.tier1Ready ? t("Next: Quality upgrade") : t("Skip — continue")}
           </SkipButton>
         </StepCard>
       )}
@@ -209,7 +203,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
       {step === 'quality-upgrade' && (
         <StepCard
           number={2}
-          title="Quality Upgrade"
+          title={t("Quality Upgrade")}
           subtitle={`Kotoba Whisper + HY-MT1.5 1.8B (${formatSize(TIER2_TOTAL_MB)})`}
           description="Higher-accuracy Japanese-optimized speech-to-text and translation. Downloads in the background — VocaLume switches to high-quality mode automatically when ready."
           status={download.status}
@@ -219,81 +213,68 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
           error={download.error}
         >
           {download.tier2Ready && (
-            <p style={readyStyle}>
-              Full-quality models ready. VocaLume will use them on the next session.
-            </p>
+            <p style={readyStyle}>{t("Full-quality models ready. VocaLume will use them on the next session.")} </p>
           )}
           {download.status === 'downloading-tier2' && !download.tier2Ready && (
-            <p style={hintStyle}>
-              Downloading in background… {download.progress}% complete. Translation keeps working with Quick Start.
-            </p>
+            <p style={hintStyle}>{t("Downloading in background…")} {download.progress}{t("% complete. Translation keeps working with Quick Start.")} </p>
           )}
           {!download.tier2Ready && download.status !== 'downloading-tier2' && (
-            <p style={hintStyle}>
-              Background download will start once Quick Start finishes. No action needed.
-            </p>
+            <p style={hintStyle}>{t("Background download will start once Quick Start finishes. No action needed.")} </p>
           )}
-          <SkipButton onClick={() => advance('quality-upgrade')}>
-            Next: Optional cloud boost
-          </SkipButton>
+          <SkipButton onClick={() => advance('quality-upgrade')}>{t("Next: Optional cloud boost")} </SkipButton>
         </StepCard>
       )}
 
       {step === 'cloud-boost' && (
         <StepCard
           number={3}
-          title="Cloud Boost (Optional)"
+          title={t("Cloud Boost (Optional)")}
           subtitle={`Azure Translator free tier — ${AZURE_FREE_TIER_CHARS}`}
           description="You're already translating offline. Adding a free Azure F0 key adds optional cloud-quality fallback for harder phrases. You can do this later in Translator Settings."
         >
           <ol style={instructionListStyle}>
-            <li>
-              Open the Azure portal: <a href={AZURE_TRANSLATOR_PORTAL_URL} target="_blank" rel="noreferrer noopener" style={linkStyle}>
-                Create Translator (F0 free tier)
-              </a>
+            <li>{t("Open the Azure portal:")} <a href={AZURE_TRANSLATOR_PORTAL_URL} target="_blank" rel="noreferrer noopener" style={linkStyle}>{t("Create Translator (F0 free tier)")} </a>
             </li>
-            <li>Select pricing tier <strong>F0</strong> ({AZURE_FREE_TIER_CHARS}, no card required).</li>
-            <li>Copy <strong>Key 1</strong> and the <strong>Region</strong> from Keys and Endpoint.</li>
-            <li>Paste them below and save — about 5 minutes total.</li>
+            <li>{t("Select pricing tier")} <strong>F0</strong> ({AZURE_FREE_TIER_CHARS}{t(", no card required).")}</li>
+            <li>{t("Copy")} <strong>{t("Key 1")}</strong> {t("and the")} <strong>{t("Region")}</strong> {t("from Keys and Endpoint.")}</li>
+            <li>{t("Paste them below and save — about 5 minutes total.")}</li>
           </ol>
 
-          <label style={fieldLabelStyle} htmlFor="onboarding-azure-key">Azure Translator key</label>
+          <label style={fieldLabelStyle} htmlFor="onboarding-azure-key">{t("Azure Translator key")}</label>
           <input
             id="onboarding-azure-key"
             type="password"
             value={azureKey}
             onChange={(e) => setAzureKey(e.target.value)}
-            placeholder="Paste Key 1 from the Azure portal"
-            aria-label="Azure Translator key"
+            placeholder={t("Paste Key 1 from the Azure portal")}
+            aria-label={t("Azure Translator key")}
             style={inputStyle}
             disabled={azureSaving}
           />
 
-          <label style={fieldLabelStyle} htmlFor="onboarding-azure-region">Azure region</label>
+          <label style={fieldLabelStyle} htmlFor="onboarding-azure-region">{t("Azure region")}</label>
           <input
             id="onboarding-azure-region"
             type="text"
             value={azureRegion}
             onChange={(e) => setAzureRegion(e.target.value)}
-            placeholder="e.g. eastus, japaneast"
-            aria-label="Azure region"
+            placeholder={t("e.g. eastus, japaneast")}
+            aria-label={t("Azure region")}
             style={inputStyle}
             disabled={azureSaving}
           />
 
           {azureSaveError && (
-            <div role="alert" style={errorStyle}>{azureSaveError}</div>
+            <div role="alert" style={errorStyle}>{t(azureSaveError)}</div>
           )}
 
           <PrimaryButton
             onClick={handleSaveAzureKey}
             disabled={azureSaving || !isAzureKeyValid(azureKey, azureRegion)}
           >
-            {azureSaving ? 'Saving…' : 'Save Azure key & finish'}
+            {azureSaving ? t("Saving…") : t("Save Azure key & finish")}
           </PrimaryButton>
-          <SkipButton onClick={() => advance('cloud-boost')}>
-            Skip — works great offline
-          </SkipButton>
+          <SkipButton onClick={() => advance('cloud-boost')}>{t("Skip — works great offline")} </SkipButton>
         </StepCard>
       )}
     </div>
@@ -311,7 +292,7 @@ function StepIndicator({ current }: { current: OnboardingStep }): React.JSX.Elem
     { id: 'cloud-boost', label: '3. Cloud (Optional)' }
   ]
   return (
-    <nav aria-label="Onboarding progress" style={indicatorWrapStyle}>
+    <nav aria-label={t("Onboarding progress")} style={indicatorWrapStyle}>
       {steps.map((s) => {
         const active = s.id === current
         return (
@@ -325,7 +306,7 @@ function StepIndicator({ current }: { current: OnboardingStep }): React.JSX.Elem
             }}
             aria-current={active ? 'step' : undefined}
           >
-            {s.label}
+            {t(s.label)}
           </span>
         )
       })}
@@ -351,17 +332,17 @@ function StepCard(props: StepCardProps): React.JSX.Element {
   return (
     <section style={cardStyle} aria-labelledby={`onboarding-step-${props.number}-title`}>
       <div style={cardHeaderStyle}>
-        <span style={stepNumberStyle}>Step {props.number}</span>
-        <h3 id={`onboarding-step-${props.number}-title`} style={cardTitleStyle}>{props.title}</h3>
+        <span style={stepNumberStyle}>{t("Step")} {props.number}</span>
+        <h3 id={`onboarding-step-${props.number}-title`} style={cardTitleStyle}>{t(props.title)}</h3>
       </div>
       <p style={cardSubtitleStyle}>{props.subtitle}</p>
-      <p style={cardDescriptionStyle}>{props.description}</p>
+      <p style={cardDescriptionStyle}>{t(props.description)}</p>
 
       {showProgress && (
         <div style={progressTrackStyle} aria-hidden={false}>
           <div
             role="progressbar"
-            aria-label={`${props.title} download progress`}
+            aria-label={t("{0} download progress", [props.title])}
             aria-valuenow={props.progress}
             aria-valuemin={0}
             aria-valuemax={100}
@@ -374,7 +355,7 @@ function StepCard(props: StepCardProps): React.JSX.Element {
       )}
 
       {props.error && (
-        <div role="alert" style={errorStyle}>{props.error}</div>
+        <div role="alert" style={errorStyle}>{t(props.error)}</div>
       )}
 
       <div style={actionsStyle}>{props.children}</div>

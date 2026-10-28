@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React from 'react'
 import { GlossarySettings } from './GlossarySettings'
 import { Section } from './Section'
@@ -126,9 +127,9 @@ export function TranslatorSettings({
 
   return (
     <>
-      <Section label="Translation Engine" helpText="Auto picks the best engine for your setup. HY-MT 1.5 is the recommended offline default.">
-        <fieldset role="radiogroup" aria-label="Translation Engine" style={{ border: 'none', margin: 0, padding: 0 }}>
-        <legend style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Translation Engine</legend>
+      <Section label={t("Translation Engine")} helpText={t("Auto picks the best engine for your setup. HY-MT 1.5 is the recommended offline default.")}>
+        <fieldset role="radiogroup" aria-label={t("Translation Engine")} style={{ border: 'none', margin: 0, padding: 0 }}>
+        <legend style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>{t("Translation Engine")}</legend>
         <label style={radioLabelStyle}>
           <input
             type="radio"
@@ -138,8 +139,8 @@ export function TranslatorSettings({
             disabled={disabled}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>Auto (Recommended)</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Picks the best engine for your hardware and API keys</div>
+            <div style={{ fontWeight: 500 }}>{t("Auto (Recommended)")}</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Picks the best engine for your hardware and API keys")}</div>
           </div>
         </label>
         <label style={radioLabelStyle}>
@@ -151,16 +152,16 @@ export function TranslatorSettings({
             disabled={disabled}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>HY-MT 1.5 (Offline default)</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Compact local model, about 1 GB. Lower resource use; review important translations.</div>
+            <div style={{ fontWeight: 500 }}>{t("HY-MT 1.5 (Offline default)")}</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Compact local model, about 1 GB. Lower resource use; review important translations.")}</div>
           </div>
         </label>
         <label style={radioLabelStyle}>
           <input type="radio" name="engine" checked={engineMode === 'offline-hymt2'}
             onChange={() => onEngineModeChange('offline-hymt2')} disabled={disabled} />
           <div>
-            <div style={{ fontWeight: 500 }}>Hy-MT2 7B (Offline)</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>About 4.6 GB. More natural wording in some cases; longer processing time and higher memory use.</div>
+            <div style={{ fontWeight: 500 }}>{t("Hy-MT2 7B (Offline)")}</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("About 4.6 GB. More natural wording in some cases; longer processing time and higher memory use.")}</div>
           </div>
         </label>
         <label style={radioLabelStyle}>
@@ -172,8 +173,8 @@ export function TranslatorSettings({
             disabled={disabled}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>Hunyuan-MT 7B (High Quality, GPU recommended)</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>WMT25 winner, 33 languages, ~4GB — slower but higher quality</div>
+            <div style={{ fontWeight: 500 }}>{t("Hunyuan-MT 7B (High Quality, GPU recommended)")}</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("WMT25 winner, 33 languages, ~4GB — slower but higher quality")}</div>
           </div>
         </label>
         {platform === 'darwin' && (
@@ -186,8 +187,8 @@ export function TranslatorSettings({
               disabled={disabled}
             />
             <div>
-              <div style={{ fontWeight: 500 }}>Apple Translate (Built-in, macOS 15+)</div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>Zero config, on-device, ANE-optimized — no model download</div>
+              <div style={{ fontWeight: 500 }}>{t("Apple Translate (Built-in, macOS 15+)")}</div>
+              <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Zero config, on-device, ANE-optimized — no model download")}</div>
             </div>
           </label>
         )}
@@ -200,11 +201,11 @@ export function TranslatorSettings({
             disabled={disabled || !hasAnyApiKey}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>Online API (Auto Rotation)</div>
+            <div style={{ fontWeight: 500 }}>{t("Online API (Auto Rotation)")}</div>
             <div style={{ fontSize: '12px', color: '#94a3b8' }}>
               {hasAnyApiKey
-                ? 'Azure → Google → DeepL → Gemini — up to 4M+ chars/month free'
-                : 'Configure an API key below to enable cloud translation'}
+                ? t("Azure → Google → DeepL → Gemini — up to 4M+ chars/month free")
+                : t("Configure an API key below to enable cloud translation")}
             </div>
           </div>
         </label>
@@ -213,9 +214,7 @@ export function TranslatorSettings({
         {showLlmOptions && (
           <>
             {gpuInfo && !gpuInfo.hasGpu && (
-              <div style={{ fontSize: '11px', color: '#f59e0b', padding: '4px 0 4px 24px' }}>
-                No GPU detected — translation may be slow on CPU-only systems
-              </div>
+              <div style={{ fontSize: '11px', color: '#f59e0b', padding: '4px 0 4px 24px' }}>{t("No GPU detected — translation may be slow on CPU-only systems")} </div>
             )}
             <label style={{ ...radioLabelStyle, paddingLeft: '24px' }}>
               <input
@@ -225,8 +224,8 @@ export function TranslatorSettings({
                 disabled={disabled}
               />
               <div>
-                <div style={{ fontWeight: 500, fontSize: '12px' }}>KV cache quantization (Q8_0)</div>
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>Reduces VRAM ~50%</div>
+                <div style={{ fontWeight: 500, fontSize: '12px' }}>{t("KV cache quantization (Q8_0)")}</div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t("Reduces VRAM ~50%")}</div>
               </div>
             </label>
             {(engineMode === 'offline-hymt15' || engineMode === 'offline-hymt2' || engineMode === 'offline-hunyuan-mt') && (
@@ -238,13 +237,9 @@ export function TranslatorSettings({
                   disabled={disabled}
                 />
                 <div>
-                  <div style={{ fontWeight: 500, fontSize: '12px' }}>Speculative decoding (LFM2 draft)</div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    LFM2-350M proposes draft tokens for the main model to verify. Speed gains depend on the selected model and input.
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#64748b' }}>
-                    Requires LFM2 model (~230MB). Extra memory: ~230MB on top of the main model.
-                  </div>
+                  <div style={{ fontWeight: 500, fontSize: '12px' }}>{t("Speculative decoding (LFM2 draft)")}</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t("LFM2-350M proposes draft tokens for the main model to verify. Speed gains depend on the selected model and input.")} </div>
+                  <div style={{ fontSize: '10px', color: '#64748b' }}>{t("Requires LFM2 model (~230MB). Extra memory: ~230MB on top of the main model.")} </div>
                 </div>
               </label>
             )}
@@ -256,18 +251,16 @@ export function TranslatorSettings({
                 disabled={disabled}
               />
               <div>
-                <div style={{ fontWeight: 500, fontSize: '12px' }}>Conversational SimulMT (recommended for live streams)</div>
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>Show an early provisional translation with KV cache reuse, then correct it when the sentence completes.</div>
+                <div style={{ fontWeight: 500, fontSize: '12px' }}>{t("Conversational SimulMT (recommended for live streams)")}</div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t("Show an early provisional translation with KV cache reuse, then correct it when the sentence completes.")}</div>
               </div>
             </label>
             {simulMtEnabled && (
               <div style={{ paddingLeft: '48px', marginTop: '-4px', marginBottom: '4px' }}>
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>
-                  Wait-k: start after {simulMtWaitK} words/chars
-                </div>
+                <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>{t("Wait-k: start after")} {simulMtWaitK} {t("words/chars")} </div>
                 <input
                   type="range"
-                  aria-label="Wait-k value"
+                  aria-label={t("Wait-k value")}
                   min={1}
                   max={10}
                   value={simulMtWaitK}
@@ -291,34 +284,28 @@ export function TranslatorSettings({
                 disabled={disabled}
               />
               <div>
-                <div style={{ fontWeight: 500, fontSize: '12px' }}>Adaptive quality routing</div>
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                  Auto-route: short sentences use fast engine, complex ones use quality engine
-                </div>
+                <div style={{ fontWeight: 500, fontSize: '12px' }}>{t("Adaptive quality routing")}</div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t("Auto-route: short sentences use fast engine, complex ones use quality engine")} </div>
               </div>
             </label>
             {adaptiveRoutingEnabled && (
               <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>
-                    Quality engine
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>{t("Quality engine")} </div>
                   <select
                     value={adaptiveRoutingQualityEngine}
                     onChange={(e) => onAdaptiveRoutingQualityEngineChange(e.target.value)}
                     disabled={disabled}
                     style={{ ...selectStyle, fontSize: '12px', padding: '6px 8px' }}
                   >
-                    <option value="hunyuan-mt">Hunyuan-MT 7B (Quality, ~4GB)</option>
+                    <option value="hunyuan-mt">{t("Hunyuan-MT 7B (Quality, ~4GB)")}</option>
                   </select>
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>
-                    Fast-only threshold: &lt;{adaptiveRoutingShortThreshold} tokens
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>{t("Fast-only threshold: <")}{adaptiveRoutingShortThreshold} {t("tokens")} </div>
                   <input
                     type="range"
-                    aria-label="Short threshold"
+                    aria-label={t("Short threshold")}
                     min={3}
                     max={30}
                     value={adaptiveRoutingShortThreshold}
@@ -328,12 +315,10 @@ export function TranslatorSettings({
                   />
                 </div>
                 <div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>
-                    Quality threshold: &gt;{adaptiveRoutingLongThreshold} tokens
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '2px' }}>{t("Quality threshold: >")}{adaptiveRoutingLongThreshold} {t("tokens")} </div>
                   <input
                     type="range"
-                    aria-label="Long threshold"
+                    aria-label={t("Long threshold")}
                     min={20}
                     max={100}
                     value={adaptiveRoutingLongThreshold}
@@ -343,9 +328,7 @@ export function TranslatorSettings({
                   />
                 </div>
                 {adaptiveRoutingShortThreshold >= adaptiveRoutingLongThreshold && (
-                  <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px' }}>
-                    Warning: thresholds overlap — all text will use the fast engine only
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px' }}>{t("Warning: thresholds overlap — all text will use the fast engine only")} </div>
                 )}
               </div>
             )}
@@ -361,9 +344,7 @@ export function TranslatorSettings({
           >
             <span style={disclosureArrowStyle(showApiOptions)}>
               ▶
-            </span>
-            API Keys (optional — enables online translation)
-          </button>
+            </span>{t("API Keys (optional — enables online translation)")} </button>
 
           {showApiOptions && (
             <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -371,8 +352,8 @@ export function TranslatorSettings({
                 type="password"
                 value={apiKey}
                 onChange={(e) => onApiKeyChange(e.target.value)}
-                placeholder="Google Cloud Translation key"
-                aria-label="Google Cloud Translation API key"
+                placeholder={t("Google Cloud Translation key")}
+                aria-label={t("Google Cloud Translation API key")}
                 style={inputStyle}
                 disabled={disabled}
               />
@@ -380,8 +361,8 @@ export function TranslatorSettings({
                 type="password"
                 value={deeplApiKey}
                 onChange={(e) => onDeeplApiKeyChange(e.target.value)}
-                placeholder="DeepL API key"
-                aria-label="DeepL API key"
+                placeholder={t("DeepL API key")}
+                aria-label={t("DeepL API key")}
                 style={inputStyle}
                 disabled={disabled}
               />
@@ -389,8 +370,8 @@ export function TranslatorSettings({
                 type="password"
                 value={geminiApiKey}
                 onChange={(e) => onGeminiApiKeyChange(e.target.value)}
-                placeholder="Gemini API key"
-                aria-label="Gemini API key"
+                placeholder={t("Gemini API key")}
+                aria-label={t("Gemini API key")}
                 style={inputStyle}
                 disabled={disabled}
               />
@@ -398,8 +379,8 @@ export function TranslatorSettings({
                 type="password"
                 value={microsoftApiKey}
                 onChange={(e) => onMicrosoftApiKeyChange(e.target.value)}
-                placeholder="Azure Microsoft Translator key"
-                aria-label="Azure Microsoft Translator key"
+                placeholder={t("Azure Microsoft Translator key")}
+                aria-label={t("Azure Microsoft Translator key")}
                 style={inputStyle}
                 disabled={disabled}
               />
@@ -407,15 +388,13 @@ export function TranslatorSettings({
                 type="text"
                 value={microsoftRegion}
                 onChange={(e) => onMicrosoftRegionChange(e.target.value)}
-                placeholder="Azure region (e.g. eastus)"
-                aria-label="Azure region"
+                placeholder={t("Azure region (e.g. eastus)")}
+                aria-label={t("Azure region")}
                 style={inputStyle}
                 disabled={disabled}
               />
               <div style={{ marginTop: '6px', padding: '8px', border: '1px solid #334155', borderRadius: '6px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>
-                  Use one provider directly
-                </div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>{t("Use one provider directly")} </div>
                 {([
                   ['online', 'Google Cloud Translation', !!apiKey],
                   ['online-deepl', 'DeepL', !!deeplApiKey],
@@ -433,7 +412,7 @@ export function TranslatorSettings({
                     <div>
                       <div style={{ fontWeight: 500 }}>{label}</div>
                       <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                        {available ? 'Use this provider only' : 'Add the required key above'}
+                        {available ? t("Use this provider only") : t("Add the required key above")}
                       </div>
                     </div>
                   </label>
@@ -443,8 +422,8 @@ export function TranslatorSettings({
                 type="password"
                 value={openaiApiKey}
                 onChange={(e) => onOpenaiApiKeyChange(e.target.value)}
-                placeholder="OpenAI API key (realtime interpretation)"
-                aria-label="OpenAI API key"
+                placeholder={t("OpenAI API key (realtime interpretation)")}
+                aria-label={t("OpenAI API key")}
                 style={inputStyle}
                 disabled={disabled}
               />
@@ -452,8 +431,8 @@ export function TranslatorSettings({
                 type="password"
                 value={geminiLiveApiKey}
                 onChange={(e) => onGeminiLiveApiKeyChange(e.target.value)}
-                placeholder="Gemini Live API key (realtime interpretation)"
-                aria-label="Gemini Live API key"
+                placeholder={t("Gemini Live API key (realtime interpretation)")}
+                aria-label={t("Gemini Live API key")}
                 style={inputStyle}
                 disabled={disabled}
               />
@@ -467,8 +446,8 @@ export function TranslatorSettings({
           engine radios above, so the 4-engine UI cap is respected. Opt-in, BYOK,
           off by default (local-first stays Core Value ①). */}
       <Section
-        label="Realtime Interpretation (Cloud)"
-        helpText="Speech-native low-latency translation via OpenAI gpt-realtime-translate. Requires an OpenAI API key and sends audio to the cloud — off by default to keep the offline local-first engines as the default."
+        label={t("Realtime Interpretation (Cloud)")}
+        helpText={t("Speech-native low-latency translation via OpenAI gpt-realtime-translate. Requires an OpenAI API key and sends audio to the cloud — off by default to keep the offline local-first engines as the default.")}
       >
         <label style={{ ...radioLabelStyle, opacity: hasOpenaiKey ? 1 : 0.5 }}>
           <input
@@ -478,26 +457,24 @@ export function TranslatorSettings({
             disabled={disabled || !hasOpenaiKey}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>Enable cloud realtime interpretation (BYOK)</div>
+            <div style={{ fontWeight: 500 }}>{t("Enable cloud realtime interpretation (BYOK)")}</div>
             <div style={{ fontSize: '12px', color: '#94a3b8' }}>
               {hasOpenaiKey
-                ? 'Overrides the engine above while active. Cloud — audio leaves your device. ~$0.034/min. Output language follows your target-language setting.'
-                : 'Add an OpenAI API key in "API Keys" above to enable cloud realtime interpretation.'}
+                ? t("Overrides the engine above while active. Cloud — audio leaves your device. ~$0.034/min. Output language follows your target-language setting.")
+                : t("Add an OpenAI API key in \"API Keys\" above to enable cloud realtime interpretation.")}
             </div>
           </div>
         </label>
         {cloudRealtimeEnabled && hasOpenaiKey && (
-          <div style={{ fontSize: '11px', color: '#f59e0b', padding: '4px 0 0 24px' }}>
-            Cloud mode active — the offline engine selection above is bypassed while this is on.
-          </div>
+          <div style={{ fontSize: '11px', color: '#f59e0b', padding: '4px 0 0 24px' }}>{t("Cloud mode active — the offline engine selection above is bypassed while this is on.")} </div>
         )}
       </Section>
 
       {/* #723: second cloud realtime path, for comparison against gpt-realtime-translate.
           Preview model — flagged experimental and never a default. */}
       <Section
-        label="Realtime Interpretation (Gemini Live)"
-        helpText="Experimental second cloud path via Google's gemini-3.5-live-translate-preview. Preview models can change or break without notice, so this is for comparison — not for production meetings. Requires a Gemini Live API key and sends audio to the cloud."
+        label={t("Realtime Interpretation (Gemini Live)")}
+        helpText={t("Experimental second cloud path via Google's gemini-3.5-live-translate-preview. Preview models can change or break without notice, so this is for comparison — not for production meetings. Requires a Gemini Live API key and sends audio to the cloud.")}
       >
         <div
           style={{
@@ -511,9 +488,7 @@ export function TranslatorSettings({
             padding: '1px 5px',
             marginBottom: '6px'
           }}
-        >
-          EXPERIMENTAL · PREVIEW
-        </div>
+        >{t("EXPERIMENTAL · PREVIEW")} </div>
         <label style={{ ...radioLabelStyle, opacity: hasGeminiLiveKey ? 1 : 0.5 }}>
           <input
             type="checkbox"
@@ -522,25 +497,23 @@ export function TranslatorSettings({
             disabled={disabled || !hasGeminiLiveKey}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>Enable Gemini Live interpretation (BYOK, preview)</div>
+            <div style={{ fontWeight: 500 }}>{t("Enable Gemini Live interpretation (BYOK, preview)")}</div>
             <div style={{ fontSize: '12px', color: '#94a3b8' }}>
               {hasGeminiLiveKey
-                ? 'Preview model — quality and availability may change without notice. Cloud — audio leaves your device. ~$0.0368/min. Output language follows your target-language setting.'
-                : 'Add a Gemini Live API key in "API Keys" above to enable this experimental path.'}
+                ? t("Preview model — quality and availability may change without notice. Cloud — audio leaves your device. ~$0.0368/min. Output language follows your target-language setting.")
+                : t("Add a Gemini Live API key in \"API Keys\" above to enable this experimental path.")}
             </div>
           </div>
         </label>
         {geminiLiveEnabled && hasGeminiLiveKey && geminiLiveSupersededByOpenai && (
           <div style={{ fontSize: '11px', color: '#f59e0b', padding: '4px 0 0 24px' }}>
             {hasOpenaiKey
-              ? 'Inactive — "Realtime Interpretation (Cloud)" takes precedence. Turn that off to run Gemini Live.'
-              : 'Inactive — "Realtime Interpretation (Cloud)" is on but has no API key, so the offline engine is translating. Turn that off to run Gemini Live.'}
+              ? t("Inactive — \"Realtime Interpretation (Cloud)\" takes precedence. Turn that off to run Gemini Live.")
+              : t("Inactive — \"Realtime Interpretation (Cloud)\" is on but has no API key, so the offline engine is translating. Turn that off to run Gemini Live.")}
           </div>
         )}
         {geminiLiveEnabled && hasGeminiLiveKey && !geminiLiveSupersededByOpenai && (
-          <div style={{ fontSize: '11px', color: '#f59e0b', padding: '4px 0 0 24px' }}>
-            Preview cloud mode active — the offline engine selection above is bypassed while this is on.
-          </div>
+          <div style={{ fontSize: '11px', color: '#f59e0b', padding: '4px 0 0 24px' }}>{t("Preview cloud mode active — the offline engine selection above is bypassed while this is on.")} </div>
         )}
       </Section>
 

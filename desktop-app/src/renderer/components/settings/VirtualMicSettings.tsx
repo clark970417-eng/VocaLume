@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Section } from './Section'
 import { selectStyle, errorContainerStyle, warningContainerStyle } from './shared'
@@ -61,41 +62,33 @@ export function VirtualMicSettings({ disabled }: VirtualMicSettingsProps): React
   const activeDevice = devices.find((device) => device.deviceId === activeDeviceId)
 
   return (
-    <Section label="Virtual Microphone (Meeting Sharing)" helpText="Routes translated speech directly to BlackHole through macOS CoreAudio.">
+    <Section label={t("Virtual Microphone (Meeting Sharing)")} helpText={t("Routes translated speech directly to BlackHole through macOS CoreAudio.")}>
       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#94a3b8', cursor: disabled || loading ? 'default' : 'pointer', marginBottom: '8px' }}>
         <input type="checkbox" checked={enabled}
           onChange={(event) => void selectDevice(event.target.checked ? (devices[0]?.deviceId ?? '') : '')}
-          disabled={disabled || loading || devices.length === 0} aria-label="Enable virtual microphone output" />
-        <span>{loading ? 'Detecting virtual audio devices...' : enabled
-          ? `Virtual microphone ready: ${activeDevice?.label ?? 'virtual device'}`
-          : 'Route translated speech to a virtual microphone'}</span>
+          disabled={disabled || loading || devices.length === 0} aria-label={t("Enable virtual microphone output")} />
+        <span>{loading ? t("Detecting virtual audio devices...") : enabled
+          ? t("Virtual microphone ready: {0}", [activeDevice?.label ?? 'virtual device'])
+          : t("Route translated speech to a virtual microphone")}</span>
       </label>
 
-      {error && <div role="alert" style={errorContainerStyle}>{error}</div>}
+      {error && <div role="alert" style={errorContainerStyle}>{t(error)}</div>}
 
       {devices.length > 1 && (
         <select value={activeDeviceId} onChange={(event) => void selectDevice(event.target.value)}
-          style={{ ...selectStyle, marginBottom: '8px' }} disabled={disabled || loading} aria-label="Virtual audio device">
-          <option value="">Disabled</option>
+          style={{ ...selectStyle, marginBottom: '8px' }} disabled={disabled || loading} aria-label={t("Virtual audio device")}>
+          <option value="">{t("Disabled")}</option>
           {devices.map((device) => <option key={device.deviceId} value={device.deviceId}>{device.label}</option>)}
         </select>
       )}
 
-      {enabled && <div style={{ fontSize: '12px', color: '#4ade80', marginBottom: '6px' }}>
-        ● Ready — select &quot;{activeDevice?.label ?? 'BlackHole 2ch'}&quot; as the microphone in Discord, OBS, Zoom or Meet.
-      </div>}
+      {enabled && <div style={{ fontSize: '12px', color: '#4ade80', marginBottom: '6px' }}>{t("● Ready — select \"")}{activeDevice?.label ?? 'BlackHole 2ch'}{t("\" as the microphone in Discord, OBS, Zoom or Meet.")} </div>}
 
-      {!loading && devices.length === 0 && <div style={warningContainerStyle}>
-        No virtual output is visible. Allow microphone access, then press Refresh Devices.
-      </div>}
+      {!loading && devices.length === 0 && <div style={warningContainerStyle}>{t("No virtual output is visible. Allow microphone access, then press Refresh Devices.")} </div>}
 
       <button onClick={() => void loadDevices()} disabled={disabled || loading}
-        style={{ fontSize: '12px', color: '#94a3b8', background: 'transparent', border: '1px solid #334155', borderRadius: '4px', padding: '4px 10px', cursor: disabled || loading ? 'default' : 'pointer', marginBottom: '6px' }}>
-        Refresh Devices
-      </button>
-      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-        Uses Chromium audio routing instead of PortAudio, including on macOS 26.
-      </div>
+        style={{ fontSize: '12px', color: '#94a3b8', background: 'transparent', border: '1px solid #334155', borderRadius: '4px', padding: '4px 10px', cursor: disabled || loading ? 'default' : 'pointer', marginBottom: '6px' }}>{t("Refresh Devices")} </button>
+      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>{t("Uses Chromium audio routing instead of PortAudio, including on macOS 26.")} </div>
     </Section>
   )
 }

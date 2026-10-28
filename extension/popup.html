@@ -13,6 +13,7 @@
     <div><h1>VocaLume</h1><p>讀懂、回覆，也聽懂。</p></div>
     <span id="extensionVersion" class="version"></span>
   </header>
+  <label class="interface-language" for="uiLanguage"><span>介面語言</span><select id="uiLanguage" aria-label="介面語言"><option value="auto">跟隨系統 / Auto</option><option value="zh-TW" lang="zh-Hant">繁體中文</option><option value="en" lang="en">English</option></select></label>
   <nav class="task-tabs" role="tablist" aria-label="選擇翻譯功能">
     <button id="tab-text" type="button" role="tab" aria-controls="panel-text" aria-selected="true" data-panel="text">文字翻譯</button>
     <button id="tab-speech" type="button" role="tab" aria-controls="panel-speech" aria-selected="false" tabindex="-1" data-panel="speech">語音字幕</button>
@@ -127,6 +128,7 @@
   </section>
   <footer><span class="save-dot" aria-hidden="true"></span><p id="languageStatus" role="status" aria-live="polite">正在讀取設定…</p></footer>
 </main>
+<script type="module" src="popup-locale.mjs"></script>
 <script type="module" src="popup.js"></script>
 </body>
 </html>

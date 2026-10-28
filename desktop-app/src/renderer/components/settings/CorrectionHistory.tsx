@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Section } from './Section'
 import { buttonStyle } from './shared'
@@ -38,7 +39,7 @@ export function CorrectionHistory(): React.JSX.Element {
   }, [isEditMode])
 
   const handleClearHistory = useCallback(() => {
-    if (!window.confirm('Clear all corrections? This cannot be undone.')) return
+    if (!window.confirm(t('Clear all corrections? This cannot be undone.'))) return
     window.api.clearCorrectionHistory?.().then(() => {
       setHistory([])
     }).catch((err: unknown) => {
@@ -48,7 +49,7 @@ export function CorrectionHistory(): React.JSX.Element {
   }, [])
 
   return (
-    <Section label="Translation Corrections">
+    <Section label={t("Translation Corrections")}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {/* Toggle edit mode button */}
         <button
@@ -62,13 +63,10 @@ export function CorrectionHistory(): React.JSX.Element {
             fontWeight: 600
           }}
         >
-          {isEditMode ? 'Exit Edit Mode' : 'Edit Translations'}
+          {isEditMode ? t("Exit Edit Mode") : t("Edit Translations")}
         </button>
         {isEditMode && (
-          <div style={{ fontSize: '11px', color: '#f59e0b' }}>
-            Click on translated text in the subtitle overlay to correct it.
-            Corrections are saved as glossary entries.
-          </div>
+          <div style={{ fontSize: '11px', color: '#f59e0b' }}>{t("Click on translated text in the subtitle overlay to correct it. Corrections are saved as glossary entries.")} </div>
         )}
 
         {/* Correction history */}
@@ -81,14 +79,12 @@ export function CorrectionHistory(): React.JSX.Element {
               marginBottom: '6px'
             }}>
               <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                {history.length} correction{history.length !== 1 ? 's' : ''}
+                {history.length} {t("correction")}{history.length !== 1 ? 's' : ''}
               </span>
               <button
                 onClick={handleClearHistory}
                 style={clearButtonStyle}
-              >
-                Clear
-              </button>
+              >{t("Clear")} </button>
             </div>
             {history.slice(-10).reverse().map((entry, i) => (
               <div key={`${entry.timestamp}-${i}`} style={entryStyle}>
@@ -111,9 +107,7 @@ export function CorrectionHistory(): React.JSX.Element {
             ))}
           </div>
         ) : (
-          <div style={{ fontSize: '11px', color: '#64748b' }}>
-            No corrections yet. Use Edit Mode to correct translations.
-          </div>
+          <div style={{ fontSize: '11px', color: '#64748b' }}>{t("No corrections yet. Use Edit Mode to correct translations.")} </div>
         )}
       </div>
     </Section>

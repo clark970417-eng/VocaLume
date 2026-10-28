@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React from 'react'
 import { Section } from './Section'
 import { ALL_LANGUAGES, LANGUAGE_LABELS, selectStyle } from './shared'
@@ -19,12 +20,10 @@ export function LanguageSettings({
   disabled
 }: LanguageSettingsProps): React.JSX.Element {
   return (
-    <Section label="Language">
+    <Section label={t("Language")}>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'end' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>
-            Spoken language
-          </div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>{t("Spoken language")} </div>
           <select
             value={sourceLanguage}
             onChange={(e) => {
@@ -36,16 +35,16 @@ export function LanguageSettings({
             }}
             style={selectStyle}
             disabled={disabled}
-            aria-label="Source language"
+            aria-label={t("Source language")}
           >
-            <option value="auto">Auto-detect</option>
+            <option value="auto">{t("Auto-detect")}</option>
             {ALL_LANGUAGES.map((lang) => (
-              <option key={lang} value={lang}>{LANGUAGE_LABELS[lang]}</option>
+              <option key={lang} value={lang}>{t(LANGUAGE_LABELS[lang])}</option>
             ))}
           </select>
         </div>
-        <button type="button" aria-label="Swap translation languages"
-          title={sourceLanguage === 'auto' ? 'Choose a spoken language before swapping' : 'Swap languages'}
+        <button type="button" aria-label={t("Swap translation languages")}
+          title={sourceLanguage === 'auto' ? t("Choose a spoken language before swapping") : t("Swap languages")}
           disabled={disabled || sourceLanguage === 'auto'}
           onClick={() => {
             if (sourceLanguage === 'auto') return
@@ -54,9 +53,7 @@ export function LanguageSettings({
           }}
           style={{ minWidth: 36, height: 40, padding: 0, background: 'transparent', border: 0, color: '#8ce4d4', fontSize: 22, cursor: 'pointer' }}>⇄</button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>
-            Translate into
-          </div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>{t("Translate into")} </div>
           <select
             value={targetLanguage}
             onChange={(e) => {
@@ -68,10 +65,10 @@ export function LanguageSettings({
             }}
             style={selectStyle}
             disabled={disabled}
-            aria-label="Target language"
+            aria-label={t("Target language")}
           >
             {ALL_LANGUAGES.map((lang) => (
-              <option key={lang} value={lang}>{LANGUAGE_LABELS[lang]}</option>
+              <option key={lang} value={lang}>{t(LANGUAGE_LABELS[lang])}</option>
             ))}
           </select>
         </div>

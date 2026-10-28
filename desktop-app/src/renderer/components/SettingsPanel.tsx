@@ -1,8 +1,11 @@
+import { t } from '../ui-language'
 import React, { useEffect, useRef, useState } from 'react'
 import { useSettingsState } from '../hooks/useSettingsState'
 import { SettingsNavigation, type SettingsTab } from './SettingsNavigation'
 import './settings-panel.css'
 import { Onboarding } from './Onboarding'
+import { InterfaceLanguage } from './InterfaceLanguage'
+import { useUiLanguage } from '../ui-language'
 import { SpeechToneSettings } from './settings/SpeechToneSettings'
 import {
   AudioSettings,
@@ -26,6 +29,7 @@ import {
 } from './settings'
 
 function SettingsPanel(): React.JSX.Element {
+  useUiLanguage()
   const s = useSettingsState()
   const [selectedTab, setSelectedTab] = useState<SettingsTab>('translate')
   const [visited, setVisited] = useState<Partial<Record<SettingsTab, boolean>>>({ translate: true })
@@ -113,6 +117,7 @@ function SettingsPanel(): React.JSX.Element {
   if (showOnboarding) {
     return (
       <div style={containerStyle}>
+        <InterfaceLanguage />
         <Onboarding onComplete={() => setShowOnboarding(false)} />
       </div>
     )
@@ -121,12 +126,13 @@ function SettingsPanel(): React.JSX.Element {
   return (
     <div className="settings-shell">
       <header className="settings-header">
+        <InterfaceLanguage />
         <h1>VocaLume</h1>
-        <p>Live captions &amp; translation</p>
+        <p>{t("Live captions & translation")}</p>
       </header>
       <SettingsNavigation selected={selectedTab} onSelect={selectTab} />
       <main className="settings-content" ref={contentRef}>
-        {disabled && <div className="settings-notice">Translation is active. Stop to change languages or models; subtitle appearance can be adjusted now.</div>}
+        {disabled && <div className="settings-notice">{t("Translation is active. Stop to change languages or models; subtitle appearance can be adjusted now.")}</div>}
         {s.crashedSession && !s.isRunning && <CrashRecoveryBanner isStarting={s.isStarting} onResume={s.handleResume} onDismiss={s.handleDismissResume} />}
       <ModelDownloadProgress
         onSwitchToLocal={(engine) => {
@@ -140,8 +146,8 @@ function SettingsPanel(): React.JSX.Element {
       />
 
         <section id="settings-panel-translate" role="tabpanel" aria-labelledby="settings-tab-translate" tabIndex={0} hidden={selectedTab !== 'translate'}>
-          <h2>What would you like to translate?</h2>
-          <p className="settings-intro">Choose the languages and sound source, then press Start.</p>
+          <h2>{t("What would you like to translate?")}</h2>
+          <p className="settings-intro">{t("Choose the languages and sound source, then press Start.")}</p>
           <LanguageSettings
             sourceLanguage={s.sourceLanguage}
             onSourceLanguageChange={s.setSourceLanguage}
@@ -166,12 +172,12 @@ function SettingsPanel(): React.JSX.Element {
         onCancelMediaImport={cancelMediaFile}
       />
 
-          <p className="settings-note">Watching a browser video? Start captions from the VocaLume extension on that tab.</p>
+          <p className="settings-note">{t("Watching a browser video? Start captions from the VocaLume extension on that tab.")}</p>
         </section>
         <section id="settings-panel-subtitles" role="tabpanel" aria-labelledby="settings-tab-subtitles" tabIndex={0} hidden={selectedTab !== 'subtitles'}>
           {visited.subtitles && <>
-            <h2>Subtitle appearance</h2>
-            <p className="settings-intro">Changes apply immediately to the desktop subtitle window. Browser subtitle appearance is in the extension.</p>
+            <h2>{t("Subtitle appearance")}</h2>
+            <p className="settings-intro">{t("Changes apply immediately to the desktop subtitle window. Browser subtitle appearance is in the extension.")}</p>
           <SubtitleSettings
             fontSize={s.subtitleFontSize}
             onFontSizeChange={(v) => { s.setSubtitleFontSize(v); s.pushSubtitleSettings({ fontSize: v }) }}
@@ -194,7 +200,7 @@ function SettingsPanel(): React.JSX.Element {
             onDisplayChange={s.handleDisplayChange}
           />
 
-            <details className="settings-disclosure"><summary>Reading &amp; accessibility</summary>
+            <details className="settings-disclosure"><summary>{t("Reading & accessibility")}</summary>
           <AccessibilitySettings
             highContrast={s.accessibility.highContrast}
             onHighContrastChange={(v) => { s.accessibility.setHighContrast(v); s.pushSubtitleSettings({ accessibility: { highContrast: v, dyslexiaFont: s.accessibility.dyslexiaFont, reducedMotion: s.accessibility.reducedMotion, letterSpacing: s.accessibility.letterSpacing, wordSpacing: s.accessibility.wordSpacing } }) }}
@@ -213,8 +219,8 @@ function SettingsPanel(): React.JSX.Element {
         </section>
         <section id="settings-panel-models" role="tabpanel" aria-labelledby="settings-tab-models" tabIndex={0} hidden={selectedTab !== 'models'}>
           {visited.models && <>
-            <h2>Models &amp; translation quality</h2>
-            <p className="settings-intro">Your current choices are kept. Save changes for your next desktop or browser session.</p>
+            <h2>{t("Models & translation quality")}</h2>
+            <p className="settings-intro">{t("Your current choices are kept. Save changes for your next desktop or browser session.")}</p>
       <ConfigSummary
         sttEngine={s.sttEngine}
         whisperVariant={s.whisperVariant}
@@ -285,14 +291,13 @@ function SettingsPanel(): React.JSX.Element {
             onOrgGlossaryTermsChange={s.setOrgGlossaryTerms}
           />
 
-            <details className="settings-disclosure"><summary>Recognition corrections &amp; speakers</summary>
+            <details className="settings-disclosure"><summary>{t("Recognition corrections & speakers")}</summary>
       <label style={{ display: 'block', marginTop: 12 }}>
         <input type="checkbox" checked={gerEnabled} onChange={async e => {
           const enabled = e.target.checked
           try { await window.api.saveSettings({gerEnabled: enabled}); setGerEnabled(enabled); s.setStatus('Correction setting saved. Restart captions to apply.') }
           catch (error) { s.setStatus(`Could not save: ${String(error)}`) }
-        }} /> Correct uncertain recognition (experimental; uses extra processing)
-      </label>
+        }} /> {t("Correct uncertain recognition (experimental; uses extra processing)")} </label>
 
               <CorrectionHistory />
           <SpeakerSettings
@@ -307,11 +312,11 @@ function SettingsPanel(): React.JSX.Element {
         </section>
         <section id="settings-panel-more" role="tabpanel" aria-labelledby="settings-tab-more" tabIndex={0} hidden={selectedTab !== 'more'}>
           {visited.more && <>
-            <h2>More settings</h2>
-            <p className="settings-intro">Optional features, saved sessions and help.</p>
-            <details className="settings-disclosure"><summary>Tone &amp; laughter</summary><SpeechToneSettings /></details>
-            <details className="settings-disclosure"><summary>Voice playback &amp; virtual microphone</summary><TTSSettings disabled={disabled} /><VirtualMicSettings disabled={disabled} /></details>
-            <details className="settings-disclosure"><summary>Saved sessions &amp; summaries</summary>
+            <h2>{t("More settings")}</h2>
+            <p className="settings-intro">{t("Optional features, saved sessions and help.")}</p>
+            <details className="settings-disclosure"><summary>{t("Tone & laughter")}</summary><SpeechToneSettings /></details>
+            <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} /><VirtualMicSettings disabled={disabled} /></details>
+            <details className="settings-disclosure"><summary>{t("Saved sessions & summaries")}</summary>
       <SessionControls view="history"
         isRunning={s.isRunning}
         isStarting={s.isStarting}
@@ -333,19 +338,19 @@ function SettingsPanel(): React.JSX.Element {
         sessions={s.sessions}
       />
 
-              {!s.sessions.length && !s.lastTranscriptPath && <p className="settings-intro">Completed sessions will appear here.</p>}
+              {!s.sessions.length && !s.lastTranscriptPath && <p className="settings-intro">{t("Completed sessions will appear here.")}</p>}
             </details>
-            <details className="settings-disclosure"><summary>Keyboard shortcuts</summary><KeyboardShortcuts /></details>
-            <details className="settings-disclosure"><summary>Help &amp; updates</summary><UpdateStatus /><SupportSettings /></details>
-            <details className="settings-disclosure"><summary>Organization &amp; privacy</summary><EnterpriseSettings disabled={disabled} /></details>
+            <details className="settings-disclosure"><summary>{t("Keyboard shortcuts")}</summary><KeyboardShortcuts /></details>
+            <details className="settings-disclosure"><summary>{t("Help & updates")}</summary><UpdateStatus /><SupportSettings /></details>
+            <details className="settings-disclosure"><summary>{t("Organization & privacy")}</summary><EnterpriseSettings disabled={disabled} /></details>
           </>}
         </section>
       </main>
       <footer className="settings-footer">
         <div className="settings-footer-actions">
           <div>
-            <button type="button" className="settings-save" onClick={s.handleSaveSettings} disabled={s.isStarting}>Save settings</button>
-            <p className="settings-save-note">For the next session. Start also saves.</p>
+            <button type="button" className="settings-save" onClick={s.handleSaveSettings} disabled={s.isStarting}>{t("Save settings")}</button>
+            <p className="settings-save-note">{t("For the next session. Start also saves.")}</p>
           </div>
           <div>
       <SessionControls view="controls"

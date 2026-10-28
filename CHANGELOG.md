@@ -4,6 +4,7 @@ This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` t
 
 ## Unreleased - 2026-10-28
 
+- Add a remembered English / Traditional Chinese interface selector to the desktop App and extension popup, independent of translation language pairs. Localize desktop settings, onboarding, accessible labels and common status messages; keep spoken captions, drafts, personal terms and API values unchanged. Add visible Chinese quick-start instructions to the English README and retain the full Chinese guide.
 - Verify that packaged desktop code matches the current source and build outputs. Rebuild before packaging, reject missing/stale build records and development artifacts, and keep type checking from emitting files into the production App.
 - Use editor input transactions for YouTube and X reply drafts. If a site rejects replacement, preserve a copyable translation instead of changing only the visible text. Add Tab translation to YouTube and the shared social adapter, with active-IME and modifier-key protection; never send automatically.
 - Discard late optional recognition corrections after a session or configuration change, clear completed correction timers, and skip unnecessary same-language retranslation.

@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useCallback, useState } from 'react'
 import { Section } from './Section'
 import { buttonStyle, colorInputStyle, selectStyle, sliderLabelStyle } from './shared'
@@ -57,13 +58,13 @@ export function SubtitleSettings({
 
   return (
     <>
-      <Section label="Subtitle Appearance">
+      <Section label={t("Subtitle Appearance")}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div>
-            <div style={sliderLabelStyle}>Font Size: {fontSize}px</div>
+            <div style={sliderLabelStyle}>{t("Font Size:")} {fontSize}px</div>
             <input
               type="range"
-              aria-label="Subtitle font size"
+              aria-label={t("Subtitle font size")}
               min={20}
               max={48}
               value={fontSize}
@@ -73,31 +74,31 @@ export function SubtitleSettings({
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
             <div style={{ flex: 1 }}>
-              <div style={sliderLabelStyle}>Source Text</div>
+              <div style={sliderLabelStyle}>{t("Source Text")}</div>
               <input
                 type="color"
                 value={sourceColor}
                 onChange={(e) => onSourceColorChange(e.target.value)}
-                aria-label="Source text color"
+                aria-label={t("Source text color")}
                 style={colorInputStyle}
               />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={sliderLabelStyle}>Translated Text</div>
+              <div style={sliderLabelStyle}>{t("Translated Text")}</div>
               <input
                 type="color"
                 value={translatedColor}
                 onChange={(e) => onTranslatedColorChange(e.target.value)}
-                aria-label="Translated text color"
+                aria-label={t("Translated text color")}
                 style={colorInputStyle}
               />
             </div>
           </div>
           <div>
-            <div style={sliderLabelStyle}>Background Opacity: {bgOpacity}%</div>
+            <div style={sliderLabelStyle}>{t("Background Opacity:")} {bgOpacity}%</div>
             <input
               type="range"
-              aria-label="Subtitle background opacity"
+              aria-label={t("Subtitle background opacity")}
               min={0}
               max={100}
               value={bgOpacity}
@@ -106,15 +107,15 @@ export function SubtitleSettings({
             />
           </div>
           <div>
-            <div style={sliderLabelStyle}>Position</div>
+            <div style={sliderLabelStyle}>{t("Position")}</div>
             <select
               value={position}
               onChange={(e) => onPositionChange(e.target.value as SubtitlePositionType)}
-              aria-label="Subtitle position"
+              aria-label={t("Subtitle position")}
               style={selectStyle}
             >
-              <option value="bottom">Bottom</option>
-              <option value="top">Top</option>
+              <option value="bottom">{t("Bottom")}</option>
+              <option value="top">{t("Top")}</option>
             </select>
           </div>
           <label style={{
@@ -130,21 +131,21 @@ export function SubtitleSettings({
               type="checkbox"
               checked={showConfidenceIndicator}
               onChange={(e) => onShowConfidenceIndicatorChange(e.target.checked)}
-              aria-label="Show confidence indicator"
+              aria-label={t("Show confidence indicator")}
             />
-            <span>Show confidence indicator</span>
+            <span>{t("Show confidence indicator")}</span>
           </label>
         </div>
       </Section>
 
       {/* Speaker color palette preview (#509) */}
-      <Section label="Subtitle Display">
+      <Section label={t("Subtitle Display")}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <select
             value={selectedDisplay}
             onChange={(e) => onDisplayChange(Number(e.target.value))}
             style={selectStyle}
-            aria-label="Subtitle display"
+            aria-label={t("Subtitle display")}
           >
             {displays.map((d) => (
               <option key={d.id} value={d.id}>
@@ -167,7 +168,7 @@ export function SubtitleSettings({
                 fontWeight: 600
               }}
             >
-              {isDragMode ? 'Done Repositioning' : 'Reposition Subtitles'}
+              {isDragMode ? t("Done Repositioning") : t("Reposition Subtitles")}
             </button>
             <button
               onClick={handleResetPosition}
@@ -181,14 +182,10 @@ export function SubtitleSettings({
                 background: '#334155',
                 fontWeight: 500
               }}
-            >
-              Reset
-            </button>
+            >{t("Reset")} </button>
           </div>
           {isDragMode && (
-            <div style={{ fontSize: '11px', color: '#f59e0b' }}>
-              Drag the subtitle overlay to your preferred position, then click "Done Repositioning"
-            </div>
+            <div style={{ fontSize: '11px', color: '#f59e0b' }}>{t("Drag the subtitle overlay to your preferred position, then click \"Done Repositioning\"")} </div>
           )}
         </div>
       </Section>

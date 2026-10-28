@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React from 'react'
 
 const sectionLabelStyle: React.CSSProperties = {
@@ -12,12 +13,12 @@ const sectionLabelStyle: React.CSSProperties = {
 
 export function Section({ label, children, role, helpText }: { label: string; children: React.ReactNode; role?: string; helpText?: string }): React.JSX.Element {
   return (
-    <section style={{ marginBottom: '16px' }} role={role} aria-label={label}>
+    <section style={{ marginBottom: '16px' }} role={role} aria-label={t(label)}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-        <h2 style={{ ...sectionLabelStyle, marginBottom: 0 }}>{label}</h2>
+        <h2 style={{ ...sectionLabelStyle, marginBottom: 0 }}>{t(label)}</h2>
         {helpText && (
           <span
-            title={helpText}
+            title={t(helpText)}
             style={{
               fontSize: '10px',
               color: '#64748b',
@@ -31,7 +32,7 @@ export function Section({ label, children, role, helpText }: { label: string; ch
               justifyContent: 'center',
               flexShrink: 0
             }}
-            aria-label={`Help: ${helpText}`}
+            aria-label={t("Help: {0}", [helpText])}
           >
             ?
           </span>

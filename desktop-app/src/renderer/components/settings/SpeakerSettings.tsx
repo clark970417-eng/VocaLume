@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React from 'react'
 import { Section } from './Section'
 
@@ -22,7 +23,7 @@ export function SpeakerSettings({
   if (platform !== 'darwin') return null
 
   return (
-    <Section label="Speaker Diarization">
+    <Section label={t("Speaker Diarization")}>
       <label style={{
         display: 'flex',
         alignItems: 'center',
@@ -37,13 +38,8 @@ export function SpeakerSettings({
           onChange={(e) => onSpeakerDiarizationEnabledChange(e.target.checked)}
           disabled={disabled}
           style={{ width: '16px', height: '16px' }}
-        />
-        Enable speaker identification
-      </label>
-      <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-        Identifies speakers via FluidAudio (CoreML). Color-coded labels appear on subtitles.
-        Downloads about 32 MB of model data. Speaker labels are estimates.
-      </div>
+        />{t("Enable speaker identification")} </label>
+      <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Identifies speakers via FluidAudio (CoreML). Color-coded labels appear on subtitles. Downloads about 32 MB of model data. Speaker labels are estimates.")} </div>
     </Section>
   )
 }

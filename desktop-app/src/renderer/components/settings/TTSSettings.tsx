@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Section } from './Section'
 import { selectStyle, sliderLabelStyle } from './shared'
@@ -124,7 +125,7 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
   }, [])
 
   return (
-    <Section label="Text-to-Speech">
+    <Section label={t("Text-to-Speech")}>
       {/* Enable/disable toggle */}
       <label style={{
         display: 'flex',
@@ -140,25 +141,25 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
           checked={enabled}
           onChange={(e) => handleToggle(e.target.checked)}
           disabled={disabled || loading}
-          aria-label="Enable text-to-speech"
+          aria-label={t("Enable text-to-speech")}
         />
         <span>
-          {loading ? 'Loading Kokoro-82M model...' : 'Speak translated text (Kokoro-82M)'}
+          {loading ? t("Loading Kokoro-82M model...") : t("Speak translated text (Kokoro-82M)")}
         </span>
       </label>
 
       {enabled && (
         <>
           {/* Voice selector */}
-          <div style={sliderLabelStyle}>Voice</div>
+          <div style={sliderLabelStyle}>{t("Voice")}</div>
           <select
             value={voice}
             onChange={(e) => handleVoiceChange(e.target.value)}
             style={{ ...selectStyle, marginBottom: '8px' }}
             disabled={disabled}
-            aria-label="TTS voice"
+            aria-label={t("TTS voice")}
           >
-            <option value="auto">Automatic for translation language</option>
+            <option value="auto">{t("Automatic for translation language")}</option>
             {ALL_VOICES.map((group) => (
               <optgroup key={group.group} label={group.group}>
                 {group.voices.map((v) => (
@@ -169,7 +170,7 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
           </select>
 
           {/* Volume slider */}
-          <div style={sliderLabelStyle}>Volume: {Math.round(volume * 100)}%</div>
+          <div style={sliderLabelStyle}>{t("Volume:")} {Math.round(volume * 100)}%</div>
           <input
             type="range"
             min={0}
@@ -179,21 +180,21 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
             onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
             style={{ width: '100%', marginBottom: '8px' }}
             disabled={disabled}
-            aria-label="TTS volume"
+            aria-label={t("TTS volume")}
           />
 
           {/* Output device selector */}
           {outputDevices.length > 0 && (
             <>
-              <div style={sliderLabelStyle}>Output Device</div>
+              <div style={sliderLabelStyle}>{t("Output Device")}</div>
               <select
                 value={outputDevice}
                 onChange={(e) => handleOutputDeviceChange(e.target.value)}
                 style={selectStyle}
                 disabled={disabled}
-                aria-label="TTS output device"
+                aria-label={t("TTS output device")}
               >
-                <option value="">Default</option>
+                <option value="">{t("Default")}</option>
                 {outputDevices.map((d) => (
                   <option key={d.deviceId} value={d.deviceId}>
                     {d.label || d.deviceId}
@@ -205,9 +206,7 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
         </>
       )}
 
-      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
-        Offline TTS via Kokoro-82M (ONNX). Model downloads on first use (~80MB).
-      </div>
+      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>{t("Offline TTS via Kokoro-82M (ONNX). Model downloads on first use (~80MB).")} </div>
     </Section>
   )
 }

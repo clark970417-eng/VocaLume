@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React from 'react'
 import {
   LANGUAGE_LABELS,
@@ -42,22 +43,22 @@ export function ConfigSummary({
       color: '#94a3b8'
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span>Speech Recognition</span>
-        <span style={{ color: '#e2e8f0' }}>{getSttDisplayName(sttEngine, whisperVariant)}</span>
+        <span>{t("Speech Recognition")}</span>
+        <span style={{ color: '#e2e8f0' }}>{t(getSttDisplayName(sttEngine, whisperVariant))}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <span>Translation</span>
-        <span style={{ color: '#e2e8f0' }}>{getEngineDisplayName(engineMode)}</span>
+        <span>{t("Translation")}</span>
+        <span style={{ color: '#e2e8f0' }}>{t(getEngineDisplayName(engineMode))}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-        <span>Language</span>
-        <span style={{ color: '#e2e8f0' }}>{src} → {tgt}</span>
+        <span>{t("Language")}</span>
+        <span style={{ color: '#e2e8f0' }}>{t(src)} → {t(tgt)}</span>
       </div>
       {gpuInfo && (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
           <span>GPU</span>
           <span style={{ color: gpuInfo.hasGpu ? '#22c55e' : '#f59e0b' }}>
-            {gpuInfo.hasGpu ? gpuInfo.gpuNames.join(', ') : 'Not detected'}
+            {gpuInfo.hasGpu ? gpuInfo.gpuNames.join(', ') : t("Not detected")}
           </span>
         </div>
       )}

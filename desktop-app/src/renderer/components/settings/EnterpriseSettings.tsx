@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useEffect, useState } from 'react'
 import { Section } from './Section'
 import { selectStyle } from './shared'
@@ -80,48 +81,44 @@ export function EnterpriseSettings({ disabled }: Props): React.JSX.Element {
     <>
       {/* MDM / Organization info */}
       {mdmConfig?.organizationName && (
-        <Section label="Organization">
+        <Section label={t("Organization")}>
           <div style={infoBoxStyle}>
             <span style={orgNameStyle}>{mdmConfig.organizationName}</span>
-            <span style={managedBadgeStyle}>Managed</span>
+            <span style={managedBadgeStyle}>{t("Managed")}</span>
           </div>
           {mdmConfig.lockedEngine && (
-            <div style={infoLineStyle}>
-              Translation engine locked to: <strong>{mdmConfig.lockedEngine}</strong>
+            <div style={infoLineStyle}>{t("Translation engine locked to:")} <strong>{mdmConfig.lockedEngine}</strong>
             </div>
           )}
           {mdmConfig.lockedSttEngine && (
-            <div style={infoLineStyle}>
-              STT engine locked to: <strong>{mdmConfig.lockedSttEngine}</strong>
+            <div style={infoLineStyle}>{t("STT engine locked to:")} <strong>{mdmConfig.lockedSttEngine}</strong>
             </div>
           )}
           {mdmConfig.hasManagedApiKey && (
-            <div style={infoLineStyle}>Google API key provided by organization</div>
+            <div style={infoLineStyle}>{t("Google API key provided by organization")}</div>
           )}
           {mdmConfig.hasManagedDeeplApiKey && (
-            <div style={infoLineStyle}>DeepL API key provided by organization</div>
+            <div style={infoLineStyle}>{t("DeepL API key provided by organization")}</div>
           )}
           {mdmConfig.hasManagedGeminiApiKey && (
-            <div style={infoLineStyle}>Gemini API key provided by organization</div>
+            <div style={infoLineStyle}>{t("Gemini API key provided by organization")}</div>
           )}
           {mdmConfig.hasManagedMicrosoftApiKey && (
-            <div style={infoLineStyle}>
-              Microsoft Translator API key provided by organization
-              {mdmConfig.managedMicrosoftRegion && (
-                <> (region: <strong>{mdmConfig.managedMicrosoftRegion}</strong>)</>
+            <div style={infoLineStyle}>{t("Microsoft Translator API key provided by organization")} {mdmConfig.managedMicrosoftRegion && (
+                <> {t("(region:")} <strong>{mdmConfig.managedMicrosoftRegion}</strong>)</>
               )}
             </div>
           )}
           {mdmConfig.autoUpdateDisabled && (
-            <div style={infoLineStyle}>Auto-updates managed by organization</div>
+            <div style={infoLineStyle}>{t("Auto-updates managed by organization")}</div>
           )}
         </Section>
       )}
 
       {/* Usage Analytics */}
-      <Section label="Usage Analytics">
+      <Section label={t("Usage Analytics")}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-          <label htmlFor="usage-period-select" style={{ fontSize: '12px', color: '#94a3b8' }}>Period:</label>
+          <label htmlFor="usage-period-select" style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Period:")}</label>
           <select
             id="usage-period-select"
             style={{ ...selectStyle, width: 'auto', padding: '4px 8px', fontSize: '12px' }}
@@ -129,9 +126,9 @@ export function EnterpriseSettings({ disabled }: Props): React.JSX.Element {
             onChange={(e) => setUsagePeriod(Number(e.target.value))}
             disabled={disabled}
           >
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
+            <option value={7}>{t("Last 7 days")}</option>
+            <option value={30}>{t("Last 30 days")}</option>
+            <option value={90}>{t("Last 90 days")}</option>
           </select>
         </div>
 
@@ -139,28 +136,28 @@ export function EnterpriseSettings({ disabled }: Props): React.JSX.Element {
           <div style={statsGridStyle}>
             <div style={statCardStyle}>
               <div style={statValueStyle}>{usage.totalSessions}</div>
-              <div style={statLabelStyle}>Sessions</div>
+              <div style={statLabelStyle}>{t("Sessions")}</div>
             </div>
             <div style={statCardStyle}>
               <div style={statValueStyle}>{formatDuration(usage.totalDurationMs)}</div>
-              <div style={statLabelStyle}>Total Time</div>
+              <div style={statLabelStyle}>{t("Total Time")}</div>
             </div>
             <div style={statCardStyle}>
               <div style={statValueStyle}>{usage.totalCharacters.toLocaleString()}</div>
-              <div style={statLabelStyle}>Characters</div>
+              <div style={statLabelStyle}>{t("Characters")}</div>
             </div>
             <div style={statCardStyle}>
               <div style={statValueStyle}>{formatDuration(usage.averageSessionDurationMs)}</div>
-              <div style={statLabelStyle}>Avg Session</div>
+              <div style={statLabelStyle}>{t("Avg Session")}</div>
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: '12px', color: '#64748b' }}>Loading usage data...</div>
+          <div style={{ fontSize: '12px', color: '#64748b' }}>{t("Loading usage data...")}</div>
         )}
 
         {usage && Object.keys(usage.engineBreakdown).length > 0 && (
           <div style={{ marginTop: '8px' }}>
-            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Engine Usage</div>
+            <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>{t("Engine Usage")}</div>
             {Object.entries(usage.engineBreakdown)
               .sort(([, a], [, b]) => b - a)
               .map(([engine, count]) => (
@@ -180,7 +177,7 @@ export function EnterpriseSettings({ disabled }: Props): React.JSX.Element {
       </Section>
 
       {/* Telemetry Consent */}
-      <Section label="Telemetry">
+      <Section label={t("Telemetry")}>
         <label style={checkboxLabelStyle}>
           <input
             type="checkbox"
@@ -188,17 +185,12 @@ export function EnterpriseSettings({ disabled }: Props): React.JSX.Element {
             onChange={handleTelemetryToggle}
             disabled={disabled || telemetry?.mdmDisabled === true}
           />
-          <span>Send anonymous usage statistics to help improve the app</span>
+          <span>{t("Send anonymous usage statistics to help improve the app")}</span>
         </label>
         {telemetry?.mdmDisabled && (
-          <div style={mdmNoticeStyle}>
-            Telemetry is disabled by your organization's policy.
-          </div>
+          <div style={mdmNoticeStyle}>{t("Telemetry is disabled by your organization's policy.")} </div>
         )}
-        <div style={telemetryInfoStyle}>
-          Data collected (when enabled): session count, duration, engine type, language pairs.
-          No audio, text content, or personal information is ever collected.
-        </div>
+        <div style={telemetryInfoStyle}>{t("Data collected (when enabled): session count, duration, engine type, language pairs. No audio, text content, or personal information is ever collected.")} </div>
       </Section>
     </>
   )

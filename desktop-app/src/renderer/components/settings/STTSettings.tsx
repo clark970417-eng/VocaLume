@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React from 'react'
 import { Section } from './Section'
 import { selectStyle } from './shared'
@@ -32,122 +33,87 @@ export function STTSettings({
   const showKotobaWhisper = platform === 'darwin' && (sourceLanguage === 'ja' || sourceLanguage === 'auto')
 
   return (
-    <Section label="Speech Recognition" helpText="Choose a speech recognition engine. Whisper Local is recommended for most users.">
+    <Section label={t("Speech Recognition")} helpText={t("Choose a speech recognition engine. Whisper Local is recommended for most users.")}>
       <select
         value={sttEngine}
         onChange={(e) => onSttEngineChange(e.target.value as SttEngineType)}
         style={selectStyle}
         disabled={disabled}
-        aria-label="STT engine"
+        aria-label={t("STT engine")}
       >
         {isMacOS26 && (
-          <option value="apple-speech-transcriber">Apple Speech (Zero Setup, macOS 26+)</option>
+          <option value="apple-speech-transcriber">{t("Apple Speech (Zero Setup, macOS 26+)")}</option>
         )}
         {showKotobaWhisper && (
-          <option value="kotoba-whisper">Kotoba-Whisper v2.0 (JA-optimized, Apple Silicon)</option>
+          <option value="kotoba-whisper">{t("Kotoba-Whisper v2.0 (JA-optimized, Apple Silicon)")}</option>
         )}
-        <option value="sensevoice-sherpa">SenseVoice Small (Ultra-fast, ~70ms, Offline)</option>
+        <option value="sensevoice-sherpa">{t("SenseVoice Small (Ultra-fast, ~70ms, Offline)")}</option>
         {platform === 'darwin' && (
-          <option value="qwen3-asr">Qwen3-ASR 0.6B (Best accuracy, Apple Silicon)</option>
+          <option value="qwen3-asr">{t("Qwen3-ASR 0.6B (Best accuracy, Apple Silicon)")}</option>
         )}
         {platform === 'darwin' && (
-          <option value="mlx-whisper">mlx-whisper (Apple Silicon, recommended)</option>
+          <option value="mlx-whisper">{t("mlx-whisper (Apple Silicon, recommended)")}</option>
         )}
-        <option value="whisper-local">Whisper (whisper.cpp)</option>
+        <option value="whisper-local">{t("Whisper (whisper.cpp)")}</option>
       </select>
       {sttEngine === 'whisper-local' && (
         <div style={{ marginTop: '8px' }}>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>
-            Whisper Model
-          </div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>{t("Whisper Model")} </div>
           <select
             value={whisperVariant}
             onChange={(e) => onWhisperVariantChange(e.target.value as WhisperVariantType)}
             style={selectStyle}
             disabled={disabled}
-            aria-label="Whisper model variant"
+            aria-label={t("Whisper model variant")}
           >
-            <option value="kotoba-v2.0">Kotoba Whisper v2.0 (Japanese-optimized, ~540MB)</option>
-            <option value="large-v3-turbo">Large v3 Turbo (Multilingual, 6x faster, ~600MB)</option>
-            <option value="distil-large-v3">Distil Large v3 (5x faster, ~1.5GB)</option>
-            <option value="small">Small (Fast mode, ~466MB)</option>
-            <option value="base">Base (Fastest mode, ~142MB)</option>
+            <option value="kotoba-v2.0">{t("Kotoba Whisper v2.0 (Japanese-optimized, ~540MB)")}</option>
+            <option value="large-v3-turbo">{t("Large v3 Turbo (Multilingual, 6x faster, ~600MB)")}</option>
+            <option value="distil-large-v3">{t("Distil Large v3 (5x faster, ~1.5GB)")}</option>
+            <option value="small">{t("Small (Fast mode, ~466MB)")}</option>
+            <option value="base">{t("Base (Fastest mode, ~142MB)")}</option>
           </select>
           {whisperVariant === 'large-v3-turbo' && (
-            <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-              OpenAI large-v3-turbo: 809M params, 4 decoder layers, within 1-2% WER of large-v3.
-            </div>
+            <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("OpenAI large-v3-turbo: 809M params, 4 decoder layers, within 1-2% WER of large-v3.")} </div>
           )}
           {whisperVariant === 'distil-large-v3' && (
-            <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-              HuggingFace distil-large-v3: 756M params, 2 decoder layers, 5x faster with only 1% WER degradation vs large-v3.
-            </div>
+            <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("HuggingFace distil-large-v3: 756M params, 2 decoder layers, 5x faster with only 1% WER degradation vs large-v3.")} </div>
           )}
           {whisperVariant === 'small' && (
-            <div style={{ marginTop: '4px', fontSize: '11px', color: '#f59e0b' }}>
-              Fast mode: lower latency (~1-2s) but reduced accuracy. Good for real-time with acceptable quality.
-            </div>
+            <div style={{ marginTop: '4px', fontSize: '11px', color: '#f59e0b' }}>{t("Fast mode: lower latency (~1-2s) but reduced accuracy. Good for real-time with acceptable quality.")} </div>
           )}
           {whisperVariant === 'base' && (
-            <div style={{ marginTop: '4px', fontSize: '11px', color: '#f59e0b' }}>
-              Fastest mode: minimal latency (&lt;1s) but significantly lower accuracy. Best for speed-critical use cases.
-            </div>
+            <div style={{ marginTop: '4px', fontSize: '11px', color: '#f59e0b' }}>{t("Fastest mode: minimal latency (<1s) but significantly lower accuracy. Best for speed-critical use cases.")} </div>
           )}
         </div>
       )}
       {sttEngine === 'kotoba-whisper' && (
-        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-          Kotoba-Whisper v2.0: JA CER 5.6% (31% better than MLX Whisper). Japanese output only.
-          {sourceLanguage === 'auto' && (
+        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Kotoba-Whisper v2.0: JA CER 5.6% (31% better than MLX Whisper). Japanese output only.")} {sourceLanguage === 'auto' && (
             <span style={{ color: '#f59e0b' }}>
-              {' '}Warning: this model only outputs Japanese. Set source language to JA for best results.
-            </span>
+              {' '}{t("Warning: this model only outputs Japanese. Set source language to JA for best results.")} </span>
           )}
         </div>
       )}
       {sttEngine === 'sensevoice-sherpa' && (
-        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-          SenseVoice Small: non-autoregressive, ~70ms for 10s audio (15x faster than Whisper-Large).
-          229MB int8 model, supports JA/EN/ZH/KO with auto language detection.
-          Requires{' '}
-          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>sherpa-onnx-node</span>
-          . Model (~229MB) auto-downloads on first use.
-          <div style={{ marginTop: '2px', color: '#22c55e' }}>
-            Benchmark pending — accuracy to be validated against Whisper baselines (#692).
-          </div>
+        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("SenseVoice Small: non-autoregressive, ~70ms for 10s audio (15x faster than Whisper-Large). 229MB int8 model, supports JA/EN/ZH/KO with auto language detection. Requires")}{' '}
+          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("sherpa-onnx-node")}</span>{t(". Model (~229MB) auto-downloads on first use.")} <div style={{ marginTop: '2px', color: '#22c55e' }}>{t("Benchmark pending — accuracy to be validated against Whisper baselines (#692).")} </div>
         </div>
       )}
       {sttEngine === 'qwen3-asr' && (
-        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-          Qwen3-ASR 0.6B: JA CER 6.8%, EN WER 1.9% — best combined JA+EN accuracy.
-          Requires{' '}
-          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>speech-swift</span>
+        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Qwen3-ASR 0.6B: JA CER 6.8%, EN WER 1.9% — best combined JA+EN accuracy. Requires")}{' '}
+          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("speech-swift")}</span>
           {' '}(
-          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>
-            brew tap soniqo/speech https://github.com/soniqo/speech-swift &amp;&amp; brew install speech
-          </span>
-          ). Model (~600MB) auto-downloads on first use.
-          <div style={{ marginTop: '2px', color: '#f59e0b' }}>
-            Latency: ~2.2s per chunk (65% slower than MLX Whisper ~1.3s). Best for accuracy over speed.
-          </div>
+          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("brew tap soniqo/speech https://github.com/soniqo/speech-swift && brew install speech")} </span>{t("). Model (~600MB) auto-downloads on first use.")} <div style={{ marginTop: '2px', color: '#f59e0b' }}>{t("Latency: ~2.2s per chunk (65% slower than MLX Whisper ~1.3s). Best for accuracy over speed.")} </div>
         </div>
       )}
       {sttEngine === 'apple-speech-transcriber' && (
-        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-          Apple SpeechTranscriber: zero model management, ANE-optimized, 2.2x faster than Whisper Turbo.
-          40+ languages. Requires{' '}
-          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>apple-stt</span>
-          {' '}CLI (
-          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>
-            cd scripts/apple-stt &amp;&amp; swift build -c release &amp;&amp; cp .build/release/apple-stt /opt/homebrew/bin/
-          </span>
+        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Apple SpeechTranscriber: zero model management, ANE-optimized, 2.2x faster than Whisper Turbo. 40+ languages. Requires")}{' '}
+          <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("apple-stt")}</span>
+          {' '}{t("CLI (")} <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("cd scripts/apple-stt && swift build -c release && cp .build/release/apple-stt /opt/homebrew/bin/")} </span>
           ).
         </div>
       )}
       {sttEngine === 'mlx-whisper' && (
-        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-          MLX Whisper runs locally on Apple Silicon. Recognition speed and accuracy depend on the audio and current device load.
-        </div>
+        <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("MLX Whisper runs locally on Apple Silicon. Recognition speed and accuracy depend on the audio and current device load.")} </div>
       )}
       {(sourceLanguage === 'ja' || sourceLanguage === 'auto') && (
         <div style={{ marginTop: '12px', borderTop: '1px solid #334155', paddingTop: '10px' }}>
@@ -158,16 +124,10 @@ export function STTSettings({
               onChange={(e) => onDraftSttEnabledChange(e.target.checked)}
               disabled={disabled}
               style={{ width: '16px', height: '16px' }}
-            />
-            Fast interim results (Moonshine Tiny JA)
-          </label>
-          <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>
-            Shows an early Japanese draft while the primary recognizer prepares the result. Experimental: uses extra memory and may revise words.
-          </div>
+            />{t("Fast interim results (Moonshine Tiny JA)")} </label>
+          <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Shows an early Japanese draft while the primary recognizer prepares the result. Experimental: uses extra memory and may revise words.")} </div>
           {draftSttEnabled && sourceLanguage === 'auto' && (
-            <div style={{ marginTop: '2px', fontSize: '11px', color: '#f59e0b' }}>
-              Warning: draft STT outputs Japanese only. Non-JA audio will produce incorrect interim results.
-            </div>
+            <div style={{ marginTop: '2px', fontSize: '11px', color: '#f59e0b' }}>{t("Warning: draft STT outputs Japanese only. Non-JA audio will produce incorrect interim results.")} </div>
           )}
         </div>
       )}

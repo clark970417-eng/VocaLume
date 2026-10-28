@@ -6,6 +6,8 @@
 
 [下載 4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0) · [使用手冊](user-guide.md) · [English](../README.md) · [回報問題](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
 
+新版原始碼／本機版本的 App 與 Extension 都可在首頁的**介面語言**選擇「繁體中文」「English」或「跟隨系統」。語言會記住，不影響原文與譯文方向。公開 4.6.0 安裝檔尚未包含這次介面更新。
+
 ## 下載哪個檔案？
 
 在下載頁的 **Assets** 找到適合你的版本：
@@ -22,7 +24,7 @@
 
 ## 三步開始
 
-1. **安裝 App**，完成 Quick Start 的模型下載。獨立使用時，在首頁選擇聲音來源、原文與翻譯語言，再按 Start。
+1. **安裝 App**，完成「快速開始」的模型下載。獨立使用時，在首頁選擇聲音來源、原文與翻譯語言，再按「開始」。
 2. **安裝 Extension**：解壓到固定資料夾，在 `opera://extensions` 開啟開發人員模式，按「載入未封裝擴充功能」。Mac 本機字幕還需[連接 App](user-guide.md#連接-mac-app-與-extension)。
 3. **開啟影片**，點 VocaLume →「語音字幕」→ 選語言 → 開始。讀貼文與翻譯留言則在「文字翻譯」開啟；不會替你送出留言。
 

@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useEffect, useState } from 'react'
 import { Section } from './Section'
 import { disclosureArrowStyle, disclosureToggleStyle, inputStyle } from './shared'
@@ -102,27 +103,18 @@ export function GlossarySettings({
 
   return (
     <>
-      <Section label="Personal Glossary">
-        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>
-          Define fixed translations for specific terms (e.g. proper nouns).
-        </div>
+      <Section label={t("Personal Glossary")}>
+        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>{t("Define fixed translations for specific terms (e.g. proper nouns).")} </div>
         <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-          <button onClick={() => handleImport('personal')} disabled={disabled} style={glossaryButtonStyle}>
-            Import JSON/CSV
-          </button>
+          <button onClick={() => handleImport('personal')} disabled={disabled} style={glossaryButtonStyle}>{t("Import JSON/CSV")} </button>
           {glossaryTerms.length > 0 && (
             <>
-              <button onClick={() => handleExport('personal', 'json')} disabled={disabled} style={glossaryButtonStyle}>
-                Export JSON
-              </button>
-              <button onClick={() => handleExport('personal', 'csv')} disabled={disabled} style={glossaryButtonStyle}>
-                Export CSV
-              </button>
+              <button onClick={() => handleExport('personal', 'json')} disabled={disabled} style={glossaryButtonStyle}>{t("Export JSON")} </button>
+              <button onClick={() => handleExport('personal', 'csv')} disabled={disabled} style={glossaryButtonStyle}>{t("Export CSV")} </button>
             </>
           )}
           <span style={{ fontSize: '11px', color: '#94a3b8', alignSelf: 'center' }}>
-            {glossaryTerms.length} terms
-          </span>
+            {glossaryTerms.length} {t("terms")} </span>
         </div>
         {glossaryTerms.length === 0 ? (
           <div
@@ -133,9 +125,7 @@ export function GlossarySettings({
               padding: '16px 0',
               borderBottom: '1px solid #1e293b'
             }}
-          >
-            No glossary terms added yet
-          </div>
+          >{t("No glossary terms added yet")} </div>
         ) : (
           <div style={{ marginBottom: '8px', maxHeight: '200px', overflowY: 'auto' }}>
             {glossaryTerms.map((term, idx) => (
@@ -163,7 +153,7 @@ export function GlossarySettings({
                 >
                   {term.source}
                 </span>
-                <span style={{ color: '#94a3b8', flexShrink: 0 }}>&rarr;</span>
+                <span style={{ color: '#94a3b8', flexShrink: 0 }}>→</span>
                 <span
                   style={{
                     flex: 1,
@@ -194,9 +184,7 @@ export function GlossarySettings({
                     borderRadius: '4px',
                     cursor: disabled ? 'not-allowed' : 'pointer'
                   }}
-                >
-                  Remove
-                </button>
+                >{t("Remove")} </button>
               </div>
             ))}
           </div>
@@ -206,8 +194,8 @@ export function GlossarySettings({
             type="text"
             value={newGlossarySource}
             onChange={(e) => setNewGlossarySource(e.target.value)}
-            placeholder="Source term"
-            aria-label="Source term"
+            placeholder={t("Source term")}
+            aria-label={t("Source term")}
             style={{ ...inputStyle, flex: 1, fontFamily: 'inherit' }}
             disabled={disabled}
           />
@@ -215,8 +203,8 @@ export function GlossarySettings({
             type="text"
             value={newGlossaryTarget}
             onChange={(e) => setNewGlossaryTarget(e.target.value)}
-            placeholder="Translation"
-            aria-label="Translation"
+            placeholder={t("Translation")}
+            aria-label={t("Translation")}
             style={{ ...inputStyle, flex: 1, fontFamily: 'inherit' }}
             disabled={disabled}
           />
@@ -241,13 +229,11 @@ export function GlossarySettings({
               cursor: (disabled || !newGlossarySource.trim() || !newGlossaryTarget.trim()) ? 'not-allowed' : 'pointer',
               whiteSpace: 'nowrap'
             }}
-          >
-            Add
-          </button>
+          >{t("Add")} </button>
         </div>
       </Section>
 
-      <Section label="Organization Glossary">
+      <Section label={t("Organization Glossary")}>
         <button
           onClick={() => setShowOrgGlossary(!showOrgGlossary)}
           aria-expanded={showOrgGlossary}
@@ -255,47 +241,34 @@ export function GlossarySettings({
         >
           <span style={disclosureArrowStyle(showOrgGlossary)}>
             &#9654;
-          </span>
-          Shared team glossary — org terms override personal when conflicts
-        </button>
+          </span>{t("Shared team glossary — org terms override personal when conflicts")} </button>
 
         {showOrgGlossary && (
           <div style={{ marginTop: '8px' }}>
             <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-              <button onClick={() => handleImport('org')} disabled={disabled} style={glossaryButtonStyle}>
-                Import JSON/CSV
-              </button>
+              <button onClick={() => handleImport('org')} disabled={disabled} style={glossaryButtonStyle}>{t("Import JSON/CSV")} </button>
               {orgGlossaryTerms.length > 0 && (
                 <>
-                  <button onClick={() => handleExport('org', 'json')} disabled={disabled} style={glossaryButtonStyle}>
-                    Export JSON
-                  </button>
-                  <button onClick={() => handleExport('org', 'csv')} disabled={disabled} style={glossaryButtonStyle}>
-                    Export CSV
-                  </button>
+                  <button onClick={() => handleExport('org', 'json')} disabled={disabled} style={glossaryButtonStyle}>{t("Export JSON")} </button>
+                  <button onClick={() => handleExport('org', 'csv')} disabled={disabled} style={glossaryButtonStyle}>{t("Export CSV")} </button>
                   <button
                     onClick={() => {
-                      if (!window.confirm('Clear organization glossary? This cannot be undone.')) return
+                      if (!window.confirm(t('Clear organization glossary? This cannot be undone.'))) return
                       onOrgGlossaryTermsChange([])
                       window.api.saveOrgGlossary([])
                       setGlossaryStatus('Organization glossary cleared')
                     }}
                     disabled={disabled}
                     style={{ ...glossaryButtonStyle, color: '#ef4444' }}
-                  >
-                    Clear
-                  </button>
+                  >{t("Clear")} </button>
                 </>
               )}
               <span style={{ fontSize: '11px', color: '#94a3b8', alignSelf: 'center' }}>
-                {orgGlossaryTerms.length} terms
-              </span>
+                {orgGlossaryTerms.length} {t("terms")} </span>
             </div>
 
             {orgGlossaryTerms.length === 0 ? (
-              <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '12px 0' }}>
-                No organization glossary imported. Import a JSON or CSV file shared by your team.
-              </div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '12px 0' }}>{t("No organization glossary imported. Import a JSON or CSV file shared by your team.")} </div>
             ) : (
               <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
                 {orgGlossaryTerms.map((term, idx) => (
@@ -313,7 +286,7 @@ export function GlossarySettings({
                     <span style={{ flex: 1, minWidth: 0, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={term.source}>
                       {term.source}
                     </span>
-                    <span style={{ color: '#94a3b8', flexShrink: 0 }}>&rarr;</span>
+                    <span style={{ color: '#94a3b8', flexShrink: 0 }}>→</span>
                     <span style={{ flex: 1, minWidth: 0, color: '#a78bfa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={term.target}>
                       {term.target}
                     </span>
@@ -325,8 +298,7 @@ export function GlossarySettings({
             {conflicts.length > 0 && (
               <div style={{ marginTop: '8px', padding: '8px', background: '#1e293b', borderRadius: '6px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 600, color: '#f59e0b', marginBottom: '4px' }}>
-                  {conflicts.length} conflict{conflicts.length > 1 ? 's' : ''} (org overrides personal)
-                </div>
+                  {conflicts.length} {t("conflict")}{conflicts.length > 1 ? 's' : ''} {t("(org overrides personal)")} </div>
                 {conflicts.slice(0, 5).map((c, idx) => (
                   <div key={idx} style={{ fontSize: '11px', color: '#94a3b8', padding: '2px 0' }}>
                     <span style={{ color: '#e2e8f0' }}>{c.source}</span>
@@ -337,9 +309,7 @@ export function GlossarySettings({
                   </div>
                 ))}
                 {conflicts.length > 5 && (
-                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    ...and {conflicts.length - 5} more
-                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t("...and")} {conflicts.length - 5} {t("more")} </div>
                 )}
               </div>
             )}
@@ -348,7 +318,7 @@ export function GlossarySettings({
 
         {glossaryStatus && (
           <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>
-            {glossaryStatus}
+            {t(glossaryStatus)}
           </div>
         )}
       </Section>

@@ -113,3 +113,6 @@ button:disabled, select:disabled, input:disabled { opacity: .5; cursor: default;
 #apiFields > label { margin-top: 12px; }
 .key-removal { display: flex; gap: 8px; align-items: center; }
 .api-actions { margin-top: 14px; }
+/* Keep the interface language one click away, independent of translation pairs. */
+.interface-language { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 18px 12px; font-size: 11px; color: #b5c4d8; }
+.interface-language select { width: auto; max-width: 160px; min-height: 32px; padding: 4px 8px; margin: 0; font-size: 11px; }

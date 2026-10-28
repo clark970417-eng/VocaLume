@@ -1,0 +1,1 @@
+extension/popup-locale.mjs

@@ -1,3 +1,4 @@
+import { t } from '../../ui-language'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Section } from './Section'
 import { buttonStyle } from './shared'
@@ -62,26 +63,26 @@ export function UpdateStatus(): React.JSX.Element {
 
   const channelControl = (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px' }}>
-      <label htmlFor="update-channel" style={{ fontSize: '12px', color: '#94a3b8' }}>Update channel</label>
+      <label htmlFor="update-channel" style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Update channel")}</label>
       <select id="update-channel" value={update.channel ?? 'beta'} onChange={handleChannelChange}
         style={{ background: '#0f172a', color: '#e2e8f0', border: '1px solid #475569', borderRadius: '6px', padding: '6px' }}>
-        <option value="stable">Stable</option>
-        <option value="beta">Beta</option>
+        <option value="stable">{t("Stable")}</option>
+        <option value="beta">{t("Beta")}</option>
       </select>
-      {update.currentVersion && <span style={{ fontSize: '12px', color: '#64748b' }}>Current v{update.currentVersion}</span>}
+      {update.currentVersion && <span style={{ fontSize: '12px', color: '#64748b' }}>{t("Current v")}{update.currentVersion}</span>}
     </div>
   )
 
   // Don't render anything when idle and no update info
   if (update.state === 'idle' || update.state === 'not-available') {
     return (
-      <Section label="App Updates">
+      <Section label={t("App Updates")}>
         {channelControl}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '13px', color: '#94a3b8' }}>
             {update.state === 'not-available' && update.version
-              ? `Up to date (v${update.version})`
-              : 'No update info'}
+              ? t("Up to date (v{0})", [update.version])
+              : t("No update info")}
           </span>
           <button
             onClick={handleCheck}
@@ -96,16 +97,14 @@ export function UpdateStatus(): React.JSX.Element {
               cursor: 'pointer',
               minHeight: '44px'
             }}
-          >
-            Check for Updates
-          </button>
+          >{t("Check for Updates")} </button>
         </div>
       </Section>
     )
   }
 
   return (
-    <Section label="App Updates">
+    <Section label={t("App Updates")}>
       {channelControl}
       <div style={{
         background: '#1e293b',
@@ -116,16 +115,12 @@ export function UpdateStatus(): React.JSX.Element {
           : '1px solid #334155'
       }}>
         {update.state === 'checking' && (
-          <div style={{ fontSize: '13px', color: '#94a3b8' }}>
-            Checking for updates...
-          </div>
+          <div style={{ fontSize: '13px', color: '#94a3b8' }}>{t("Checking for updates...")} </div>
         )}
 
         {update.state === 'available' && (
           <>
-            <div style={{ fontSize: '13px', color: '#e2e8f0', marginBottom: '8px' }}>
-              Version {update.version} is available
-            </div>
+            <div style={{ fontSize: '13px', color: '#e2e8f0', marginBottom: '8px' }}>{t("Version")} {update.version} {t("is available")} </div>
             <button
               onClick={handleDownload}
               style={{
@@ -136,15 +131,14 @@ export function UpdateStatus(): React.JSX.Element {
                 marginTop: 0
               }}
             >
-              {update.installMode === 'browser' ? 'Open Verified Download Page' : 'Download Update'}
+              {update.installMode === 'browser' ? t("Open Verified Download Page") : t("Download Update")}
             </button>
           </>
         )}
 
         {update.state === 'downloading' && (
           <div>
-            <div style={{ fontSize: '13px', color: '#e2e8f0', marginBottom: '8px' }}>
-              Downloading update... {update.progress !== undefined ? `${update.progress}%` : ''}
+            <div style={{ fontSize: '13px', color: '#e2e8f0', marginBottom: '8px' }}>{t("Downloading update...")} {update.progress !== undefined ? `${update.progress}%` : ''}
             </div>
             <div style={{
               width: '100%',
@@ -166,12 +160,10 @@ export function UpdateStatus(): React.JSX.Element {
 
         {update.state === 'downloaded' && (
           <>
-            <div style={{ fontSize: '13px', color: '#e2e8f0', marginBottom: '8px' }}>
-              Version {update.version} is ready to install
-            </div>
+            <div style={{ fontSize: '13px', color: '#e2e8f0', marginBottom: '8px' }}>{t("Version")} {update.version} {t("is ready to install")} </div>
             {update.error && (
               <div style={{ fontSize: '12px', color: '#f59e0b', marginBottom: '8px' }}>
-                {update.error}
+                {t(update.error)}
               </div>
             )}
             <button
@@ -183,16 +175,13 @@ export function UpdateStatus(): React.JSX.Element {
                 padding: '8px',
                 marginTop: 0
               }}
-            >
-              Restart &amp; Install
-            </button>
+            >{t("Restart & Install")} </button>
           </>
         )}
 
         {update.state === 'error' && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: '100%' }}>
-            <span style={{ fontSize: '12px', color: '#ef4444', wordBreak: 'break-word', minWidth: 0 }}>
-              Update check failed{update.error ? `: ${update.error}` : ''}
+            <span style={{ fontSize: '12px', color: '#ef4444', wordBreak: 'break-word', minWidth: 0 }}>{t("Update check failed")}{update.error ? `: ${t(update.error)}` : ''}
             </span>
             <button
               onClick={handleCheck}
@@ -207,9 +196,7 @@ export function UpdateStatus(): React.JSX.Element {
                 cursor: 'pointer',
                 minHeight: '44px'
               }}
-            >
-              Retry
-            </button>
+            >{t("Retry")} </button>
           </div>
         )}
       </div>

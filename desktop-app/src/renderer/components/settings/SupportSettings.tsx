@@ -1,10 +1,11 @@
+import { t } from '../../ui-language'
 import React, { useState } from 'react'
 import { Section } from './Section'
 
 const links = {
   bug: 'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
   translation: 'https://github.com/clark970417-eng/VocaLume/issues/new?template=translation-quality.yml',
-  privacy: 'https://github.com/clark970417-eng/VocaLume/blob/main/PRIVACY.md'
+  privacy: 'https://github.com/clark970417-eng/VocaLume/blob/main/docs/legal/privacy.md'
 }
 
 const actionStyle: React.CSSProperties = {
@@ -24,17 +25,15 @@ export function SupportSettings(): React.JSX.Element {
     else if (result.error) setMessage(result.error)
   }
   return (
-    <Section label="Support & Privacy">
-      <p style={{ color: '#94a3b8', fontSize: '12px', lineHeight: 1.5 }}>
-        Diagnostic exports exclude API keys, microphone audio, captions, and translation text.
-      </p>
+    <Section label={t("Support & Privacy")}>
+      <p style={{ color: '#94a3b8', fontSize: '12px', lineHeight: 1.5 }}>{t("Diagnostic exports exclude API keys, microphone audio, captions, and translation text.")} </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-        <button style={actionStyle} onClick={exportDiagnostics}>Export Diagnostics</button>
-        <button style={actionStyle} onClick={() => open(links.bug)}>Report a Problem</button>
-        <button style={actionStyle} onClick={() => open(links.translation)}>Report Translation Quality</button>
-        <button style={actionStyle} onClick={() => open(links.privacy)}>Privacy Information</button>
+        <button style={actionStyle} onClick={exportDiagnostics}>{t("Export Diagnostics")}</button>
+        <button style={actionStyle} onClick={() => open(links.bug)}>{t("Report a Problem")}</button>
+        <button style={actionStyle} onClick={() => open(links.translation)}>{t("Report Translation Quality")}</button>
+        <button style={actionStyle} onClick={() => open(links.privacy)}>{t("Privacy Information")}</button>
       </div>
-      {message && <p role="status" style={{ color: '#93c5fd', fontSize: '12px' }}>{message}</p>}
+      {message && <p role="status" style={{ color: '#93c5fd', fontSize: '12px' }}>{t(message)}</p>}
     </Section>
   )
 }

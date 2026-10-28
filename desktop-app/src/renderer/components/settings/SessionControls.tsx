@@ -1,3 +1,4 @@
+import { t, uiLocale } from '../../ui-language'
 import React from 'react'
 import { Section } from './Section'
 import { buttonStyle, withIpcTimeout } from './shared'
@@ -53,7 +54,7 @@ export function SessionControls({
       {view !== 'history' && <>
       {/* Start/Stop Button */}
       <button
-        aria-label={isRunning ? 'Stop translation' : 'Start translation'}
+        aria-label={isRunning ? t("Stop translation") : t("Start translation")}
         onClick={isRunning ? onStop : onStart}
         style={{
           ...buttonStyle,
@@ -67,7 +68,7 @@ export function SessionControls({
           (engineMode === 'rotation' && !microsoftApiKey && !apiKey && !deeplApiKey && !geminiApiKey)
         ))}
       >
-        {isStarting ? 'Starting...' : isRunning ? '\u23F9 Stop' : '\u25B6 Start'}
+        {isStarting ? t("Starting...") : isRunning ? t("⏹ Stop") : t("▶ Start")}
       </button>
 
       {/* Status */}
@@ -75,7 +76,7 @@ export function SessionControls({
         <span style={{ color: isRunning ? '#22c55e' : '#64748b' }}>
           {isRunning ? '\u25CF' : '\u25CB'}
         </span>{' '}
-        {status}
+        {t(status)}
         {sessionDuration && (
           <span style={{ marginLeft: '8px', color: '#94a3b8' }}>
             ({sessionDuration})
@@ -105,20 +106,14 @@ export function SessionControls({
                 padding: '8px',
                 marginTop: 0
               }}
-            >
-              Generate Meeting Summary
-            </button>
+            >{t("Generate Meeting Summary")} </button>
           )}
           {isSummarizing && (
-            <div style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>
-              Generating summary...
-            </div>
+            <div style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>{t("Generating summary...")} </div>
           )}
           {summaryText && (
             <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>
-                MEETING SUMMARY
-              </div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', marginBottom: '8px' }}>{t("MEETING SUMMARY")} </div>
               <pre style={{
                 fontSize: '12px',
                 color: '#e2e8f0',
@@ -140,9 +135,7 @@ export function SessionControls({
                   padding: '6px',
                   marginTop: '8px'
                 }}
-              >
-                Copy to Clipboard
-              </button>
+              >{t("Copy to Clipboard")} </button>
             </div>
           )}
         </div>
@@ -150,22 +143,8 @@ export function SessionControls({
 
       {/* Session History */}
       {sessions.length > 0 && (
-        <Section label="Session History">
-          <style>{`
-            .session-history-scroll::-webkit-scrollbar {
-              width: 6px;
-            }
-            .session-history-scroll::-webkit-scrollbar-track {
-              background: transparent;
-            }
-            .session-history-scroll::-webkit-scrollbar-thumb {
-              background: #475569;
-              border-radius: 3px;
-            }
-            .session-history-scroll::-webkit-scrollbar-thumb:hover {
-              background: #64748b;
-            }
-          `}</style>
+        <Section label={t("Session History")}>
+          <style>{"\n            .session-history-scroll::-webkit-scrollbar {\n              width: 6px;\n            }\n            .session-history-scroll::-webkit-scrollbar-track {\n              background: transparent;\n            }\n            .session-history-scroll::-webkit-scrollbar-thumb {\n              background: #475569;\n              border-radius: 3px;\n            }\n            .session-history-scroll::-webkit-scrollbar-thumb:hover {\n              background: #64748b;\n            }\n          "}</style>
           <div className="session-history-scroll" style={{ maxHeight: '200px', overflowY: 'auto' }}>
             {sessions.slice(0, 10).map((s) => (
               <div key={s.id} style={{
@@ -177,8 +156,8 @@ export function SessionControls({
                 fontSize: '12px'
               }}>
                 <div>
-                  <div style={{ color: '#e2e8f0' }}>{new Date(s.startedAt).toLocaleString()}</div>
-                  <div style={{ color: '#94a3b8' }}>{s.engineMode} — {s.entryCount} entries</div>
+                  <div style={{ color: '#e2e8f0' }}>{new Date(s.startedAt).toLocaleString(uiLocale())}</div>
+                  <div style={{ color: '#94a3b8' }}>{s.engineMode} — {s.entryCount} {t("entries")}</div>
                 </div>
                 <button
                   onClick={async () => {
@@ -198,9 +177,7 @@ export function SessionControls({
                     borderRadius: '4px',
                     cursor: 'pointer'
                   }}
-                >
-                  Export
-                </button>
+                >{t("Export")} </button>
               </div>
             ))}
           </div>
