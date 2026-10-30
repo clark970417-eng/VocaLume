@@ -15,7 +15,7 @@ Complete **Quick Start** and wait for the model download. Reserve several GB for
 ## Browser extension
 
 1. Extract `vocalume-extension.zip` into a permanent folder, such as Documents/VocaLume Extension.
-2. Open `opera://extensions` in Opera GX or `chrome://extensions` in Chrome.
+2. Open `chrome://extensions` in Chrome or `opera://extensions` in Opera GX.
 3. Enable **Developer mode**, click **Load unpacked**, and select the folder containing `manifest.json`.
 4. Pin VocaLume to the toolbar and refresh the video or website.
 

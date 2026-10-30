@@ -18,7 +18,7 @@ test('release completeness gate covers native files and checksums the provenance
     const version = '4.6.0', assets = join(root,'assets'), source = join(root,'extension');
     mkdirSync(assets); mkdirSync(join(source,'desktop'),{recursive:true});
     writeFileSync(join(source,'manifest.json'),JSON.stringify({version,name:'VocaLume'}));
-    for(const name of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md']) writeFileSync(join(source,name),'fixture');
+    for(const name of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md']) writeFileSync(join(source,name),'fixture');
     for(const name of [`VocaLume-${version}-arm64.dmg`,`VocaLume-${version}.dmg`,`VocaLume-${version}-arm64-mac.zip`,`VocaLume-${version}-mac.zip`,`VocaLume.Setup.${version}.exe`,`VocaLume-${version}.AppImage`]) writeFileSync(join(assets,name),Buffer.alloc(1024));
     const zip = join(assets,'vocalume-extension.zip');
     execFileSync('zip',['-qr',zip,'.'],{cwd:source});
@@ -28,6 +28,11 @@ test('release completeness gate covers native files and checksums the provenance
     const provenance = readFileSync(join(assets,'release-manifest.json'));
     const digest = createHash('sha256').update(provenance).digest('hex');
     assert.match(readFileSync(join(assets,'SHA256SUMS.txt'),'utf8'),new RegExp(`${digest}  release-manifest.json`));
+    execFileSync('zip',['-dq',zip,'ui-messages-zh-cn.mjs']);
+    const missingLocale = spawnSync(process.execPath,args,{cwd:root,encoding:'utf8'});
+    assert.notEqual(missingLocale.status,0);
+    assert.match(missingLocale.stderr,/ui-messages-zh-cn\.mjs/);
+    execFileSync('zip',['-q',zip,'ui-messages-zh-cn.mjs'],{cwd:source});
     execFileSync('zip',['-dq',zip,'desktop/relay.py']);
     assert.notEqual(spawnSync(process.execPath,args,{cwd:root,encoding:'utf8'}).status,0);
     rmSync(join(assets,`VocaLume-${version}.dmg`));

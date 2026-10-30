@@ -27,7 +27,8 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 ## Start in three steps
 
 1. **Install the app and download its models.** Choose the audio source, spoken language, and translation language.
-2. **For website features, install the extension too.** Extract the ZIP to a permanent folder. In `opera://extensions` or `chrome://extensions`, turn on Developer mode and choose **Load unpacked**. Keep that folder.
+2. **For website features, install the extension too.** Extract the ZIP to a permanent folder. In Chrome, open `chrome://extensions`; in Opera GX, open `opera://extensions`. Then turn on Developer mode and choose **Load unpacked**. Keep that folder.
+   **Mac local browser captions also require [one-time App connection](docs/installation.md#connect-the-mac-app).** Installing the two downloads alone does not complete setup. Windows/Linux currently use the standalone App for local translation.
 3. **Start captions or translate a draft.** Play a video and start voice captions, or enable text translation on a supported website. Review translated replies and send them yourself.
 
 [Step-by-step installation & troubleshooting](docs/installation.md) · [中文使用手冊](docs/user-guide.md)
@@ -46,7 +47,7 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 - **This is a public beta.** Recognition and translation can fail or be inaccurate. Check important content against the original.
 - **macOS and Windows desktop apps are available; Linux is experimental.** The local browser connection currently supports macOS Opera GX / Chrome and requires [one-time setup](docs/installation.md#connect-the-mac-app). Windows/Linux can use the standalone app. Browser-only captions need WebGPU and network translation; an equivalent native connection installer is not included yet.
 - **Installers are unsigned previews.** Follow the installation guide if your system displays a warning.
-- **Interface languages:** current source/local builds offer English and Traditional Chinese. Published 4.6.0 installers predate that interface update. Website language choices are separate from app and translation languages.
+- **Interface languages:** current source/local builds offer English, Traditional Chinese and Simplified Chinese. Published 4.6.0 installers predate that interface update. Website language choices are separate from app and translation languages.
 
 ## Help shape the next version
 

@@ -10,7 +10,7 @@
 
 ## 先下载适合电脑的版本
 
-直接点链接即可，不必找 GitHub 的文件列表。**Source code 是原代码，不是安装程序。**
+直接点链接即可，不必找 GitHub 的文件列表。**Source code 是源代码，不是安装程序。**
 
 | 你的电脑 | 下载 |
 | --- | --- |
@@ -18,21 +18,22 @@
 | Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0-arm64.dmg) |
 | Mac · Intel | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.dmg) |
 | Linux x64 · 实验性 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.AppImage) |
-| Opera GX / Chrome 扩充功能 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/vocalume-扩充功能.zip) |
+| Opera GX / Chrome 扩充功能 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/vocalume-extension.zip) |
 
 不知道 Mac 是哪种？点 ** → 关于这台 Mac**，查看「芯片」或「处理器」。
 
 ## 三步开始使用
 
 1. **安装 App、下载模型：** 选择声音来源、听到的语言，以及要翻译成的语言。
-2. **要在网站用，也装扩充功能：** ZIP 解压到固定文件夹，在 `opera://extensions` 或 `chrome://extensions` 打开「开发人员模式」，选「加载未封装扩充功能」。**这个文件夹不能删除。**
+2. **要在网站用，也装扩充功能：** ZIP 解压到固定文件夹，Chrome 打开 `chrome://extensions`；Opera GX 打开 `opera://extensions`，然后打开「开发人员模式」，选「加载未封装扩充功能」。**这个文件夹不能删除。**
+   **Mac 本机网页字幕还需完成[一次性连接 App](user-guide.md#連接-mac-app-與-extension)。** 只下载、安装两个文件还不够；Windows／Linux 目前请用独立 App 进行本机翻译。
 3. **开始看字幕或回复：** 播放视频并开始语音字幕；网站文本翻译可自行打开。回复时先翻译、确认内容，再自行送出。
 
 [完整安装、更新与疑难排解](user-guide.md)
 
 ## 可以拿来做什么？
 
-- **听懂直播：** 显示双语字幕，可菜单组或四组。
+- **听懂直播：** 显示双语字幕，可选单组或四组。
 - **读懂文本：** 翻译支持网站的贴文、标题和聊天室。
 - **方便回复：** 先用熟悉的语言打字，再翻成对方的语言，不必一直切出去拷贝粘贴。
 - **调成喜欢的样子：** 选择语言方向、字幕大小、颜色、外框与背景。
@@ -42,9 +43,9 @@
 
 - **本机模式免费，不需要付费 API。** 首次需下载模型，速度依电脑性能与负载而异；选用外部 API 则依服务商收费。
 - **目前是公开测试版。** 辨识与翻译可能失败或翻错，重要内容请对照原文。
-- **提供 Mac、Windows App；Linux 为实验性。** Mac 本机浏览器字幕支持 Opera GX／Chrome，需要[一次性连接 App](user-guide.md#连接-mac-app-与-extension)。Windows／Linux 可使用独立 App；浏览器模式需要 WebGPU 与网络文本翻译，目前没有同样的本机连接安装流程。
+- **提供 Mac、Windows App；Linux 为实验性。** Mac 本机浏览器字幕支持 Opera GX／Chrome，需要[一次性连接 App](user-guide.md#連接-mac-app-與-extension)。Windows／Linux 可使用独立 App；浏览器模式需要 WebGPU 与网络文本翻译，目前没有同样的本机连接安装流程。
 - **安装档尚未签章／公证。** 遇到系统提示请参考使用手册。
-- **中文接口：** 最新原代码／本机版本提供繁体中文与英文接口；公开 4.6.0 安装档尚未包含此接口更新。网站的四种接口语言与 App、翻译语言是不同设置。
+- **中文界面：** 最新源代码／本机版本提供简体中文、繁体中文与英文界面；公开 4.6.0 安装档尚未包含此界面更新。网站界面语言与 App、翻译语言是不同设置。
 
 ## 一起让它更好用
 

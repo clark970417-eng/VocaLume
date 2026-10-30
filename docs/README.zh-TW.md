@@ -20,14 +20,15 @@
 | Mac · Apple Silicon (M1–M5) | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0-arm64.dmg) |
 | Mac · Intel | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.dmg) |
 | Linux x64 · 實驗性 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.AppImage) |
-| Opera GX / Chrome 擴充功能 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/vocalume-擴充功能.zip) |
+| Opera GX / Chrome 擴充功能 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/vocalume-extension.zip) |
 
 不知道 Mac 是哪種？點 ** → 關於這台 Mac**，查看「晶片」或「處理器」。
 
 ## 三步開始使用
 
 1. **安裝 App、下載模型：** 選擇聲音來源、聽到的語言，以及要翻譯成的語言。
-2. **要在網站用，也裝擴充功能：** ZIP 解壓到固定資料夾，在 `opera://extensions` 或 `chrome://extensions` 開啟「開發人員模式」，選「載入未封裝擴充功能」。**這個資料夾不能刪除。**
+2. **要在網站用，也裝擴充功能：** ZIP 解壓到固定資料夾，Chrome 開啟 `chrome://extensions`；Opera GX 開啟 `opera://extensions`，然後開啟「開發人員模式」，選「載入未封裝擴充功能」。**這個資料夾不能刪除。**
+   **Mac 本機網頁字幕還需完成[一次性連接 App](user-guide.md#連接-mac-app-與-extension)。** 只下載、安裝兩個檔案還不夠；Windows／Linux 目前請用獨立 App 進行本機翻譯。
 3. **開始看字幕或回覆：** 播放影片並開始語音字幕；網站文字翻譯可自行開啟。回覆時先翻譯、確認內容，再自行送出。
 
 [完整安裝、更新與疑難排解](user-guide.md)
@@ -46,7 +47,7 @@
 - **目前是公開測試版。** 辨識與翻譯可能失敗或翻錯，重要內容請對照原文。
 - **提供 Mac、Windows App；Linux 為實驗性。** Mac 本機瀏覽器字幕支援 Opera GX／Chrome，需要[一次性連接 App](user-guide.md#連接-mac-app-與-extension)。Windows／Linux 可使用獨立 App；瀏覽器模式需要 WebGPU 與網路文字翻譯，目前沒有同樣的本機連接安裝流程。
 - **安裝檔尚未簽章／公證。** 遇到系統提示請參考使用手冊。
-- **中文介面：** 最新原始碼／本機版本提供繁體中文與英文介面；公開 4.6.0 安裝檔尚未包含此介面更新。網站的四種介面語言與 App、翻譯語言是不同設定。
+- **中文介面：** 最新原始碼／本機版本提供繁體中文、簡體中文與英文介面；公開 4.6.0 安裝檔尚未包含此介面更新。網站介面語言與 App、翻譯語言是不同設定。
 
 ## 一起讓它更好用
 
