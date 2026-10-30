@@ -2,65 +2,66 @@
 
 ![VocaLume](docs/brand/VocaLume-logo-hd.png)
 
-**Read, reply, and understand what you hear.** Multilingual live captions, website translation, and translated reply drafts — with local models or your own API.
+**Free local translation for streams and conversations.** Read bilingual captions, understand chats, and turn your reply into another language before sending it yourself.
 
-**讀懂、回覆，也聽懂。** 即時雙語字幕、網站與留言翻譯，可使用本機模型或自己的 API。
+**免費在自己的電腦翻譯直播與聊天。** 看雙語字幕、讀懂聊天室，打中文也能翻成日文再回覆。
 
-[Download 4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0) · [Installation guide](docs/installation.md) · [繁體中文](docs/README.zh-TW.md) · [Report a problem](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
-
-Latest source builds include **English / 繁體中文** interfaces. Use **Interface language / 介面語言** at the top of the App or extension; the choice is remembered and does not change your translation languages. Published 4.6.0 installers predate this interface-language update.
+[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [Latest download](https://github.com/clark970417-eng/VocaLume/releases/latest)
 
 ## Download
 
-Open the release page and choose a file under **Assets**:
+Click the link for your computer. You do not need the **Source code** files.
 
-| Your computer | Download |
+| Your computer | Installer |
 | --- | --- |
-| Mac with Apple M-series chip | `VocaLume-4.6.0-arm64.dmg` |
-| Mac with Intel processor | `VocaLume-4.6.0.dmg` |
-| Windows x64 | `VocaLume.Setup.4.6.0.exe` |
-| Linux x64 — experimental | `VocaLume-4.6.0.AppImage` |
-| Opera GX / Chrome extension | `vocalume-extension.zip` |
+| Windows x64 | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume.Setup.4.6.0.exe) |
+| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0-arm64.dmg) |
+| Mac · Intel | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.dmg) |
+| Linux x64 · experimental | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.AppImage) |
+| Opera GX / Chrome extension | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/vocalume-extension.zip) |
 
-These are **unsigned preview builds**. Follow the installation guide if your operating system displays a warning. Model weights download separately on first use.
+Not sure which Mac you have? Open ** → About This Mac** and check the chip or processor.
 
-## Get started
+## Start in three steps
 
-1. **Install the App** and finish Quick Start. For standalone captions, choose your audio source and languages, then press Start.
-2. **Install the extension:** extract its ZIP into a permanent folder, open `opera://extensions` or `chrome://extensions`, enable Developer mode, and select **Load unpacked**. Mac local captions also need the [one-time App connection](docs/installation.md#connect-the-mac-app).
-3. **Open a video**, choose the spoken and subtitle languages in VocaLume, and start captions. Enable website translation separately when you want it.
+1. **Install the app and download its models.** Choose the audio source, spoken language, and translation language.
+2. **For website features, install the extension too.** Extract the ZIP to a permanent folder. In `opera://extensions` or `chrome://extensions`, turn on Developer mode and choose **Load unpacked**. Keep that folder.
+3. **Start captions or translate a draft.** Play a video and start voice captions, or enable text translation on a supported website. Review translated replies and send them yourself.
 
-The local browser connection currently supports **macOS Opera GX / Chrome**. Windows and Linux can use the standalone App; browser-only captions require WebGPU and network translation. Their equivalent native connection installer is not included yet.
+[Step-by-step installation & troubleshooting](docs/installation.md) · [中文使用手冊](docs/user-guide.md)
 
-## What you can do
+## What can it do?
 
-- Read bilingual captions in single-pair or four-entry mode.
-- Translate posts, titles and chats on supported websites.
-- Translate your reply, review it, and send it yourself.
-- Adjust subtitle size, colors, outline and background.
-- Choose Gemini, OpenAI, Claude or a compatible API — optional.
+- **Listen:** bilingual captions, with one or four caption groups.
+- **Read:** translate posts, titles, and chat on supported sites.
+- **Reply:** translate your draft without repeatedly copying it into another app.
+- **Customize:** choose language pairs, caption fonts, colors, outlines, and backgrounds.
+- **Choose an engine:** local models, or your own optional Gemini, OpenAI, Claude, or compatible API.
 
-## 繁體中文快速開始
+## Before you try it
 
-1. 在[下載頁](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0)選擇適合電腦的安裝檔；Mac M 系列選 `arm64.dmg`，Windows 選 `.exe`。
-2. 安裝 App；擴充功能 ZIP 解壓到固定資料夾後，在 `opera://extensions` 或 `chrome://extensions` 開啟開發人員模式並「載入未封裝擴充功能」。Mac 本機字幕需要[一次性連接 App](docs/user-guide.md#連接-mac-app-與-extension)。
-3. 選擇聽到的語言、譯文語言與聲音來源，再按「開始」。網站文字翻譯需自行開啟，翻譯留言後也由你確認送出。
+- **Local mode is free and needs no paid API.** Models download on first use. Speed depends on your computer and its workload; optional external APIs have their own charges.
+- **This is a public beta.** Recognition and translation can fail or be inaccurate. Check important content against the original.
+- **macOS and Windows desktop apps are available; Linux is experimental.** The local browser connection currently supports macOS Opera GX / Chrome and requires [one-time setup](docs/installation.md#connect-the-mac-app). Windows/Linux can use the standalone app. Browser-only captions need WebGPU and network translation; an equivalent native connection installer is not included yet.
+- **Installers are unsigned previews.** Follow the installation guide if your system displays a warning.
+- **Interface languages:** current source/local builds offer English and Traditional Chinese. Published 4.6.0 installers predate that interface update. Website language choices are separate from app and translation languages.
 
-新版原始碼／本機版本可在首頁的**介面語言**選擇「繁體中文」或「English」，會記住選擇，且不改變翻譯方向。公開的 4.6.0 安裝檔尚未包含這次介面語言更新。
+## Help shape the next version
 
-[完整中文說明](docs/README.zh-TW.md) · [安裝與使用手冊](docs/user-guide.md) · [問題回報](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
+[Report a problem or suggest a feature](https://github.com/clark970417-eng/VocaLume/issues/new). Include your system and what happened; never share passwords or API keys. Star the repository to save it, or use **Watch → Custom → Releases** for release notifications.
 
-[What's new in 4.6.0](docs/releases/4.6.0.md) · [Detailed controls](docs/extension-guide.md) · [Quality evaluation](docs/quality/README.md)
-
-## Project folders
+<details>
+<summary>For developers: project files, tests, and credits</summary>
 
 | Folder | Contents |
 | --- | --- |
-| [extension](extension/) | Browser extension, native connection and extension tests |
-| [desktop-app](desktop-app/) | Desktop App and local translation engines |
-| [docs](docs/) | Guides, release notes, quality reports and legal notices |
-| [scripts](scripts/) | Release packaging and maintenance tools |
+| [extension](extension/) | Browser extension and native connection |
+| [desktop-app](desktop-app/) | Desktop app and local engines |
+| [docs](docs/) | Guides, release notes, quality reports, legal notices |
+| [scripts](scripts/) | Packaging and maintenance |
 
-[Development guide](docs/development.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
+[Development](docs/development.md) · [Quality results & limitations](docs/quality/README.md) · [4.6.0 changes](docs/releases/4.6.0.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
 
-Recognition and translation can still make mistakes, especially with overlapping speech, names and very short phrases. Human quality review and broader device testing remain in progress. The desktop component derives from [LiveTranslate](https://github.com/rioX432/live-translate), with its MIT attribution preserved; model licenses are separate.
+Automated checks are not equivalent to bilingual human review or testing on every device. Desktop components derive in part from [LiveTranslate](https://github.com/rioX432/live-translate), retaining its MIT license. Models have separate licenses.
+
+</details>
