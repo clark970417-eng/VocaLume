@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { UI_LANGUAGE_KEY, resolveUiLanguage, uiLanguagePreference, translateUiText } from '../../../extension/ui-language.mjs'
 
-export type UiLanguagePreference = 'auto' | 'zh-TW' | 'en'
+export type UiLanguagePreference = 'auto' | 'zh-TW' | 'zh-CN' | 'en'
 const listeners = new Set<() => void>()
 let preference: UiLanguagePreference = 'auto'
 try { preference = uiLanguagePreference(localStorage.getItem(UI_LANGUAGE_KEY)) } catch { /* Storage may be unavailable. */ }

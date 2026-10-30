@@ -7,7 +7,7 @@ test('interface preference supports Chinese, English and system fallback', () =>
   assert.equal(resolveUiLanguage('en', ['zh-TW']), 'en');
   assert.equal(resolveUiLanguage('auto', ['zh-Hant-TW', 'en-US']), 'zh-TW');
   assert.equal(resolveUiLanguage('auto', ['en-US', 'zh-TW']), 'en');
-  assert.equal(resolveUiLanguage('auto', ['fr-FR', 'zh-CN']), 'zh-TW');
+  assert.equal(resolveUiLanguage('auto', ['fr-FR', 'zh-CN']), 'zh-CN');
   assert.equal(resolveUiLanguage('auto', []), 'en');
   for (const value of [null, '', 'ja', {}, '__proto__']) assert.equal(uiLanguagePreference(value), 'auto');
 });
@@ -42,4 +42,16 @@ test('unrecognized content and proper names remain literal; the formatter execut
     assert.equal(translateUiText(text, 'en'), text);
   }
   assert.equal(translateUiText('Error: {0}', 'zh-TW', ['<img src=x>']), '錯誤：<img src=x>');
+});
+
+ test('Simplified Chinese follows system script and keeps interpolated content literal', () => {
+  assert.equal(resolveUiLanguage('zh-CN', ['en']), 'zh-CN');
+  assert.equal(resolveUiLanguage('auto', ['zh-Hans-SG']), 'zh-CN');
+  assert.equal(resolveUiLanguage('auto', ['zh-SG']), 'zh-CN');
+  assert.equal(resolveUiLanguage('auto', ['zh-Hant-HK']), 'zh-TW');
+  assert.equal(uiLanguagePreference('zh-CN'), 'zh-CN');
+  assert.equal(translateUiText('Save settings', 'zh-CN'), '保存设置');
+  assert.equal(translateUiText('文字翻譯', 'zh-CN'), '文本翻译');
+  assert.equal(translateUiText('Opening {0}...', 'zh-CN', ['繁體檔名.mp4']), '正在打开 繁體檔名.mp4…');
+  assert.equal(translateUiText('まほろちゃん、ありがとう！', 'zh-CN'), 'まほろちゃん、ありがとう！');
 });

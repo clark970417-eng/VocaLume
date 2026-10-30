@@ -8,6 +8,8 @@
 
 [Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [Latest download](https://github.com/clark970417-eng/VocaLume/releases/latest)
 
+[简体中文](docs/README.zh-CN.md)
+
 ## Download
 
 Click the link for your computer. You do not need the **Source code** files.

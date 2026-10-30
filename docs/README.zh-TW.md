@@ -8,6 +8,8 @@
 
 [網站與影片示範](https://vocalume.vercel.app/) · [最新下載頁](https://github.com/clark970417-eng/VocaLume/releases/latest) · [English](../README.md)
 
+[简体中文](README.zh-CN.md)
+
 ## 先下載適合電腦的版本
 
 直接點連結即可，不必找 GitHub 的檔案列表。**Source code 是原始碼，不是安裝程式。**

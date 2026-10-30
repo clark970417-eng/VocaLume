@@ -9,6 +9,7 @@ export function InterfaceLanguage(): React.JSX.Element {
       onChange={event => setUiLanguage(event.target.value as UiLanguagePreference)}>
       <option value="auto">{t('Follow system')}</option>
       <option value="zh-TW" lang="zh-Hant">繁體中文</option>
+      <option value="zh-CN" lang="zh-Hans">简体中文</option>
       <option value="en" lang="en">English</option>
     </select>
   </label>

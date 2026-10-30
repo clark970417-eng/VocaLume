@@ -1,10 +1,12 @@
 import { UI_ZH_TW, UI_EN } from './ui-messages.mjs';
+import { UI_ZH_CN } from './ui-messages-zh-cn.mjs';
 
 export const UI_LANGUAGE_KEY = 'vocalume.uiLanguage';
-export const uiLanguagePreference = value => ['en', 'zh-TW'].includes(value) ? value : 'auto';
+export const uiLanguagePreference = value => ['en', 'zh-TW', 'zh-CN'].includes(value) ? value : 'auto';
 export const resolveUiLanguage = (preference, languages = []) => {
-  if (preference === 'en' || preference === 'zh-TW') return preference;
+  if (['en', 'zh-TW', 'zh-CN'].includes(preference)) return preference;
   const supported = languages.find(language => /^(?:zh|en)(?:-|$)/i.test(language));
+  if (/^zh(?:-(?:CN|SG|Hans))(?:-|$)/i.test(supported || '')) return 'zh-CN';
   return /^zh(?:-|$)/i.test(supported || '') ? 'zh-TW' : 'en';
 };
 const patterns = new WeakMap();
@@ -33,6 +35,6 @@ function lookup(text, dictionary) {
 /** Only call for interface copy, never recognized speech, drafts or user terms. */
 export function translateUiText(text, locale, values = []) {
   const source = String(text);
-  const translated = lookup(source, locale === 'zh-TW' ? UI_ZH_TW : UI_EN);
+  const translated = lookup(source, locale === 'zh-CN' ? UI_ZH_CN : locale === 'zh-TW' ? UI_ZH_TW : UI_EN);
   return translated.replace(/\{(\d+)\}/g, (token, index) => index < values.length ? String(values[index]) : token);
 }

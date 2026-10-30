@@ -17,7 +17,7 @@ const extension = join(root, 'vocalume-extension.zip');
 const manifest = JSON.parse(execFileSync('unzip', ['-p', extension, 'manifest.json'], {encoding:'utf8'}));
 if (manifest.version !== version || !manifest.name.includes('VocaLume')) throw new Error('Wrong extension manifest');
 const entries = new Set(execFileSync('unzip', ['-Z1', extension], {encoding:'utf8'}).trim().split('\n'));
-for (const required of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md']) {
+for (const required of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md']) {
   if (!entries.has(required)) throw new Error(`Extension installer dependency missing: ${required}`);
 }
 const provenance = {tag, commit, builtAt:new Date().toISOString(), workflow, signed:false, channel:'beta', version,
