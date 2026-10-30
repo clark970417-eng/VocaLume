@@ -50,7 +50,14 @@
 
 遇到問題或想要的新功能，歡迎[留下回饋](https://github.com/clark970417-eng/VocaLume/issues/new)。附上系統、操作情況與不含個資的截圖即可，**不要提供密碼或 API 金鑰**。
 
-想方便找回專案，可在 GitHub 按 Star 收藏；想收到新版通知，可選 **Watch → Custom → Releases**。
+## 收藏專案，追蹤最新版本 ⭐
+
+1. 打開 [VocaLume GitHub 首頁](https://github.com/clark970417-eng/VocaLume)，登入 GitHub；沒有帳號可先[免費註冊](https://github.com/signup)。**下載不需要帳號。**
+2. 在專案頁右上方按 **Star ☆**；變成 **Starred ★** 就代表收藏成功。手機版的位置可能不同。
+3. **想收到新版通知：** 在同一頁按 **Watch → Custom → 勾選 Releases → Apply**。若已顯示 Watching，可開啟該選單調整通知。
+4. 之後也能直接打開 [最新版本下載頁](https://github.com/clark970417-eng/VocaLume/releases/latest)，確認版本、閱讀更新內容並下載。
+
+**Star 是收藏，不會自動訂閱新版通知，也不會自動更新 App。** 新版通知由 GitHub 處理，實際接收方式依你的帳號通知設定。收到通知後，停止收音並依本頁的更新步驟安裝。
 
 <details>
 <summary>更多設定、測試記錄與授權</summary>

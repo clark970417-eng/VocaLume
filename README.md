@@ -48,7 +48,16 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 
 ## Help shape the next version
 
-[Report a problem or suggest a feature](https://github.com/clark970417-eng/VocaLume/issues/new). Include your system and what happened; never share passwords or API keys. Star the repository to save it, or use **Watch → Custom → Releases** for release notifications.
+[Report a problem or suggest a feature](https://github.com/clark970417-eng/VocaLume/issues/new). Include your system and what happened; never share passwords or API keys. 
+
+### Save the project and get release notifications ⭐
+
+1. Open the [GitHub project](https://github.com/clark970417-eng/VocaLume) and sign in, or [create a free account](https://github.com/signup). Downloads do not require an account.
+2. Click **Star ☆** near the top of the repository. **Starred ★** means it is saved. Mobile placement may differ.
+3. To subscribe to new releases, choose **Watch → Custom → Releases → Apply**. If it already says Watching, open that menu to adjust your subscription.
+4. Bookmark the [latest release page](https://github.com/clark970417-eng/VocaLume/releases/latest) to check versions and download updates.
+
+A Star saves the repository; it does not subscribe you to releases or update the app automatically. GitHub delivers notifications according to your account settings. Stop capture before installing an update.
 
 <details>
 <summary>For developers: project files, tests, and credits</summary>
