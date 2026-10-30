@@ -26,7 +26,7 @@ export function SpeechToneSettings(): React.JSX.Element {
       <option value="off">{t("Off · 關閉")}</option><option value="natural">{t("Natural · 自然標記（笑）")}</option>
       <option value="ww">{t("ww")}</option><option value="笑">笑</option><option value="草">草</option>
     </select>
-    <p style={{ color: '#94a3b8', fontSize: 13 }}>{t("Preserves ? and ! from recognized speech. macOS also checks for clear laughter locally; other systems use explicit transcript markers. Pauses audio analysis when the computer is hot. Cannot identify who is laughing.")}</p>
+    <p style={{ color: '#94a3b8', fontSize: 13 }}>{t("Preserves ? and ! from recognized speech. Detects laughter through audio analysis or explicit transcript markers, depending on engine support. Pauses audio analysis when the computer is hot. Cannot identify who is laughing.")}</p>
     {error && <p role="alert">{t(error)}</p>}
   </Section>
 }

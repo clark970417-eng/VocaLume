@@ -1,7 +1,7 @@
 // Curated Japanese / Taiwan Traditional Chinese names, not sentence rewrites.
 // Ambiguous mechanics need an explicit game context in the same input.
 const pokemonNames=[
- ['ポケモン','寶可夢'],['ピカチュウ','皮卡丘'],['イーブイ','伊布'],
+ ['ポケモン','寶可夢'],['ポケモンカード','寶可夢卡'],['ピカチュウ','皮卡丘'],['イーブイ','伊布'],
  ['リザードン','噴火龍'],['フシギダネ','妙蛙種子'],['ゼニガメ','傑尼龜'],
  ['カビゴン','卡比獸'],['ゲンガー','耿鬼'],['ミュウツー','超夢'],
  ['ルカリオ','路卡利歐'],['ゲッコウガ','甲賀忍蛙'],['サーナイト','沙奈朵'],
@@ -136,7 +136,8 @@ const evolution=entries.filter(e=>e.domain==='pokemon'&&(e.standalone||e.zh.ends
  .map(e=>({ja:e.ja+'に進化',zh:'進化成'+e.zh,domain:'pokemon',standalone:false}));
 // Spoken Japanese uses this reading rather than the Latin brand spelling.
 // Keep the canonical reverse translation VALORANT and the catalogue count stable.
-const japaneseAliases=[{ja:'ヴァロラント',zh:'特戰英豪',domain:'title',standalone:true}];
+const japaneseAliases=[{ja:'ヴァロラント',zh:'特戰英豪',domain:'title',standalone:true},
+ {ja:'ポケカ',zh:'寶可夢卡',domain:'pokemon',standalone:true}];
 const sourceEntries={ja:[...entries,...japaneseAliases],zh:entries};
 const ordered=Object.fromEntries(['ja','zh'].map(key=>[key,[...sourceEntries[key],...evolution].sort((a,b)=>b[key].length-a[key].length)]));
 

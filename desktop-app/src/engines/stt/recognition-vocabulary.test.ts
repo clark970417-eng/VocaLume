@@ -26,3 +26,11 @@ it('selects only names or terms relevant to the current source, with personal te
  // Distant transcript material is not accumulated into a channel-wide prompt.
  expect(recognitionVocabulary([], 'ニャオハ'+ '普通の話'.repeat(50))).toEqual([])
 })
+
+it('offers card vocabulary for clipped ポケ without matching longer words', () => {
+ for (const source of ['おじいちゃんもね私がポケが好きなの知ってるからね', 'ポケカ買えました', 'ポケカが好き']) {
+  expect(recognitionVocabulary([], source)).toEqual(expect.arrayContaining(['ポケカ', 'ポケモンカード']))
+ }
+ for (const source of ['ポケットに入れる', 'ポケベルが鳴った', 'ボケが好き', 'ポケカフェに行く']) expect(recognitionVocabulary([], source)).not.toContain('ポケカ')
+ expect(recognitionVocabulary(['自作ゲーム'], 'ポケが好き')).toContain('自作ゲーム')
+})

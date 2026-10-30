@@ -80,3 +80,14 @@ test('expanded names, live-stream phrases and RPG terms retain domain and person
  assert.deepEqual(selectGameTerminology('魚が逃げてしまいました。来てくれてありがとうございます。','ja','zh'),[]);
  assert.deepEqual(selectGameTerminology('魚跑掉了。謝謝你來','zh','ja'),[]);
 });
+
+test('card abbreviation translates without changing generic cards or clipped words',()=>{
+ assert.equal(gameTermTranslation('ポケカ','ja','zh'),'寶可夢卡');
+ assert.equal(gameTermTranslation('ポケモンカード','ja','zh'),'寶可夢卡');
+ assert.equal(gameTermTranslation('寶可夢卡','zh','ja'),'ポケモンカード');
+ assert.ok(selectGameTerminology('ポケカ買えましたってLINE来る','ja','zh').some(e=>e.source==='ポケカ'&&e.target==='寶可夢卡'));
+ for(const word of ['ポケ','ポケット','カード','ポケカフェ']) {
+  assert.equal(gameTermTranslation(word,'ja','zh'),undefined);
+  assert.equal(selectGameTerminology(word,'ja','zh').some(e=>e.source==='ポケカ'),false);
+ }
+})

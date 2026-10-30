@@ -28,6 +28,12 @@ export function recognitionVocabulary(personal: readonly string[], currentSource
   const context = reading(currentSource.slice(-120))
   const relevant: string[] = []
   if (context) {
+    // A short card-game abbreviation can lose its last mora (ポケが好き).
+    // Offer the abbreviation and its expansion to the next decode, without
+    // rewriting the transcript or increasing the capture window.
+    if (/(?:^|[^ァ-ヶー])(?:ポケカ(?=$|[^ァ-ヶー])|ポケ(?=$|[がをにはもでの、。！？!?\s]|好き))/u.test(currentSource.slice(-120).normalize('NFKC'))) {
+      relevant.push('ポケカ', 'ポケモンカード')
+    }
     for (const entry of streamerEntries) {
       const aliases = entry.aliases.filter((alias: string) => /[ぁ-んァ-ヶ]/u.test(alias) && context.includes(reading(alias)))
       const suffix = entry.creator.match(/[ぁ-んァ-ヶー]{3,}$/u)?.[0]
