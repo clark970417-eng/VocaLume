@@ -1,4 +1,4 @@
-export function protectNames(text: string, glossary?: Array<{source:string;target:string}>): {
+export function protectNames(text: string, glossary?: Array<{source:string;target:string}>, terminology?: Array<{source:string;target:string}>): {
   text: string; body: string;
   entries: Array<{source:string;target:string;token:string;start:number;end:number}>;
   restore(value:string):string; restorePartial(value:string):string;

@@ -167,7 +167,11 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     const serialContext = structuredClone(translationContextForModel(
       this.serialContext(text, from, to, context) ?? { previousSegments: [] }, this.workerOptions.modelType ?? ''
     ))
-    const protectedText = protectNames(text, context?.glossary)
+    // Lock only these unambiguous Pokémon terms; personal glossary overrides
+    // were already excluded by selectGameTerminology. Keep display source intact.
+    const lockedTerms = [...selectGameTerminology(text, from, to, context?.glossary), ...(context?.glossary || [])]
+      .filter(entry => from === 'ja' && to === 'zh' && ['ポケカ', 'ポケモンカード', 'ポケモン'].includes(entry.source))
+    const protectedText = protectNames(text, context?.glossary, lockedTerms)
     // Exact text, direction, model options, register and terminology all belong
     // to the key. Nothing is normalized away from what the model sees.
     const key = JSON.stringify([this.workerOptions, text, from, to, serialContext])

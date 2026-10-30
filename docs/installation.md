@@ -7,7 +7,7 @@
 Choose the installer for your computer from the release's **Assets** list. The automatically generated “Source code” ZIP is for development, not an App installer.
 
 - **Mac:** choose `arm64.dmg` for Apple M-series or the other DMG for Intel. Drag VocaLume into Applications and launch it there. This beta is unsigned; verify the download, then review its prompt in System Settings → Privacy & Security if macOS blocks the first launch. Do not disable system-wide security checks.
-- **Windows x64:** run `VocaLume.Setup.4.6.0.exe`. SmartScreen may identify this unsigned preview as an unrecognized App. Check the repository and checksum before deciding whether to continue.
+- **Windows x64:** run `VocaLume.Setup.4.6.1.exe`. SmartScreen may identify this unsigned preview as an unrecognized App. Check the repository and checksum before deciding whether to continue.
 - **Linux x64:** the AppImage is experimental. Give the file permission to execute, then launch it. Audio support varies by desktop environment.
 
 Complete **Quick Start** and wait for the model download. Reserve several GB for models. Quality upgrades and cloud services are optional. In **Translate**, choose the audio source and languages, then press **Start**. Stop capture before changing models. Allow microphone or system-audio permission only when using that source.

@@ -61,8 +61,21 @@
     return spans.filter((span,index) => !spans.slice(0,index).some(previous => span.start < previous.end));
   }
 
-  function protectNames(value, glossary = []) {
+  function protectNames(value, glossary = [], terminology = []) {
     const source = String(value || ''), spans = nameSpans(source, glossary);
+    // Selected unambiguous terms use the same lossless markers as names.
+    // A glossary hint alone is advisory and small models may transliterate it.
+    for (const entry of terminology) {
+      if (!entry.source || !entry.target) continue;
+      for (let at=source.indexOf(entry.source);at>=0;at=source.indexOf(entry.source,at+1)) {
+        const end=at+entry.source.length;
+        if (spans.some(span=>at<span.end && end>span.start)) continue;
+        if (/^[\p{Script=Katakana}ー]/u.test(entry.source) && /[\p{Script=Katakana}ー]/u.test(source[at-1]||'')) continue;
+        if (/[\p{Script=Katakana}ー]$/u.test(entry.source) && /[\p{Script=Katakana}ー]/u.test(source[end]||'')) continue;
+        spans.push({start:at,end,source:entry.source,target:entry.target});
+      }
+    }
+    spans.sort((a,b)=>a.start-b.start);
     let prefix = 'NAME';
     while ((source + glossary.map(entry=>entry.target).join('')).toUpperCase().includes(prefix)) prefix = 'V' + prefix;
     let text = '', cursor = 0;

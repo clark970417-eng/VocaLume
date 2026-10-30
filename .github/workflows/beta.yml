@@ -57,7 +57,7 @@ jobs:
       matrix:
         include:
           - os: macos-15
-            command: npx electron-builder --mac dmg zip --arm64 --x64 --publish never
+            command: npx electron-builder --mac dmg zip --arm64 --x64 --publish never --config.mac.identity=-
             artifact: macOS
             files: |
               desktop-app/dist/*.dmg

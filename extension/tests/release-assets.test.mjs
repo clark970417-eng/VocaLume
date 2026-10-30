@@ -15,7 +15,7 @@ test('release completeness gate covers native files and checksums the provenance
   const script = resolve('scripts/verify-release-assets.mjs');
   const root = mkdtempSync(join(tmpdir(),'vocalume-release-test-'));
   try {
-    const version = '4.6.0', assets = join(root,'assets'), source = join(root,'extension');
+    const version = JSON.parse(readFileSync(resolve('extension/manifest.json'), 'utf8')).version, assets = join(root,'assets'), source = join(root,'extension');
     mkdirSync(assets); mkdirSync(join(source,'desktop'),{recursive:true});
     writeFileSync(join(source,'manifest.json'),JSON.stringify({version,name:'VocaLume'}));
     for(const name of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md']) writeFileSync(join(source,name),'fixture');

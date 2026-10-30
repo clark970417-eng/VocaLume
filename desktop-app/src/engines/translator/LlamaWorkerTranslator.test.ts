@@ -275,3 +275,21 @@ it('snapshots terminology before queued inference, so later edits cannot poison 
   expect(pool.sendRequest).toHaveBeenCalledTimes(2)
   await engine.dispose()
 })
+
+it('locks card abbreviations in sentences without changing a separate personal name', async () => {
+ const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+ await engine.initialize()
+ pool.sendRequest.mockImplementation(async (message:any)=> {
+  expect(message.text).toBe('ポチさんも[NAME0]が好きだよ')
+  return '波奇也喜歡[NAME0]。'
+ })
+ expect(await engine.translate('ポチさんもポケカが好きだよ','ja','zh')).toBe('波奇也喜歡寶可夢卡。')
+ await engine.dispose()
+})
+it('keeps a personal card-term override ahead of the built-in protected term', async () => {
+ const {pool}=fakePool(), engine=new HunyuanMT2Translator({pool:pool as unknown as WorkerPool})
+ await engine.initialize();pool.sendRequest.mockResolvedValue('喜歡[NAME0]。')
+ await engine.translate('ポケカが好き','ja','zh',{previousSegments:[],glossary:[{source:'ポケカ',target:'自訂卡牌'}]})
+ expect((pool.sendRequest.mock.calls[0][0] as any).text).toBe('[NAME0]が好き')
+ await engine.dispose()
+})
