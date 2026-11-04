@@ -80,3 +80,10 @@ A Star saves the repository; it does not subscribe you to releases or update the
 Automated checks are not equivalent to bilingual human review or testing on every device. Desktop components derive in part from [LiveTranslate](https://github.com/rioX432/live-translate), retaining its MIT license. Models have separate licenses.
 
 </details>
+
+
+## Copyright / 版權與使用
+
+Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.
+
+原創部分免費供非商業使用；商用與轉售需事先取得書面同意。衍生版本須在 README 與關於介面註明來源。第三方原授權保留，舊版已授予的權利不受影響。詳見 [LICENSE](https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE)。

@@ -16,6 +16,12 @@ files:
   - '!out/**/*.d.ts'
   - '!out/**/*.d.ts.map'
 extraResources:
+  - from: '../LICENSE'
+    to: 'legal/VOCALUME-LICENSE.txt'
+  - from: 'LICENSE'
+    to: 'legal/UPSTREAM-MIT-LICENSE.txt'
+  - from: '../docs/legal/third-party-notices.md'
+    to: 'legal/THIRD_PARTY_NOTICES.md'
   - from: 'resources/'
     to: 'bridge-scripts/'
     filter:

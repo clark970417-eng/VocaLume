@@ -70,3 +70,10 @@
 自动检查不代表已完成双语人工验收或所有电脑的实机测试。桌面部分衍生自 [LiveTranslate](https://github.com/rioX432/live-translate)，保留原作者 MIT 授权；模型另有各自授权。
 
 </details>
+
+
+## Copyright / 版權與使用
+
+Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.
+
+原創部分免費供非商業使用；商用與轉售需事先取得書面同意。衍生版本須在 README 與關於介面註明來源。第三方原授權保留，舊版已授予的權利不受影響。詳見 [LICENSE](https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE)。

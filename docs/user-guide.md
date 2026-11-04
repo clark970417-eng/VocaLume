@@ -122,3 +122,10 @@ Gemini 使用官方 `generateContent` API；程式已包含請求與回應處理
 ## 核對下載
 
 下載頁附 `SHA256SUMS.txt` 和 `release-manifest.json`。前者是檔案校驗值，後者記錄來源版本與建置流程。Mac 可用 `shasum -a 256 檔案路徑`，Windows PowerShell 可用 `Get-FileHash 檔案路徑 -Algorithm SHA256`，將結果與清單比較。校驗值不能代替作業系統的開發者簽章。
+
+
+## Copyright / 版權與使用
+
+Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.
+
+原創部分免費供非商業使用；商用與轉售需事先取得書面同意。衍生版本須在 README 與關於介面註明來源。第三方原授權保留，舊版已授予的權利不受影響。詳見 [LICENSE](https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE)。

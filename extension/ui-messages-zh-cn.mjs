@@ -1,5 +1,7 @@
 // Interface copy only; never convert user text or interpolation values.
 export const UI_ZH_CN = {
+  'Copyright & use': '版权与使用',
+  'Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.': '免费供非商业使用；商用与转售需取得同意。衍生版本须在 README 与关于界面注明 VocaLume 来源。第三方原授权不变。',
   "Interface language": "接口语言",
   "Follow system": "跟随系统",
   "Translate": "翻译",

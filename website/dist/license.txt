@@ -1,0 +1,22 @@
+VocaLume Noncommercial License 1.0
+Copyright (c) 2026 Clark (clark970417-eng). All rights reserved except as granted below.
+
+1. Scope
+These terms apply only to original VocaLume material whose copyright is owned by Clark, distributed with these terms. Third-party code, models, libraries, artwork, recordings and trademarks remain subject to their respective licenses and owners. In mixed files these terms cover only Clark-owned contributions. Retained MIT and other upstream permissions are not restricted by this license. This license does not revoke permissions previously granted for earlier copies or releases. User inputs and translation outputs are not claimed under this license.
+
+2. Permission
+You may use, study, copy, modify and redistribute the covered material free of charge for noncommercial purposes, provided you comply with these terms. Commercial use, resale, paid redistribution, paid services incorporating the covered material and commercial derivative products require prior written permission from Clark. Merely viewing the public repository does not grant additional rights. This is a source-available noncommercial license, not an OSI-approved open-source license.
+
+3. Attribution and derivatives
+Keep this license and all applicable copyright and third-party notices with every redistributed copy. A derivative containing covered material must prominently state in its README (or equivalent documentation) AND its About/credits interface:
+“Based on VocaLume by Clark (clark970417-eng) — https://github.com/clark970417-eng/VocaLume”
+Clearly identify your modifications and that your version is unofficial. Do not imply endorsement. Pass on these terms for the covered material; no rights in independently authored additions or third-party components are claimed here. No trademark rights are granted.
+
+4. Disclaimer
+The covered material is provided AS IS, without warranties of any kind. To the extent permitted by applicable law, the copyright holder is not liable for claims or damages arising from its use. If you breach these terms, permission under this license ends; independently granted third-party rights remain unaffected.
+
+5. Permission requests
+Request commercial permission through https://github.com/clark970417-eng/VocaLume/issues . Permission must be obtained before commercial use.
+
+繁體中文摘要（以上英文條款為準）
+VocaLume 原創部分可免費作非商業使用、研究、修改及分享。未經作者書面同意，不得商業使用、轉售、收費散布或用於收費服務。含有本授權內容的衍生版本，必須保留授權與版權聲明，並在 README 與「關於／製作名單」介面清楚標示來自 VocaLume、作者與上述專案連結；也須註明修改及非官方版本。第三方程式、模型及素材依各自原授權處理；本條款不撤銷先前已授予的授權，也不主張使用者輸入及翻譯輸出的權利。

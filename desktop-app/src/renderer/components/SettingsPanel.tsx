@@ -313,6 +313,7 @@ function SettingsPanel(): React.JSX.Element {
         <section id="settings-panel-more" role="tabpanel" aria-labelledby="settings-tab-more" tabIndex={0} hidden={selectedTab !== 'more'}>
           {visited.more && <>
             <h2>{t("More settings")}</h2>
+            <details><summary>{t("Copyright & use")}</summary><p>© 2026 Clark · VocaLume</p><p>{t("Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.")}</p><a href="https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE" target="_blank" rel="noreferrer">LICENSE ↗</a></details>
             <p className="settings-intro">{t("Optional features, saved sessions and help.")}</p>
             <details className="settings-disclosure"><summary>{t("Tone & laughter")}</summary><SpeechToneSettings /></details>
             <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} /><VirtualMicSettings disabled={disabled} /></details>

@@ -44,8 +44,8 @@ jobs:
           cd ..
           node scripts/package-guides.mjs beta
           cd beta
-          zip vocalume-extension.zip INSTALL.md PRIVACY.md THIRD_PARTY_NOTICES.md
-          rm INSTALL.md PRIVACY.md THIRD_PARTY_NOTICES.md
+          zip vocalume-extension.zip INSTALL.md PRIVACY.md THIRD_PARTY_NOTICES.md LICENSE
+          rm INSTALL.md PRIVACY.md THIRD_PARTY_NOTICES.md LICENSE
       - uses: actions/upload-artifact@v4
         with:
           name: browser-extension

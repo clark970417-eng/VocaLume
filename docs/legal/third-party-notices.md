@@ -23,3 +23,8 @@ The recognition evaluation also used
 [Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B) in an isolated local
 Python environment. These are evaluation dependencies, not a bundled or enabled
 production recognition path. See the 3.8 test report for the rejected results.
+
+
+## VocaLume original material
+
+Clark-owned VocaLume contributions are covered by the root [VocaLume Noncommercial License](../../LICENSE). The MIT file in `desktop-app/LICENSE` is a retained upstream notice, not a license replacement for all VocaLume contributions. All third-party permissions below remain unchanged. Prior grants are not revoked.

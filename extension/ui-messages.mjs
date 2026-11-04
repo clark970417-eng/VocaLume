@@ -1,5 +1,7 @@
 // Interface copy only. Product/model names and user-generated text stay unchanged.
 export const UI_ZH_TW = {
+  'Copyright & use': '版權與使用',
+  'Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.': '免費供非商業使用；商用與轉售需取得同意。衍生版本須在 README 與關於介面註明 VocaLume 來源。第三方原授權不變。',
   'Interface language': '介面語言',
   'Follow system': '跟隨系統',
   'Translate': '翻譯', 'Subtitles': '字幕', 'Models': '模型', 'More': '更多',
