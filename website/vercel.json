@@ -1,1 +1,24 @@
-{"$schema":"https://openapi.vercel.sh/vercel.json","framework":null,"buildCommand":"","installCommand":"","outputDirectory":"dist"}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/download/SHA256SUMS.txt",
+      "destination": "https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/SHA256SUMS.txt",
+      "permanent": false
+    },
+    {
+      "source": "/download",
+      "destination": "https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.2",
+      "permanent": false
+    },
+    {
+      "source": "/download/:path*",
+      "destination": "https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.2",
+      "permanent": false
+    }
+  ]
+}

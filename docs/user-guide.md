@@ -4,22 +4,22 @@
 
 ## 安裝
 
-只從 [VocaLume 4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0) 的 **Assets** 下載。`Source code` 是開發用原始碼，不是 App 安裝檔。第一次使用需要網路下載所選模型，請預留數 GB 空間。
+只從 [VocaLume 4.6.2 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.2) 的 **Assets** 下載。`Source code` 是開發用原始碼，不是 App 安裝檔。第一次使用需要網路下載所選模型，請預留數 GB 空間。
 
 ### Mac
 
-1. 「關於這台 Mac」顯示 Apple M 系列，選 `VocaLume-4.6.0-arm64.dmg`；顯示 Intel，選 `VocaLume-4.6.0.dmg`。
+1. 「關於這台 Mac」顯示 Apple M 系列，選 `VocaLume-4.6.2-arm64.dmg`；顯示 Intel，選 `VocaLume-4.6.2.dmg`。
 2. 打開 DMG，將 **VocaLume** 拖進「應用程式」，再從那裡開啟。
 3. 目前尚未取得 Developer ID 簽章與公證。如果系統阻擋，先確認下載來源，再到「系統設定 → 隱私權與安全性」查看該 App 的開啟提示。不要關閉整台電腦的安全檢查。
 4. 依 Quick Start 完成模型下載。品質升級與雲端服務可以稍後設定。
 
 ### Windows
 
-執行 `VocaLume.Setup.4.6.0.exe`，完成安裝與 Quick Start。這是 x64 預覽版，尚未簽章；SmartScreen 可能顯示「無法辨識的應用程式」。僅在核對本 Repo 的下載與校驗值後決定是否繼續。此版本的 Windows 安裝與編譯有 CI 檢查，實體 Windows 電腦的長時間收音與品質仍待驗證。
+執行 `VocaLume.Setup.4.6.2.exe`，完成安裝與 Quick Start。這是 x64 預覽版，尚未簽章；SmartScreen 可能顯示「無法辨識的應用程式」。僅在核對本 Repo 的下載與校驗值後決定是否繼續。此版本的 Windows 安裝與編譯有 CI 檢查，實體 Windows 電腦的長時間收音與品質仍待驗證。
 
 ### Linux
 
-`VocaLume-4.6.0.AppImage` 為 x64 實驗性版本。賦予檔案執行權限後開啟；不同桌面環境的收音能力仍需個別確認。
+`VocaLume-4.6.2.AppImage` 為 x64 實驗性版本。賦予檔案執行權限後開啟；不同桌面環境的收音能力仍需個別確認。
 
 ### 瀏覽器 Extension
 
@@ -51,7 +51,7 @@ Windows / Linux 的獨立 App 可自行收音；目前 ZIP 裡沒有這兩個系
 
 ## 第一次使用
 
-新版原始碼／本機版本的 App 與 Extension 首頁都有「**介面語言**」，可選「繁體中文」「English」或「跟隨系統」，並自動記住選擇。這只改變按鈕與說明，不會改變翻譯方向、字幕內容或 API 設定。公開 4.6.0 安裝檔尚未包含這次介面更新。
+4.6.2 的 App 與 Extension 首頁都有「**介面語言**」，可選「繁體中文」「简体中文」「English」或「跟隨系統」，並自動記住選擇。這只改變按鈕與說明，不會改變翻譯方向、字幕內容或 API 設定。此設定已包含在 4.6.2 安裝檔中。
 
 ### 聽影片、直播
 
