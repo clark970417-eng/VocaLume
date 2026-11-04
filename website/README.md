@@ -18,3 +18,8 @@ From this folder, run `python3 -m http.server 4173 --directory dist` and open ht
 ## Media and downloads
 
 The stream excerpt retains source attribution and the non-affiliation notice. Browser/chat framing is a simulation, identified in the site. Videos are demonstration media, not standalone software assets. Installer downloads point to the verified GitHub Releases assets; repository and release links also point to GitHub. Model downloads and optional external API services require network access.
+
+
+### Automatic website language
+
+First home-page visits use /api/site-language: KR -> Korean; JP -> Japanese; TW/HK/MO -> Traditional Chinese; CN/SG -> Simplified Chinese; other countries -> English. Missing location/service failure falls back to browser language. Manual preferences take priority, including selecting the current language during a pending lookup. Explicit localized pages do not geolocate. The endpoint is private/no-store and returns no IP. Test with node --test tests/site-language.test.mjs.
