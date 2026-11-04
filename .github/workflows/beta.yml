@@ -95,6 +95,8 @@ jobs:
         run: Remove-Item -Recurse -Force node_modules/naudiodon -ErrorAction SilentlyContinue
       - name: Reject vulnerable dependency lockfiles
         run: npm audit --audit-level=moderate
+      - name: Verify patched packaging dependencies
+        run: node scripts/verify-packaging-toolchain.cjs
       - run: npm run typecheck
       - run: npm run lint
         if: runner.os == 'Linux'
