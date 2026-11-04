@@ -6,7 +6,7 @@
 
 **免費在自己的電腦翻譯直播與聊天。** 看雙語字幕、讀懂聊天室，打中文也能翻成日文再回覆。
 
-[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [Latest download](https://github.com/clark970417-eng/VocaLume/releases/latest)
+[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [4.6.1 preview downloads](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.1)
 
 [简体中文](docs/README.zh-CN.md)
 
@@ -71,6 +71,7 @@ A Star saves the repository; it does not subscribe you to releases or update the
 | --- | --- |
 | [extension](extension/) | Browser extension and native connection |
 | [desktop-app](desktop-app/) | Desktop app and local engines |
+| [website](website/) | Multilingual product website and installation pages |
 | [docs](docs/) | Guides, release notes, quality reports, legal notices |
 | [scripts](scripts/) | Packaging and maintenance |
 

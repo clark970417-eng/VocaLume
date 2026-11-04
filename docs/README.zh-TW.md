@@ -6,7 +6,7 @@
 
 為想看懂外語直播、跟不同語言的朋友聊天的人製作。語音、閱讀和打字可分別選擇翻譯語言，不只限於日文。
 
-[網站與影片示範](https://vocalume.vercel.app/) · [最新下載頁](https://github.com/clark970417-eng/VocaLume/releases/latest) · [English](../README.md)
+[網站與影片示範](https://vocalume.vercel.app/) · [4.6.1 預覽版下載](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.1) · [English](../README.md)
 
 [简体中文](README.zh-CN.md)
 
