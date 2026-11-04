@@ -17,4 +17,4 @@ From this folder, run `python3 -m http.server 4173 --directory dist` and open ht
 
 ## Media and downloads
 
-The stream excerpt retains source attribution and the non-affiliation notice. Browser/chat framing is a simulation, identified in the site. Videos are demonstration media, not standalone software assets. Installer downloads use the public Vercel Blob URLs; the repository and release links point to GitHub. Model downloads and optional external API services require network access.
+The stream excerpt retains source attribution and the non-affiliation notice. Browser/chat framing is a simulation, identified in the site. Videos are demonstration media, not standalone software assets. Installer downloads point to the verified GitHub Releases assets; repository and release links also point to GitHub. Model downloads and optional external API services require network access.
