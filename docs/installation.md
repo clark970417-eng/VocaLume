@@ -2,6 +2,8 @@
 
 [Download 4.6.2 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.2) · [Home](../README.md) · [完整中文手冊](user-guide.md)
 
+[Chinese installation video (~2 minutes)](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-Chrome-Setup-Guide-Final-ZH.mp4). Recorded with 4.6.0; some 4.6.2 screens differ. Complete the written native App connection, model download and first-capture steps below; they are not demonstrated fully in the video.
+
 ## Desktop App
 
 Choose the installer for your computer from the release's **Assets** list. The automatically generated “Source code” ZIP is for development, not an App installer.

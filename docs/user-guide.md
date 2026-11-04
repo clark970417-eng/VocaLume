@@ -2,6 +2,10 @@
 
 [回首頁](README.zh-TW.md) · [Extension 詳細設定](extension-guide.md) · [回報問題](https://github.com/clark970417-eng/VocaLume/issues/new/choose)
 
+[▶ 觀看中文安裝影片（約 2 分鐘）](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-Chrome-Setup-Guide-Final-ZH.mp4)
+
+影片以 4.6.0 的介面示範下載、解壓與載入 Extension；4.6.2 部分畫面不同。Mac 的一次性 App 連接、模型下載與首次收音，請接著完成本頁文字步驟。
+
 ## 安裝
 
 只從 [VocaLume 4.6.2 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.2) 的 **Assets** 下載。`Source code` 是開發用原始碼，不是 App 安裝檔。第一次使用需要網路下載所選模型，請預留數 GB 空間。
@@ -24,7 +28,7 @@
 ### 瀏覽器 Extension
 
 1. 下載 `vocalume-extension.zip`，解壓到固定位置，例如「文件/VocaLume Extension」。
-2. Opera GX 開啟 `opera://extensions`；Chrome 開啟 `chrome://extensions`。
+2. Chrome 開啟 `chrome://extensions`；Opera GX 開啟 `opera://extensions`。
 3. 開啟「開發人員模式」→「載入未封裝擴充功能」，選擇含 `manifest.json` 的資料夾。
 4. 將 VocaLume 固定到工具列，重新整理要翻譯的網頁。
 
