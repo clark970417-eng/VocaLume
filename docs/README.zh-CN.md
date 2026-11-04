@@ -15,10 +15,12 @@
 | 你的电脑 | 下载 |
 | --- | --- |
 | Windows x64 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume.Setup.4.6.0.exe) |
-| Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0-arm64.dmg) |
+| Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.1/VocaLume-4.6.1-arm64.dmg) |
 | Mac · Intel | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.dmg) |
 | Linux x64 · 实验性 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.AppImage) |
-| Opera GX / Chrome 扩充功能 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/vocalume-extension.zip) |
+| Opera GX / Chrome 扩充功能 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.1/vocalume-extension.zip) |
+
+目前 Mac Apple 芯片版与扩充功能提供 **4.6.1 预览版**；其他平台仍为 **4.6.0**，尚未包含全部最新修复。
 
 不知道 Mac 是哪种？点 ** → 关于这台 Mac**，查看「芯片」或「处理器」。
 
@@ -45,7 +47,7 @@
 - **目前是公开测试版。** 辨识与翻译可能失败或翻错，重要内容请对照原文。
 - **提供 Mac、Windows App；Linux 为实验性。** Mac 本机浏览器字幕支持 Opera GX／Chrome，需要[一次性连接 App](user-guide.md#連接-mac-app-與-extension)。Windows／Linux 可使用独立 App；浏览器模式需要 WebGPU 与网络文本翻译，目前没有同样的本机连接安装流程。
 - **安装档尚未签章／公证。** 遇到系统提示请参考使用手册。
-- **中文界面：** 最新源代码／本机版本提供简体中文、繁体中文与英文界面；公开 4.6.0 安装档尚未包含此界面更新。网站界面语言与 App、翻译语言是不同设置。
+- **中文界面：** 4.6.1 Apple 芯片版与扩充功能提供简体中文、繁体中文与英文界面；其他 4.6.0 安装档尚未包含此更新。网站界面语言与 App、翻译语言是不同设置。
 
 ## 一起让它更好用
 

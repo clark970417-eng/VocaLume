@@ -1,0 +1,2 @@
+9a747fc3f4ef23863c7666aa01b87cb348b68cced6fce96bd51f2d4acb516a5d  VocaLume-4.6.1-arm64.dmg
+cb9646c2c023aa2207ced49ebc243ca82dc5658b3fd26db8d7378f9b66dfa44f  vocalume-extension.zip

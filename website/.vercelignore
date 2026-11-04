@@ -1,0 +1,6 @@
+.git
+.openai
+node_modules
+orbit-source.js
+
+.env*

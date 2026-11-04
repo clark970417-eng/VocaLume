@@ -1,0 +1,100 @@
+.mobile-install-hint { display: none; }
+/* Keep navigation available on phones and tablets without crowding the header. */
+@media (max-width: 1100px) {
+  .nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px 12px;
+  }
+  .nav > .brand { grid-column: 1; grid-row: 1; min-width: 0; }
+  .nav > .language-picker { grid-column: 2; grid-row: 1; margin: 0; }
+  .nav > .nav-github { grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
+  .nav nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    justify-content: flex-start;
+    gap: 6px;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #cfdae6 transparent;
+    border-top: 1px solid #e8edf3;
+    padding-top: 5px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav nav a { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 44px; padding: 0 11px; border-radius: 10px; font-size: 13px; white-space: nowrap; }
+  .nav nav a:hover { background: #f3f7fb; }
+  .language-trigger { min-height: 44px; }
+  html { scroll-padding-top: 155px; }
+}
+@media (max-width: 760px) {
+  .wrap { width: calc(100% - 40px); }
+  .nav { top: 8px; margin: 8px 10px 0; padding: 10px 11px 5px; border-radius: 18px; gap: 6px; background: #fffffff5; -webkit-backdrop-filter: blur(16px); }
+  .nav .brand { font-size: 17px; gap: 7px; }
+  .nav .brand img { width: 29px; height: 29px; }
+  .nav .brand small { font-size: 9px; letter-spacing: 0; line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav .brand > span { min-width: 0; }
+  .nav .nav-github { padding: 0 9px; font-size: 12px; border-radius: 11px; white-space: nowrap; }
+  .nav .language-trigger { min-height: 44px; font-size: 12px; padding: 7px 8px; gap: 5px; }
+  .language-options { width: min(230px, calc(100vw - 40px)); }
+  .language-options button { min-height: 48px; font-size: 14px; }
+  .hero { padding: 40px 0 42px; gap: 24px; }
+  .hero h1, html[lang=en] .hero h1 { font-size: clamp(30px, 8.2vw, 39px); line-height: 1.5; letter-spacing: -.8px; }
+  .lead { font-size: 15px; line-height: 1.95; }
+  .eyebrow { font-size: 11px; letter-spacing: 1.3px; margin-bottom: 18px; }
+  .small-note { font-size: 12px; line-height: 1.8; color: var(--muted); }
+  .hero .actions .button { width: 100%; min-height: 52px; font-size: 15px; border-radius: 14px; }
+  .hero-art { margin: 8px 4px 22px; padding: 50px 0 38px; }
+  .conversation-preview { transform: none; border-radius: 16px; }
+  .message-row > div:last-child { min-width: 0; }
+  .preview-top { font-size: 10px; padding: 13px; }
+  .sender { font-size: 12px; }
+  .jp, .zh, .reply-preview > p { font-size: 14px; overflow-wrap: anywhere; }
+  .reply-preview label { font-size: 11px; letter-spacing: .3px; }
+  .reply-preview button { min-height: 44px; padding: 8px 12px; font-size: 13px; }
+  .reply-preview button span { font-size: 11px; margin-left: 8px; }
+  .preview-footer { flex-wrap: wrap; gap: 5px; font-size: 10px; padding: 11px 15px; }
+  .illustration-note { font-size: 10px; letter-spacing: 0; }
+  .ribbon { flex-wrap: wrap; gap: 7px 13px; font-size: 11px; letter-spacing: .5px; }
+  .demo-section { padding-block: 52px 30px; }
+  .section-heading > p, .feature-intro > p:last-child { font-size: 14px; line-height: 1.95; }
+  h2 { font-size: clamp(25px, 7.2vw, 31px); line-height: 1.55; }
+  .video-shell { border-radius: 14px; box-shadow: 0 10px 30px #5273940e; }
+  .video-label { flex-wrap: wrap; gap: 5px 12px; padding: 12px; font-size: 12px; }
+  .video-caption { font-size: 12px; overflow-wrap: anywhere; }
+  .video-caption a { display: inline-flex; align-items: center; min-height: 44px; }
+  .fine { font-size: 12px; line-height: 1.85; color: #6f7d90; overflow-wrap: anywhere; }
+  .feature-list h3 { font-size: 18px; }
+  .feature-list p, .steps p { font-size: 14px; line-height: 1.95; }
+  .steps { gap: 30px; }
+  .steps h3 { font-size: 17px; }
+  .install-note { font-size: 12px; line-height: 1.9; color: var(--muted); }
+  .text-link { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; }
+  .faq { padding-block: 52px; }
+  .faq-list details { padding: 12px 0; }
+  .faq-list summary { min-height: 48px; gap: 18px; font-size: 15px; line-height: 1.7; }
+  .faq-list summary > span { flex: 0 0 auto; }
+  .faq-list p { font-size: 14px; line-height: 1.95; margin: 10px 0 8px; }
+  .closing { padding-block: 40px 56px; }
+  .closing p:not(.eyebrow) { font-size: 14px; line-height: 1.95; }
+  .closing .update-note { font-size: 12px!important; color: var(--muted)!important; padding-inline: 0; }
+  .closing .actions .button { min-height: 50px; font-size: 14px; }
+  .footer { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; padding-block: 24px; font-size: 12px; }
+  .footer .brand { grid-column: 1 / -1; min-height: 44px; }
+  .footer p { grid-column: 1 / -1; margin: 0 0 8px; }
+  .footer > a:not(.brand) { display: inline-flex; align-items: center; min-height: 44px; }
+}
+@media (max-width: 480px) {
+  .closing .actions { flex-direction: column; gap: 12px; }
+  .closing .actions .button { width: 100%; }
+}
+@media (hover: none) {
+  .button:hover { transform: none; }
+}
+
+@media (max-width: 760px) { .mobile-install-hint { display: block; margin: 10px 0 0; padding: 11px 13px; border: 1px solid #e3eaf2; border-radius: 12px; background: #f8fbfd; color: var(--muted); font-size: 12px; line-height: 1.85; } }
+@media (max-width: 760px) {
+  .hero-copy > .hero-art { margin: 26px 4px 52px; }
+}

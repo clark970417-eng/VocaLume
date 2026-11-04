@@ -17,12 +17,14 @@ Click the link for your computer. You do not need the **Source code** files.
 | Your computer | Installer |
 | --- | --- |
 | Windows x64 | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume.Setup.4.6.0.exe) |
-| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0-arm64.dmg) |
+| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.1/VocaLume-4.6.1-arm64.dmg) |
 | Mac · Intel | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.dmg) |
 | Linux x64 · experimental | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.AppImage) |
-| Opera GX / Chrome extension | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/vocalume-extension.zip) |
+| Opera GX / Chrome extension | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.1/vocalume-extension.zip) |
 
 Not sure which Mac you have? Open ** → About This Mac** and check the chip or processor.
+
+Mac Apple Silicon and the extension: **4.6.1 preview**. Other installers below remain **4.6.0**; do not assume they include the latest fixes. [4.6.1 notes](docs/releases/4.6.1.md)
 
 ## Start in three steps
 
@@ -47,7 +49,7 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 - **This is a public beta.** Recognition and translation can fail or be inaccurate. Check important content against the original.
 - **macOS and Windows desktop apps are available; Linux is experimental.** The local browser connection currently supports macOS Opera GX / Chrome and requires [one-time setup](docs/installation.md#connect-the-mac-app). Windows/Linux can use the standalone app. Browser-only captions need WebGPU and network translation; an equivalent native connection installer is not included yet.
 - **Installers are unsigned previews.** Follow the installation guide if your system displays a warning.
-- **Interface languages:** current source/local builds offer English, Traditional Chinese and Simplified Chinese. Published 4.6.0 installers predate that interface update. Website language choices are separate from app and translation languages.
+- **Interface languages:** 4.6.1 Apple Silicon and extension downloads offer English, Traditional Chinese and Simplified Chinese. Other 4.6.0 installers predate that interface update. Website language choices are separate from app and translation languages.
 
 ## Help shape the next version
 

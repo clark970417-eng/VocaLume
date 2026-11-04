@@ -1,0 +1,16 @@
+{
+  "name": "vocalume-website",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild orbit-source.js --bundle --minify --format=esm --outfile=dist/assets/orbit.js",
+    "preview": "python3 -m http.server 52135 --bind 127.0.0.1 --directory dist"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
