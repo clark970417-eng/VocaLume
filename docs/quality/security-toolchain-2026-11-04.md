@@ -20,3 +20,7 @@ Remove these temporary overrides as upstream tools adopt compatible patched vers
 Local checks: complete npm audit 0 advisories; packaging compatibility pass; ESLint, TypeScript, 858 tests and production build passed. Cross-platform package results must be checked in the linked GitHub workflow before publication. These checks do not claim physical hardware or live translation accuracy qualification.
 
 Sources: https://github.com/advisories/GHSA-g3hv-75wg-m249 and https://github.com/advisories/GHSA-3g3m-2fjr-6pw4 .
+
+Cross-platform qualification build: https://github.com/clark970417-eng/VocaLume/actions/runs/41748159779 . Extension, macOS (arm64/x64), Windows x64 and Linux x64 jobs all succeeded, including the audit and compatibility checks. A separate tag-triggered workflow performs final release packaging and publication.
+
+Final tag release: https://github.com/clark970417-eng/VocaLume/actions/runs/41749560727 . All jobs, complete-asset validation and release publication succeeded. Public packages: https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.2 .

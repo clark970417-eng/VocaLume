@@ -6,7 +6,7 @@
 
 为想看懂外语直播、跟不同语言的朋友聊天的人制作。语音、阅读和打字可分别选择翻译语言，不只限于日文。
 
-[网站与视频示范](https://vocalume.vercel.app/) · [4.6.1 预览版下载](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.1) · [English](../README.md)
+[网站与视频示范](https://vocalume.vercel.app/) · [4.6.2 测试版下载](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.2) · [English](../README.md)
 
 ## 先下载适合电脑的版本
 
@@ -14,13 +14,13 @@
 
 | 你的电脑 | 下载 |
 | --- | --- |
-| Windows x64 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume.Setup.4.6.0.exe) |
-| Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.1/VocaLume-4.6.1-arm64.dmg) |
-| Mac · Intel | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.dmg) |
-| Linux x64 · 实验性 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.0/VocaLume-4.6.0.AppImage) |
-| Opera GX / Chrome 扩充功能 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.1/vocalume-extension.zip) |
+| Windows x64 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume.Setup.4.6.2.exe) |
+| Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-4.6.2-arm64.dmg) |
+| Mac · Intel | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-4.6.2.dmg) |
+| Linux x64 · 实验性 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-4.6.2.AppImage) |
+| Opera GX / Chrome 扩充功能 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/vocalume-extension.zip) |
 
-目前 Mac Apple 芯片版与扩充功能提供 **4.6.1 预览版**；其他平台仍为 **4.6.0**，尚未包含全部最新修复。
+下方提供 **4.6.2 测试版** App 与扩充功能；请按电脑平台下载。
 
 不知道 Mac 是哪种？点 ** → 关于这台 Mac**，查看「芯片」或「处理器」。
 
@@ -47,7 +47,7 @@
 - **目前是公开测试版。** 辨识与翻译可能失败或翻错，重要内容请对照原文。
 - **提供 Mac、Windows App；Linux 为实验性。** Mac 本机浏览器字幕支持 Opera GX／Chrome，需要[一次性连接 App](user-guide.md#連接-mac-app-與-extension)。Windows／Linux 可使用独立 App；浏览器模式需要 WebGPU 与网络文本翻译，目前没有同样的本机连接安装流程。
 - **安装档尚未签章／公证。** 遇到系统提示请参考使用手册。
-- **中文界面：** 4.6.1 Apple 芯片版与扩充功能提供简体中文、繁体中文与英文界面；其他 4.6.0 安装档尚未包含此更新。网站界面语言与 App、翻译语言是不同设置。
+- **中文界面：** 4.6.2 App 与扩充功能提供简体中文、繁体中文与英文界面。网站界面语言与 App、翻译语言是不同设置。
 
 ## 一起让它更好用
 
@@ -65,7 +65,7 @@
 <details>
 <summary>更多设置、测试记录与授权</summary>
 
-[扩充功能与 API 设置](extension-guide.md) · [测试结果与待验证项目](quality/README.md) · [4.6.0 更新](releases/4.6.0.md) · [开发说明](development.md) · [隐私](legal/privacy.md) · [第三方来源与授权](legal/third-party-notices.md)
+[扩充功能与 API 设置](extension-guide.md) · [测试结果与待验证项目](quality/README.md) · [4.6.2 更新](releases/4.6.2.md) · [开发说明](development.md) · [隐私](legal/privacy.md) · [第三方来源与授权](legal/third-party-notices.md)
 
 自动检查不代表已完成双语人工验收或所有电脑的实机测试。桌面部分衍生自 [LiveTranslate](https://github.com/rioX432/live-translate)，保留原作者 MIT 授权；模型另有各自授权。
 
