@@ -147,6 +147,7 @@
   let subtitleRevision = 0;
   let lastSubtitleSignature = '';
   let captionBox;
+  let streamerChatMode = false;
   let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
   const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
@@ -224,7 +225,7 @@
         continue;
       }
       activeTranslations++;
-      message({type: 'translate', text: task.source, direction: task.direction, priority: task.isTitle})
+      message({type: 'translate', text: task.source, direction: task.direction, priority: task.isTitle, ...(task.livestreamChat && {livestreamChat: true})})
         .then(result => {
           if (task.epoch === epoch && enabled) {
             cache.delete(task.key);
@@ -244,8 +245,8 @@
     }
   }
 
-  function requestTranslation(source, isTitle, order, isValid) {
-    const readDirection = direction('read'), key = `${readDirection}:${source}`;
+  function requestTranslation(source, isTitle, order, isValid, readDirection = direction('read'), livestreamChat = false) {
+    const key = `${livestreamChat}:${readDirection}:${source}`;
     if (cache.has(key)) {
       const result = cache.get(key);
       cache.delete(key); cache.set(key, result);
@@ -253,7 +254,7 @@
     }
     let task = translationInFlight.get(key);
     if (!task || task.epoch !== epoch) {
-      task = {key, source, isTitle, direction: readDirection, epoch, consumers: new Set(), order: order ?? ++translationOrder};
+      task = {key, source, isTitle, direction: readDirection, livestreamChat, epoch, consumers: new Set(), order: order ?? ++translationOrder};
       task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
       // Register ownership before the pump can reject an obsolete task.
       translationInFlight.set(key, task);
@@ -266,13 +267,19 @@
 
   async function translateNode(node, isTitle = false, order) {
     if (contextInvalid || !enabled || !node?.isConnected || node.closest?.('.jtl-social-translation,.jtl-social-controls')) return;
-    if (!isTitle) node = messageTextNode(node);
+    const auto = site === 'twitch' && streamerChatMode && !isTitle;
+    if (!isTitle && !auto) node = messageTextNode(node);
+    const detectionEpoch = epoch;
     const source = clean(node.innerText || node.textContent);
     const parent = node.parentElement;
-    let line = parent?.querySelector(':scope > .jtl-social-translation');
     // The background translator safely splits long messages. Keep only a
     // generous guard against accidentally selecting an entire chat timeline.
-    if (!source || source.length > 3000 || !matchesReadLanguage(source)) {
+    const readDirection = auto
+      ? await globalThis.VocaLumeTranslationGuards.streamerChatDirection(source, languageSettings.readTarget, value => chrome.i18n.detectLanguage(value))
+      : matchesReadLanguage(source) ? direction('read') : null;
+    if (detectionEpoch !== epoch || !node.isConnected || clean(node.innerText || node.textContent) !== source) return;
+    let line = parent?.querySelector(':scope > .jtl-social-translation');
+    if (!source || source.length > 3000 || !readDirection) {
       if (translated.has(node)) {
         translated.delete(node);
         if (line) { lineOwners.delete(line); line.remove(); }
@@ -298,12 +305,12 @@
     line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯中…`;
     try {
       let result;
-      try { result = await requestTranslation(source, isTitle, order, valid); }
+      try { result = await requestTranslation(source, isTitle, order, valid, readDirection, auto); }
       catch (firstError) {
         if (contextInvalid) throw firstError;
         if (!valid()) throw firstError;
         line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
-        result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid);
+        result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid, readDirection, auto);
       }
       if (!valid()) { discard(); return; }
       line.textContent = `${langLabel(languageSettings.readTarget)}：${result}`;
@@ -640,14 +647,14 @@
     // Hashed classes change frequently on both sites. ARIA live regions are a
     // stable semantic contract, so scan their smallest Japanese leaves as a
     // fallback when product-specific selectors no longer match.
-    const semanticMessages = site === 'discord' ? [] : [...document.querySelectorAll('[role="log"], [aria-live="polite"], [aria-live="assertive"]')]
+    const semanticMessages = (site === 'discord' || (site === 'twitch' && streamerChatMode)) ? [] : [...document.querySelectorAll('[role="log"], [aria-live="polite"], [aria-live="assertive"]')]
       .flatMap(region => [...region.querySelectorAll('span,p,div')])
       .filter(element => {
         const text = clean(element.innerText || element.textContent);
         return text && matchesReadLanguage(text) && ![...element.children].some(child => matchesReadLanguage(clean(child.innerText || child.textContent)));
       });
     const messages = [...new Set([
-      ...config.text.flatMap(selector => [...document.querySelectorAll(selector)]),
+      ...(site === 'twitch' && streamerChatMode ? config.text.slice(0, 2) : config.text).flatMap(selector => [...document.querySelectorAll(selector)]),
       ...semanticMessages
     ])].slice(-20);
     const batch = ++translationOrder * 1000;
@@ -686,7 +693,8 @@
       renderSubtitles({running: true, items: [payload.item]});
     }
   });
-  chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess']).then(settings => {
+  chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess','streamerChatMode']).then(settings => {
+    streamerChatMode = settings.streamerChatMode === true;
     languageSettings={...languageSettings,...(settings.languageSettings||{})};
     globalTextEnabled=settings.websiteTextOptInEnabled === true;
     currentSiteEnabled=dedicatedSite || settings.genericSiteAccess?.[host] === true;
@@ -695,6 +703,11 @@
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.websiteTextOptInEnabled) {globalTextEnabled=changes.websiteTextOptInEnabled.newValue === true;applyTextAccess();}
     if (area === 'local' && changes.genericSiteAccess && !dedicatedSite) {currentSiteEnabled=changes.genericSiteAccess.newValue?.[host] === true;applyTextAccess();}
+    if (area === 'local' && changes.streamerChatMode && site === 'twitch') {
+      streamerChatMode = changes.streamerChatMode.newValue === true;
+      document.querySelectorAll('.jtl-social-translation').forEach(node => node.remove());
+      applyTextAccess();
+    }
     if (area === 'local' && changes.subtitleSettings) captionBox?.controller.apply(changes.subtitleSettings.newValue);
     if (area === 'local' && changes.languageSettings) {epoch++;languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();cache.clear();document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());activeComposer=null;activeControls=null;composerLayoutObserver?.disconnect();pumpTranslations();scan();}
   });

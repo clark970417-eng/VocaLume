@@ -2,6 +2,7 @@
 if(window.__jtlV3)return;window.__jtlV3=true;
 let translated = new WeakMap();
 const lineOwners = new WeakMap();
+let streamerChatMode=false;
 let websiteTextOptInEnabled=false, textEpoch=0, contextInvalid=false;
 let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
 const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
@@ -26,7 +27,7 @@ function pumpTranslations() {
       continue;
     }
     activeTranslations++;
-    chrome.runtime.sendMessage({type: "translate", text: task.text, direction: task.direction, priority: task.priority}, reply => {
+    chrome.runtime.sendMessage({type: "translate", text: task.text, direction: task.direction, priority: task.priority, ...(task.livestreamChat && {livestreamChat: true})}, reply => {
       activeTranslations--;
       inFlight.delete(task.key);
       if (chrome.runtime.lastError) task.reject(chrome.runtime.lastError);
@@ -52,25 +53,30 @@ function smallestJapaneseLeaves(region) {
   });
 }
 
-function requestTranslation(text, direction, priority = false, queueOrder, isValid) {
-  const key = `${direction}:${text}`;
+function requestTranslation(text, direction, priority = false, queueOrder, isValid, livestreamChat = false) {
+  const key = `${livestreamChat}:${direction}:${text}`;
   if (cache.has(key)) return Promise.resolve(cache.get(key));
   if (inFlight.has(key)) return inFlight.get(key);
   const promise = new Promise((resolve, reject) => {
-    translationQueue.push({key, text, direction, priority, resolve, reject, isValid, order: queueOrder ?? (++translationOrder + (priority ? 1000000 : 0))});
+    translationQueue.push({key, text, direction, priority, resolve, reject, isValid, livestreamChat, order: queueOrder ?? (++translationOrder + (priority ? 1000000 : 0))});
     pumpTranslations();
   });
   inFlight.set(key, promise);
   return promise;
 }
 
-async function translateElement(element, className, priority = false, queueOrder) {
+async function translateElement(element, className, priority = false, queueOrder, liveChat = false) {
   if (!websiteTextOptInEnabled || !element) return false;
   const epoch=textEpoch;
   const text = element.textContent.trim();
   const anchor = className === "jtl-title" ? (element.closest("h1") || element) : element;
+  const auto = streamerChatMode && liveChat;
+  const readDirection = auto
+    ? await globalThis.VocaLumeTranslationGuards.streamerChatDirection(text, languageSettings.readTarget, value => chrome.i18n.detectLanguage(value))
+    : matchesReadLanguage(text) ? direction('read') : null;
+  if (epoch !== textEpoch || !element.isConnected || element.textContent.trim() !== text) return false;
   let line = anchor.parentElement?.querySelector(`:scope > .${className}`);
-  if (!text || !matchesReadLanguage(text)) {
+  if (!readDirection) {
     if (translated.has(element)) {
       translated.delete(element);
       if (line) { lineOwners.delete(line); line.remove(); }
@@ -95,11 +101,11 @@ async function translateElement(element, className, priority = false, queueOrder
   const valid=()=>ownsLine()&&websiteTextOptInEnabled&&epoch===textEpoch&&element.isConnected&&element.textContent.trim()===text;
   try {
     let result;
-    try { result = await requestTranslation(text, direction('read'), priority, queueOrder, valid); }
+    try { result = await requestTranslation(text, readDirection, priority, queueOrder, valid, auto); }
     catch (firstError) {
       if (!valid()) throw firstError;
       line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
-      result = await requestTranslation(text, direction('read'), true, (queueOrder??0)+1000000, valid);
+      result = await requestTranslation(text, readDirection, true, (queueOrder??0)+1000000, valid, auto);
     }
     if (!valid() || !result) {discard();return false;}
     line.textContent = `${langLabel(languageSettings.readTarget)}：${result}`;
@@ -120,7 +126,7 @@ async function translateElement(element, className, priority = false, queueOrder
         if (!valid()) return;
         retry.disabled = true;
         translated.delete(element);
-        void translateElement(element, className, true);
+        void translateElement(element, className, true, undefined, liveChat);
       });
       line.append(retry);
     }
@@ -153,9 +159,9 @@ function scan() {
   // stale messages. Keep the newest visible window and enqueue newest first.
   const selectedChat = [...document.querySelectorAll("#message.yt-live-chat-text-message-renderer, yt-live-chat-text-message-renderer #message")];
   const semanticChat = [...document.querySelectorAll('[role="log"]')].flatMap(smallestJapaneseLeaves);
-  const chat = [...new Set([...selectedChat, ...semanticChat])].slice(-20);
+  const chat = [...new Set([...selectedChat, ...(streamerChatMode ? [] : semanticChat)])].slice(-20);
   const batch = ++chatBatch;
-  for (let i = chat.length - 1; i >= 0; i--) translateElement(chat[i], "jtl-translation", false, batch * 1000 + i);
+  for (let i = chat.length - 1; i >= 0; i--) translateElement(chat[i], "jtl-translation", false, batch * 1000 + i, true);
   installComposerButton();
 }
 
@@ -216,8 +222,13 @@ function applySubtitleSettings(settings) {
 }
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.websiteTextOptInEnabled) setWebsiteText(changes.websiteTextOptInEnabled.newValue === true);
+  if (area === "local" && changes.streamerChatMode) {
+    streamerChatMode = changes.streamerChatMode.newValue === true;
+    document.querySelectorAll('.jtl-translation').forEach(el => el.remove());
+    setWebsiteText(websiteTextOptInEnabled);
+  }
   if (area === "local" && changes.subtitleSettings) applySubtitleSettings(changes.subtitleSettings.newValue);
-  if (area === "local" && changes.languageSettings) {languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-composer-controls').forEach(el=>el.remove());scan();}
+  if (area === "local" && changes.languageSettings) {textEpoch++;languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-composer-controls').forEach(el=>el.remove());scan();}
 });
 
 let lastSubtitleKey = "", subtitleExpiryTimer;
@@ -359,7 +370,7 @@ function setWebsiteText(enabled){
  if(!enabled)document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-composer-controls').forEach(el=>el.remove());
  else scan();
 }
-chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings']).then(s=>{languageSettings={...languageSettings,...(s.languageSettings||{})};setWebsiteText(s.websiteTextOptInEnabled === true);});
+chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','streamerChatMode']).then(s=>{streamerChatMode=s.streamerChatMode === true;languageSettings={...languageSettings,...(s.languageSettings||{})};setWebsiteText(s.websiteTextOptInEnabled === true);});
 let timer;
 new MutationObserver(() => {
   if (!timer) timer = setTimeout(() => { timer = null; scan(); }, 250);

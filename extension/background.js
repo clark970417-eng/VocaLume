@@ -7,7 +7,7 @@ const desktopSegments=new Map();
 let engineMode='browser';
 import {ResultGate} from './stream-core.mjs';
 import {CueCursor} from './cue-cursor.mjs';
-import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from './translation-policy.mjs';
+import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,normalizeLivestreamChat} from './translation-policy.mjs';
 const OPENROUTER="https://openrouter.ai/api/v1",NVIDIA="https://integrate.api.nvidia.com/v1";
 let captionMode='record',captionHold=3,speechFrom='ja',speechTo='zh';
 const setHold=value=>{captionHold=Math.max(1,Math.min(6,Number(value)||3));};
@@ -109,9 +109,10 @@ async function translateSingle(text,direction,priority=false,configured){
  if(direction==='ja-zh')return translateCaption(text,undefined,direction);
  try{return await localTranslation(text,direction,15000);}catch(_error){return checkedTranslation(await freeTranslate(text,from==='zh'?'zh-TW':from,to==='zh'?'zh-TW':to),direction,text);}
 }
-async function translate(text,direction,priority=false){
+async function translate(text,direction,priority=false,livestreamChat=false){
  parseDirection(direction);if(typeof text!=='string'||!text.trim()||text.length>3000)throw new Error('請輸入 1–3000 字');
  text=text.trim();
+ if(livestreamChat)text=normalizeLivestreamChat(text,direction);
  const configured=await settings();
  return textMemo.run(apiCacheScope(configured)+':'+direction+':'+priority+':'+(configured.writingStyle||'general')+':'+(configured.writingQuality||'fast')+':'+text,async()=>{
   const chunks=splitTranslationText(text);
@@ -391,7 +392,7 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
  else if(m.type==='recording-export')task=initRecording().then(()=>recording.entries);
  else if(m.type==='recording-retry')task=initRecording().then(()=>recording.retry()).then(()=>({pending:recording.pending}));
  else if(m.type==='make-draft')task=makeDraft(m.text,m.direction);
- else if(m.type==='translate')task=translate(m.text,m.direction,Boolean(m.priority));
+ else if(m.type==='translate')task=translate(m.text,m.direction,Boolean(m.priority),m.livestreamChat===true);
  else if(m.type==='subtitles')task=Promise.resolve({running:running&&s.tab?.id===captureTabId,items:s.tab?.id===captureTabId?(captionMode==='record'?[recordingItem()]:items.filter(fresh)):[]});
  else if(m.type==='health')task=Promise.resolve({running,draining:!!drainingSession,lastError,modelStatus,controlBusy,controlAction,diagnostics,captureTabId,captionMode,recordingPending:recording.pending,recordingFailed:recording.failed});
  else if(m.type==='subtitle-reset'){

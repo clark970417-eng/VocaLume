@@ -72,6 +72,10 @@ export function useLanguageSettings(): LanguageSettingsState {
   // settings must not silently replace the user's selected recognition engine.
   const changeSourceLanguage = (next: SourceLanguage): void => {
     setSourceLanguage(next)
+    if (next !== 'ja' && sttEngine.startsWith('haas-ja-')) {
+      setSttEngine(platform === 'darwin' ? 'mlx-whisper' : 'whisper-local')
+      return
+    }
     if (platform !== 'darwin') return
     if (next === 'ja' && sttEngine === 'mlx-whisper') {
       setSttEngine('kotoba-whisper')

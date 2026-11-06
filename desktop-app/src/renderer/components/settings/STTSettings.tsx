@@ -32,6 +32,8 @@ export function STTSettings({
   // Kotoba-Whisper outputs JA only — show when source is JA or auto, on Apple Silicon
   const showKotobaWhisper = platform === 'darwin' && (sourceLanguage === 'ja' || sourceLanguage === 'auto')
 
+  const usesHaas = sttEngine === 'haas-ja-recommended' || sttEngine === 'haas-ja-fast'
+
   return (
     <Section label={t("Speech Recognition")} helpText={t("Choose a speech recognition engine. Whisper Local is recommended for most users.")}>
       <select
@@ -41,6 +43,10 @@ export function STTSettings({
         disabled={disabled}
         aria-label={t("STT engine")}
       >
+        {(platform === 'darwin' || platform === 'win32') && sourceLanguage === 'ja' && <>
+          <option value="haas-ja-recommended">Haas-ja Q8_0 · {t("Recommended")}</option>
+          <option value="haas-ja-fast">Haas-ja Q8_0 · {t("Fastest recognition")}</option>
+        </>}
         {isMacOS26 && (
           <option value="apple-speech-transcriber">{t("Apple Speech (Zero Setup, macOS 26+)")}</option>
         )}
@@ -56,6 +62,11 @@ export function STTSettings({
         )}
         <option value="whisper-local">{t("Whisper (whisper.cpp)")}</option>
       </select>
+      {usesHaas && <label>
+        <input type="checkbox" disabled={disabled} checked={sttEngine === 'haas-ja-recommended'}
+          onChange={event => onSttEngineChange(event.target.checked ? 'haas-ja-recommended' : 'haas-ja-fast')} />
+        {t("Use limited phrase hints")}
+      </label>}
       {sttEngine === 'whisper-local' && (
         <div style={{ marginTop: '8px' }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>{t("Whisper Model")} </div>

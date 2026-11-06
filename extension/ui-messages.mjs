@@ -1,5 +1,6 @@
 // Interface copy only. Product/model names and user-generated text stay unchanged.
 export const UI_ZH_TW = {
+  'Recommended': '建議', 'Fastest recognition': '最快辨識', 'Use limited phrase hints': '使用限定片語提示',
   'OBS live captions': 'OBS 即時字幕',
   'Caption file output': '字幕檔案輸出',
   'Off': '關閉',
