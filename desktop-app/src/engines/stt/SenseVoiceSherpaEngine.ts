@@ -1,10 +1,15 @@
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
-import { execSync } from 'child_process'
+import { execFile } from 'child_process'
+import { promisify } from 'node:util'
+import { Readable, Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import { createWriteStream } from 'node:fs'
 import { app } from 'electron'
 import type { STTEngine, STTResult, Language } from '../types'
 import { ALL_LANGUAGES } from '../types'
 import { createLogger } from '../../main/logger'
+import type { WhisperWorkerClient } from './whisper-worker-client'
 
 const log = createLogger('sensevoice-sherpa')
 
@@ -18,10 +23,10 @@ const log = createLogger('sensevoice-sherpa')
  * - Features: emotion detection, audio event detection, ITN (punctuation)
  */
 const SENSEVOICE_MODEL = {
-  dirName: 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17',
+  dirName: 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17',
   /** tar.bz2 download URL from sherpa-onnx releases */
   downloadUrl:
-    'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2',
+    'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2',
   modelFile: 'model.int8.onnx',
   tokensFile: 'tokens.txt',
   sizeMB: 229
@@ -29,12 +34,16 @@ const SENSEVOICE_MODEL = {
 
 /** Minimal sherpa-onnx-node types for SenseVoice offline recognizer */
 interface SherpaOnnxModule {
-  OfflineRecognizer: new (config: SherpaOnnxConfig) => SherpaOnnxRecognizer
+  OfflineRecognizer: {
+    new (config: SherpaOnnxConfig): SherpaOnnxRecognizer
+    createAsync(config: SherpaOnnxConfig): Promise<SherpaOnnxRecognizer>
+  }
 }
 
 interface SherpaOnnxRecognizer {
   createStream(): SherpaOnnxStream
   decode(stream: SherpaOnnxStream): void
+  decodeAsync(stream: SherpaOnnxStream): Promise<SherpaOnnxResult>
   getResult(stream: SherpaOnnxStream): SherpaOnnxResult
 }
 
@@ -89,32 +98,55 @@ export class SenseVoiceSherpaEngine implements STTEngine {
 
   private recognizer: SherpaOnnxRecognizer | null = null
   private initPromise: Promise<void> | null = null
+  private generation = 0
+  private mutex: Promise<void> = Promise.resolve()
   private onProgress?: (message: string) => void
+  private workerClient: WhisperWorkerClient<{samples:Float32Array;sampleRate:number},STTResult|null> | null = null
+  private inWorker = false
+  private modelsRoot?: string
 
   constructor(options?: {
     onProgress?: (message: string) => void
+    inWorker?: boolean
+    modelsRoot?: string
   }) {
     this.onProgress = options?.onProgress
+    this.inWorker = options?.inWorker || false
+    this.modelsRoot = options?.modelsRoot
   }
 
   async initialize(): Promise<void> {
     if (this.initPromise) return this.initPromise
-    this.initPromise = this.doInitialize()
+    const job = this.doInitialize()
+    this.initPromise = job
+    void job.catch(() => { if (this.initPromise === job) this.initPromise = null })
     return this.initPromise
   }
 
   private async doInitialize(): Promise<void> {
     if (this.recognizer) return
+    const generation = this.generation
+    if (process.platform === 'win32' && !this.inWorker) {
+      const { WhisperWorkerClient } = await import('./whisper-worker-client')
+      if (generation !== this.generation) throw new Error('SenseVoice initialization cancelled')
+      const client = this.workerClient ??= new WhisperWorkerClient({
+        workerFile:'sensevoice-worker.js',name:'SenseVoice',initTimeoutMs:12*60_000,
+        initPayload:{modelsRoot:this.modelsRoot || join(app.getPath('userData'),'models','sherpa-onnx')},onProgress:this.onProgress
+      })
+      await client.initialize()
+      return
+    }
 
     this.onProgress?.('Loading SenseVoice Small (sherpa-onnx)...')
 
     // Ensure model directory exists
-    const modelsRoot = join(app.getPath('userData'), 'models', 'sherpa-onnx')
+    const modelsRoot = this.modelsRoot || join(app.getPath('userData'), 'models', 'sherpa-onnx')
     if (!existsSync(modelsRoot)) {
       mkdirSync(modelsRoot, { recursive: true })
     }
 
-    const modelDir = join(modelsRoot, SENSEVOICE_MODEL.dirName)
+    const legacyDir = join(modelsRoot, 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17')
+    const modelDir = existsSync(join(legacyDir, SENSEVOICE_MODEL.modelFile)) ? legacyDir : join(modelsRoot, SENSEVOICE_MODEL.dirName)
 
     // Auto-download model if not present
     if (!existsSync(modelDir)) {
@@ -141,7 +173,7 @@ export class SenseVoiceSherpaEngine implements STTEngine {
     // Load sherpa-onnx-node native addon (optional dependency)
     let sherpaOnnx: SherpaOnnxModule
     try {
-      sherpaOnnx = require('sherpa-onnx-node') as SherpaOnnxModule
+      sherpaOnnx = (await import('sherpa-onnx-node')).default as SherpaOnnxModule
     } catch (err) {
       throw new Error(
         '[sensevoice-sherpa] Failed to load sherpa-onnx-node. ' +
@@ -169,7 +201,11 @@ export class SenseVoiceSherpaEngine implements STTEngine {
     }
 
     try {
-      this.recognizer = new sherpaOnnx.OfflineRecognizer(config)
+      // Both model construction and decoding otherwise block Electron's main
+      // loop. The pinned native package supplies asynchronous N-API methods.
+      const recognizer = await sherpaOnnx.OfflineRecognizer.createAsync(config)
+      if (generation !== this.generation) throw new Error('SenseVoice initialization cancelled')
+      this.recognizer = recognizer
     } catch (err) {
       throw new Error(
         `[sensevoice-sherpa] Failed to create recognizer: ${err instanceof Error ? err.message : err}`
@@ -181,13 +217,23 @@ export class SenseVoiceSherpaEngine implements STTEngine {
   }
 
   async processAudio(audioChunk: Float32Array, sampleRate: number): Promise<STTResult | null> {
-    if (!this.recognizer) return null
+    if (!this.recognizer && !this.workerClient) return null
+    const recognizer = this.recognizer, client = this.workerClient, generation = this.generation
+    const previous = this.mutex
+    let release!: () => void
+    this.mutex = new Promise<void>(resolve => { release = resolve })
+    await previous
 
     try {
-      const stream = this.recognizer.createStream()
+      if (generation !== this.generation) return null
+      if (client) {
+        const result = await client.transcribe({samples:audioChunk,sampleRate})
+        return generation === this.generation ? result : null
+      }
+      const stream = recognizer!.createStream()
       stream.acceptWaveform({ sampleRate, samples: audioChunk })
-      this.recognizer.decode(stream)
-      const result = this.recognizer.getResult(stream)
+      const result = await recognizer!.decodeAsync(stream)
+      if (generation !== this.generation) return null
 
       const text = (result.text ?? '').trim()
       if (!text) return null
@@ -207,11 +253,14 @@ export class SenseVoiceSherpaEngine implements STTEngine {
     } catch (err) {
       log.error('Transcription error:', err)
       return null
-    }
+    } finally { release() }
   }
 
   async dispose(): Promise<void> {
     log.info('Disposing SenseVoice sherpa-onnx resources')
+    this.generation++
+    this.workerClient?.dispose()
+    this.workerClient = null
     this.recognizer = null
     this.initPromise = null
   }
@@ -222,81 +271,33 @@ export class SenseVoiceSherpaEngine implements STTEngine {
    */
   private async downloadModel(modelsRoot: string, modelDir: string): Promise<void> {
     const archivePath = join(modelsRoot, `${SENSEVOICE_MODEL.dirName}.tar.bz2`)
-
+    const controller = new AbortController()
+    // Keep the timeout active through the body, not just the response headers.
+    const timeout = setTimeout(() => controller.abort(), 10 * 60_000)
     try {
       this.onProgress?.(`Downloading SenseVoice Small model (~${SENSEVOICE_MODEL.sizeMB}MB)...`)
-      log.info(`Downloading SenseVoice model from ${SENSEVOICE_MODEL.downloadUrl}`)
-
-      // Download with fetch + streaming to disk
-      const controller = new AbortController()
-      const fetchTimeout = setTimeout(() => controller.abort(), 10 * 60_000)
-
-      let response: Response
-      try {
-        response = await fetch(SENSEVOICE_MODEL.downloadUrl, {
-          redirect: 'follow',
-          signal: controller.signal
-        })
-      } finally {
-        clearTimeout(fetchTimeout)
-      }
-
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status} ${response.statusText}`)
-      }
-
-      const contentLength = Number(response.headers.get('content-length')) || 0
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error('No response body')
-
-      const { createWriteStream } = await import('fs')
-      const ws = createWriteStream(archivePath)
-      let downloaded = 0
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        ws.write(Buffer.from(value))
-        downloaded += value.byteLength
-
-        if (contentLength > 0) {
-          const pct = Math.round((downloaded / contentLength) * 100)
-          const downloadedMB = (downloaded / 1024 / 1024).toFixed(0)
-          const totalMB = (contentLength / 1024 / 1024).toFixed(0)
-          this.onProgress?.(`Downloading SenseVoice: ${downloadedMB}/${totalMB}MB (${pct}%)`)
+      const response = await fetch(SENSEVOICE_MODEL.downloadUrl, {redirect:'follow',signal:controller.signal})
+      if (!response.ok || !response.body) throw new Error(`SenseVoice download failed: HTTP ${response.status}`)
+      const total = Number(response.headers.get('content-length')) || 0
+      let received = 0, previousPercent = -1, previousTime = 0
+      const progress = new Transform({transform: (chunk: Buffer, _encoding, callback) => {
+        received += chunk.length
+        const percent = total ? Math.floor(received / total * 100) : 0
+        const now = Date.now()
+        if (percent !== previousPercent && now - previousTime >= 250) {
+          previousPercent = percent; previousTime = now
+          this.onProgress?.(`Downloading SenseVoice: ${(received/1024/1024).toFixed(0)}MB${total ? ` (${percent}%)` : ''}`)
         }
-      }
-
-      await new Promise<void>((resolve, reject) => {
-        ws.end(() => resolve())
-        ws.on('error', reject)
-      })
-
-      // Extract archive
+        callback(null, chunk)
+      }})
+      // pipeline respects disk backpressure and forwards read/write errors.
+      await pipeline(Readable.from(response.body as unknown as AsyncIterable<Uint8Array>), progress, createWriteStream(archivePath))
       this.onProgress?.('Extracting SenseVoice model...')
-      log.info(`Extracting ${archivePath} to ${modelsRoot}`)
-
-      execSync(`tar -xjf "${archivePath}" -C "${modelsRoot}"`, {
-        timeout: 120_000
-      })
-
-      // Verify extraction succeeded
-      if (!existsSync(modelDir)) {
-        throw new Error(`Extraction completed but model directory not found: ${modelDir}`)
-      }
-
-      log.info('SenseVoice model downloaded and extracted successfully')
+      await promisify(execFile)('tar', ['-xjf',archivePath,'-C',modelsRoot], {timeout:120_000,windowsHide:true})
+      if (!existsSync(join(modelDir,SENSEVOICE_MODEL.modelFile))) throw new Error('SenseVoice archive did not contain the expected int8 model')
     } finally {
-      // Clean up archive file
-      try {
-        const { unlinkSync } = await import('fs')
-        if (existsSync(archivePath)) {
-          unlinkSync(archivePath)
-        }
-      } catch (e) {
-        log.warn('Failed to clean up archive:', e)
-      }
+      clearTimeout(timeout)
+      await import('node:fs/promises').then(fs => fs.unlink(archivePath).catch(() => {}))
     }
   }
 

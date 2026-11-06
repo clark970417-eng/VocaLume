@@ -2,57 +2,68 @@ import { utilityProcess } from 'electron'
 import { join } from 'node:path'
 import type { WhisperOptions } from '@kutalia/whisper-node-addon'
 
-type Result = Awaited<ReturnType<typeof import('@kutalia/whisper-node-addon').transcribe>>
+type WhisperResult = Awaited<ReturnType<typeof import('@kutalia/whisper-node-addon').transcribe>>
 
 /** Windows native loads and decoding belong outside the UI/main process.
  * The engine owns serialization; this client owns child lifetime and timeouts. */
-export class WhisperWorkerClient {
+export class WhisperWorkerClient<Options = WhisperOptions, Result = WhisperResult> {
   private worker: Electron.UtilityProcess | null = null
   private ready: Promise<void> | null = null
   private sequence = 0
   private pending = new Map<number, { resolve: (result: Result) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>()
   private rejectInit: ((error: Error) => void) | null = null
+  constructor(private readonly options: {
+    workerFile?: string; name?: string; initPayload?: Record<string, unknown>
+    initTimeoutMs?: number; onProgress?: (message: string) => void
+  } = {}) {}
+  private get name(): string { return this.options.name || 'Whisper' }
 
   initialize(): Promise<void> {
     if (this.ready) return this.ready
-    const worker = utilityProcess.fork(join(__dirname, 'whisper-worker.js'))
+    const worker = utilityProcess.fork(join(__dirname, this.options.workerFile || 'whisper-worker.js'))
     this.worker = worker
     this.ready = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => this.stop(new Error('Whisper worker initialization timed out')), 30_000)
+      const timer = setTimeout(() => this.stop(new Error(`${this.name} worker initialization timed out`)), this.options.initTimeoutMs || 30_000)
       this.rejectInit = error => { clearTimeout(timer); reject(error) }
       worker.on('message', (message: { type: string; id?: number; result?: Result; message?: string }) => {
         if (this.worker !== worker) return
+        if (message.type === 'progress') { if (typeof message.message === 'string') this.options.onProgress?.(message.message); return }
         if (message.type === 'ready') {
           clearTimeout(timer); this.rejectInit = null; resolve(); return
         }
-        if (message.type === 'fatal') { this.stop(new Error(message.message || 'Whisper worker initialization failed')); return }
+        if (message.type === 'fatal') { this.stop(new Error(message.message || `${this.name} worker initialization failed`)); return }
         const pending = message.id === undefined ? undefined : this.pending.get(message.id)
         if (!pending) return
         clearTimeout(pending.timer); this.pending.delete(message.id!)
-        if (message.type === 'result' && message.result) pending.resolve(message.result)
-        else pending.reject(new Error(message.message || 'Whisper transcription failed'))
+        if (message.type === 'result' && 'result' in message) pending.resolve(message.result as Result)
+        else pending.reject(new Error(message.message || `${this.name} transcription failed`))
       })
       worker.on('exit', () => {
-        if (this.worker === worker) this.stop(new Error('Whisper worker exited'))
+        if (this.worker === worker) this.stop(new Error(`${this.name} worker exited`))
       })
     })
-    return this.ready
+    const ready = this.ready
+    if (this.options.initPayload) {
+      try { worker.postMessage({type:'init',...this.options.initPayload}) }
+      catch (error) { this.stop(error instanceof Error ? error : new Error(String(error))) }
+    }
+    return ready
   }
 
-  async transcribe(options: WhisperOptions): Promise<Result> {
+  async transcribe(options: Options): Promise<Result> {
     await this.initialize()
     const worker = this.worker
-    if (!worker) throw new Error('Whisper worker was stopped')
+    if (!worker) throw new Error(`${this.name} worker was stopped`)
     const id = ++this.sequence
     return new Promise<Result>((resolve, reject) => {
-      const timer = setTimeout(() => this.stop(new Error('Whisper transcription timed out')), 120_000)
+      const timer = setTimeout(() => this.stop(new Error(`${this.name} transcription timed out`)), 120_000)
       this.pending.set(id, {resolve,reject,timer})
       try { worker.postMessage({type:'transcribe',id,options}) }
       catch (error) { this.stop(error instanceof Error ? error : new Error(String(error))) }
     })
   }
 
-  dispose(): void { this.stop(new Error('Whisper worker disposed')) }
+  dispose(): void { this.stop(new Error(`${this.name} worker disposed`)) }
 
   private stop(error: Error): void {
     const worker = this.worker

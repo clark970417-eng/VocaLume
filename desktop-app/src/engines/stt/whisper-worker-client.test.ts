@@ -27,6 +27,18 @@ it('shares child initialization and delivers original audio and decoding options
   await expect(result).resolves.toEqual({transcription:['Bonjour']})
 })
 
+it('supports model-directory initialization, progress and valid empty STT results',async()=>{
+  const progress=vi.fn()
+  const other=new WhisperWorkerClient<{samples:number[]},null>({workerFile:'sensevoice-worker.js',name:'SenseVoice',initPayload:{modelsRoot:'/models'},onProgress:progress})
+  const initialized=other.initialize()
+  expect(child.postMessage).toHaveBeenCalledWith({type:'init',modelsRoot:'/models'})
+  child.emit('message',{type:'progress',message:'Loading model'});expect(progress).toHaveBeenCalledWith('Loading model')
+  child.emit('message',{type:'ready'});await initialized
+  const result=other.transcribe({samples:[0]});await Promise.resolve()
+  child.emit('message',{type:'result',id:1,result:null});await expect(result).resolves.toBeNull()
+  other.dispose();expect(child.kill).toHaveBeenCalledOnce()
+})
+
 it('rejects a native initialization failure and permits a fresh child',async()=>{
   const first=client.initialize()
   const rejected=expect(first).rejects.toThrow('Missing native DLL')
