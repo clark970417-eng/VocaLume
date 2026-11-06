@@ -1,6 +1,12 @@
 // Interface copy only; never convert user text or interpolation values.
 export const UI_ZH_CN = {
+  "Advanced settings": "高级设置",
+  "Subtitles & OBS": "字幕与 OBS",
+  "File translation": "文件翻译",
+  "Live translation": "实时翻译",
   'Recommended': '推荐', 'Fastest recognition': '最快识别', 'Use limited phrase hints': '使用限定短语提示',
+  'Watch folder and translate automatically': '监控文件夹并自动翻译',
+  'Stop watching folder': '停止监控文件夹',
   'OBS live captions': 'OBS 实时字幕',
   'Caption file output': '字幕文件输出',
   'Off': '关闭',

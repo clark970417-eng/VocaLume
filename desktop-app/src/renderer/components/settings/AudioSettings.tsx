@@ -1,9 +1,8 @@
 import { t } from '../../ui-language'
 import React from 'react'
 import { Section } from './Section'
-import { buttonStyle, selectStyle, sliderLabelStyle } from './shared'
+import { selectStyle, sliderLabelStyle } from './shared'
 import type { UseAudioCaptureReturn, AudioSource } from '../../hooks/useAudioCapture'
-import { MEDIA_FILE_ACCEPT } from '../../../media-formats'
 
 /** Audio source display labels */
 const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string; description: string }> = [
@@ -23,12 +22,9 @@ interface AudioSettingsProps {
   /** #606: Streaming chunk interval in ms */
   streamingIntervalMs: number
   onStreamingIntervalChange: (ms: number) => void
-  onTranslateFile: (file: File) => Promise<void>
-  mediaImportActive: boolean
-  onCancelMediaImport: () => Promise<void>
 }
 
-export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange, onTranslateFile, mediaImportActive, onCancelMediaImport }: AudioSettingsProps): React.JSX.Element {
+export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange }: AudioSettingsProps): React.JSX.Element {
   const showMicSelector = audio.audioSource !== 'system'
 
   return (
@@ -141,20 +137,6 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
         </div>
       </div>
       </details>
-      <details className="settings-disclosure">
-        <summary>{t("Translate an audio or video file")}</summary>
-        <label htmlFor="media-file" style={{ display: 'block', marginBottom: 6, fontSize: 12, color: '#b5c4d8' }}>{t("Choose a file to begin translation")}</label>
-        <input id="media-file" type="file" accept={MEDIA_FILE_ACCEPT} disabled={disabled}
-          style={{ width: '100%', color: '#b5c4d8', fontSize: 12 }}
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            event.target.value = ''
-            if (file) void onTranslateFile(file)
-          }} />
-        <p style={{ fontSize: 11, color: '#94a3b8' }}>{t("MP3, M4A, WAV, FLAC, WebM, MP4 and other common formats.")}</p>
-      </details>
-      {mediaImportActive && <button type="button" onClick={() => void onCancelMediaImport()}
-        style={{ ...buttonStyle, background: '#7f1d1d', color: '#fecaca' }}>{t("Cancel file translation")}</button>}
       {audio.permissionError && (
         <div role="alert" style={{ marginTop: '6px', fontSize: '12px', color: '#ef4444' }}>
           {audio.permissionError}

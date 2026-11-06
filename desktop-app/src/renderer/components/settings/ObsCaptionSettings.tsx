@@ -36,8 +36,10 @@ export function ObsCaptionSettings() {
           <option value="bilingual">{t('Original and translation')}</option>
         </select>
       </label>
+      {status && status.mode !== 'off' && <>
       <p>{t('In OBS, add a Text source and enable Read from file. Select this file after enabling output.')}</p>
-      {status && <input aria-label={t('OBS caption file path')} value={status.path} readOnly />}
+      <input aria-label={t('OBS caption file path')} value={status.path} readOnly />
+      </>}
       {(failed || status?.error) && <p role="alert">{t('Could not configure OBS caption output.')}</p>}
     </details>
   )

@@ -1,3 +1,4 @@
+import { trimSilence } from './trimCaptureSilence'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { MicVAD } from '@ricky0123/vad-web'
 import { RealtimeChunker } from './realtimeChunker'
@@ -56,48 +57,9 @@ const SAMPLE_RATE = 16000
 /** Fixed PCM chunk size for realtime cloud streaming: 100ms at 16kHz (#721) */
 const REALTIME_CHUNK_SAMPLES = Math.floor(SAMPLE_RATE * 0.1)
 const MAX_ROLLING_BUFFER_SECONDS = 3
+const MAX_LIVE_SEGMENT_SECONDS = 8
 /** Overlap from previous chunk to prevent word boundary cutting (200ms at 16kHz) */
 const CHUNK_OVERLAP_SAMPLES = Math.floor(SAMPLE_RATE * 0.2)
-/** RMS threshold below which a frame is considered silence for trimming */
-const SILENCE_RMS_THRESHOLD = 0.01
-
-/**
- * Trim leading and trailing silence from audio buffer (#361).
- * Uses frame-level RMS analysis to find speech boundaries.
- * Keeps a small padding (160 samples = 10ms at 16kHz) around speech.
- */
-function trimSilence(buffer: Float32Array): Float32Array | null {
-  const frameSize = 160 // 10ms at 16kHz
-  const padding = 160 // 10ms padding
-  let firstSpeechSample = -1
-  let lastSpeechSample = -1
-
-  for (let i = 0; i < buffer.length; i += frameSize) {
-    const end = Math.min(i + frameSize, buffer.length)
-    let sum = 0
-    for (let j = i; j < end; j++) {
-      sum += buffer[j] * buffer[j]
-    }
-    const rms = Math.sqrt(sum / (end - i))
-    if (rms > SILENCE_RMS_THRESHOLD) {
-      if (firstSpeechSample === -1) firstSpeechSample = i
-      lastSpeechSample = end
-    }
-  }
-
-  if (firstSpeechSample === -1) return null // All silence
-
-  const start = Math.max(0, firstSpeechSample - padding)
-  const end = Math.min(buffer.length, lastSpeechSample + padding)
-  const trimmedLength = end - start
-
-  // Only trim if we save at least 20% of the audio
-  if (trimmedLength >= buffer.length * 0.8) return buffer
-
-  if (trimmedLength < SAMPLE_RATE * 0.3) return null // Too short after trimming
-  return buffer.subarray(start, end)
-}
-
 export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, streamingIntervalMs?: number): UseAudioCaptureReturn {
   const effectiveInterval = streamingIntervalMs != null
     ? Math.max(500, Math.min(3000, streamingIntervalMs))
@@ -123,6 +85,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
   // #501: Track loopback and mixer resources for cleanup
   const loopbackStreamRef = useRef<MediaStream | null>(null)
   const microphoneStreamRef = useRef<MediaStream | null>(null)
+  const vadAudioContextRef = useRef<AudioContext | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const refreshDevicesRef = useRef<(() => Promise<void>) | null>(null)
 
@@ -236,7 +199,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         } else {
           prevChunkTailRef.current = new Float32Array(buffer)
         }
-        console.log(`[audio-capture] Streaming chunk: ${output.length} samples (${(output.length / SAMPLE_RATE).toFixed(1)}s)`)
         streamingCallbackRef.current?.(output)
       }
       const elapsed = performance.now() - speechStartedAtRef.current
@@ -263,6 +225,11 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
     if (loopbackStreamRef.current) {
       loopbackStreamRef.current.getTracks().forEach((t) => t.stop())
       loopbackStreamRef.current = null
+    }
+    const vadContext = vadAudioContextRef.current
+    vadAudioContextRef.current = null
+    if (vadContext && vadContext.state !== 'closed') {
+      void vadContext.close().catch(err => console.warn('[audio-capture] VAD AudioContext close error:', err))
     }
     if (audioContextRef.current) {
       audioContextRef.current.close().catch((err) => console.warn('[audio-capture] AudioContext close error:', err))
@@ -330,7 +297,17 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       realtimeChunkerRef.current = captureMode === 'realtime'
         ? new RealtimeChunker(REALTIME_CHUNK_SAMPLES, (chunk) => realtimeChunkCallbackRef.current?.(chunk))
         : null
+      const vadContext = new AudioContext()
+      vadAudioContextRef.current = vadContext
+      let markFirstFrame: (() => void) | undefined
+      const firstFrame = new Promise<void>(resolve => { markFirstFrame = resolve })
+      let onsetFrame: Float32Array | undefined
+      let finalFrames: Float32Array[] = []
+      let pendingSamples = 0
+      let sentPartialSegment = false
+      let nextMeterUpdate = 0
       const vad = await MicVAD.new({
+        audioContext: vadContext,
         getStream: async () => {
           // #313: Request 48 kHz when DeepFilterNet3 is active (it requires 48 kHz);
           // VAD resamples internally to 16 kHz regardless.
@@ -387,11 +364,16 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         baseAssetPath: window.location.protocol === 'file:' ? 'vad-asset://host/' : '/vad/',
         onnxWASMBasePath: window.location.protocol === 'file:' ? 'vad-asset://host/' : '/vad/',
         onFrameProcessed: (_probs, frame) => {
-          // Volume meter (RMS) from each frame
-          let sum = 0
-          for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i]
-          const rms = Math.sqrt(sum / frame.length)
-          setVolume(Math.min(1, rms * 5))
+          markFirstFrame?.()
+          markFirstFrame = undefined
+          // Limit display updates without changing which audio frames enter the pipeline.
+          const now = performance.now()
+          if (now >= nextMeterUpdate && frame.length > 0) {
+            nextMeterUpdate = now + 100
+            let sum = 0
+            for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i]
+            setVolume(Math.min(1, Math.sqrt(sum / frame.length) * 5))
+          }
 
           // #721: In realtime mode, forward every frame as continuous 100ms PCM
           // chunks regardless of speech state — do not gate on VAD or accumulate
@@ -405,27 +387,47 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           }
 
           // #53: accumulate frames in circular buffer during speech (#361: reduced from 5s to 3s)
-          if (isSpeakingRef.current) {
-            const maxFrames = Math.floor((MAX_ROLLING_BUFFER_SECONDS * SAMPLE_RATE) / frame.length)
-            const buf = rollingBufferRef.current
-            if (buf.length < maxFrames && !rollingBufferFullRef.current) {
-              buf.push(new Float32Array(frame))
-              rollingBufferIndexRef.current = buf.length
-            } else {
-              // Circular overwrite — no allocation, no slice
-              if (buf.length < maxFrames) {
-                buf.length = maxFrames
-              }
-              rollingBufferFullRef.current = true
-              const idx = rollingBufferIndexRef.current % maxFrames
-              buf[idx] = new Float32Array(frame)
-              rollingBufferIndexRef.current = (idx + 1) % maxFrames
+          if (!isSpeakingRef.current) {
+            onsetFrame = frame
+            return
+          }
+          finalFrames.push(new Float32Array(frame))
+          pendingSamples += frame.length
+          if (pendingSamples >= MAX_LIVE_SEGMENT_SECONDS * SAMPLE_RATE) {
+            const segment = new Float32Array(pendingSamples)
+            let offset = 0
+            for (const samples of finalFrames) {
+              segment.set(samples, offset)
+              offset += samples.length
             }
+            speechEndCallbackRef.current?.(segment)
+            sentPartialSegment = true
+            finalFrames = []
+            pendingSamples = 0
+            rollingBufferRef.current = []
+            rollingBufferIndexRef.current = 0
+            rollingBufferFullRef.current = false
+            prevChunkTailRef.current = null
+            return
+          }
+          const maxFrames = Math.floor((MAX_ROLLING_BUFFER_SECONDS * SAMPLE_RATE) / frame.length)
+          const buf = rollingBufferRef.current
+          if (buf.length < maxFrames && !rollingBufferFullRef.current) {
+            buf.push(new Float32Array(frame))
+            rollingBufferIndexRef.current = buf.length
+          } else {
+            // Circular overwrite — no allocation, no slice
+            if (buf.length < maxFrames) {
+              buf.length = maxFrames
+            }
+            rollingBufferFullRef.current = true
+            const idx = rollingBufferIndexRef.current % maxFrames
+            buf[idx] = new Float32Array(frame)
+            rollingBufferIndexRef.current = (idx + 1) % maxFrames
           }
         },
         onSpeechEnd: (audio: Float32Array) => {
           // audio is 16kHz Float32Array from VAD
-          console.log(`[audio-capture] VAD speech segment: ${audio.length} samples (${(audio.length / SAMPLE_RATE).toFixed(1)}s)`)
           isSpeakingRef.current = false
           stopStreamingTimer()
 
@@ -437,7 +439,9 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           }
 
           // Finalize streaming with the VAD-provided segment
-          speechEndCallbackRef.current?.(audio)
+          // VAD returns the entire utterance, including frames already finalized above.
+          const finalAudio = sentPartialSegment ? audio.subarray(audio.length - pendingSamples) : audio
+          if (!sentPartialSegment || finalAudio.length >= SAMPLE_RATE / 4) speechEndCallbackRef.current?.(finalAudio)
           rollingBufferRef.current = []
           rollingBufferIndexRef.current = 0
           rollingBufferFullRef.current = false
@@ -445,8 +449,10 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
 
         },
         onSpeechStart: () => {
-          console.log('[audio-capture] VAD speech start')
           isSpeakingRef.current = true
+          finalFrames = onsetFrame ? [new Float32Array(onsetFrame)] : []
+          pendingSamples = onsetFrame?.length ?? 0
+          sentPartialSegment = false
 
           // #721: realtime mode — forward speech start as a turn-boundary hint only.
           if (captureModeRef.current === 'realtime') {
@@ -462,7 +468,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           startStreamingTimer()
         },
         onVADMisfire: () => {
-          console.log('[audio-capture] VAD misfire (speech too short)')
           isSpeakingRef.current = false
           stopStreamingTimer()
           if (captureModeRef.current === 'realtime') return
@@ -474,7 +479,20 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       })
 
       vadRef.current = vad
-      vad.start()
+      await vad.start()
+      let frameTimeout: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          Promise.all([vadContext.resume(), firstFrame]),
+          new Promise<never>((_, reject) => {
+            frameTimeout = setTimeout(() => reject(new Error(
+              'Audio input did not start. Check the selected audio device and microphone permission, then retry.'
+            )), 5000)
+          })
+        ])
+      } finally {
+        clearTimeout(frameTimeout)
+      }
       setIsCapturing(true)
       console.log(`[audio-capture] VAD started (${captureMode} mode)`)
     } catch (err) {
@@ -482,7 +500,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       console.error('[audio-capture] Failed to start:', err)
       stopStreamingTimer()
       if (vadRef.current) {
-        vadRef.current.destroy()
+        void vadRef.current.destroy().catch(err => console.warn('[audio-capture] VAD cleanup error:', err))
         vadRef.current = null
       }
       // #501: Clean up loopback resources on failed start
@@ -495,7 +513,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
   const stop = useCallback(() => {
     stopStreamingTimer()
     if (vadRef.current) {
-      vadRef.current.destroy()
+      void vadRef.current.destroy().catch(err => console.warn('[audio-capture] VAD cleanup error:', err))
       vadRef.current = null
     }
     // #501: Release loopback stream and audio mixer resources
@@ -515,7 +533,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         streamingTimerRef.current = null
       }
       if (vadRef.current) {
-        vadRef.current.destroy()
+        void vadRef.current.destroy().catch(err => console.warn('[audio-capture] VAD cleanup error:', err))
         vadRef.current = null
       }
       // #501: Release loopback resources on unmount

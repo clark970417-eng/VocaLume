@@ -1,6 +1,5 @@
 import { t } from '../../ui-language'
 import React from 'react'
-import { GlossarySettings } from './GlossarySettings'
 import { Section } from './Section'
 import { LLM_ENGINE_MODES, disclosureArrowStyle, disclosureToggleStyle, inputStyle, radioLabelStyle, selectStyle } from './shared'
 import type { EngineMode } from './shared'
@@ -54,12 +53,6 @@ interface TranslatorSettingsProps {
   // API options visibility (controlled by parent for settings restore)
   showApiOptions: boolean
   onShowApiOptionsChange: (v: boolean) => void
-  // Glossary
-  glossaryTerms: Array<{ source: string; target: string }>
-  onGlossaryTermsChange: (terms: Array<{ source: string; target: string }>) => void
-  // Organization glossary (#517)
-  orgGlossaryTerms: Array<{ source: string; target: string }>
-  onOrgGlossaryTermsChange: (terms: Array<{ source: string; target: string }>) => void
 }
 
 export function TranslatorSettings({
@@ -103,11 +96,7 @@ export function TranslatorSettings({
   geminiLiveEnabled,
   onGeminiLiveEnabledChange,
   showApiOptions,
-  onShowApiOptionsChange,
-  glossaryTerms,
-  onGlossaryTermsChange,
-  orgGlossaryTerms,
-  onOrgGlossaryTermsChange
+  onShowApiOptionsChange
 }: TranslatorSettingsProps): React.JSX.Element {
   const showLlmOptions = LLM_ENGINE_MODES.includes(engineMode)
 
@@ -517,13 +506,6 @@ export function TranslatorSettings({
         )}
       </Section>
 
-      <GlossarySettings
-        disabled={disabled}
-        glossaryTerms={glossaryTerms}
-        onGlossaryTermsChange={onGlossaryTermsChange}
-        orgGlossaryTerms={orgGlossaryTerms}
-        onOrgGlossaryTermsChange={onOrgGlossaryTermsChange}
-      />
     </>
   )
 }

@@ -1,6 +1,12 @@
 // Interface copy only. Product/model names and user-generated text stay unchanged.
 export const UI_ZH_TW = {
+  "Advanced settings": "進階設定",
+  "Subtitles & OBS": "字幕與 OBS",
+  "File translation": "檔案翻譯",
+  "Live translation": "即時翻譯",
   'Recommended': '建議', 'Fastest recognition': '最快辨識', 'Use limited phrase hints': '使用限定片語提示',
+  'Watch folder and translate automatically': '監看資料夾並自動翻譯',
+  'Stop watching folder': '停止監看資料夾',
   'OBS live captions': 'OBS 即時字幕',
   'Caption file output': '字幕檔案輸出',
   'Off': '關閉',

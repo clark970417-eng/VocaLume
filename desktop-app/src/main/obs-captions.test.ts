@@ -14,6 +14,13 @@ it('exports only final translations, supports bilingual output, and clears on di
     publishObsCaption({ sourceText: 'こんにちは', translatedText: '你好' })
     publishObsCaption({ sourceText: '暫定', translatedText: '草稿', isInterim: true })
     await vi.waitFor(async () => expect(await readFile(path, 'utf8')).toBe('你好'))
+    const longCaption = '中文'.repeat(30)
+    publishObsCaption({ sourceText: '', translatedText: longCaption })
+    await vi.waitFor(async () => {
+      const lines = (await readFile(path, 'utf8')).split('\n')
+      expect(lines.join('')).toBe(longCaption)
+      expect(lines.every(line => line.length <= 21)).toBe(true)
+    })
     await configureObsCaptions('bilingual')
     publishObsCaption({ sourceText: 'またね', translatedText: '再見' })
     await vi.waitFor(async () => expect(await readFile(path, 'utf8')).toBe('またね\n再見'))
