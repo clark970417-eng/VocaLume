@@ -40,8 +40,15 @@ test('longer opening greetings normalize only the salutation and retain all rema
 test('packaged content scripts load the same catalogue before scanning and both releases include it',()=>{
  const manifest=JSON.parse(fs.readFileSync(new URL('../manifest.json',import.meta.url),'utf8'));
  for(const group of manifest.content_scripts){
-  assert.equal(group.js[0],'streamer-vocabulary.js');
   for(const script of group.js)assert.ok(fs.existsSync(new URL('../'+script,import.meta.url)));
+  if(group.js.includes('website-language-content.js')){
+   assert.deepEqual(group.matches,['https://vocalume.vercel.app/*']);
+   assert.deepEqual(group.js,['website-language-content.js']);
+  }else{
+   assert.equal(group.js[0],'streamer-vocabulary.js');
+   assert.ok(group.js.indexOf('page-language.js') < group.js.indexOf('caption-window.js'));
+   assert.ok(group.js.includes('page-language.js'));
+  }
  }
  const workflow=fs.readFileSync(new URL('../../.github/workflows/beta.yml',import.meta.url),'utf8');
  assert.match(workflow,/streamer-vocabulary\.js streamer-vocabulary\.mjs/);

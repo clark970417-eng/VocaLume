@@ -1,6 +1,6 @@
 # Install and use VocaLume
 
-[Download 4.6.4 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.4) · [Home](../README.md) · [完整中文手冊](user-guide.md)
+[Download 4.6.6 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6) · [Home](../README.md) · [完整中文手冊](user-guide.md)
 
 [Chinese installation video (~2 minutes)](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-Chrome-Setup-Guide-Final-ZH.mp4). Recorded with 4.6.0; some 4.6.2 screens differ. Complete the written native App connection, model download and first-capture steps below; they are not demonstrated fully in the video.
 
@@ -9,7 +9,7 @@
 Choose the installer for your computer from the release's **Assets** list. The automatically generated “Source code” ZIP is for development, not an App installer.
 
 - **Mac:** choose `arm64.dmg` for Apple M-series or the other DMG for Intel. Drag VocaLume into Applications and launch it there. This beta is unsigned; verify the download, then review its prompt in System Settings → Privacy & Security if macOS blocks the first launch. Do not disable system-wide security checks.
-- **Windows x64:** run `VocaLume.Setup.4.6.4.exe`. SmartScreen may identify this unsigned preview as an unrecognized App. Check the repository and checksum before deciding whether to continue.
+- **Windows x64:** run `VocaLume.Setup.4.6.6.exe`. SmartScreen may identify this unsigned preview as an unrecognized App. Check the repository and checksum before deciding whether to continue.
 - **Linux x64:** the AppImage is experimental. Give the file permission to execute, then launch it. Audio support varies by desktop environment.
 
 Complete **Quick Start** and wait for the model download. Reserve several GB for models. Quality upgrades and cloud services are optional. In **Translate**, choose the audio source and languages, then press **Start**. Stop capture before changing models. Allow microphone or system-audio permission only when using that source.
@@ -39,7 +39,11 @@ python3 desktop/install.py --extension-id YOUR_EXTENSION_ID --app '/Applications
 
 Do not omit `--app`; that selects the retained legacy Python inference host. If your App or extension ID changes, repeat registration. No audio is sent during registration.
 
-Windows and Linux have standalone desktop installers, but this ZIP does not yet include their equivalent browser native-host installation. Use the standalone App or choose browser-only mode in the extension. Browser mode requires WebGPU, an initial recognition-model download and network text translation.
+## Connect the Windows App
+
+For local browser captions on Windows, use the matching `desktop-Windows` and `browser-extension` packages from [GitHub Actions](https://github.com/clark970417-eng/VocaLume/actions/runs/42227646353). The public 4.6.6 Release ZIP omits the Windows connection installer. Follow the [Windows connection steps](windows-repair.md#在-windows-連接-extension-與本機-app) with your extension ID, then choose desktop mode. Chrome and Edge passed the local bridge check described in the [Windows acceptance report](reports/windows-acceptance-2026-11-06.md).
+
+On Linux, use the standalone App or browser-only mode. Browser mode requires WebGPU, an initial recognition-model download and network text translation.
 
 ## First captions and replies
 
@@ -70,7 +74,7 @@ Unsigned preview updates open the GitHub download page rather than silently repl
 | Problem | Check first |
 | --- | --- |
 | Stuck on “Translating…” | Stop capture, check that the model or API is ready, refresh the page, then restart once. |
-| Native host exited / forbidden | Check App location and extension ID, then repeat Mac registration. |
+| Native host exited / forbidden | Check App location and extension ID, then repeat registration for your platform. |
 | Source text but no translation | Check the translation engine and error status. Failed captions can be retried from the transcript. |
 | No sound or captions | Check the playing tab, selected audio source and required permissions. |
 | Excess heat or growing delay | Use a smaller model and avoid running two inference sessions or a demanding game at once. |

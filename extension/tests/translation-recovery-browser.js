@@ -16,7 +16,7 @@ document.querySelector('#test').onclick = async event => {
   if(before.running||before.draining)throw Error('請先停止語音收音，再開始文字測試');
   show(`版本：${chrome.runtime.getManifest().version}`);
   chrome.runtime.sendMessage=function(message,...args){
-   if(message?.type==='translate'&&message.text===retrySource&&++attempts<=2){
+   if(message?.type==='translate'&&message.text===retrySource&&++attempts===1){
     const reply={ok:false,error:'Authored test: temporary outage'};
     const callback=args.at(-1);if(typeof callback==='function'){queueMicrotask(()=>callback(reply));return;}
     return Promise.resolve(reply);
@@ -40,16 +40,16 @@ document.querySelector('#test').onclick = async event => {
   while(Date.now()<deadline&&(!/🎉🎉/.test(mixed())||!document.querySelector('#retry .jtl-translation button')))await wait(200);
   if(!['🎉🎉','7/14','https://example.invalid/live/123'].every(text=>mixed().includes(text))||!/開心|开心|愉快|快樂|快乐|有趣/u.test(mixed()))throw Error('多行留言遺失譯文或原本的表情、日期、網址');
   show(`通過：多行留言 → ${mixed()}`);
-  if(attempts!==2)throw Error('失敗重試次數不正確');
-  show('已模擬兩次暫時失敗；請按重試測試下方的「再試一次」。');
+  if(attempts!==1)throw Error('前景重複送出已由背景處理的請求');
+  show('已模擬背景重試用完；請按重試測試下方的「再試一次」。');
   const retryDeadline=Date.now()+120000;
   let recovered='';
   while(Date.now()<retryDeadline){
    recovered=document.querySelector('#retry .jtl-translation')?.textContent||'';
-   if(attempts>=3&&!/翻譯中|重試|失敗|再試/.test(recovered))break;
+   if(attempts>=2&&!/翻譯中|重試|失敗|再試/.test(recovered))break;
    await wait(200);
   }
-  if(!recovered.includes('まほろ')||!/不會|不来|不來/.test(recovered)||attempts!==3)throw Error('手動重試未恢復或遺失人名／否定');
+  if(!recovered.includes('まほろ')||!/不會|不来|不來/.test(recovered)||attempts!==2)throw Error('手動重試未恢復或遺失人名／否定');
   show(`通過：按一次恢復 → ${recovered}`);
   const draft=await request({type:'make-draft',direction:'zh-ja',text:'明天晚上八點開始直播。\n🎮\n10/26'});
   if(!/明日/.test(draft.draft)||!draft.draft.includes('🎮')||!draft.draft.includes('10/26')||!draft.mode.includes('本機'))throw Error('本機中翻日草稿不完整');

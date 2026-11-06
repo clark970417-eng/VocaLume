@@ -1,5 +1,5 @@
 import type { TranslatorEngine, Language, TranslateContext } from '../types'
-import { apiFetch, apiInitialize, DEFAULT_TIMEOUT_MS } from './api-utils'
+import { apiFetch, apiInitialize, DEFAULT_TIMEOUT_MS, translateProtectedCloudText } from './api-utils'
 import { createLogger } from '../../main/logger'
 
 const log = createLogger('deepl')
@@ -88,30 +88,29 @@ export class DeepLTranslator implements TranslatorEngine {
       contextStr = context.previousSegments.map((s) => s.source).join(' ')
     }
 
-    const data = await apiFetch<{
-      translations: Array<{ text: string; detected_source_language: string }>
-    }>({
-      url: this.apiUrl,
-      init: {
-        method: 'POST',
-        headers: {
-          Authorization: `DeepL-Auth-Key ${this.apiKey}`,
-          'Content-Type': 'application/json'
+    return translateProtectedCloudText(text, context?.glossary, async source => {
+      const data = await apiFetch<{ translations?: Array<{ text?: string }> }>({
+        url: this.apiUrl,
+        init: {
+          method: 'POST',
+          headers: {
+            Authorization: `DeepL-Auth-Key ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: [source],
+            source_lang: LANG_MAP[from].source,
+            target_lang: LANG_MAP[to].target,
+            ...(contextStr && { context: contextStr })
+          })
         },
-        body: JSON.stringify({
-          text: [text],
-          source_lang: LANG_MAP[from].source,
-          target_lang: LANG_MAP[to].target,
-          ...(contextStr && { context: contextStr })
-        })
-      },
-      timeoutMs: this.timeoutMs,
-      serviceName: 'DeepL API',
-      errorMappings: ERROR_MAPPINGS,
-      classifyErrorBody: classifyDeepLError
+        timeoutMs: this.timeoutMs,
+        serviceName: 'DeepL API',
+        errorMappings: ERROR_MAPPINGS,
+        classifyErrorBody: classifyDeepLError
+      })
+      return data?.translations?.[0]?.text
     })
-
-    return data.translations[0]?.text || ''
   }
 
   async dispose(): Promise<void> {

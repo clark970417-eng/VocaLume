@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {captureStatus} from '../capture-status.mjs';
+import {translateUiText} from '../ui-language.mjs';
 
 const html = fs.readFileSync(new URL('../popup.html', import.meta.url), 'utf8');
 const source = fs.readFileSync(new URL('../popup.js', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '');
@@ -50,7 +51,7 @@ async function harness({saved = {}, url = 'https://www.youtube.com/watch?v=examp
   const get = selector => { const el = elements.find(el => matches(el, selector)); assert.ok(el, `Missing element: ${selector}`); return el; };
   const context = {
     ...cloudApi,
-    document: {querySelector: get, querySelectorAll: selector => elements.filter(el => matches(el, selector)), createElement: tag => new Element(tag)},
+    document: {documentElement: {lang: 'zh-TW'}, querySelector: get, querySelectorAll: selector => elements.filter(el => matches(el, selector)), createElement: tag => new Element(tag)},
     Option: class { constructor(label, value) { this.label = label; this.value = value; } },
     chrome: {
       permissions: {request: async value => {state.permissions.push(value); return state.permissionAllowed;}},
@@ -69,7 +70,7 @@ async function harness({saved = {}, url = 'https://www.youtube.com/watch?v=examp
         },
       },
     },
-    captureStatus, URL, Blob, Date,
+    captureStatus, translateUiText, URL, Blob, Date,
     setInterval: fn => timers.push(fn), setTimeout: () => {},
   };
   vm.runInNewContext(source, context);
@@ -193,7 +194,7 @@ test('dedicated sites use one explicit master switch; opting out does not stop a
   await h.change('websiteText', false);
   assert.equal(h.state.saved.websiteTextOptInEnabled, false);
   assert.equal(h.requests.some(r => r.type === 'subtitle-control'), false);
-  assert.match(h.get('#textToggleHint').textContent, /關閉中/);
+  assert.equal(h.get('#streamerChatMode').disabled, true);
 });
 
 test('generic site access is separate and a failed save restores its visible switch', async () => {
@@ -265,6 +266,19 @@ test('zero outline and the outline switch leave caption background unchanged', a
   await h.change('showOutline', false, 'input');
   assert.equal(h.get('#outlineWidth').disabled, true);
   assert.equal(h.state.saved.subtitleSettings.backgroundColor, '#cc3344');
+});
+
+test('caption hold is available in single-pair mode and appearance reset preserves timing and tone', async () => {
+  const h = await harness({saved: {speechMode: 'desktop', subtitleSettings: {holdSeconds: 5, captionMode: 'record', speechToneMode: 'ww', fontSize: 36}}});
+  assert.equal(h.get('#holdSeconds').disabled, true);
+  await h.click('#reset');
+  assert.equal(h.state.saved.subtitleSettings.fontSize, 22);
+  assert.equal(h.state.saved.subtitleSettings.captionMode, 'record');
+  assert.equal(h.state.saved.subtitleSettings.speechToneMode, 'ww');
+  assert.equal(h.state.saved.subtitleSettings.holdSeconds, 5);
+  await h.change('captionMode', 'realtime', 'input');
+  assert.equal(h.get('#holdSeconds').disabled, false);
+  assert.equal(h.get('#holdSeconds').value, 5);
 });
 
 test('API selector preserves existing keys, keeps providers separate and masks saved values', async () => {

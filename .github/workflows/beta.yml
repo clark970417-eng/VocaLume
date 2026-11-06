@@ -35,7 +35,7 @@ jobs:
           zip -r ../beta/vocalume-extension.zip \
             manifest.json background.js offscreen.html offscreen.js audio-worklet.js \
             speech-worker.js vad-worker.js whisper-runtime.js desktop-worker.js native-client.mjs \
-            cloud-api.mjs capture-status.mjs ui-language.mjs ui-messages.mjs ui-messages-zh-cn.mjs popup-locale.mjs cue-cursor.mjs recording-queue.mjs streaming.mjs sentence-boundary.mjs stream-core.mjs token-stream.mjs preview-budget.mjs \
+            cloud-api.mjs capture-status.mjs ui-language.mjs ui-messages.mjs ui-messages-zh-cn.mjs ui-messages-ja.mjs ui-messages-ko.mjs ui-messages-desktop-ja.mjs ui-messages-desktop-ko.mjs website-language.mjs website-language-content.js page-language.js popup-locale.mjs cue-cursor.mjs recording-queue.mjs streaming.mjs sentence-boundary.mjs stream-core.mjs token-stream.mjs preview-budget.mjs \
             translation-policy.mjs translation-guards.js translation-guards.mjs game-vocabulary.mjs streamer-vocabulary.js streamer-vocabulary.mjs popup.html popup.js popup.css content.js content.css \
             x-content.js x-content.css social-content.js social-content.css \
             caption-window.js caption-window.css icons vendor ort \

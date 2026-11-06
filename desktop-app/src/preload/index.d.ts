@@ -12,7 +12,7 @@ export interface ElectronAPI {
   processMediaFile: (path: string, jobId: string) => Promise<{ processedSeconds: number; cancelled: boolean }>
   cancelMediaFile: (jobId: string) => Promise<{ cancelled: boolean }>
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => (() => void)
-  pushRealtimeAudio: (audioData: number[]) => Promise<unknown>
+  pushRealtimeAudio: (audioData: Float32Array | number[]) => Promise<unknown>
   speechBoundary: (boundary: 'start' | 'end') => Promise<unknown>
   onTranslationResult: (callback: (data: unknown) => void) => (() => void)
   onInterimResult: (callback: (data: unknown) => void) => (() => void)

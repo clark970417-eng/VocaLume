@@ -1,3 +1,6 @@
+import { protectNames } from '../../../../extension/translation-guards.mjs'
+import type { TranslateContext } from '../types'
+
 /**
  * Shared utilities for API-based translators.
  * Deduplicates HTTP request, timeout, error handling, and JSON parsing logic.
@@ -5,6 +8,30 @@
 
 /** Default request timeout in milliseconds */
 export const DEFAULT_TIMEOUT_MS = 15_000
+
+/** A short-lived transport or provider failure. Auth and quota errors stay permanent. */
+export class TemporaryTranslationServiceError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
+    this.name = 'TemporaryTranslationServiceError'
+  }
+}
+
+/** Keep names as local tokens even when the selected service translates the surrounding text. */
+export async function translateProtectedCloudText(
+  text: string,
+  glossary: TranslateContext['glossary'],
+  request: (source: string, hasNames: boolean) => Promise<string | undefined>
+): Promise<string> {
+  const names = protectNames(text, glossary)
+  const hasNames = names.entries.length > 0
+  if (hasNames && !/[\p{L}\p{N}]/u.test(names.body)) return names.restore(names.text)
+  const translated = await request(names.text, hasNames)
+  if (typeof translated !== 'string' || !translated.trim()) {
+    throw new TemporaryTranslationServiceError('Translation service returned no text')
+  }
+  return hasNames ? names.restore(translated) : translated
+}
 
 /** HTTP error mapping entry: status code(s) to human-readable message */
 export interface HttpErrorMapping {
@@ -47,32 +74,38 @@ export async function apiFetch<T>(options: ApiFetchOptions): Promise<T> {
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
-    const response = await fetch(url, {
-      ...init,
-      signal: controller.signal
-    })
+    let response: Response
+    try {
+      response = await fetch(url, { ...init, signal: controller.signal })
+    } catch (error) {
+      if (!(error instanceof TypeError) || controller.signal.aborted) throw error
+      throw new TemporaryTranslationServiceError(`${serviceName}: Network request failed`, { cause: error })
+    }
 
     if (!response.ok) {
       let body = ''
       if (classifyErrorBody) {
         try {
           body = await response.text()
-        } catch {
+        } catch (error) {
+          if (controller.signal.aborted) throw error
           // ignore — fall through to status-only handling
         }
         const classified = classifyErrorBody(response.status, body)
         if (classified) {
-          throw new Error(`${serviceName}: ${classified}`)
+          throwHttpError(response.status, `${serviceName}: ${classified}`)
         }
       }
-      throwHttpError(response.status, serviceName, errorMappings)
+      const mapped = errorMappings?.find(mapping => mapping.statuses.includes(response.status))
+      throwHttpError(response.status, mapped ? `${serviceName}: ${mapped.message}` : `${serviceName} error: ${response.status}`)
     }
 
     let data: T
     try {
       data = (await response.json()) as T
-    } catch {
-      throw new Error(`${serviceName}: Invalid JSON response`)
+    } catch (error) {
+      if (controller.signal.aborted) throw error
+      throw new TemporaryTranslationServiceError(`${serviceName}: Invalid JSON response`, { cause: error })
     }
 
     return data
@@ -81,23 +114,9 @@ export async function apiFetch<T>(options: ApiFetchOptions): Promise<T> {
   }
 }
 
-/**
- * Throw a descriptive error based on HTTP status code.
- * Checks custom mappings first, then falls back to a generic message.
- */
-function throwHttpError(
-  status: number,
-  serviceName: string,
-  errorMappings?: HttpErrorMapping[]
-): never {
-  if (errorMappings) {
-    for (const mapping of errorMappings) {
-      if (mapping.statuses.includes(status)) {
-        throw new Error(`${serviceName}: ${mapping.message}`)
-      }
-    }
-  }
-  throw new Error(`${serviceName} error: ${status}`)
+function throwHttpError(status: number, message: string): never {
+  if (status >= 500 && status < 600) throw new TemporaryTranslationServiceError(message)
+  throw new Error(message)
 }
 
 /**

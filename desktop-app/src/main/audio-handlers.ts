@@ -49,8 +49,8 @@ function toValidAudioChunk(audioData: unknown): Float32Array | null {
 }
 
 /**
- * Convert realtime IPC audio data to Float32Array (#721). IPC always delivers a
- * plain number[]; unlike {@link toValidAudioChunk} this applies neither the 0.5s
+ * Accept typed PCM directly, or convert an older number[] payload.
+ * Unlike {@link toValidAudioChunk}, this applies neither the 0.5s
  * minimum nor silence gating, since cloud realtime APIs expect a continuous
  * stream where 100ms chunks and silence are part of the provider's own turn
  * detection.

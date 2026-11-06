@@ -122,7 +122,7 @@ export function useSessionSettings(): SessionSettingsState {
     })
     // #721: realtime cloud e2e — continuous 100ms chunks + VAD turn-boundary hints
     const unsubscribeRealtime = audio.onRealtimeChunk((chunk) => {
-      void window.api.pushRealtimeAudio(Array.from(chunk))
+      void window.api.pushRealtimeAudio(chunk)
     })
     const unsubscribeBoundary = audio.onSpeechBoundary((boundary) => {
       window.api.speechBoundary(boundary)
@@ -143,6 +143,16 @@ export function useSessionSettings(): SessionSettingsState {
     })
     return () => unsubscribe?.()
   }, [])
+
+  useEffect(() => {
+    if (!isRunning) return
+    const readyStatus = audio.isCapturing ? 'Listening...' : 'Ready to process audio file...'
+    return window.api.onTranslationResult?.(value => {
+      const result = value as { translatedText?: string } | null
+      if (!result?.translatedText?.trim()) return
+      setStatus(previous => previous.startsWith('Error: Translation failed:') ? readyStatus : previous)
+    })
+  }, [isRunning, audio.isCapturing])
 
   // Cleanup session timer on unmount
   useEffect(() => {

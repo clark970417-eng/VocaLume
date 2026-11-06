@@ -159,6 +159,43 @@ it('recovers a failed spoken translation without repeating recognition or losing
   }
 })
 
+it.each(['process', 'finalizeStreaming'] as const)('reports a source-only failure and recovers the next %s cue', async (method) => {
+  const pipeline = new TranslationPipeline()
+  const text = '明日の配信を楽しみにしています。'
+  const stt = new MockSTT('retry-stt', {text, language: 'ja', timestamp: Date.now(), isFinal: true})
+  const recognize = vi.spyOn(stt, 'processAudio')
+  const translator = new MockTranslator('hunyuan-mt-15')
+  const translate = vi.spyOn(translator, 'translate')
+    .mockResolvedValueOnce('')
+    .mockResolvedValueOnce('  ')
+    .mockRejectedValueOnce(Object.assign(new Error('Worker replaced'), {name: 'WorkerTerminatedError'}))
+    .mockResolvedValueOnce('期待明天的直播。')
+  const error = vi.fn(), failure = vi.fn(), completed = vi.fn()
+  pipeline.on('error', error).on('translation-failed', failure).on('result', completed)
+  pipeline.registerSTT(stt.id, () => stt)
+  pipeline.registerTranslator(translator.id, () => translator)
+  await pipeline.switchEngine({mode: 'cascade', sttEngineId: stt.id, translatorEngineId: translator.id})
+  pipeline.setLanguageConfig('ja', 'zh')
+  pipeline.start()
+  try {
+    const audio = new Float32Array(16000)
+    expect(await pipeline[method](audio, 16000)).toBeNull()
+    expect(recognize).toHaveBeenCalledOnce()
+    expect(translate).toHaveBeenCalledTimes(2)
+    expect(error).toHaveBeenCalledOnce()
+    expect(failure).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({sourceText: text, translatedText: ''}))
+    expect(completed).not.toHaveBeenCalled()
+
+    expect(await pipeline[method](audio, 16000)).toMatchObject({sourceText: text, translatedText: '期待明天的直播。'})
+    expect(recognize).toHaveBeenCalledTimes(2)
+    expect(translate).toHaveBeenCalledTimes(4)
+    expect(failure).toHaveBeenCalledOnce()
+    expect(completed).toHaveBeenCalledOnce()
+  } finally {
+    await pipeline.dispose()
+  }
+})
+
 it('keys repeated Japanese suffix translations by the recovered source and clears context on reconfiguration', async () => {
   const p=new TranslationPipeline()
   let source='魚が逃げて。'

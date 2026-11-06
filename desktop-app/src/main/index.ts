@@ -1,5 +1,5 @@
 import { HaasJaEngine } from '../engines/stt/HaasJaEngine'
-import { publishObsCaption } from './obs-captions'
+import { clearObsCaption, publishObsCaption } from './obs-captions'
 import { updatePerformanceState } from './performance-state'
 import { bindMemoryPressure } from './memory-pressure'
 import { isUiTest } from './ui-test-mode'
@@ -8,7 +8,7 @@ import type { Language } from '../engines/types'
 import { app, protocol, net, powerSaveBlocker, powerMonitor } from 'electron'
 import { bindPipelineActivity } from './pipeline-activity'
 import { initMain as initAudioLoopback } from 'electron-audio-loopback'
-import { TranslationPipeline } from '../pipeline/TranslationPipeline'
+import { PipelineState, TranslationPipeline } from '../pipeline/TranslationPipeline'
 import { startExtensionCompanion } from './extension-companion'
 import { WhisperLocalEngine } from '../engines/stt/WhisperLocalEngine'
 import { MlxWhisperEngine } from '../engines/stt/MlxWhisperEngine'
@@ -257,6 +257,10 @@ async function initPipeline(): Promise<void> {
     log.info(`Registered ${manifest.engineType} plugin: ${manifest.name} (${manifest.engineId})`)
   }
 
+  ctx.pipeline.on('state-change', state => {
+    if (state === PipelineState.IDLE) void clearObsCaption()
+  })
+
   // Forward results to subtitle window and logger
   ctx.pipeline.on('result', (result: TranslationResult) => {
     publishObsCaption(result)
@@ -280,6 +284,12 @@ async function initPipeline(): Promise<void> {
   ctx.pipeline.on('interim-result', (result: TranslationResult) => {
     ctx.subtitleWindow?.webContents.send('interim-result', result)
     ctx.mainWindow?.webContents.send('interim-result', result)
+  })
+
+  // Keep the recognized source visible when both final translation attempts fail.
+  // This goes to the local overlay only, without entering OBS or the transcript.
+  ctx.pipeline.on('translation-failed', (result: TranslationResult) => {
+    ctx.subtitleWindow?.webContents.send('interim-result', { ...result, translationFailed: true })
   })
 
   // Forward draft results from hybrid translation (#235)
@@ -444,7 +454,7 @@ app.whenReady().then(async () => {
   if (!isUiTest) cleanupShortcuts = registerGlobalShortcuts(ctx)
   // This local fork must never replace itself with an upstream release.
   if (!isUiTest) initAutoUpdater(ctx)
-  if (process.argv.includes('--jtl-companion')) return
+  if (companion || isUiTest) return
 
   // #694: Start progressive model download for instant offline start
   // Tier 1 (fast-start ~371MB) downloads first, Tier 2 (full-quality) follows

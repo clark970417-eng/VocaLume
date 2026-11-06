@@ -8,7 +8,7 @@ test('capture status distinguishes audio, recognition, translation, and interrup
  assert.match(status({level:.05}),/有收到聲音/);
  assert.match(status({probability:.8}),/偵測到人聲/);
  assert.match(status({busy:true}),/正在辨識/);
- assert.match(status({busy:true,captionPhase:'translating'}),/等待中文翻譯/);
+ assert.match(status({busy:true,captionPhase:'translating'}),/等待翻譯/);
  assert.match(status({busy:true,captionPhase:'translated'}),/字幕已更新/);
  assert.match(captureStatus(health,18000),/停止後重新開始/);
  assert.equal(captureStatus({...health,running:false},18000),'● 已就緒');

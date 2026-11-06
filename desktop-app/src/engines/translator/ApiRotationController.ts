@@ -153,6 +153,7 @@ export class ApiRotationController implements TranslatorEngine {
 
       try {
         const result = await provider.engine.translate(text, from, to, context)
+        if (typeof result !== 'string' || !result.trim()) throw new Error('Translation service returned no text')
 
         // Track usage after successful translation
         record.charCount += charCount

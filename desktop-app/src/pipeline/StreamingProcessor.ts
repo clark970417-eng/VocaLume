@@ -613,7 +613,7 @@ export class StreamingProcessor {
       if (prepared) this.preparation = undefined
       const speaker = this.currentSpeaker()
       const reused = !sameLanguage && !sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === sourceText
-        ? this.lastTranslatedConfirmed : ''
+        ? this.lastTranslatedConfirmed.trim() : ''
       const valid = (): boolean => contextRevision === this.recognitionContextRevision && finalGeneration === this.finalGeneration &&
         (gen === undefined || gen === this.deps.getGeneration?.())
       const sourceReadyAt = performance.now()
@@ -628,8 +628,8 @@ export class StreamingProcessor {
           if (!valid()) return null
           const translatedText = nonverbal ? '' : sameLanguage ? sourceText : candidate || (translator ? this.deps.translateFinal
             ? await this.deps.translateFinal(sourceText, sttResult.language, targetLanguage, sttResult.confidence, sourceContext)
-            : await translator.translate(sourceText, sttResult.language, targetLanguage,
-              { ...this.deps.contextBuffer.getContext(glossary.length ? glossary : undefined), ...(sourceContext && {sourceContext}) }) : '')
+            : await recoverFinalTranslation(() => translator.translate(sourceText, sttResult.language, targetLanguage,
+              { ...this.deps.contextBuffer.getContext(glossary.length ? glossary : undefined), ...(sourceContext && {sourceContext}) }), valid) : '')
           if (!valid()) return null
           if (!nonverbal) this.deps.contextBuffer.add(sourceText, translatedText)
           const result: TranslationResult = {
@@ -646,7 +646,9 @@ export class StreamingProcessor {
             targetLanguage, result.timestamp, translatedText || undefined)
           return result
         } catch (error) {
-          if (valid()) this.deps.emitter.emit('error', error instanceof Error ? error : new Error(String(error)))
+          if (valid()) {
+            this.publishTranslationFailure(sourceText, sttResult.language, targetLanguage, error)
+          }
           return null
         }
       }, () => {
@@ -672,6 +674,14 @@ export class StreamingProcessor {
   async finalizeStreaming(audioChunk: Float32Array, sampleRate: number, evidence?: SpeechEvidence): Promise<TranslationResult | null> {
     const prepared = await this.prepareFinalStreaming(audioChunk, sampleRate, evidence)
     return prepared ? prepared.completion : null
+  }
+
+  private publishTranslationFailure(sourceText: string, sourceLanguage: Language, targetLanguage: Language, error: unknown): void {
+    this.deps.emitter.emit('translation-failed', {
+      sourceText, translatedText: '', sourceLanguage, targetLanguage, timestamp: Date.now()
+    } satisfies TranslationResult)
+    const message = error instanceof Error ? error.message : String(error)
+    this.deps.emitter.emit('error', new Error(`Translation failed: ${message}`, { cause: error }))
   }
 
   private prepareSentence(text: string, confirmed: string, from: Language, to: Language, acousticPause: boolean): void {
@@ -722,6 +732,7 @@ export class StreamingProcessor {
     if (this.translateDebounceTimer) { clearTimeout(this.translateDebounceTimer); this.translateDebounceTimer = null }
 
     const tone = this.beginTone(audioChunk, sampleRate)
+    let sourceForFailure: { text: string; from: Language; to: Language } | undefined
     try {
       const finalStartedAt = performance.now()
       const recognitionKey = this.recognitionKey(sttEngine)
@@ -751,6 +762,7 @@ export class StreamingProcessor {
         this.japaneseContext.remember(recognizedText, sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)
       }
       const sourceReadyAt = performance.now()
+      sourceForFailure = { text: agreement.confirmedText, from: sttResult.language, to: targetLang }
       this.deps.emitter.emit('source-result', agreement.confirmedText)
 
       const glossaryEntries = this.deps.getGlossary()
@@ -800,7 +812,7 @@ export class StreamingProcessor {
         if (!matches) { preparation?.controller.abort(); this.preparation = undefined }
         const candidate = matches ? await preparation.completion : ''
         if (!this.isCurrentGeneration(gen, utterance, contextRevision)) return null
-        translatedText = candidate || ((!sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === agreement.confirmedText && this.lastTranslatedConfirmed)
+        translatedText = candidate || ((!sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === agreement.confirmedText && this.lastTranslatedConfirmed.trim())
           ? this.lastTranslatedConfirmed
           : this.deps.translateFinal ? await this.deps.translateFinal(agreement.confirmedText, sttResult.language, targetLang, sttResult.confidence, sourceContext) : await translator.translate(
           agreement.confirmedText,
@@ -863,7 +875,8 @@ export class StreamingProcessor {
       if (this.isCurrentGeneration(gen, utterance, contextRevision)) {
         this.deps.agreement.reset()
         this.resetUtterance()
-        this.deps.emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
+        if (sourceForFailure) this.publishTranslationFailure(sourceForFailure.text, sourceForFailure.from, sourceForFailure.to, err)
+        else this.deps.emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
       }
       return null
     } finally {

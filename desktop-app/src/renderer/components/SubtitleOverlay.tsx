@@ -1,3 +1,4 @@
+import { t, useUiLanguage } from '../ui-language'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 interface AccessibilityConfig {
@@ -136,7 +137,7 @@ function ConfidenceText({
                   color,
                   textDecoration: confidenceToUnderline(score)
                 }}
-                title={`Confidence: ${Math.round(score * 100)}%`}
+                title={t("Confidence: {0}%", [Math.round(score * 100)])}
               >
                 {token}
               </span>
@@ -150,7 +151,7 @@ function ConfidenceText({
                 color,
                 opacity: confidenceToOpacity(score)
               }}
-              title={`Confidence: ${Math.round(score * 100)}%`}
+              title={t("Confidence: {0}%", [Math.round(score * 100)])}
             >
               {token}
             </span>
@@ -188,6 +189,7 @@ function ConfidenceText({
 interface ResultData {
   sourceText: string
   translatedText: string
+  translationFailed?: boolean
   confirmedText?: string
   interimText?: string
   speakerLabel?: string
@@ -199,6 +201,7 @@ interface ResultData {
 }
 
 function SubtitleOverlay(): React.JSX.Element {
+  useUiLanguage()
   const [confirmedText, setConfirmedText] = useState('')
   const [interimText, setInterimText] = useState('')
   const [translatedText, setTranslatedText] = useState('')
@@ -241,7 +244,7 @@ function SubtitleOverlay(): React.JSX.Element {
       setInterimText('')
     }
 
-    if (result.translatedText) {
+    if (result.translatedText || result.translationFailed) {
       setTranslatedText(result.translatedText)
     }
 
@@ -424,7 +427,7 @@ function SubtitleOverlay(): React.JSX.Element {
   return (
     <div
       role="region"
-      aria-label="Subtitles"
+      aria-label={t("Subtitles")}
       style={{
         width: '100%',
         height: '100%',
@@ -453,7 +456,7 @@ function SubtitleOverlay(): React.JSX.Element {
             padding: '3px 8px',
             borderRadius: '4px'
           }}>
-            Edit Mode
+            {t("Edit Mode")}
           </span>
         </div>
       )}
@@ -484,7 +487,7 @@ function SubtitleOverlay(): React.JSX.Element {
             borderRadius: '6px',
             pointerEvents: 'none'
           }}>
-            Drag to reposition
+            {t("Drag to reposition")}
           </span>
         </div>
       )}
@@ -588,7 +591,7 @@ function SubtitleOverlay(): React.JSX.Element {
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               onKeyDown={handleEditKeyDown}
-              aria-label="Correct translation"
+              aria-label={t("Correct translation")}
               style={{
                 flex: 1,
                 background: 'rgba(0,0,0,0.6)',
@@ -606,7 +609,7 @@ function SubtitleOverlay(): React.JSX.Element {
             <button
               onClick={handleEditSave}
               disabled={editSaving || !editValue.trim() || editValue.trim() === translatedText}
-              aria-label="Save correction"
+              aria-label={t("Save correction")}
               style={{
                 background: '#22c55e',
                 color: '#fff',
@@ -624,7 +627,7 @@ function SubtitleOverlay(): React.JSX.Element {
             </button>
             <button
               onClick={handleEditCancel}
-              aria-label="Cancel edit"
+              aria-label={t("Cancel edit")}
               style={{
                 background: '#64748b',
                 color: '#fff',

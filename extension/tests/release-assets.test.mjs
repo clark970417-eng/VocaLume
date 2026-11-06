@@ -19,7 +19,7 @@ test('release completeness gate covers native files and checksums the provenance
     const version = JSON.parse(readFileSync(resolve('extension/manifest.json'), 'utf8')).version, assets = join(root,'assets'), source = join(root,'extension');
     mkdirSync(assets); mkdirSync(join(source,'desktop'),{recursive:true});
     writeFileSync(join(source,'manifest.json'),JSON.stringify({version,name:'VocaLume'}));
-    for(const name of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/install-windows.ps1','desktop/windows-host.cjs','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md','LICENSE']) writeFileSync(join(source,name),'fixture');
+    for(const name of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','ui-messages-ja.mjs','ui-messages-ko.mjs','ui-messages-desktop-ja.mjs','ui-messages-desktop-ko.mjs','website-language.mjs','website-language-content.js','page-language.js','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/install-windows.ps1','desktop/windows-host.cjs','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md','LICENSE']) writeFileSync(join(source,name),'fixture');
     for(const name of [`VocaLume-${version}-arm64.dmg`,`VocaLume-${version}.dmg`,`VocaLume-${version}-arm64-mac.zip`,`VocaLume-${version}-mac.zip`,`VocaLume.Setup.${version}.exe`,`VocaLume-${version}.AppImage`]) writeFileSync(join(assets,name),Buffer.alloc(1024));
     const zip = join(assets,'vocalume-extension.zip');
     const makeArchive=(exclude=[])=>execFileSync(python,['-I','-c',

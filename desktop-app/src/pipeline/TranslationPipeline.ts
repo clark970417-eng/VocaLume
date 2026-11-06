@@ -37,6 +37,7 @@ export interface PipelineEvents {
   'draft-stt-result': (result: TranslationResult) => void
   /** GER-corrected result — async post-correction of STT errors (#409) */
   'ger-corrected': (result: TranslationResult) => void
+  'translation-failed': (result: TranslationResult) => void
   error: (error: Error) => void
   'engine-loading': (message: string) => void
   'engine-ready': () => void
@@ -148,21 +149,7 @@ export class TranslationPipeline extends EventEmitter {
         return this.translationCache.get(text, from, to)
       },
       canReuseInterimTranslation: () => !this.adaptiveRouter.getConfig().enabled,
-      translateFinal: async (text, from, to, recognitionConfidence, sourceContext) => {
-        if (from === to) return text
-        const glossaryVersion = this.glossary
-        const cached = this.translationCache.get(text, from, to, sourceContext)
-        if (cached !== undefined) return cached
-        const context = { ...this.contextBuffer.getContext(this.glossary.length ? this.glossary : undefined), ...(sourceContext && {sourceContext}) }
-        const generation = this.generation, translator = this.engineManager.translator
-        const current = (): boolean => this.running && generation === this.generation &&
-          translator === this.engineManager.translator && glossaryVersion === this.glossary && to === this.targetLanguage
-        const translated = await recoverFinalTranslation(async () => this.adaptiveRouter.getConfig().enabled && this.adaptiveRouter.isReady
-          ? (await this.adaptiveRouter.translate(text, from, to, context, recognitionConfidence)).translated
-          : await translator!.translate(text, from, to, context), current)
-        if (current()) this.translationCache.set(text, from, to, translated, sourceContext)
-        return translated
-      },
+      translateFinal: this.translateFinal.bind(this),
       getSimulMtConfig: () => ({ enabled: this.simulMtEnabled, waitK: this.simulMtWaitK }),
       getSpeechToneMode: () => this.speechToneMode,
       getSourceLanguage: () => this.sourceLanguage,
@@ -498,6 +485,29 @@ export class TranslationPipeline extends EventEmitter {
     }
   }
 
+  private async translateFinal(
+    text: string, from: Language, to: Language, recognitionConfidence?: number, sourceContext?: string
+  ): Promise<string> {
+    if (from === to) return text
+    const cached = this.translationCache.get(text, from, to, sourceContext)
+    if (cached !== undefined) return cached
+    const translator = this.engineManager.translator
+    if (!translator) throw new Error('Translator engine not initialized')
+    const context = {
+      ...this.contextBuffer.getContext(this.glossary.length ? this.glossary : undefined),
+      ...(sourceContext && { sourceContext })
+    }
+    const generation = this.generation
+    const revision = this.configurationRevision
+    const current = (): boolean => this.running && generation === this.generation &&
+      revision === this.configurationRevision && translator === this.engineManager.translator && to === this.targetLanguage
+    const translated = await recoverFinalTranslation(async () => this.adaptiveRouter.getConfig().enabled && this.adaptiveRouter.isReady
+      ? (await this.adaptiveRouter.translate(text, from, to, context, recognitionConfidence)).translated
+      : await translator.translate(text, from, to, context), current)
+    if (current()) this.translationCache.set(text, from, to, translated, sourceContext)
+    return translated
+  }
+
   private async processCascade(
     audioChunk: Float32Array,
     sampleRate: number,
@@ -517,48 +527,14 @@ export class TranslationPipeline extends EventEmitter {
 
     const targetLang = this.resolveTargetLanguage(sttResult.language)
     this.emit('source-result', sttResult.text)
-
-    if (!this.engineManager.translator) {
-      this.emit('error', new Error('Translator engine not initialized'))
-      return null
-    }
+    if (!current()) return null
 
     try {
-      const glossaryVersion = this.glossary
-      // Check translation cache before calling engine
-      const cached = this.translationCache.get(sttResult.text, sttResult.language, targetLang)
-      let translated: string
-      if (sttResult.language === targetLang) {
-        translated = sttResult.text
-      } else if (cached !== undefined) {
-        translated = cached
-        log.info(`Translate: cache hit → "${translated}"`)
-      } else if (this.adaptiveRouter.getConfig().enabled && this.adaptiveRouter.isReady) {
-        // Adaptive routing: score complexity and route to appropriate engine (#547)
-        const glossary = this.glossary.length > 0 ? this.glossary : undefined
-        const routeResult = await this.adaptiveRouter.translate(
-          sttResult.text,
-          sttResult.language,
-          targetLang,
-          this.contextBuffer.getContext(glossary)
-        )
-        translated = routeResult.translated
-        if (current() && glossaryVersion === this.glossary) this.translationCache.set(sttResult.text, sttResult.language, targetLang, translated)
-      } else {
-        const t1 = performance.now()
-        const glossary = this.glossary.length > 0 ? this.glossary : undefined
-        translated = await this.engineManager.translator.translate(
-          sttResult.text,
-          sttResult.language,
-          targetLang,
-          this.contextBuffer.getContext(glossary)
-        )
-        const translateMs = (performance.now() - t1).toFixed(0)
-        log.info(`Translate: ${translateMs}ms → "${translated}"`)
-        if (current() && glossaryVersion === this.glossary) this.translationCache.set(sttResult.text, sttResult.language, targetLang, translated)
-      }
+      const t1 = performance.now()
+      const translated = await this.translateFinal(sttResult.text, sttResult.language, targetLang)
 
       if (!current()) return null
+      log.info(`Translate: ${(performance.now() - t1).toFixed(0)}ms → "${translated}"`)
       this.contextBuffer.add(sttResult.text, translated)
 
       // Fire-and-forget GER correction (async, non-blocking)
@@ -582,6 +558,10 @@ export class TranslationPipeline extends EventEmitter {
     } catch (translatorErr) {
       if (!current()) return null
       log.error('Translator error:', translatorErr)
+      this.emit('translation-failed', {
+        sourceText: sttResult.text, translatedText: '', sourceLanguage: sttResult.language,
+        targetLanguage: targetLang, timestamp: Date.now()
+      } satisfies TranslationResult)
       this.emit('error', new Error(`Translation failed: ${translatorErr instanceof Error ? translatorErr.message : translatorErr}`))
       return null
     }

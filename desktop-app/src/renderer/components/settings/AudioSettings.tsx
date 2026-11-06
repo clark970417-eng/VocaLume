@@ -5,10 +5,10 @@ import { selectStyle, sliderLabelStyle } from './shared'
 import type { UseAudioCaptureReturn, AudioSource } from '../../hooks/useAudioCapture'
 
 /** Audio source display labels */
-const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string; description: string }> = [
-  { value: 'microphone', label: 'Microphone', description: 'Capture from microphone only' },
-  { value: 'system', label: 'System Audio', description: 'Capture system audio (Zoom, YouTube, etc.)' },
-  { value: 'both', label: 'Microphone + System', description: 'Mix microphone and system audio' }
+const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string }> = [
+  { value: 'microphone', label: 'Microphone' },
+  { value: 'system', label: 'System Audio' },
+  { value: 'both', label: 'Microphone + System' }
 ]
 
 interface AudioSettingsProps {
@@ -43,18 +43,9 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
           </option>
         ))}
       </select>
-      {/* Description for selected audio source */}
-      <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
-        {t(AUDIO_SOURCE_OPTIONS.find((o) => o.value === audio.audioSource)?.description || '')}
-        {audio.audioSource !== 'microphone' && platform === 'darwin' && (
-          <span style={{ color: '#f59e0b' }}>
-            {' '}{t("— Requires Screen Recording permission")} </span>
-        )}
-        {audio.audioSource !== 'microphone' && platform === 'win32' && (
-          <span style={{ color: '#94a3b8' }}>
-            {' '}{t("— Uses WASAPI loopback (no extra setup needed)")} </span>
-        )}
-      </div>
+      {audio.audioSource !== 'microphone' && platform === 'darwin' && (
+        <p className="settings-notice">{t("Screen Recording permission is required.")}</p>
+      )}
       {/* Microphone device selector — hidden when system-only mode */}
       {showMicSelector && (
         <select
@@ -139,7 +130,7 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
       </details>
       {audio.permissionError && (
         <div role="alert" style={{ marginTop: '6px', fontSize: '12px', color: '#ef4444' }}>
-          {audio.permissionError}
+          {t(audio.permissionError)}
         </div>
       )}
     </Section>

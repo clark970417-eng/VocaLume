@@ -77,6 +77,14 @@ describe('registerAudioHandlers (#721)', () => {
     expect(pipeline.pushRealtimeAudio).toHaveBeenCalledTimes(5)
   })
 
+  it('forwards typed realtime PCM without reconstructing it', async () => {
+    const chunk = new Float32Array(1600).fill(0.5)
+    await handlers.get('push-realtime-audio')!(null, chunk)
+    await flush()
+
+    expect(pipeline.pushRealtimeAudio.mock.calls[0]?.[0]).toBe(chunk)
+  })
+
   it('keeps pushing after a rejected chunk (per-link catch, no chain poisoning)', async () => {
     pipeline.pushRealtimeAudio.mockRejectedValueOnce(new Error('boom'))
     await handlers.get('push-realtime-audio')!(null, Array.from(new Float32Array(1600)))

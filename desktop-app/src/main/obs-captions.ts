@@ -25,6 +25,10 @@ export function obsCaptionStatus() {
   return { mode, path: outputPath(), error }
 }
 
+export function clearObsCaption(): Promise<void> {
+  return mode === 'off' ? pending : write('')
+}
+
 export async function configureObsCaptions(value: unknown) {
   if (value !== 'off' && value !== 'translation' && value !== 'bilingual') {
     throw new Error('Invalid OBS caption mode')

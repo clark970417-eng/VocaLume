@@ -149,7 +149,15 @@
   let captionBox;
   let streamerChatMode = false;
   let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
-  const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
+  const pageUi = globalThis.VocaLumePageLanguage;
+  const uiText = value => pageUi?.text(value) ?? value;
+  function setUi(element, value, property = 'textContent') {
+    if (pageUi) { pageUi.bind(element, value, property); return; }
+    const text = typeof value === 'function' ? value() : value;
+    if (property === 'textContent') { if (element.textContent !== text) element.textContent = text; }
+    else element.setAttribute(property, text);
+  }
+  const langLabel=code=>{const label=({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();return pageUi?.label(code,label)??label;};
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
   const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
   const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
@@ -190,8 +198,8 @@
       composerLayoutObserver?.disconnect();
       if (captionBox) captionBox.hidden = true;
       const button = activeControls?.children[0], status = activeControls?.children[1];
-      if (button) { button.disabled = true; button.title = contextRecoveryMessage; }
-      if (status) status.textContent = contextRecoveryMessage;
+      if (button) { button.disabled = true; setUi(button, contextRecoveryMessage, 'title'); }
+      if (status) setUi(status, contextRecoveryMessage);
       for (const task of translationQueue.splice(0)) {
         if (translationInFlight.get(task.key) === task) translationInFlight.delete(task.key);
         task.reject(new Error(contextRecoveryMessage));
@@ -227,13 +235,15 @@
       activeTranslations++;
       message({type: 'translate', text: task.source, direction: task.direction, priority: task.isTitle, ...(task.livestreamChat && {livestreamChat: true})})
         .then(result => {
+          if (typeof result !== 'string' || !result.trim()) throw new Error('沒有收到譯文');
           if (task.epoch === epoch && enabled) {
             cache.delete(task.key);
             cache.set(task.key, result);
             if (cache.size > MAX_CACHED_TRANSLATIONS) cache.delete(cache.keys().next().value);
           }
           task.resolve(result);
-        }, error => {
+        })
+        .catch(error => {
           if (translationInFlight.get(task.key) === task) translationInFlight.delete(task.key);
           task.reject(error);
         })
@@ -302,33 +312,27 @@
       if (currentEpoch === epoch && translated.get(node) === source) translated.delete(node);
       if (ownsLine()) line.remove();
     };
-    line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯中…`;
+    line.textContent = '';
+    setUi(line, () => `${langLabel(languageSettings.readTarget)}：${uiText('翻譯中…')}`);
     try {
-      let result;
-      try { result = await requestTranslation(source, isTitle, order, valid, readDirection, auto); }
-      catch (firstError) {
-        if (contextInvalid) throw firstError;
-        if (!valid()) throw firstError;
-        line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
-        result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid, readDirection, auto);
-      }
+      const result = await requestTranslation(source, isTitle, order, valid, readDirection, auto);
       if (!valid()) { discard(); return; }
-      line.textContent = `${langLabel(languageSettings.readTarget)}：${result}`;
+      setUi(line, () => `${langLabel(languageSettings.readTarget)}：${result}`);
     } catch (_) {
-      // Keep the failed source marked after one retry so the status mutation
+      // Keep the failed source marked after background recovery so the status mutation
       // cannot cause the page observer to resubmit it forever.
       if (valid()) {
-        if (contextInvalid) { line.textContent = contextRecoveryMessage; return; }
-        line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯暫時失敗。`;
+        if (contextInvalid) { setUi(line, contextRecoveryMessage); return; }
+        setUi(line, () => `${langLabel(languageSettings.readTarget)}：${uiText('翻譯暫時失敗。')}`);
         const retry = document.createElement('button');
         retry.type = 'button';
         retry.className = 'jtl-retry';
-        retry.textContent = '再試一次';
-        retry.setAttribute('aria-label', '重新翻譯這則內容');
-        retry.title = '保留原文，重新取得翻譯';
+        setUi(retry, '再試一次');
+        setUi(retry, '重新翻譯這則內容', 'aria-label');
+        setUi(retry, '保留原文，重新取得翻譯', 'title');
         retry.addEventListener('click', event => {
           event.preventDefault(); event.stopPropagation();
-          if (!valid()) return;
+          if (retry.disabled || !valid()) return;
           retry.disabled = true;
           translated.delete(node);
           void translateNode(node, isTitle, 1_000_000_000 + ++translationOrder);
@@ -485,9 +489,9 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'jtl-social-language';
-    button.textContent = `${langLabel(languageSettings.typeSource)} → ${langLabel(languageSettings.typeTarget)}`;
-    button.setAttribute('aria-label', `將留言從${langLabel(languageSettings.typeSource)}文翻成${langLabel(languageSettings.typeTarget)}文草稿`);
-    button.title = 'Tab 或點一下翻譯；長按可拖曳位置，確認後自行送出';
+    setUi(button, () => `${langLabel(languageSettings.typeSource)} → ${langLabel(languageSettings.typeTarget)}`);
+    setUi(button, '翻譯留言草稿', 'aria-label');
+    setUi(button, 'Tab 或點一下翻譯；長按可拖曳位置，確認後自行送出', 'title');
     let press, holdTimer, suppressClick = false, movingControls = false;
     const finishDrag = event => {
       if (!press || event.pointerId !== press.id) return;
@@ -540,33 +544,32 @@
     preview.className = 'jtl-social-draft';
     preview.readOnly = true;
     preview.hidden = true;
-    preview.setAttribute('aria-label', '翻譯草稿；可選取並複製後貼入留言框');
+    setUi(preview, '翻譯草稿', 'aria-label');
     controls.addEventListener('keydown', event => event.stopPropagation());
     button.addEventListener('click', async event => {
       event.preventDefault();
       event.stopPropagation();
       if (suppressClick) { suppressClick = false; return; }
-      if (composing.has(box)) { status.textContent = '請先完成輸入法選字，再翻譯。'; return; }
+      if (composing.has(box)) { setUi(status, '請先完成輸入法選字。'); return; }
       const source = editableText(box);
       const currentEpoch = epoch;
-      if (!source || !matchesLanguage(source,languageSettings.typeSource)) { status.textContent = `請先輸入${langLabel(languageSettings.typeSource)}文`; return; }
+      if (!source || !matchesLanguage(source,languageSettings.typeSource)) { setUi(status, '請先輸入留言。'); return; }
       button.disabled = true;
-      status.textContent = '翻譯中…';
+      setUi(status, '翻譯中…');
       try {
         const result = await message({type: 'make-draft', text: source, direction: direction('type')});
         if (!enabled || currentEpoch !== epoch || !box.isConnected || !controls.isConnected) return;
-        if (editableText(box) !== source) { status.textContent = '原文已修改，請重新翻譯'; return; }
-        if (composing.has(box)) { status.textContent = '請先完成輸入法選字，再重新翻譯。'; return; }
+        if (editableText(box) !== source) { setUi(status, '原文已修改，請重新翻譯'); return; }
+        if (composing.has(box)) { setUi(status, '請先完成輸入法選字。'); return; }
         if (!result?.draft?.trim()) throw new Error('沒有收到翻譯草稿');
         preview.value = result.draft;
         preview.hidden = false;
         const inserted = await replaceEditable(box, result.draft);
         if (!enabled || currentEpoch !== epoch || !box.isConnected || !controls.isConnected) return;
         preview.hidden = inserted;
-        status.textContent = inserted ? '已放入譯文，確認後自行送出'
-          : '留言框未接受譯文；請複製下方草稿後貼入。';
+        setUi(status, inserted ? '已放入譯文，確認後自行送出' : '留言框未接受譯文；請複製下方草稿後貼入。');
       } catch (error) {
-        status.textContent = contextInvalid ? contextRecoveryMessage : `翻譯失敗：${error.message}`;
+        setUi(status, contextInvalid ? contextRecoveryMessage : '翻譯失敗，請再試一次。');
       } finally {
         button.disabled = contextInvalid;
       }
@@ -709,7 +712,18 @@
       applyTextAccess();
     }
     if (area === 'local' && changes.subtitleSettings) captionBox?.controller.apply(changes.subtitleSettings.newValue);
-    if (area === 'local' && changes.languageSettings) {epoch++;languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();cache.clear();document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());activeComposer=null;activeControls=null;composerLayoutObserver?.disconnect();pumpTranslations();scan();}
+    if (area === 'local' && (changes.languageSettings || changes.speechMode || changes.cloudTranslation || changes.nvidiaKey || changes.openrouterKey)) {
+      if (changes.languageSettings) languageSettings = {...languageSettings, ...changes.languageSettings.newValue};
+      epoch++;
+      translated = new WeakMap();
+      cache.clear();
+      document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());
+      activeComposer = null;
+      activeControls = null;
+      composerLayoutObserver?.disconnect();
+      pumpTranslations();
+      scan();
+    }
   });
   let scheduled = false;
   pageObserver = new MutationObserver(() => {

@@ -52,7 +52,8 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
  vm.runInNewContext(source,{Date:{now:()=>now},VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout:fn=>{fn();return 1;},clearTimeout(){},setInterval(fn){poll=fn;return 42;},clearInterval(id){if(id===42)pollStopped=true;},Event:class{},InputEvent:class{}});
  return {requests,translationLines,controls,box,shell,selectors,rendered,node:japanese,scan:()=>scan(),poll:()=>poll(),runtime:chrome.runtime,stopped:()=>disconnected&&pollStopped,
   advance:ms=>now+=ms, visibility:hidden=>{document.hidden=hidden;documentEvents.visibilitychange();}, push:item=>runtimeListener({type:'subtitle-update',item}),
-  languages:value=>storageListeners.forEach(fn=>fn({languageSettings:{newValue:value}},'local'))};
+  languages:value=>storageListeners.forEach(fn=>fn({languageSettings:{newValue:value}},'local')),
+  provider:()=>storageListeners.forEach(fn=>fn({cloudTranslation:{newValue:{}}},'local'))};
 }
 
 test('idle social tabs back off status requests, hidden tabs stay quiet, and visibility or a push resumes captions',async()=>{
@@ -167,27 +168,38 @@ test('semantic live region keeps chat translation working after site selectors c
  assert.equal(t.translationLines[0].textContent,'中：謝謝直播');
 });
 
-test('social live chat exposes retry progress and retries a transient failure once',async()=>{
+test('social live chat treats a blank success as a failure',async()=>{
  const t=setup('www.tiktok.com');await settle();
  assert.equal(t.translationLines[0].textContent,'中：翻譯中…');
- t.requests[0].reply({ok:false,error:'temporary'});await settle();
- assert.equal(t.requests.filter(x=>x.message.type==='translate').length,2);
- assert.equal(t.translationLines[0].textContent,'中：第一次失敗，正在重試…');
+ t.requests[0].reply({ok:true,text:' '});await settle();
+ assert.equal(t.requests.filter(x=>x.message.type==='translate').length,1);
+ assert.equal(t.translationLines[0].textContent,'中：翻譯暫時失敗。');
+ t.translationLines[0].children[0].onclick({preventDefault(){},stopPropagation(){}});await settle();
  t.requests[1].reply({ok:true,text:'謝謝直播'});await settle();
  assert.equal(t.translationLines[0].textContent,'中：謝謝直播');
 });
 
-test('social live chat stops after its bounded retry fails',async()=>{
+test('social live chat stops after background recovery is exhausted',async()=>{
  const t=setup('live.bilibili.com');await settle();
- t.requests[0].reply({ok:false,error:'first'});await settle();
- t.requests[1].reply({ok:false,error:'second'});await settle();
+ t.requests[0].reply({ok:false,error:'background retries exhausted'});await settle();
  assert.equal(t.translationLines[0].textContent,'中：翻譯暫時失敗。');
- assert.equal(t.requests.filter(x=>x.message.type==='translate').length,2);
- t.scan();await settle();assert.equal(t.requests.length,2);
+ assert.equal(t.requests.filter(x=>x.message.type==='translate').length,1);
+ t.scan();await settle();assert.equal(t.requests.length,1);
  const retry=t.translationLines[0].children[0];assert.equal(retry.textContent,'再試一次');
- retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,3);
- t.requests[2].reply({ok:true,text:'恢復翻譯'});await settle();
+ retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,2);
+ t.requests[1].reply({ok:true,text:'恢復翻譯'});await settle();
  assert.equal(t.translationLines[0].textContent,'中：恢復翻譯');
+});
+
+test('a provider settings correction retries visible failed text without refreshing the tab',async()=>{
+ const t=setup('live.bilibili.com');await settle();
+ t.requests[0].reply({ok:false,error:'invalid credentials'});await settle();
+ assert.equal(t.translationLines[0].textContent,'中：翻譯暫時失敗。');
+ t.provider();await settle();
+ assert.equal(t.requests.filter(x=>x.message.type==='translate').length,2);
+ t.requests[1].reply({ok:true,text:'謝謝直播'});await settle();
+ assert.equal(t.translationLines.filter(line=>line.isConnected).length,1);
+ assert.equal(t.translationLines.find(line=>line.isConnected).textContent,'中：謝謝直播');
 });
 
 test('Instagram reports a stale extension context clearly and stops invalid requests without editing the draft',async()=>{

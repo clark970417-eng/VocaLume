@@ -12,6 +12,8 @@ export interface AudioDevice {
 /** Audio source mode: microphone only, system audio (loopback), or both mixed (#501) */
 export type AudioSource = 'microphone' | 'system' | 'both'
 
+export class AudioCaptureStartError extends Error {}
+
 /**
  * Audio delivery mode (#721):
  * - 'cascade': VAD-gated 800ms rolling-buffer resend (STT → translator pipeline)
@@ -58,8 +60,12 @@ const SAMPLE_RATE = 16000
 const REALTIME_CHUNK_SAMPLES = Math.floor(SAMPLE_RATE * 0.1)
 const MAX_ROLLING_BUFFER_SECONDS = 3
 const MAX_LIVE_SEGMENT_SECONDS = 8
-/** Overlap from previous chunk to prevent word boundary cutting (200ms at 16kHz) */
-const CHUNK_OVERLAP_SAMPLES = Math.floor(SAMPLE_RATE * 0.2)
+const AUDIO_START_TIMEOUT_MESSAGES: Record<AudioSource, string> = {
+  microphone: 'Microphone input did not start. Check the selected device and microphone access, then retry.',
+  system: 'System audio did not start. Check that system audio capture is available and allowed, then retry.',
+  both: 'Mixed audio did not start. Check microphone access and system audio capture, then retry.'
+}
+
 export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, streamingIntervalMs?: number): UseAudioCaptureReturn {
   const effectiveInterval = streamingIntervalMs != null
     ? Math.max(500, Math.min(3000, streamingIntervalMs))
@@ -96,8 +102,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
   const rollingBufferFullRef = useRef(false)
   const streamingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const speechStartedAtRef = useRef(0)
-  // Previous chunk tail for overlap to prevent word boundary cutting (#506)
-  const prevChunkTailRef = useRef<Float32Array | null>(null)
 
   // Enumerate audio input devices
   useEffect(() => {
@@ -183,23 +187,8 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       }
       const buffer = getRollingBuffer()
       if (buffer) {
-        // Prepend overlap from previous chunk tail to prevent word boundary cutting (#506)
-        let output: Float32Array
-        const tail = prevChunkTailRef.current
-        if (tail && tail.length > 0) {
-          output = new Float32Array(tail.length + buffer.length)
-          output.set(tail, 0)
-          output.set(buffer, tail.length)
-        } else {
-          output = buffer
-        }
-        // Save tail of current chunk for next overlap
-        if (buffer.length > CHUNK_OVERLAP_SAMPLES) {
-          prevChunkTailRef.current = buffer.slice(buffer.length - CHUNK_OVERLAP_SAMPLES)
-        } else {
-          prevChunkTailRef.current = new Float32Array(buffer)
-        }
-        streamingCallbackRef.current?.(output)
+        // Each rolling window already includes the recent frames in capture order.
+        streamingCallbackRef.current?.(buffer)
       }
       const elapsed = performance.now() - speechStartedAtRef.current
       streamingTimerRef.current = setTimeout(tick, getAdaptiveStreamingDelay(effectiveInterval, elapsed))
@@ -239,7 +228,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
     rollingBufferRef.current = []
     rollingBufferIndexRef.current = 0
     rollingBufferFullRef.current = false
-    prevChunkTailRef.current = null
     // #721: drop any buffered realtime remainder
     realtimeChunkerRef.current?.reset()
     realtimeChunkerRef.current = null
@@ -260,6 +248,10 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       for (const track of stream.getVideoTracks()) {
         track.stop()
         stream.removeTrack(track)
+      }
+      if (!stream.getAudioTracks().some(track => track.readyState === 'live')) {
+        stream.getTracks().forEach(track => track.stop())
+        throw new AudioCaptureStartError('No system audio was captured. Check that your system allows sharing audio, then retry.')
       }
       return stream
     } finally {
@@ -407,7 +399,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
             rollingBufferRef.current = []
             rollingBufferIndexRef.current = 0
             rollingBufferFullRef.current = false
-            prevChunkTailRef.current = null
             return
           }
           const maxFrames = Math.floor((MAX_ROLLING_BUFFER_SECONDS * SAMPLE_RATE) / frame.length)
@@ -445,7 +436,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           rollingBufferRef.current = []
           rollingBufferIndexRef.current = 0
           rollingBufferFullRef.current = false
-          prevChunkTailRef.current = null
 
         },
         onSpeechStart: () => {
@@ -463,7 +453,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           rollingBufferRef.current = []
           rollingBufferIndexRef.current = 0
           rollingBufferFullRef.current = false
-          prevChunkTailRef.current = null
           speechStartedAtRef.current = performance.now()
           startStreamingTimer()
         },
@@ -474,7 +463,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           rollingBufferRef.current = []
           rollingBufferIndexRef.current = 0
           rollingBufferFullRef.current = false
-          prevChunkTailRef.current = null
         }
       })
 
@@ -485,9 +473,9 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         await Promise.race([
           Promise.all([vadContext.resume(), firstFrame]),
           new Promise<never>((_, reject) => {
-            frameTimeout = setTimeout(() => reject(new Error(
-              'Audio input did not start. Check the selected audio device and microphone permission, then retry.'
-            )), 5000)
+            frameTimeout = setTimeout(() => {
+              reject(new AudioCaptureStartError(AUDIO_START_TIMEOUT_MESSAGES[currentAudioSource]))
+            }, 5000)
           })
         ])
       } finally {

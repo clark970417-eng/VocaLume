@@ -36,6 +36,8 @@ test('pending desktop acknowledgements keep Japanese open for late Chinese and r
  assert.equal(entries[0].state,'failed');assert.equal(entries[0].error,'timeout');
  client.onEvent({event:'source',segment:segments[0],text:'古い草稿'});
  assert.equal((await call({type:'recording-export'})).text[0].state,'failed','late drafts cannot turn failure into infinite pending');
+ client.onEvent({event:'caption',segment:segments[4],result:{text:'日本語5',translated:'',final:true,error:'timeout'}});
+ assert.equal((await call({type:'health'})).text.diagnostics.captionPhase,'failed','terminal failure ends the waiting status');
  for(let i=0;i<5;i++)client.onEvent({event:'caption',segment:segments[i],result:{text:'日本語'+(i+1),translated:'中文第'+(i+1)+'句',final:true}});
  entries=(await call({type:'recording-export'})).text;
  assert.deepEqual(Array.from(entries,e=>e.translated),['中文第1句','中文第2句','中文第3句','中文第4句','中文第5句']);

@@ -22,7 +22,7 @@ const archive = JSON.parse(execFileSync(python, ['-I','-c',
 const manifest = archive.manifest;
 if (manifest.version !== version || !manifest.name.includes('VocaLume')) throw new Error('Wrong extension manifest');
 const entries = new Set(archive.entries);
-for (const required of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/install-windows.ps1','desktop/windows-host.cjs','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md','LICENSE']) {
+for (const required of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','ui-messages-ja.mjs','ui-messages-ko.mjs','ui-messages-desktop-ja.mjs','ui-messages-desktop-ko.mjs','website-language.mjs','website-language-content.js','page-language.js','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/install-windows.ps1','desktop/windows-host.cjs','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md','LICENSE']) {
   if (!entries.has(required)) throw new Error(`Extension installer dependency missing: ${required}`);
 }
 const provenance = {tag, commit, builtAt:new Date().toISOString(), workflow, signed:false, channel:'beta', version,

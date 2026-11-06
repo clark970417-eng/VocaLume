@@ -15,7 +15,9 @@ function setup(speechMode='desktop') {
  class NativeClient {async request(op,fields){native.push({op,...fields});return op==='translate'?{text:'本機譯文。'}:{model:'test'};}close(){}}
  const fetch=async(url,options)=>{
   calls.push({url,options,body:JSON.parse(options.body)});
-  return {ok:state.status===200,status:state.status,json:async()=>({choices:[{finish_reason:'stop',message:{content:options.body.includes('明天我')?'明日は配信を休みます。':'明天不會直播。'}}]})};
+  const status=state.statuses?.shift()??state.status;
+  const content=state.outputs?.shift()??(options.body.includes('明天我')?'明日は配信を休みます。':'明天不會直播。');
+  return {ok:status===200,status,json:async()=>({choices:[{finish_reason:'stop',message:{content}}]})};
  };
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
  const internals=vm.runInNewContext(source+'\n({translateCaption});',{...cloudApi,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch});
@@ -41,6 +43,18 @@ test('changing the chosen model invalidates reading and draft caches; API failur
  t.state.status=401;
  const bad=await t.call({...message,text:'来週の配信はお休みです。'});
  assert.equal(bad.ok,false);assert.match(bad.error,/401/);assert.equal(t.native.length,0);assert.equal(t.calls.length,3);
+});
+
+test('a temporary failure or invalid output is retried with the same selected provider',async()=>{
+ for(const failure of [{statuses:[503,200]},{outputs:['wrong language','明天不會直播。']}]){
+  const t=setup();Object.assign(t.state,failure);
+  const message={type:'translate',text:'明日は配信を休みます。',direction:'ja-zh'};
+  const result=await t.call(message);
+  assert.equal(result.ok,true,result.error);assert.equal(result.text,'明天不會直播。');
+  assert.equal(t.calls.length,2);
+  assert(t.calls.every(call=>call.url==='https://api.openai.com/v1/chat/completions'));
+  assert.equal(t.native.length,0);
+ }
 });
 
 test('browser caption translation uses the selected provider but desktop speech keeps its local route',async()=>{

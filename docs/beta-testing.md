@@ -40,7 +40,7 @@ Each release includes `SHA256SUMS.txt` and `release-manifest.json`. Verify the i
 python3 desktop/install.py --extension-id YOUR_EXTENSION_ID --app '/Applications/VocaLume.app/Contents/MacOS/VocaLume'
 ```
 
-Reload the extension and the video page afterward. The ZIP includes the installer and relay. This connection installer currently supports macOS Opera GX and Chrome. Windows/Linux desktop builds are available independently, but their equivalent native-host setup is not included; use the standalone App or browser-only mode. Browser-only mode requires WebGPU and network text translation.
+Reload the extension and the video page afterward. The ZIP includes the installer and relay. This connection installer currently supports macOS Opera GX and Chrome. The [Windows test packages](installation.md#connect-the-windows-app) include a separate connection installer. Linux users can use the standalone App or browser-only mode. Browser-only mode requires WebGPU and network text translation.
 
 Do not delete or move the extracted extension directory. To update, overwrite that same directory, reload the extension, and refresh open pages so the extension ID and settings stay associated.
 

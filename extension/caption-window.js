@@ -30,7 +30,9 @@
     // transcript, export or spoken translation. Keep it free of text outlines.
     if(row.failed||row.error||(!row.translated&&row.pending)){
      const status=document.createElement('div');status.className='jtl-caption-status';
-     status.textContent=row.failed?'翻譯未完成 · 可在「字幕記錄」重試':row.error?'翻譯未完成':'正在聆聽／翻譯…';
+     const message=row.failed?'翻譯未完成 · 可在「字幕記錄」重試':row.error?'翻譯未完成':'正在聆聽／翻譯…';
+     if(globalThis.VocaLumePageLanguage)globalThis.VocaLumePageLanguage.bind(status,message);
+     else status.textContent=message;
      pair.append(status);
     }
     return pair;

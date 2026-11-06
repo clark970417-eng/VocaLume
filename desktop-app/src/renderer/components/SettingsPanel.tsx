@@ -101,7 +101,6 @@ function SettingsPanel(): React.JSX.Element {
       <header className="settings-header">
         <InterfaceLanguage />
         <h1>VocaLume</h1>
-        <p>{t("Live captions & translation")}</p>
       </header>
       <SettingsNavigation selected={selectedTab} onSelect={selectTab} />
       <main className="settings-content" ref={contentRef}>
@@ -120,7 +119,6 @@ function SettingsPanel(): React.JSX.Element {
 
         <section id="settings-panel-translate" role="tabpanel" aria-labelledby="settings-tab-translate" tabIndex={0} hidden={selectedTab !== 'translate'}>
           <h2>{t("What would you like to translate?")}</h2>
-          <p className="settings-intro">{t("Choose the languages and sound source, then press Start.")}</p>
           <LanguageSettings
             sourceLanguage={s.sourceLanguage}
             onSourceLanguageChange={s.setSourceLanguage}
@@ -150,7 +148,6 @@ function SettingsPanel(): React.JSX.Element {
             onOrgGlossaryTermsChange={s.setOrgGlossaryTerms}
           />
 
-          <p className="settings-note">{t("Watching a browser video? Start captions from the VocaLume extension on that tab.")}</p>
         </section>
         <section id="settings-panel-files" role="tabpanel" aria-labelledby="settings-tab-files" tabIndex={0} hidden={selectedTab !== 'files'}>
           {visited.files && <FileTranslationSettings
@@ -165,7 +162,6 @@ function SettingsPanel(): React.JSX.Element {
         <section id="settings-panel-subtitles" role="tabpanel" aria-labelledby="settings-tab-subtitles" tabIndex={0} hidden={selectedTab !== 'subtitles'}>
           {visited.subtitles && <>
             <h2>{t("Subtitles & OBS")}</h2>
-            <p className="settings-intro">{t("Changes apply immediately to the desktop subtitle window. Browser subtitle appearance is in the extension.")}</p>
           <SubtitleSettings
             fontSize={s.subtitleFontSize}
             onFontSizeChange={(v) => { s.setSubtitleFontSize(v); s.pushSubtitleSettings({ fontSize: v }) }}
@@ -209,7 +205,6 @@ function SettingsPanel(): React.JSX.Element {
         <section id="settings-panel-models" role="tabpanel" aria-labelledby="settings-tab-models" tabIndex={0} hidden={selectedTab !== 'models'}>
           {visited.models && <>
             <h2>{t("Models & translation quality")}</h2>
-            <p className="settings-intro">{t("Your current choices are kept. Save changes for your next desktop or browser session.")}</p>
       <ConfigSummary
         sttEngine={s.sttEngine}
         whisperVariant={s.whisperVariant}
@@ -298,8 +293,7 @@ function SettingsPanel(): React.JSX.Element {
         <section id="settings-panel-more" role="tabpanel" aria-labelledby="settings-tab-more" tabIndex={0} hidden={selectedTab !== 'more'}>
           {visited.more && <>
             <h2>{t("More settings")}</h2>
-            <details><summary>{t("Copyright & use")}</summary><p>© 2026 Clark · VocaLume</p><p>{t("Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.")}</p><a href="https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE" target="_blank" rel="noreferrer">LICENSE ↗</a></details>
-            <p className="settings-intro">{t("Optional features, saved sessions and help.")}</p>
+            <details className="settings-disclosure"><summary>{t("Copyright & use")}</summary><p>© 2026 Clark · VocaLume</p><p>{t("Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.")}</p><a href="https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("License")} ↗</a></details>
             <details className="settings-disclosure"><summary>{t("Tone & laughter")}</summary><SpeechToneSettings /></details>
             <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} /><VirtualMicSettings disabled={disabled} /></details>
             <details className="settings-disclosure"><summary>{t("Saved sessions & summaries")}</summary>
@@ -336,7 +330,6 @@ function SettingsPanel(): React.JSX.Element {
         <div className="settings-footer-actions">
           <div>
             <button type="button" className="settings-save" onClick={s.handleSaveSettings} disabled={s.isStarting}>{t("Save settings")}</button>
-            <p className="settings-save-note">{t("For the next session. Start also saves.")}</p>
           </div>
           <div>
       <SessionControls view="controls"

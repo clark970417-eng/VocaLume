@@ -54,7 +54,33 @@ test('invalid non-Japanese output is not cached as success and a later retry can
   let value=bad;const t=setup({},()=>value);
   const message={type:'translate',direction,text:direction.startsWith('ko')?'내일은 방송을 쉬겠습니다.':'明日は配信を休みます。'};
   const failed=await t.call(message);assert.equal(failed.ok,false,direction);
+  assert.equal(t.requests.filter(r=>r.op==='translate').length,2,'one bounded retry for invalid output');
   value=good;const recovered=await t.call(message);assert.equal(recovered.ok,true,recovered.error);assert.equal(recovered.text,good);
-  assert.equal(t.requests.filter(r=>r.op==='translate').length,2,'invalid response is not memoized');
+  assert.equal(t.requests.filter(r=>r.op==='translate').length,3,'invalid response is not memoized');
  }
+});
+
+test('a local wrong-language response automatically recovers without another click',async()=>{
+ let attempts=0;
+ const t=setup({},()=>++attempts===1?'English instead of Korean':'내일은 방송을 쉬겠습니다.');
+ const message={type:'translate',direction:'ja-ko',text:'明日は配信を休みます。'};
+ const results=await Promise.all([t.call(message),t.call(message)]);
+ assert(results.every(result=>result.ok&&result.text==='내일은 방송을 쉬겠습니다.'));
+ assert.equal(attempts,2,'concurrent callers share both attempts');
+ assert.equal((await t.call(message)).text,'내일은 방송을 쉬겠습니다.');
+ assert.equal(attempts,2,'only the valid result is cached');
+});
+
+test('a native validation error recovers while a terminal native error does not replay',async()=>{
+ const message={type:'translate',direction:'ja-ko',text:'明日は配信を休みます。'};
+ let attempts=0;
+ const recover=setup({},()=>{
+  if(++attempts===1)throw new Error('翻譯服務未回傳目標語言');
+  return '내일은 방송을 쉬겠습니다.';
+ });
+ assert.equal((await recover.call(message)).text,'내일은 방송을 쉬겠습니다.');
+ assert.equal(attempts,2);
+ const unavailable=setup({},()=>{throw new Error('Desktop companion disconnected');});
+ assert.equal((await unavailable.call(message)).ok,false);
+ assert.equal(unavailable.requests.filter(r=>r.op==='translate').length,1);
 });
