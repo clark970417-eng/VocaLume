@@ -1,10 +1,16 @@
 import { EventEmitter } from 'node:events'
-import { expect, it, vi, afterEach } from 'vitest'
+import { expect, it, vi, beforeEach, afterEach } from 'vitest'
 const forks = vi.hoisted(() => ({ create: vi.fn() }))
 const native = vi.hoisted(() => ({ getLlama: vi.fn() }))
 vi.mock('electron', () => ({ utilityProcess: { fork: forks.create } }))
 vi.mock('node-llama-cpp', () => ({ getLlama: native.getLlama }))
-afterEach(() => { vi.useRealTimers(); vi.resetModules(); forks.create.mockReset() })
+const hostPlatform = process.platform
+// These child-process fixtures exercise Windows even on Mac/Linux CI runners.
+beforeEach(() => { Object.defineProperty(process, 'platform', { value: 'win32' }) })
+afterEach(() => {
+  Object.defineProperty(process, 'platform', { value: hostPlatform })
+  vi.useRealTimers(); vi.resetModules(); forks.create.mockReset(); native.getLlama.mockReset()
+})
 it('preserves the existing in-process detection path on macOS', async () => {
   const platform = process.platform
   Object.defineProperty(process, 'platform', { value: 'darwin' })
