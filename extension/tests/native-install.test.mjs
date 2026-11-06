@@ -5,6 +5,9 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 
+// Override the interpreter on Windows, where python3 may be a Store alias.
+const python = process.env.VOCALUME_TEST_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+
 test('native installer preserves another browser extension origin',async()=>{
  const home=await mkdtemp(join(tmpdir(),'jtl-install-'));
  const folder=join(home,'Library/Application Support/Google/Chrome/NativeMessagingHosts');
@@ -12,7 +15,7 @@ test('native installer preserves another browser extension origin',async()=>{
  const target=join(folder,'org.jtl.companion.json');
  const oldId='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',nextId='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
  await writeFile(target,JSON.stringify({allowed_origins:[`chrome-extension://${oldId}/`]}));
- const result=spawnSync('python3',['extension/desktop/install.py','--extension-id',nextId],{cwd:process.cwd(),env:{...process.env,HOME:home},encoding:'utf8'});
+ const result=spawnSync(python,['extension/desktop/install.py','--extension-id',nextId],{cwd:process.cwd(),env:{...process.env,HOME:home,USERPROFILE:home},encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
  const manifest=JSON.parse(await readFile(target,'utf8'));
  assert.deepEqual(manifest.allowed_origins,[`chrome-extension://${oldId}/`,`chrome-extension://${nextId}/`]);
@@ -20,7 +23,7 @@ test('native installer preserves another browser extension origin',async()=>{
 
 test('relay imports without the optional OpenCC package',()=>{
  const code="import importlib.util; s=importlib.util.spec_from_file_location('relay','extension/desktop/relay.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); assert m.OpenCC is None";
- const result=spawnSync('python3',['-I','-c',code],{cwd:process.cwd(),encoding:'utf8'});
+ const result=spawnSync(python,['-I','-c',code],{cwd:process.cwd(),encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
 });
 
@@ -31,10 +34,10 @@ spec=importlib.util.spec_from_file_location('relay','extension/desktop/relay.py'
 with tempfile.TemporaryDirectory() as root:
  m.SUPPORT=pathlib.Path(root)
  (m.SUPPORT/'app.json').write_text(json.dumps({'executable':'/missing/Old.app/Contents/MacOS/Old'}))
- with patch.object(pathlib.Path,'is_file',autospec=True,side_effect=lambda path: str(path)=='/Applications/VocaLume.app/Contents/MacOS/VocaLume'):
-  assert m.app_executable()=='/Applications/VocaLume.app/Contents/MacOS/VocaLume'
+ with patch.object(pathlib.Path,'is_file',autospec=True,side_effect=lambda path: path.as_posix()=='/Applications/VocaLume.app/Contents/MacOS/VocaLume'):
+  assert pathlib.Path(m.app_executable()).as_posix()=='/Applications/VocaLume.app/Contents/MacOS/VocaLume'
 `;
- const result=spawnSync('python3',['-c',code],{cwd:process.cwd(),encoding:'utf8'});
+ const result=spawnSync(python,['-c',code],{cwd:process.cwd(),encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
 });
 
@@ -56,6 +59,6 @@ with tempfile.TemporaryDirectory() as root:
   assert pathlib.Path(root+'/external-link').is_symlink()
  finally:pathlib.Path.home=old
 `;
- const result=spawnSync('python3',['-c',code],{cwd:process.cwd(),encoding:'utf8'});
+ const result=spawnSync(python,['-c',code],{cwd:process.cwd(),encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
 });
