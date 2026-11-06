@@ -1,7 +1,7 @@
 import { test, expect, chromium, type Page } from '@playwright/test'
 import { _electron as electron } from 'playwright'
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
-import { resolve, extname } from 'node:path'
+import { resolve, extname, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 
 test('desktop Chinese/English switch persists and preserves unsaved translation settings', async () => {
@@ -70,7 +70,7 @@ test('extension switches live UI copy while keeping typed API values and preview
     await page.route('**/*', async route => {
       const name = new URL(route.request().url()).pathname.slice(1) || 'popup.html'
       const file = resolve(root, name)
-      if (!file.startsWith(root + '/') || !existsSync(file)) return route.abort()
+      if (!file.startsWith(root + sep) || !existsSync(file)) return route.abort()
       await route.fulfill({ body: readFileSync(file), contentType: ({ '.html': 'text/html', '.mjs': 'application/javascript', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png' } as Record<string, string>)[extname(file)] || 'application/octet-stream' })
     })
     await page.goto('https://vocalume.test/popup.html')
