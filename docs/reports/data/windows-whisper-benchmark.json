@@ -1,0 +1,60 @@
+{
+  "audioSeconds": 11,
+  "model": "ggml-base",
+  "rows": [
+    {
+      "round": 0,
+      "label": "auto-default",
+      "ms": 4010,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    },
+    {
+      "round": 1,
+      "label": "auto-default",
+      "ms": 140,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    },
+    {
+      "round": 1,
+      "label": "en-default",
+      "ms": 80,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    },
+    {
+      "round": 1,
+      "label": "en-4threads",
+      "ms": 75,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    },
+    {
+      "round": 1,
+      "label": "en-8threads",
+      "ms": 77,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    },
+    {
+      "round": 2,
+      "label": "en-8threads",
+      "ms": 77,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    },
+    {
+      "round": 2,
+      "label": "en-4threads",
+      "ms": 75,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    },
+    {
+      "round": 2,
+      "label": "en-default",
+      "ms": 74,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    },
+    {
+      "round": 2,
+      "label": "auto-default",
+      "ms": 100,
+      "text": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country."
+    }
+  ]
+}

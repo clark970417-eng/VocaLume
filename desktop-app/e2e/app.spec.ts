@@ -1,18 +1,23 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { _electron as electron } from 'playwright'
 import { resolve } from 'path'
-import { mkdtempSync } from 'fs'
+import { mkdtempSync, symlinkSync } from 'fs'
 import { tmpdir } from 'os'
 
 let app: ElectronApplication
 let settingsWindow: Page
 
 test.beforeAll(async () => {
+  const profile = mkdtempSync(resolve(tmpdir(), 'jtl-ui-'))
+  if (process.env.JTL_TEST_MODELS) symlinkSync(resolve(process.env.JTL_TEST_MODELS),resolve(profile,'models'),process.platform==='win32'?'junction':'dir')
   app = await electron.launch({
-    args: [resolve(__dirname, 'isolated-bootstrap.cjs')],
+    args: [resolve(__dirname, 'isolated-bootstrap.cjs'), ...(process.env.JTL_TEST_MIC_FILE ? [
+      '--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream',
+      '--use-file-for-fake-audio-capture='+resolve(process.env.JTL_TEST_MIC_FILE)
+    ] : [])],
     env: {
       ...process.env,
-      JTL_UI_PROFILE: mkdtempSync(resolve(tmpdir(), 'jtl-ui-')),
+      JTL_UI_PROFILE: profile,
       // Disable hardware acceleration in CI to avoid GPU issues
       ELECTRON_DISABLE_GPU: '1',
       // Skip Quick Start onboarding so the settings panel renders immediately
@@ -121,6 +126,10 @@ test.describe('Start/Stop pipeline', () => {
 
   test('should show Starting state when clicked', async () => {
     test.skip(process.env.JTL_AUDIO_TEST !== '1', 'Set JTL_AUDIO_TEST=1 for an explicit audio-device test')
+    if (process.env.JTL_TEST_MODELS) {
+      await openSection('Models')
+      await settingsWindow.locator('[role="radiogroup"] label').filter({hasText:'HY-MT 1.5 (Offline default)'}).locator('input').check()
+    }
     const startBtn = settingsWindow.locator('button[aria-label="Start translation"]')
     await startBtn.click()
 
@@ -136,6 +145,7 @@ test.describe('Start/Stop pipeline', () => {
 
     // If pipeline actually started, stop it to clean up
     const stopBtn = settingsWindow.locator('button[aria-label="Stop translation"]')
+    if (process.env.JTL_TEST_MODELS) await expect(stopBtn).toBeVisible({timeout:60000})
     if (await stopBtn.isVisible().catch(() => false)) {
       await stopBtn.click()
       // Wait for stop to complete

@@ -1,7 +1,7 @@
 import { test, expect, chromium, type Page } from '@playwright/test'
 import { _electron as electron } from 'playwright'
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
-import { resolve, extname } from 'node:path'
+import { resolve, extname, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 
 test('desktop Chinese/English switch persists and preserves unsaved translation settings', async () => {
@@ -40,9 +40,12 @@ test('first-run setup exposes the language choice before any model download', as
     env: { ...process.env, JTL_UI_PROFILE: mkdtempSync(resolve(tmpdir(), 'vocalume-onboarding-language-')), ELECTRON_DISABLE_GPU: '1', SKIP_ONBOARDING: '' } })
   try {
     const page = await app.firstWindow()
+    // Wait for the asynchronous onboarding status before changing locale.
+    // The language selector can render before the Quick Start card is ready.
+    await page.getByRole('button', { name: /Download & start|下載並開始|下载并开始/ }).waitFor({state:'visible',timeout:15000})
     await page.locator('.interface-language select').selectOption('zh-TW')
     await expect(page.getByRole('heading', { name: '歡迎使用 VocaLume' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /下載並開始/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /下載並開始/ })).toBeVisible({timeout:15000})
     await expect(page.getByRole('button', { name: '略過並繼續' })).toBeVisible()
     await page.getByLabel('介面語言', { exact: true }).selectOption('en')
     await expect(page.getByRole('heading', { name: 'Welcome to VocaLume' })).toBeVisible()
@@ -70,7 +73,7 @@ test('extension switches live UI copy while keeping typed API values and preview
     await page.route('**/*', async route => {
       const name = new URL(route.request().url()).pathname.slice(1) || 'popup.html'
       const file = resolve(root, name)
-      if (!file.startsWith(root + '/') || !existsSync(file)) return route.abort()
+      if (!file.startsWith(root + sep) || !existsSync(file)) return route.abort()
       await route.fulfill({ body: readFileSync(file), contentType: ({ '.html': 'text/html', '.mjs': 'application/javascript', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png' } as Record<string, string>)[extname(file)] || 'application/octet-stream' })
     })
     await page.goto('https://vocalume.test/popup.html')

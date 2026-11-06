@@ -358,6 +358,8 @@ async function doDownloadWithResume(
 
       const ws = createWriteStream(partialPath, { flags: existingSize > 0 ? 'a' : 'w' })
       let downloaded = existingSize
+      let lastProgressAt = 0
+      let lastProgressPercent = -1
 
       try {
         while (true) {
@@ -367,6 +369,12 @@ async function doDownloadWithResume(
           downloaded += value.length
           if (total > 0) {
             const pct = Math.round((downloaded / total) * 100)
+            // Progress handlers persist encrypted settings synchronously. Do
+            // not turn every network packet into disk I/O and renderer work.
+            const now = Date.now()
+            if (pct === lastProgressPercent || (pct < 100 && now - lastProgressAt < 250)) continue
+            lastProgressAt = now
+            lastProgressPercent = pct
             const mb = (downloaded / 1024 / 1024).toFixed(1)
             const totalMb = (total / 1024 / 1024).toFixed(0)
             onProgress?.(`Downloading ${label}... ${pct}% (${mb}/${totalMb} MB)`)

@@ -1,0 +1,46 @@
+{
+  "audioSeconds": 11,
+  "modelReadyMs": 5540,
+  "rows": [
+    {
+      "round": 0,
+      "language": "en",
+      "sttMs": 663,
+      "translationMs": 417,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 1,
+      "language": "auto",
+      "sttMs": 103,
+      "translationMs": 401,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 2,
+      "language": "en",
+      "sttMs": 81,
+      "translationMs": 383,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 3,
+      "language": "auto",
+      "sttMs": 100,
+      "translationMs": 377,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 4,
+      "language": "en",
+      "sttMs": 75,
+      "translationMs": 371,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    }
+  ]
+}

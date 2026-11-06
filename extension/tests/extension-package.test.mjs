@@ -8,6 +8,7 @@ test('beta archive includes every local static module dependency',()=>{
  const command=workflow.match(/zip -r \.\.\/beta\/vocalume-extension.zip ([\s\S]*?)\n          cd \.\./)?.[1];
  assert.ok(command,'extension archive command exists');
  const files=new Set(command.replace(/\\\n/g,' ').trim().split(/\s+/));
+ for(const file of ['desktop/install-windows.ps1','desktop/windows-host.cjs'])assert.ok(files.has(file),`${file} missing from Windows browser setup`);
  for(const file of files){
   if(!/\.(?:m?js)$/.test(file))continue;
   const source=readFileSync(new URL(file,root),'utf8');

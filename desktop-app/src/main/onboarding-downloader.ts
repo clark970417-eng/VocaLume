@@ -264,14 +264,20 @@ async function downloadTierModel(
  * Downloads models within each tier in parallel for maximum speed.
  * Returns the engine mode available after Tier 1 completes.
  */
-export async function startOnboardingDownload(
+let activeDownload: Promise<string | null> | null = null
+let activeTier2: Promise<void> | null = null
+
+export function startOnboardingDownload(mainWindow: BrowserWindow | null): Promise<string | null> {
+  // Persisted status survives a crash; only a live promise proves work exists.
+  if (!activeDownload) {
+    activeDownload = runOnboardingDownload(mainWindow).finally(() => { activeDownload = null })
+  }
+  return activeDownload
+}
+
+async function runOnboardingDownload(
   mainWindow: BrowserWindow | null
 ): Promise<string | null> {
-  // Already downloading
-  if (store.get('onboardingModelStatus') === 'downloading') {
-    log.info('Onboarding download already in progress')
-    return null
-  }
 
   // Phase 1: Tier 1 (instant-start models)
   if (!isTier1Ready()) {
@@ -373,7 +379,12 @@ export async function startOnboardingDownload(
  * Download Tier 2 (full-quality) models in background.
  * Does not block the main onboarding flow.
  */
-async function startTier2Download(mainWindow: BrowserWindow | null): Promise<void> {
+function startTier2Download(mainWindow: BrowserWindow | null): Promise<void> {
+  if (!activeTier2) activeTier2 = runTier2Download(mainWindow).finally(() => { activeTier2 = null })
+  return activeTier2
+}
+
+async function runTier2Download(mainWindow: BrowserWindow | null): Promise<void> {
   if (isTier2Ready()) {
     sendProgress(mainWindow, {
       status: 'all-ready',

@@ -55,7 +55,7 @@ export class OnnxWebTranslator implements TranslatorEngine {
 
     // Try WebGPU first, fall back to WASM
     const pipelineCreated = await this.tryCreatePipeline(pipeline, 'webgpu')
-      ?? await this.tryCreatePipeline(pipeline, 'wasm')
+      || await this.tryCreatePipeline(pipeline, 'wasm')
 
     if (!pipelineCreated) {
       this.initPromise = null

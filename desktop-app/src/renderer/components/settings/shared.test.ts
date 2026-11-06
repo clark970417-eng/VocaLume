@@ -107,6 +107,12 @@ describe('buildEngineConfig (#702)', () => {
 })
 
 describe('resolveEngineMode (#702)', () => {
+  it('keeps Windows automatic local translation compact while preserving explicit quality choices', () => {
+    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-hymt15')
+    expect(resolveEngineMode('offline-hunyuan-mt', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-hunyuan-mt')
+    expect(resolveEngineMode('auto', ALL_KEYS, { hasGpu: true }, 'win32')).toBe('rotation')
+    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'darwin')).toBe('offline-hunyuan-mt')
+  })
   it('resolves auto → rotation when at least one API key is configured', () => {
     expect(resolveEngineMode('auto', ALL_KEYS, { hasGpu: false })).toBe('rotation')
   })
@@ -220,7 +226,7 @@ describe('buildEngineConfig realtime e2e precedence (#723)', () => {
 
 describe('local speech language routing', () => {
   it('defaults Japanese to Haas with hints and preserves the opt-out', () => {
-    expect(resolveSpeechEngine('ja', STT, true)).toBe('haas-ja-recommended')
+    expect(resolveSpeechEngine('ja', STT, true)).toBe('haas-ja-fast')
     expect(resolveSpeechEngine('ja', 'haas-ja-fast', true)).toBe('haas-ja-fast')
     expect(resolveSpeechEngine('ja', 'haas-ja-fast', false)).toBe('whisper-local')
   })

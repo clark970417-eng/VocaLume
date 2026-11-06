@@ -40,6 +40,7 @@ jobs:
             x-content.js x-content.css social-content.js social-content.css \
             caption-window.js caption-window.css icons vendor ort \
             desktop/install.py desktop/relay.py desktop/host.py desktop/translation_support.py \
+            desktop/install-windows.ps1 desktop/windows-host.cjs \
             desktop/requirements.txt desktop/LIVE_TRANSLATE_LICENSE
           cd ..
           node scripts/package-guides.mjs beta

@@ -37,11 +37,14 @@ export default defineConfig({
       lib: {
         entry: {
           index: resolve(__dirname, 'src/main/index.ts'),
+          'gpu-probe': resolve(__dirname, 'src/main/gpu-probe.ts'),
+          'whisper-worker': resolve(__dirname, 'src/main/whisper-worker.ts'),
+          'sensevoice-worker': resolve(__dirname, 'src/main/sensevoice-worker.ts'),
           'slm-worker': resolve(__dirname, 'src/main/slm-worker.ts')
         }
       },
       rollupOptions: {
-        external: ['node-llama-cpp', 'electron-audio-loopback', 'naudiodon']
+        external: ['node-llama-cpp', 'electron-audio-loopback', 'naudiodon', 'sherpa-onnx-node']
       }
     }
   },

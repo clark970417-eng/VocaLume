@@ -1,0 +1,523 @@
+{
+  "label": "resource-60-rounds",
+  "logicalCpus": 32,
+  "rounds": 60,
+  "whisperStopped": true,
+  "modelReadyMs": 7200,
+  "wallMs": 37639.28569999999,
+  "resources": {
+    "sampledCpuSeconds": 27.87648200000002,
+    "peakWorkingSetMiB": 2303.6953125,
+    "peakPrivateMiB": 6892.3359375,
+    "heartbeatP95Ms": 31.880300000000716,
+    "heartbeatMaxMs": 35.603800000000774
+  },
+  "audioRows": [
+    {
+      "round": 0,
+      "sttMs": 934.9160000000002,
+      "translationMs": 414.47359999999935,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 1,
+      "sttMs": 78.97700000000077,
+      "translationMs": 371.6983,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 2,
+      "sttMs": 75.57690000000002,
+      "translationMs": 370.46370000000024,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 3,
+      "sttMs": 78.72770000000128,
+      "translationMs": 368.90790000000015,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 4,
+      "sttMs": 74.72610000000168,
+      "translationMs": 363.71789999999964,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 5,
+      "sttMs": 76.42299999999886,
+      "translationMs": 366.17139999999927,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 6,
+      "sttMs": 74.04010000000017,
+      "translationMs": 364.5688999999984,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 7,
+      "sttMs": 74.42200000000048,
+      "translationMs": 365.22819999999956,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 8,
+      "sttMs": 74.25849999999991,
+      "translationMs": 367.96249999999964,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 9,
+      "sttMs": 76.10580000000118,
+      "translationMs": 370.15749999999935,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 10,
+      "sttMs": 74.97519999999895,
+      "translationMs": 371.40500000000065,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 11,
+      "sttMs": 77.12460000000101,
+      "translationMs": 364.6894000000011,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 12,
+      "sttMs": 75.02250000000095,
+      "translationMs": 367.04129999999896,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 13,
+      "sttMs": 77.86789999999928,
+      "translationMs": 373.1316999999999,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 14,
+      "sttMs": 73.51180000000022,
+      "translationMs": 375.8310999999994,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 15,
+      "sttMs": 73.93179999999847,
+      "translationMs": 375.96589999999924,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 16,
+      "sttMs": 74.46060000000034,
+      "translationMs": 371.1995000000006,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 17,
+      "sttMs": 77.3107,
+      "translationMs": 366.53529999999955,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 18,
+      "sttMs": 75.58249999999862,
+      "translationMs": 375.5542999999998,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 19,
+      "sttMs": 77.14589999999953,
+      "translationMs": 368.8054000000011,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 20,
+      "sttMs": 74.98380000000179,
+      "translationMs": 377.3244999999988,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 21,
+      "sttMs": 75.22750000000087,
+      "translationMs": 365.7542999999969,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 22,
+      "sttMs": 73.619200000001,
+      "translationMs": 367.35050000000047,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 23,
+      "sttMs": 76.64359999999942,
+      "translationMs": 369.3113000000012,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 24,
+      "sttMs": 75.02300000000105,
+      "translationMs": 366.3768999999993,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 25,
+      "sttMs": 75.64500000000044,
+      "translationMs": 365.2884000000013,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 26,
+      "sttMs": 76.49009999999907,
+      "translationMs": 364.65149999999994,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 27,
+      "sttMs": 74.22489999999743,
+      "translationMs": 366.72589999999764,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 28,
+      "sttMs": 77.74200000000201,
+      "translationMs": 365.9858999999997,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 29,
+      "sttMs": 77.13709999999992,
+      "translationMs": 369.9714000000022,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 30,
+      "sttMs": 74.13940000000002,
+      "translationMs": 361.0560000000005,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 31,
+      "sttMs": 74.6260000000002,
+      "translationMs": 365.71199999999953,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 32,
+      "sttMs": 73.77169999999751,
+      "translationMs": 369.8470000000016,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 33,
+      "sttMs": 75.47190000000046,
+      "translationMs": 378.71759999999995,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 34,
+      "sttMs": 76.33410000000003,
+      "translationMs": 370.7421000000031,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 35,
+      "sttMs": 75.18990000000122,
+      "translationMs": 369.55189999999857,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 36,
+      "sttMs": 76.10930000000008,
+      "translationMs": 368.22350000000006,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 37,
+      "sttMs": 77.3778999999995,
+      "translationMs": 367.6174000000028,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 38,
+      "sttMs": 74.23259999999937,
+      "translationMs": 366.2914000000019,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 39,
+      "sttMs": 76.47110000000248,
+      "translationMs": 368.4318000000021,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 40,
+      "sttMs": 76.24309999999969,
+      "translationMs": 363.02419999999984,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 41,
+      "sttMs": 74.11909999999989,
+      "translationMs": 366.8214000000007,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 42,
+      "sttMs": 75.46199999999953,
+      "translationMs": 364.59619999999995,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 43,
+      "sttMs": 74.54899999999907,
+      "translationMs": 367.8960999999981,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 44,
+      "sttMs": 77.3119000000006,
+      "translationMs": 370.3113999999987,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 45,
+      "sttMs": 80.87430000000313,
+      "translationMs": 379.4323000000004,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 46,
+      "sttMs": 78.17530000000261,
+      "translationMs": 381.77360000000044,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 47,
+      "sttMs": 76.35180000000037,
+      "translationMs": 372.7990000000027,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 48,
+      "sttMs": 76.64579999999842,
+      "translationMs": 368.3899999999994,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 49,
+      "sttMs": 76.020999999997,
+      "translationMs": 369.3709000000017,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 50,
+      "sttMs": 74.71409999999742,
+      "translationMs": 373.5519999999997,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 51,
+      "sttMs": 75.54000000000087,
+      "translationMs": 368.8758999999991,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 52,
+      "sttMs": 75.89809999999852,
+      "translationMs": 371.5506999999998,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 53,
+      "sttMs": 73.91649999999936,
+      "translationMs": 363.65469999999914,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 54,
+      "sttMs": 74.95170000000144,
+      "translationMs": 375.20590000000084,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 55,
+      "sttMs": 78.81619999999748,
+      "translationMs": 379.4959000000017,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 56,
+      "sttMs": 75.25600000000122,
+      "translationMs": 374.22639999999956,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 57,
+      "sttMs": 75.91569999999774,
+      "translationMs": 372.60689999999886,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 58,
+      "sttMs": 78.09300000000076,
+      "translationMs": 371.3441000000021,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 59,
+      "sttMs": 74.30510000000504,
+      "translationMs": 369.2855000000054,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    }
+  ],
+  "qualityRows": [
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "明日の配信は午後八時からです。今日は配信しません。",
+      "translated": "明天的直播時間是下午八點開始。今天不會進行直播。",
+      "translationMs": 244.29010000000562
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "薬を二錠ではなく、一錠だけ飲んでください。",
+      "translated": "請只服用一顆藥丸，而不是兩顆。",
+      "translationMs": 207.29559999999765
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "この動画はアーカイブに残さないそうです。",
+      "translated": "聽說這個影片不會被保留下來作為直播存檔。",
+      "translationMs": 227.4623999999967
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "敵は右ではなく左にいます。まだ撃たないで。",
+      "translated": "敵人並不在右邊，而是在左邊。還不要開槍。",
+      "translationMs": 264.6898000000001
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "田中さんが佐藤さんに本を貸しました。",
+      "translated": "田中先生把書借給了佐藤先生。",
+      "translationMs": 171.3541000000041
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "参加できないわけじゃないけど、少し遅れます。",
+      "translated": "雖然也不是不能參加，但會稍微遲一些。",
+      "translationMs": 204.49399999999878
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "図書館のアーカイブで歴史資料を調べています。",
+      "translated": "我在圖書館的檔案室裡，正在研究歷史資料。",
+      "translationMs": 236.13090000000375
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "それは、ちょっと……",
+      "translated": "那個有點……",
+      "translationMs": 103.4461999999985
+    },
+    {
+      "from": "en",
+      "to": "zh",
+      "source": "The price fell from 150 dollars to 120 dollars, not by 120 dollars.",
+      "translated": "價格從 150 美元下降到了 120 美元，而不是下降 120 美元。",
+      "translationMs": 276.1582000000053
+    },
+    {
+      "from": "en",
+      "to": "zh",
+      "source": "Please do not restart the computer until the download has finished.",
+      "translated": "請在下載完成之前，不要重新啟動電腦。",
+      "translationMs": 208.7580999999991
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "明天晚上八點開始直播，今天不直播。",
+      "translated": "明日の夜8時から配信を開始します。今日は配信しません。",
+      "translationMs": 265.20930000000226
+    },
+    {
+      "from": "zh",
+      "to": "en",
+      "source": "他沒有說一定會成功，只說可以試試看。",
+      "translated": "He didn’t say that it would definitely work, but he suggested that it could be tried.",
+      "translationMs": 264.85889999999927
+    }
+  ]
+}

@@ -6,7 +6,17 @@
  */
 
 /** Persisted-store keys that migrations may read or write */
-export type MigratableKey = 'translationEngine' | 'adaptiveRoutingQualityEngine'
+export type MigratableKey = 'translationEngine' | 'adaptiveRoutingQualityEngine' | 'sttEngine' | 'whisperVariant'
+
+export function migrateUnsupportedStt(store: MigratableStore, platform: string, arch: string): boolean {
+  const engine = store.get('sttEngine')
+  const appleOnly = ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber']
+  if (platform === 'darwin' && (arch === 'arm64' || engine === 'apple-speech-transcriber')) return false
+  if (typeof engine !== 'string' || !appleOnly.includes(engine)) return false
+  store.set('sttEngine', 'whisper-local')
+  store.set('whisperVariant', 'base')
+  return true
+}
 
 /** Subset of the electron-store API used by migrations */
 export interface MigratableStore {

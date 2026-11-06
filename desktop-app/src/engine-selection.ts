@@ -10,7 +10,7 @@ export function resolveSpeechEngine(
 ): SttEngineType {
   const usesHaas = selected === 'haas-ja-recommended' || selected === 'haas-ja-fast'
   if (language === 'ja' && supportsHaas) {
-    return selected === 'haas-ja-fast' ? selected : 'haas-ja-recommended'
+    return usesHaas ? selected : 'haas-ja-fast'
   }
   if (/^(zh|yue|en|ko)(?:-|$)/i.test(language)) return 'sensevoice-sherpa'
   if (usesHaas || (selected === 'sensevoice-sherpa' && language !== 'auto' && language !== 'ja') ||
@@ -22,11 +22,16 @@ export function resolveSpeechEngine(
 export function resolveEngineMode(
   mode: EngineMode,
   apiKeys: { apiKey: string; deeplApiKey: string; geminiApiKey: string; microsoftApiKey: string; microsoftRegion: string },
-  gpuInfo: { hasGpu: boolean } | null
+  gpuInfo: { hasGpu: boolean } | null,
+  platform?: string
 ): EngineMode {
   if (mode !== 'auto') return mode
   const hasKeys = !!(apiKeys.apiKey || apiKeys.deeplApiKey || apiKeys.geminiApiKey || (apiKeys.microsoftApiKey && apiKeys.microsoftRegion))
   if (hasKeys) return 'rotation'
+  // A GPU name alone says nothing about VRAM or available capacity. Keep the
+  // realtime Windows default on the compact translation model; 7B remains an
+  // explicit quality option rather than an automatic multi-GB upgrade.
+  if (platform === 'win32') return 'offline-hymt15'
   if (gpuInfo?.hasGpu) return 'offline-hunyuan-mt'
   return 'offline-hymt15'
 }

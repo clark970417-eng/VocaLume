@@ -45,6 +45,9 @@ describe('validatePathWithinDir', () => {
   const testDir = join(tmpdir(), 'path-traversal-test-' + process.pid)
   const innerDir = join(testDir, 'inner')
   const outsideDir = join(tmpdir(), 'path-traversal-outside-' + process.pid)
+  const escapePath = process.platform === 'win32'
+    ? join(innerDir, 'symlink-escape', 'secret.txt')
+    : join(innerDir, 'symlink-escape.txt')
 
   beforeAll(() => {
     mkdirSync(innerDir, { recursive: true })
@@ -52,7 +55,12 @@ describe('validatePathWithinDir', () => {
     writeFileSync(join(innerDir, 'valid.txt'), 'ok')
     writeFileSync(join(outsideDir, 'secret.txt'), 'secret')
     // Create symlink inside testDir pointing outside
-    symlinkSync(join(outsideDir, 'secret.txt'), join(innerDir, 'symlink-escape.txt'))
+    if (process.platform === 'win32') {
+      // Junctions exercise the same realpath escape without administrator rights.
+      symlinkSync(outsideDir, join(innerDir, 'symlink-escape'), 'junction')
+    } else {
+      symlinkSync(join(outsideDir, 'secret.txt'), escapePath)
+    }
   })
 
   afterAll(() => {
@@ -72,7 +80,7 @@ describe('validatePathWithinDir', () => {
   })
 
   it('rejects symlink that escapes the base directory', () => {
-    const result = validatePathWithinDir(join(innerDir, 'symlink-escape.txt'), testDir)
+    const result = validatePathWithinDir(escapePath, testDir)
     expect(result).toHaveProperty('error')
   })
 

@@ -1,9 +1,10 @@
-import { transcribe } from '@kutalia/whisper-node-addon'
 import { getModelPath, isModelDownloaded, downloadModel } from '../model-downloader'
 import type { WhisperVariant } from '../model-downloader'
 import { filterWhisperHallucination } from '../../pipeline/whisper-filter'
-import type { STTEngine, STTResult, Language } from '../types'
+import type { STTEngine, STTResult, Language, SourceLanguage } from '../types'
 import { createLogger } from '../../main/logger'
+import { windowsInferenceThreads } from '../inference-resources'
+import type { WhisperWorkerClient } from './whisper-worker-client'
 
 const log = createLogger('whisper-local')
 
@@ -13,8 +14,16 @@ export class WhisperLocalEngine implements STTEngine {
   readonly isOffline = true
 
   private modelPath = ''
+  private transcribe: typeof import('@kutalia/whisper-node-addon').transcribe | null = null
+  private workerClient: WhisperWorkerClient | null = null
   private onProgress?: (message: string) => void
   private modelVariant?: WhisperVariant
+  private sourceLanguage: SourceLanguage = 'auto'
+  private generation = 0
+
+  setLanguage(language: SourceLanguage): void {
+    this.sourceLanguage = language
+  }
 
   // Promise-based mutex — queues callers so only one transcribe() runs at a time (#363)
   private mutex: Promise<void> = Promise.resolve()
@@ -34,16 +43,33 @@ export class WhisperLocalEngine implements STTEngine {
   }
 
   async initialize(): Promise<void> {
-    if (this.modelPath) return
-    if (!isModelDownloaded(this.modelVariant)) {
-      this.modelPath = await downloadModel(this.onProgress, this.modelVariant)
+    if (this.modelPath && this.transcribe) return
+    const generation = this.generation
+    const modelPath = isModelDownloaded(this.modelVariant)
+      ? getModelPath(this.modelVariant)
+      : await downloadModel(this.onProgress, this.modelVariant)
+    if (generation !== this.generation) throw new Error('Whisper initialization cancelled')
+    let transcribe: NonNullable<typeof this.transcribe>
+    // Windows DLL loading itself can stall the event loop, even before decoding.
+    if (process.platform === 'win32') {
+      const { WhisperWorkerClient } = await import('./whisper-worker-client')
+      const client = this.workerClient ??= new WhisperWorkerClient()
+      await client.initialize()
+      transcribe = options => client.transcribe(options)
     } else {
-      this.modelPath = getModelPath(this.modelVariant)
+      transcribe = (await import('@kutalia/whisper-node-addon')).transcribe
     }
+    if (generation !== this.generation) throw new Error('Whisper initialization cancelled')
+    this.modelPath = modelPath
+    this.transcribe = transcribe
   }
 
   async processAudio(audioChunk: Float32Array, _sampleRate: number): Promise<STTResult | null> {
-    if (!this.modelPath) return null
+    if (!this.modelPath || !this.transcribe) return null
+    // Snapshot per request: a later settings change must not relabel queued audio.
+    const requestedLanguage = this.sourceLanguage
+    const generation = this.generation
+    const transcribe = this.transcribe
 
     // Promise-based mutex — serializes all calls so whisper-node-addon's
     // Metal GPU context is never entered concurrently (#363).
@@ -60,20 +86,28 @@ export class WhisperLocalEngine implements STTEngine {
     }
 
     try {
+      if (generation !== this.generation) return null
       const result = await transcribe({
         model: this.modelPath,
         pcmf32: audioChunk,
-        language: 'auto',
+        language: requestedLanguage,
+        // The addon defaults to English translation; this stage must emit the
+        // original language for the downstream translator and bilingual text.
+        translate: false,
         vad: false,
         no_timestamps: true,
+        ...(process.platform === 'win32' ? { n_threads: windowsInferenceThreads().whisper } : {}),
         no_prints: true
       })
+      if (generation !== this.generation) return null
 
       const rawText = this.extractText(result.transcription)
       const text = filterWhisperHallucination(rawText)
       if (!text) return null
 
-      const language = this.detectLanguage(text)
+      // A configured language is authoritative. Script heuristics misclassify
+      // short Japanese names written only in kanji and Latin-script languages.
+      const language = requestedLanguage === 'auto' ? this.detectLanguage(text) : requestedLanguage
 
       return {
         text,
@@ -91,6 +125,11 @@ export class WhisperLocalEngine implements STTEngine {
 
   async dispose(): Promise<void> {
     log.info('Disposing resources')
+    this.generation++
+    this.workerClient?.dispose()
+    this.workerClient = null
+    this.transcribe = null
+    this.modelPath = ''
   }
 
   private detectLanguage(text: string): Language {

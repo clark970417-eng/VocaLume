@@ -27,6 +27,7 @@ import { buildJaZhFidelityGuidance, finishJaZhTranslation } from '../engines/tra
 import { finishZhJaTranslation } from '../engines/translator/zh-ja-fidelity'
 import { createLogger } from './logger'
 import { resetTranslationHistory, translationContextForModel } from './translation-session'
+import { lowerInferencePriority, windowsInferenceThreads, windowsVramPadding } from '../engines/inference-resources'
 
 const log = createLogger('slm-worker')
 
@@ -137,14 +138,20 @@ async function handleInit(
 ): Promise<void> {
   activeModelType = modelType ?? 'translategemma'
   const { getLlama } = await import('node-llama-cpp')
+  const windows = process.platform === 'win32'
+  const threads = windowsInferenceThreads().llama
+  if (windows) log.info(`Windows inference budget: ${threads} CPU threads; background priority=${lowerInferencePriority()}`)
   log.info('Getting llama instance...')
-  llama = await getLlama({ gpu: 'auto' })
+  llama = await getLlama({ gpu: 'auto', ...(windows ? {
+    maxThreads: threads, vramPadding: windowsVramPadding, build: 'never' as const, skipDownload: true
+  } : {}) })
   log.info('Loading model:', modelPath)
   model = await llama.loadModel({ modelPath })
   log.info(`Model loaded (backend=${llama.gpu}, GPU layers=${model.gpuLayers}), creating context...`)
 
   const contextOptions: Record<string, unknown> = {
-    contextSize: TRANSLATION_CONTEXT_SIZE
+    contextSize: TRANSLATION_CONTEXT_SIZE,
+    ...(windows ? { threads } : {})
   }
   if (kvCacheQuant) {
     // Quantized V-cache requires flash attention; retain the fallback below.
@@ -160,7 +167,7 @@ async function handleInit(
     // Retry without KV cache quantization
     if (kvCacheQuant) {
       log.info('Retrying without KV cache quantization...')
-      context = await model.createContext({ contextSize: TRANSLATION_CONTEXT_SIZE })
+      context = await model.createContext({ contextSize: TRANSLATION_CONTEXT_SIZE, ...(windows ? { threads } : {}) })
       log.info('Context created without KV cache quant')
     } else {
       throw err
@@ -171,7 +178,7 @@ async function handleInit(
   if (draftModelPath) {
     try {
       draftModel = await llama.loadModel({ modelPath: draftModelPath })
-      const draftContextOptions: Record<string, unknown> = {}
+      const draftContextOptions: Record<string, unknown> = windows ? { contextSize: TRANSLATION_CONTEXT_SIZE, threads } : {}
       if (kvCacheQuant) {
         draftContextOptions.flashAttention = true
         draftContextOptions.experimentalKvCacheKeyType = 'Q8_0'
@@ -182,6 +189,8 @@ async function handleInit(
       log.info('Speculative decoding enabled with draft model')
     } catch (err) {
       log.error('Failed to load draft model, falling back to standard decoding:', err)
+      await draftContext?.dispose()
+      await draftModel?.dispose()
       draftModel = null
       draftContext = null
       speculativeEnabled = false

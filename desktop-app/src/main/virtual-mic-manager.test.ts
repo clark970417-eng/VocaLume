@@ -50,11 +50,15 @@ describe('VirtualMicManager', () => {
     expect(devices[0]!.name).toBe('BlackHole 2ch')
     expect(devices[1]!.name).toBe('Soundflower (2ch)')
   })
-  it.skipIf(process.platform !== 'darwin')('disables incompatible PortAudio on macOS 26', async () => {
+  it('disables incompatible PortAudio on macOS 26', async () => {
+    const platform = process.platform
+    Object.defineProperty(process, 'platform', { value: 'darwin' })
     vi.mocked(release).mockReturnValueOnce('25.0.0')
-    const current = new VirtualMicManager()
-    await current.initialize()
-    expect(current.isAvailable()).toBe(false)
+    try {
+      const current = new VirtualMicManager()
+      await current.initialize()
+      expect(current.isAvailable()).toBe(false)
+    } finally { Object.defineProperty(process, 'platform', { value: platform }) }
   })
 
   it('should not list non-virtual devices', () => {

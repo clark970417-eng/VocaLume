@@ -1,4 +1,5 @@
 import { resolveSpeechEngine } from '../../engine-selection'
+import { isHaasAvailable } from '../../engines/stt/HaasJaEngine'
 import type { SttEngineType } from '../../engine-selection'
 import { ipcMain } from 'electron'
 import { GoogleTranslator } from '../../engines/translator/GoogleTranslator'
@@ -77,6 +78,10 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
           store.get('sourceLanguage'), config.sttEngineId as SttEngineType, supportsHaas,
           appleSilicon ? 'mlx-whisper' : 'whisper-local'
         )
+        if (config.sttEngineId.startsWith('haas-ja-') && !(await isHaasAvailable())) {
+          config.sttEngineId = appleSilicon ? 'kotoba-whisper' : 'whisper-local'
+          ctx.mainWindow?.webContents.send('status-update', 'Haas-ja is not installed; using Whisper. Install the Haas-ja runtime and model to enable it.')
+        }
       }
       if (mdm.lockedSttEngine && config.sttEngineId) {
         log.info(`MDM: Overriding STT engine from ${config.sttEngineId} to ${mdm.lockedSttEngine}`)

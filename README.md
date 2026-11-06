@@ -79,6 +79,8 @@ A Star saves the repository; it does not subscribe you to releases or update the
 
 Automated checks are not equivalent to bilingual human review or testing on every device. Desktop components derive in part from [LiveTranslate](https://github.com/rioX432/live-translate), retaining its MIT license. Models have separate licenses.
 
+Windows repair work (unreleased): [實機調查與效能報告](docs/reports/windows-validation-2026-11-06.md) · [修補版建置與 extension 連接](docs/windows-repair.md).
+
 </details>
 
 

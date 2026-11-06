@@ -39,6 +39,7 @@ import { store } from './store'
 import {
   migrateLegacyAdaptiveRoutingQualityEngine,
   migrateLegacyTranslationEngine,
+  migrateUnsupportedStt,
   type MigratableKey
 } from './store-migrations'
 import { sanitizeErrorMessage, getErrorHint } from './error-utils'
@@ -373,6 +374,7 @@ app.whenReady().then(async () => {
     set: (key: MigratableKey, value: string) => store.set(key, value)
   }
   migrateLegacyTranslationEngine(migratableStore, log)
+  migrateUnsupportedStt(migratableStore, process.platform, process.arch)
   migrateLegacyAdaptiveRoutingQualityEngine(migratableStore, log)
 
   // #730: dev-only shadow measurement run. Builds its own engines, opens no
@@ -396,7 +398,11 @@ app.whenReady().then(async () => {
   }
 
   await initPipeline()
-  if (!isUiTest) await startExtensionCompanion(ctx)
+  if (!isUiTest) {
+    // A busy pipe must not prevent the standalone desktop UI from opening.
+    try { await startExtensionCompanion(ctx) }
+    catch (err) { log.error('Browser companion unavailable:', err) }
+  }
   else if (process.env.JTL_UI_TEST_COMPANION === '1') await startExtensionCompanion(ctx, app.getPath('userData'))
 
   // Initialize TTS manager (#508)
