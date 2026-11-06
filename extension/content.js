@@ -27,7 +27,7 @@ function pumpTranslations() {
       continue;
     }
     activeTranslations++;
-    chrome.runtime.sendMessage({type: "translate", text: task.text, direction: task.direction, priority: task.priority}, reply => {
+    chrome.runtime.sendMessage({type: "translate", text: task.text, direction: task.direction, priority: task.priority, ...(task.livestreamChat && {livestreamChat: true})}, reply => {
       activeTranslations--;
       inFlight.delete(task.key);
       if (chrome.runtime.lastError) task.reject(chrome.runtime.lastError);
@@ -53,12 +53,12 @@ function smallestJapaneseLeaves(region) {
   });
 }
 
-function requestTranslation(text, direction, priority = false, queueOrder, isValid) {
-  const key = `${direction}:${text}`;
+function requestTranslation(text, direction, priority = false, queueOrder, isValid, livestreamChat = false) {
+  const key = `${livestreamChat}:${direction}:${text}`;
   if (cache.has(key)) return Promise.resolve(cache.get(key));
   if (inFlight.has(key)) return inFlight.get(key);
   const promise = new Promise((resolve, reject) => {
-    translationQueue.push({key, text, direction, priority, resolve, reject, isValid, order: queueOrder ?? (++translationOrder + (priority ? 1000000 : 0))});
+    translationQueue.push({key, text, direction, priority, resolve, reject, isValid, livestreamChat, order: queueOrder ?? (++translationOrder + (priority ? 1000000 : 0))});
     pumpTranslations();
   });
   inFlight.set(key, promise);
@@ -101,11 +101,11 @@ async function translateElement(element, className, priority = false, queueOrder
   const valid=()=>ownsLine()&&websiteTextOptInEnabled&&epoch===textEpoch&&element.isConnected&&element.textContent.trim()===text;
   try {
     let result;
-    try { result = await requestTranslation(text, readDirection, priority, queueOrder, valid); }
+    try { result = await requestTranslation(text, readDirection, priority, queueOrder, valid, auto); }
     catch (firstError) {
       if (!valid()) throw firstError;
       line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
-      result = await requestTranslation(text, readDirection, true, (queueOrder??0)+1000000, valid);
+      result = await requestTranslation(text, readDirection, true, (queueOrder??0)+1000000, valid, auto);
     }
     if (!valid() || !result) {discard();return false;}
     line.textContent = `${langLabel(languageSettings.readTarget)}：${result}`;

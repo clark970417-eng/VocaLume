@@ -63,6 +63,8 @@ app.whenReady().then(async()=>{
   await stt.processAudio(resampled,16000);await translator.translate('準備ができました。','ja','zh')
   asrCalls=asrMs=translationCalls=translationMs=0
   const windows=new SpeechWindows({shortCues:true}),budget=new PreviewBudget(),queue=new DecodeQueue({retainFinals:true,retainInterim:true})
+  const queuedAt=new WeakMap<object,number>()
+  const enqueue=(job:Parameters<DecodeQueue["push"]>[0])=>{queuedAt.set(job,performance.now());queue.push(job);void drain()}
   const finals=new Set<Promise<void>>(),first=new Set<number>();let busy=false, fatal:unknown
   const start=performance.now()
   const record=(event:any)=>{report.events.push({...event,atMs:Math.round(performance.now()-start)})}
@@ -71,13 +73,19 @@ app.whenReady().then(async()=>{
    const job=queue.shift();if(!job)return
    if(!job.final&&budget.remainingMs(performance.now(),performanceState())>0){void drain();return}
    busy=true;const t=performance.now()
+   const decodeQueueMs=t-(queuedAt.get(job)??t)
    const evidence={segment:'bench:'+job.id,speechSeconds:job.speechSeconds,speechEndSample:job.lastSpeechSample-job.startSample,captureStartSample:job.startSample,captureEndSample:job.endSample,continuationExpected:job.final&&!job.utteranceEnd}
+   let finalSourceAt: number | undefined
+   const markFinalSource=()=>{finalSourceAt=performance.now()}
    try{
     if(job.final&&finals.size>=4)await Promise.race(finals)
+    const processingStart=performance.now()
+    if(job.final)pipeline.once('source-result',markFinalSource)
     const result=job.final ? (pipeline.canOverlapFinalTranslation
      ? await pipeline.prepareFinalStreaming(job.audio,16000,evidence)
      : await pipeline.finalizeStreaming(job.audio,16000,evidence).then(final=>final?{sourceText:final.sourceText,completion:Promise.resolve(final)}:null))
      : await pipeline.processStreaming(job.audio,16000,evidence)
+    const sourceReady=finalSourceAt ?? (pipeline.canOverlapFinalTranslation ? performance.now() : undefined)
     const source=result?.sourceText||''
     budget.observeSource?.(source,job.final)
     if(source){
@@ -88,28 +96,32 @@ app.whenReady().then(async()=>{
     if(job.final){
      const completion=(async()=>{
       const final=await result?.completion
+      const translatedAt=performance.now()
       report.completed.push({cue:job.id,source:final?.sourceText||'',translated:final?.translatedText||'',
+       speechEndToSourceMs:source&&sourceReady!==undefined?sourceReady-start-job.lastSpeechSample/16:null,
+       sourceToTranslationMs:source&&sourceReady!==undefined&&final?.translatedText?translatedAt-sourceReady:null,
+       decodeQueueMs,finalSlotWaitMs:processingStart-t,finalSourceProcessingMs:sourceReady===undefined?null:sourceReady-processingStart,
        endToChineseMs:performance.now()-start-job.endSample/16,atMs:performance.now()-start})
       if(!final?.translatedText)record({error:'Missing final translation',cue:job.id})
      })().finally(()=>finals.delete(completion))
      finals.add(completion)
     }
    }catch(error){fatal=error}
-   finally{budget.complete(performance.now()-t,performance.now());busy=false;void drain()}
+   finally{pipeline.off('source-result',markFinalSource);budget.complete(performance.now()-t,performance.now());busy=false;void drain()}
   }
   for(let round=0;round<report.rounds;round++){
    for(let i=0;i<frames.length;i++){
     await sleep((round*frames.length+i+1)*32-(performance.now()-start))
     if(fatal)throw fatal
     const frame=frames[i]!,job=windows.push(frame.audio,frame.probability,fixedCues ? 0.5 : budget.intervalMs(performanceState())/1000)
-    if(job){queue.push(job);void drain()}
+    if(job)enqueue(job)
    }
    report.metrics.push({round:round+1,atMs:performance.now()-start,queued:queue.jobs.length,
     cache:pipeline.cacheStats,thermal:performanceState(),rss:process.memoryUsage().rss,processes:app.getAppMetrics().map(p=>({type:p.type,kb:p.memory.workingSetSize}))})
    checkpoint()
    if ((round + 1) % 10 === 0) console.log('CAPTION_PROGRESS '+JSON.stringify({round:round+1,finals:report.completed.length,queued:queue.jobs.length,thermal:performanceState().thermalState}))
   }
-  const final=windows.finish();if(final){queue.push(final);void drain()}
+  const final=windows.finish();if(final)enqueue(final)
   while(busy||queue.jobs.length){if(fatal)throw fatal;await sleep(100)}
   await Promise.all(finals)
   if(fatal)throw fatal

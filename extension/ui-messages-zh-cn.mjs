@@ -1,5 +1,6 @@
 // Interface copy only; never convert user text or interpolation values.
 export const UI_ZH_CN = {
+  'Recommended': '推荐', 'Fastest recognition': '最快识别', 'Use limited phrase hints': '使用限定短语提示',
   'OBS live captions': 'OBS 实时字幕',
   'Caption file output': '字幕文件输出',
   'Off': '关闭',

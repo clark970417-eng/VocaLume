@@ -136,3 +136,14 @@ export async function firstTranslation(primary,backup,signal,delay=1000){
  try{return await Promise.any([first,second]);}
  finally{clearTimeout(timer);controller.abort();startBackup();signal?.removeEventListener('abort',stop);}
 }
+
+
+// Resolve common broadcast senses before dispatch so every provider sees the
+// same meaning. Leave unqualified mentions and other senses untouched.
+export function normalizeLivestreamChat(text, direction) {
+ const [from] = direction.split('-');
+ if(from==='en') return text.replace(/\b((?:thanks|thank you)\s+(?:so much\s+)?for\s+(?:the|your|this)\s+(?:\w+\s+)?|(?:i|we)\s+(?:really\s+)?(?:loved|liked|enjoyed)\s+(?:the|your|this)\s+)stream\b/giu,'$1live broadcast');
+ if(from==='ja') return text.replace(/配信アーカイブ|(?:アーカイブ)(?=で(?:見|観)|を(?:見|観))/gu,'ライブ配信の録画');
+ if(from==='zh') return text.replace(/(?:直播存檔|直播存档|直播回放)/gu,'直播的錄影');
+ return text;
+}

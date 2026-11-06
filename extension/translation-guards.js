@@ -126,8 +126,15 @@
     return hasLanguageText(body,from);
   }
   const chatDetections = new Map();
+
+  function hasEnglishChatSyntax(body) {
+    if (!/^[a-z\s\p{P}\p{N}\p{S}]+$/iu.test(body)) return false;
+    // Require a recognizable phrase rather than guessing from Latin letters.
+    return /\b(?:i (?:really |just )?(?:enjoyed|loved|liked) (?:your|this|the)|(?:thanks|thank you) (?:so much )?for (?:the|your|this|streaming)|(?:i|we) (?:can['’]t|cannot) wait (?:for|to))\b/iu.test(body);
+  }
+
   async function streamerChatDirection(value, target, detectLanguage) {
-    const body = stripLiterals(protectNames(value).body).replace(/\b(?:w+|lol|gg)\b|[草ｗ]+/giu, '').trim();
+    const body = stripLiterals(protectNames(value).body).replace(/\b(?:w+|lol|gg)\b|(?:^|\s)[草ｗ]+(?=\s|\p{P}|$)/giu, '').trim();
     const letters = body.match(/\p{L}/gu) || [];
     if (letters.length < 2 || body.length > 3000) return null;
     const strongScripts = ['ja', 'ko', 'ru', 'ar', 'th'].filter(code => scripts[code].test(body));
@@ -143,8 +150,9 @@
           const isSupportedLatin = latinLanguages.has(code) && code !== 'nl' && code !== 'pl';
           const wordCount = (body.match(/\p{Script=Latin}+/gu) || []).length;
           const confidentLatinSentence = isSupportedLatin && wordCount >= 4 && top.percentage >= 95;
-          return (result.isReliable || confidentLatinSentence) && top?.percentage >= 80 &&
-            (scripts[code] || isSupportedLatin) ? code : null;
+          if (result.isReliable && top?.percentage >= 80 && (scripts[code] || isSupportedLatin)) return code;
+          if (hasEnglishChatSyntax(body)) return 'en';
+          return confidentLatinSentence ? code : null;
         }).catch(() => {
           chatDetections.delete(body);
           return null;

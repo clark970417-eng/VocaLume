@@ -225,7 +225,7 @@
         continue;
       }
       activeTranslations++;
-      message({type: 'translate', text: task.source, direction: task.direction, priority: task.isTitle})
+      message({type: 'translate', text: task.source, direction: task.direction, priority: task.isTitle, ...(task.livestreamChat && {livestreamChat: true})})
         .then(result => {
           if (task.epoch === epoch && enabled) {
             cache.delete(task.key);
@@ -245,8 +245,8 @@
     }
   }
 
-  function requestTranslation(source, isTitle, order, isValid, readDirection = direction('read')) {
-    const key = `${readDirection}:${source}`;
+  function requestTranslation(source, isTitle, order, isValid, readDirection = direction('read'), livestreamChat = false) {
+    const key = `${livestreamChat}:${readDirection}:${source}`;
     if (cache.has(key)) {
       const result = cache.get(key);
       cache.delete(key); cache.set(key, result);
@@ -254,7 +254,7 @@
     }
     let task = translationInFlight.get(key);
     if (!task || task.epoch !== epoch) {
-      task = {key, source, isTitle, direction: readDirection, epoch, consumers: new Set(), order: order ?? ++translationOrder};
+      task = {key, source, isTitle, direction: readDirection, livestreamChat, epoch, consumers: new Set(), order: order ?? ++translationOrder};
       task.promise = new Promise((resolve, reject) => { task.resolve = resolve; task.reject = reject; });
       // Register ownership before the pump can reject an obsolete task.
       translationInFlight.set(key, task);
@@ -305,12 +305,12 @@
     line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯中…`;
     try {
       let result;
-      try { result = await requestTranslation(source, isTitle, order, valid, readDirection); }
+      try { result = await requestTranslation(source, isTitle, order, valid, readDirection, auto); }
       catch (firstError) {
         if (contextInvalid) throw firstError;
         if (!valid()) throw firstError;
         line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
-        result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid, readDirection);
+        result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid, readDirection, auto);
       }
       if (!valid()) { discard(); return; }
       line.textContent = `${langLabel(languageSettings.readTarget)}：${result}`;

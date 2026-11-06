@@ -230,7 +230,13 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                   geminiApiKey: store.get('geminiApiKey'), microsoftApiKey: store.get('microsoftApiKey'),
                   microsoftRegion: store.get('microsoftRegion') }
                 const mode = resolveEngineMode(store.get('translationEngine') as EngineMode, keys, null)
-                const config = buildEngineConfig(mode, store.get('sttEngine') as SttEngineType, keys) as unknown as PipelineStartConfig
+                const selectedStt = store.get('sttEngine') as SttEngineType
+                const appleSilicon = process.platform === 'darwin' && process.arch === 'arm64'
+                const supportsHaas = appleSilicon || (process.platform === 'win32' && process.arch === 'x64')
+                const stt = (selectedStt === 'haas-ja-recommended' || selectedStt === 'haas-ja-fast') && (!supportsHaas || store.get('sourceLanguage') !== 'ja')
+                  ? (appleSilicon ? 'mlx-whisper' : 'whisper-local')
+                  : selectedStt
+                const config = buildEngineConfig(mode, stt, keys) as unknown as PipelineStartConfig
                 const started = await startPipeline(ctx, config)
                 if ('error' in started) throw new Error(started.error)
               }

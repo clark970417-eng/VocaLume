@@ -1,5 +1,5 @@
 export type EngineMode = 'auto' | 'rotation' | 'online' | 'online-deepl' | 'online-gemini' | 'online-microsoft' | 'offline-hymt15' | 'offline-hymt2' | 'offline-hunyuan-mt' | 'offline-apple'
-export type SttEngineType = 'whisper-local' | 'mlx-whisper' | 'kotoba-whisper' | 'qwen3-asr' | 'sensevoice-sherpa' | 'apple-speech-transcriber'
+export type SttEngineType = 'haas-ja-recommended' | 'haas-ja-fast' | 'whisper-local' | 'mlx-whisper' | 'kotoba-whisper' | 'qwen3-asr' | 'sensevoice-sherpa' | 'apple-speech-transcriber'
 
 /** Resolve 'auto' engine mode to a concrete mode based on available keys and GPU */
 export function resolveEngineMode(

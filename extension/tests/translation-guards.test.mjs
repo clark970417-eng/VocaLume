@@ -58,3 +58,23 @@ test('streamer chat skips the selected language and translates identifiable fore
   assert.equal(await streamerChatDirection('https://example.invalid/abc 😄 草 www', 'ja', detectEnglish), null);
   assert.equal(await streamerChatDirection('Nice', 'ja', async () => ({isReliable: false})), null);
 });
+
+test('streamer chat recovers an English sentence misclassified by Chromium without guessing on short Latin messages', async () => {
+  const {streamerChatDirection} = globalThis.VocaLumeTranslationGuards;
+  const detectZulu = async () => ({isReliable: false, languages: [{language: 'zu', percentage: 100}]});
+  const sentence = 'I really enjoyed your live broadcast!';
+  assert.equal(await streamerChatDirection(sentence, 'ja', detectZulu), 'en-ja');
+  assert.equal(await streamerChatDirection(sentence, 'en', detectZulu), null);
+  assert.equal(await streamerChatDirection('Sawubona', 'ja', detectZulu), null);
+  const detectFrench = async () => ({isReliable: true, languages: [{language: 'fr', percentage: 100}]});
+  assert.equal(await streamerChatDirection('Merci beaucoup pour cette émission !', 'ja', detectFrench), 'fr-ja');
+  assert.equal(await streamerChatDirection('Merci beaucoup pour cette émission !', 'fr', detectFrench), null);
+});
+
+test('livestream wording disambiguates broadcast vocabulary in English and both Chinese–Japanese directions', async () => {
+  const {normalizeLivestreamChat} = await import('../translation-policy.mjs');
+  assert.equal(normalizeLivestreamChat('Thank you for the wonderful stream!', 'en-ja'), 'Thank you for the wonderful live broadcast!');
+  assert.equal(normalizeLivestreamChat('The stream flows through the forest.', 'en-ja'), 'The stream flows through the forest.');
+  assert.equal(normalizeLivestreamChat('昨日の配信アーカイブを見ました。', 'ja-zh'), '昨日のライブ配信の録画を見ました。');
+  assert.equal(normalizeLivestreamChat('我會看直播回放。', 'zh-ja'), '我會看直播的錄影。');
+});

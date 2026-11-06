@@ -1,3 +1,4 @@
+import { HaasJaEngine } from '../engines/stt/HaasJaEngine'
 import { publishObsCaption } from './obs-captions'
 import { updatePerformanceState } from './performance-state'
 import { bindMemoryPressure } from './memory-pressure'
@@ -92,6 +93,11 @@ async function initPipeline(): Promise<void> {
     onProgress: (msg) => ctx.mainWindow?.webContents.send('status-update', msg),
     modelVariant: (store.get('whisperVariant') as WhisperVariant) || undefined
   }))
+  if ((process.platform === 'darwin' && process.arch === 'arm64') ||
+      (process.platform === 'win32' && process.arch === 'x64')) {
+    ctx.pipeline.registerSTT('haas-ja-recommended', () => new HaasJaEngine(true))
+    ctx.pipeline.registerSTT('haas-ja-fast', () => new HaasJaEngine(false))
+  }
   // mlx-whisper is Apple Silicon only — skip registration on other platforms
   if (process.platform === 'darwin' && process.arch === 'arm64') {
     ctx.pipeline.registerSTT('mlx-whisper', () => new MlxWhisperEngine({
