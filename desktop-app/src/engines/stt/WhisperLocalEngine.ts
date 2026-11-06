@@ -1,8 +1,7 @@
-import { transcribe } from '@kutalia/whisper-node-addon'
 import { getModelPath, isModelDownloaded, downloadModel } from '../model-downloader'
 import type { WhisperVariant } from '../model-downloader'
 import { filterWhisperHallucination } from '../../pipeline/whisper-filter'
-import type { STTEngine, STTResult, Language } from '../types'
+import type { STTEngine, STTResult, Language, SourceLanguage } from '../types'
 import { createLogger } from '../../main/logger'
 
 const log = createLogger('whisper-local')
@@ -13,8 +12,14 @@ export class WhisperLocalEngine implements STTEngine {
   readonly isOffline = true
 
   private modelPath = ''
+  private transcribe: typeof import('@kutalia/whisper-node-addon').transcribe | null = null
   private onProgress?: (message: string) => void
   private modelVariant?: WhisperVariant
+  private sourceLanguage: SourceLanguage = 'auto'
+
+  setLanguage(language: SourceLanguage): void {
+    this.sourceLanguage = language
+  }
 
   // Promise-based mutex — queues callers so only one transcribe() runs at a time (#363)
   private mutex: Promise<void> = Promise.resolve()
@@ -35,6 +40,8 @@ export class WhisperLocalEngine implements STTEngine {
 
   async initialize(): Promise<void> {
     if (this.modelPath) return
+    // Native DLL/ABI failures must fail this engine, not prevent the app opening.
+    this.transcribe = (await import('@kutalia/whisper-node-addon')).transcribe
     if (!isModelDownloaded(this.modelVariant)) {
       this.modelPath = await downloadModel(this.onProgress, this.modelVariant)
     } else {
@@ -43,7 +50,9 @@ export class WhisperLocalEngine implements STTEngine {
   }
 
   async processAudio(audioChunk: Float32Array, _sampleRate: number): Promise<STTResult | null> {
-    if (!this.modelPath) return null
+    if (!this.modelPath || !this.transcribe) return null
+    // Snapshot per request: a later settings change must not relabel queued audio.
+    const requestedLanguage = this.sourceLanguage
 
     // Promise-based mutex — serializes all calls so whisper-node-addon's
     // Metal GPU context is never entered concurrently (#363).
@@ -60,10 +69,13 @@ export class WhisperLocalEngine implements STTEngine {
     }
 
     try {
-      const result = await transcribe({
+      const result = await this.transcribe({
         model: this.modelPath,
         pcmf32: audioChunk,
-        language: 'auto',
+        language: requestedLanguage,
+        // The addon defaults to English translation; this stage must emit the
+        // original language for the downstream translator and bilingual text.
+        translate: false,
         vad: false,
         no_timestamps: true,
         no_prints: true
@@ -73,7 +85,9 @@ export class WhisperLocalEngine implements STTEngine {
       const text = filterWhisperHallucination(rawText)
       if (!text) return null
 
-      const language = this.detectLanguage(text)
+      // A configured language is authoritative. Script heuristics misclassify
+      // short Japanese names written only in kanji and Latin-script languages.
+      const language = requestedLanguage === 'auto' ? this.detectLanguage(text) : requestedLanguage
 
       return {
         text,
