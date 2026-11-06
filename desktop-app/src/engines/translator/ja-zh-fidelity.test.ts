@@ -2,6 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { buildJaZhFidelityGuidance, finishJaZhTranslation } from './ja-zh-fidelity'
 
 describe('Japanese to Traditional Chinese fidelity', () => {
+  it('preserves double negation across casual and formal connective forms', () => {
+    for (const source of ['参加できないわけじゃないけど、少し遅れます。', '参加できないわけではないですが、少し遅れます。']) {
+      expect(buildJaZhFidelityGuidance(source)).toContain('也不是不能參加')
+    }
+    expect(buildJaZhFidelityGuidance('今日は参加できない。')).not.toContain('雙重否定')
+  })
+  it('repairs demonstrated participation polarity without rewriting quotes, retractions or plain negatives', () => {
+    expect(finishJaZhTranslation('参加できないわけじゃないけど、少し遅れます。','雖然不能參加，但會稍微遲一些。')).toBe('雖然也不是不能參加，但會稍微遲一些。')
+    expect(finishJaZhTranslation('私は参加できないわけではないですが、準備が必要です。','不能參加，但需要準備。')).toBe('也不是不能參加，但需要準備。')
+    expect(finishJaZhTranslation('今日は参加できない。','不能參加。')).toBe('不能參加。')
+    expect(finishJaZhTranslation('「参加できないわけじゃない」と言った。','不能參加。')).toBe('不能參加。')
+    expect(finishJaZhTranslation('参加できないわけじゃないけど、明日は参加できない。','不能參加。')).toBe('不能參加。')
+    expect(finishJaZhTranslation('参加できないわけじゃないけど、少し遅れます。','也不是不能參加，不過會晚到。')).toBe('也不是不能參加，不過會晚到。')
+  })
   it('only adds guidance for properties present in the source', () => {
     expect(buildJaZhFidelityGuidance('今日は晴れです。')).toBe('')
     expect(buildJaZhFidelityGuidance('リスポーン地点を変えるらしい。')).toContain('重生點')

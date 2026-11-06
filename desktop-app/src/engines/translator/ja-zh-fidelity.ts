@@ -30,8 +30,8 @@ export function buildJaZhFidelityGuidance(source: string): string {
   if (/(?:らしい|そうです(?:よ)?|とのこと(?:です)?)(?:[。！？!?]|$)/.test(source)) {
     rules.push('句尾是傳聞語氣，譯文要明確保留「聽說」或「據說」')
   }
-  if (/ないわけじゃない/.test(source)) {
-    rules.push('「ないわけじゃない」是雙重否定，要保留「也不是不能」的意思')
+  if (/ないわけ(?:じゃ|では)ない/.test(source)) {
+    rules.push('「ないわけじゃない／ないわけではない」是雙重否定，必須保留「並非不／也不是不能」的意思。例如「参加できないわけじゃない」是「也不是不能參加」，不是「不能參加」。只翻譯原句，不要添加承諾')
   }
   if (/というか$|そろそろ$|だったら[………。]*$/.test(source)) {
     rules.push('原句尚未說完，譯文也要停在同一處，不可猜測後續動作')
@@ -80,6 +80,13 @@ export function finishJaZhTranslation(source: string, output: string): string {
   }
   if (/勝てないわけじゃない/.test(source)) {
     result = result.replace(/^雖然(?:無法|不能)(?:勝利|獲勝|贏)/, '也不是不能贏')
+  }
+  // Repair a demonstrated polarity inversion only for a direct, unquoted
+  // first clause. A later participation clause may retract it, so leave that
+  // case to the model instead of rewriting a different speaker/time frame.
+  const participation = source.match(/^(?:私は|私も)?参加できないわけ(?:じゃ|では)ない(.*)$/u)
+  if (participation && /^(?:けど|ですが|[、。]|$)/u.test(participation[1]) && !/参加/.test(participation[1])) {
+    result = result.replace(/^(雖然)?(?:無法|不能)參加/u, (_match, although: string | undefined) => `${although || ''}也不是不能參加`)
   }
   if (/早めに終わ/.test(source)) {
     result = result.replace(/盡快結束(?:這件事)?/g, '早點結束')
