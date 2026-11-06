@@ -40,6 +40,9 @@ describe('filterWhisperHallucination', () => {
   })
 
   it('passes valid short Japanese through', () => {
+    expect(filterWhisperHallucination('東京')).toBe('東京')
+    expect(filterWhisperHallucination('你好')).toBe('你好')
+    expect(filterWhisperHallucination('台北')).toBe('台北')
     expect(filterWhisperHallucination('はい')).toBe('はい')
     expect(filterWhisperHallucination('そう')).toBe('そう')
     expect(filterWhisperHallucination('なるほど')).toBe('なるほど')

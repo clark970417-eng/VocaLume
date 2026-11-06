@@ -76,6 +76,9 @@ function isGarbageJapanese(text: string): boolean {
   if (text.length > 8) return false
   const hasJapanese = /[\u3040-\u30FF\u4E00-\u9FFF]/.test(text)
   if (!hasJapanese) return false
+  // Han characters are also Chinese and form valid Japanese names/nouns.
+  // A kana/grammar heuristic cannot reject e.g. 東京, 台北 or 你好 as noise.
+  if (/^[\p{Script=Han}\d\s。！？!?、]+$/u.test(text)) return false
 
   // Common standalone Japanese words that are valid even when short
   const commonWords = [
