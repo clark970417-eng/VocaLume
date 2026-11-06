@@ -37,6 +37,7 @@ export default defineConfig({
       lib: {
         entry: {
           index: resolve(__dirname, 'src/main/index.ts'),
+          'gpu-probe': resolve(__dirname, 'src/main/gpu-probe.ts'),
           'slm-worker': resolve(__dirname, 'src/main/slm-worker.ts')
         }
       },
