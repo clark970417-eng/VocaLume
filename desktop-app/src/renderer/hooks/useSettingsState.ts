@@ -241,7 +241,7 @@ export function useSettingsState(): SettingsState {
 
       await saveCurrentSettings()
 
-      const resolvedMode = resolveEngineMode(engine.engineMode, apiKeys, engine.gpuInfo)
+      const resolvedMode = resolveEngineMode(engine.engineMode, apiKeys, engine.gpuInfo, language.platform)
       const config = buildEngineConfig(resolvedMode, language.sttEngine, apiKeys, {
         // File import is a finite cascade job. Realtime cloud engines only accept
         // a live PCM stream and would otherwise return no result for the file.

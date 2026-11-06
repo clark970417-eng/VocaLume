@@ -23,7 +23,7 @@ export interface LanguageSettingsState {
 export function useLanguageSettings(): LanguageSettingsState {
   const [sourceLanguage, setSourceLanguage] = useState<SourceLanguage>('auto')
   const [targetLanguage, setTargetLanguage] = useState<Language>('en')
-  const [sttEngine, setSttEngine] = useState<SttEngineType>('mlx-whisper')
+  const [sttEngine, setSttEngine] = useState<SttEngineType>('whisper-local')
   const [whisperVariant, setWhisperVariant] = useState<WhisperVariantType>('kotoba-v2.0')
   const [platform, setPlatform] = useState<string>('darwin')
   const [isMacOS26, setIsMacOS26] = useState(false)
@@ -51,7 +51,10 @@ export function useLanguageSettings(): LanguageSettingsState {
       const isTahoe = macVer !== null && parseInt(macVer.split('.')[0], 10) >= 26
       setIsMacOS26(isTahoe)
       window.api.getSettings().then((s) => {
-        if (!s.sttEngine) {
+        if (p !== 'darwin' && ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber'].includes(String(s.sttEngine))) {
+          setSttEngine('whisper-local')
+          setWhisperVariant('base')
+        } else if (!s.sttEngine) {
           if (isTahoe) {
             // Default to Apple SpeechTranscriber on macOS 26+ — zero setup required
             setSttEngine('apple-speech-transcriber')
