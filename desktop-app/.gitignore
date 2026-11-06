@@ -5,7 +5,9 @@ models/
 logs/
 *.log
 .DS_Store
-src/renderer/public/vad/
+src/renderer/public/vad/*
+!src/renderer/public/vad/deepfilter/
+!src/renderer/public/vad/deepfilter/v2/models/
 benchmark/results/
 benchmark/conversational-ja-en/results/
 benchmark/gpt-realtime-whisper-eval/results/

@@ -1,7 +1,7 @@
-import { ipcMain } from 'electron'
+import { dialog, ipcMain } from 'electron'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { resolve } from 'node:path'
-import { stat } from 'node:fs/promises'
+import { readdir, lstat, stat, writeFile } from 'node:fs/promises'
 import ffmpegPath from 'ffmpeg-static'
 import { isSupportedMediaFile } from '../../media-formats'
 import type { AppContext } from '../app-context'
@@ -12,6 +12,33 @@ const MAX_SEGMENT_SAMPLES = SAMPLE_RATE * 24
 const activeDecoders = new Map<string, ChildProcess>()
 
 export function registerMediaFileIpc(ctx: AppContext): void {
+  ipcMain.handle('export-file-transcript', async (_event, contents: unknown) => {
+    if (typeof contents !== 'string') throw new Error('Invalid transcript.')
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      defaultPath: 'VocaLume-transcript.txt',
+      filters: [{ name: 'Text', extensions: ['txt'] }]
+    })
+    if (!canceled && filePath) await writeFile(filePath, contents, 'utf8')
+  })
+  let watchedFolder: string | undefined
+  ipcMain.handle('choose-media-folder', async () => {
+    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
+    if (result.canceled) return null
+    watchedFolder = result.filePaths[0]
+    return watchedFolder
+  })
+  ipcMain.handle('scan-media-folder', async () => {
+    const folder = watchedFolder
+    if (!folder) return []
+    const files: { path: string; name: string; revision: string }[] = []
+    for (const entry of await readdir(folder, { withFileTypes: true })) {
+      if (!entry.isFile() || entry.name.startsWith('.') || !isSupportedMediaFile(entry.name)) continue
+      const path = resolve(folder, entry.name)
+      const info = await lstat(path).catch(() => null)
+      if (info?.isFile() && info.size) files.push({ path, name: entry.name, revision: `${info.ino}:${info.size}:${info.mtimeMs}` })
+    }
+    return files.sort((a, b) => a.name.localeCompare(b.name))
+  })
   ipcMain.handle('decode-media-file', async (_event, requestedPath: string) => {
     if (typeof requestedPath !== 'string' || requestedPath.length === 0) throw new Error('No media file was selected.')
     const inputPath = resolve(requestedPath)

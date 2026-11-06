@@ -158,6 +158,6 @@ jobs:
             gh release create "${GITHUB_REF_NAME}" beta/* \
               --repo "${GITHUB_REPOSITORY}" \
               --prerelease \
-              --title "VocaLume ${VERSION} — multilingual captions and simpler controls (Beta)" \
+              --title "VocaLume ${VERSION} — Public Beta" \
               --notes-file beta-notes.md
           fi

@@ -35,7 +35,6 @@ export interface UseAudioCaptureReturn {
   start: (options?: { captureMode?: CaptureMode }) => Promise<void>
   stop: () => void
   /** Callback for VAD-detected complete speech segments (legacy mode). Returns unsubscribe function. */
-  onAudioChunk: (callback: (chunk: Float32Array) => void) => () => void
   /** Callback for periodic rolling buffer during speech (streaming mode). Returns unsubscribe function. */
   onStreamingChunk: (callback: (buffer: Float32Array) => void) => () => void
   /** Callback when speech segment ends (streaming mode finalization). Returns unsubscribe function. */
@@ -112,7 +111,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
   const [hasVirtualAudioDevice, setHasVirtualAudioDevice] = useState(false) // #125
 
   const vadRef = useRef<MicVAD | null>(null)
-  const chunkCallbackRef = useRef<((chunk: Float32Array) => void) | null>(null)
   const streamingCallbackRef = useRef<((buffer: Float32Array) => void) | null>(null)
   const speechEndCallbackRef = useRef<((finalBuffer: Float32Array) => void) | null>(null)
 
@@ -318,6 +316,8 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
     return dest.stream
   }, [])
 
+  const processNoiseSuppression = noiseSuppression?.processStream
+
   const start = useCallback(async (options?: { captureMode?: CaptureMode }) => {
     if (isCapturing) return
 
@@ -334,7 +334,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         getStream: async () => {
           // #313: Request 48 kHz when DeepFilterNet3 is active (it requires 48 kHz);
           // VAD resamples internally to 16 kHz regardless.
-          const idealSampleRate = noiseSuppression ? 48000 : 16000
+          const idealSampleRate = processNoiseSuppression ? 48000 : 16000
 
           // #501: Get the appropriate stream based on audio source setting
           if (currentAudioSource === 'system') {
@@ -352,15 +352,15 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
               channelCount: 1,
               sampleRate: { ideal: idealSampleRate },
               echoCancellation: true,
-              noiseSuppression: !noiseSuppression // disable browser NS when DeepFilterNet3 is active
+              noiseSuppression: !processNoiseSuppression // disable browser NS when DeepFilterNet3 is active
             }
           })
           microphoneStreamRef.current = rawStream
           void refreshDevicesRef.current?.()
 
           // #313: Apply DeepFilterNet3 noise suppression before VAD
-          const micStream = noiseSuppression
-            ? await noiseSuppression.processStream(rawStream)
+          const micStream = processNoiseSuppression
+            ? await processNoiseSuppression(rawStream)
             : rawStream
 
           if (currentAudioSource === 'both') {
@@ -443,8 +443,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           rollingBufferFullRef.current = false
           prevChunkTailRef.current = null
 
-          // Also fire legacy callback
-          chunkCallbackRef.current?.(audio)
         },
         onSpeechStart: () => {
           console.log('[audio-capture] VAD speech start')
@@ -492,7 +490,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       setIsCapturing(false)
       throw err
     }
-  }, [selectedDevice, audioSource, isCapturing, startStreamingTimer, stopStreamingTimer, getLoopbackStream, mixStreams, cleanupResources])
+  }, [selectedDevice, audioSource, isCapturing, startStreamingTimer, stopStreamingTimer, getLoopbackStream, mixStreams, cleanupResources, processNoiseSuppression])
 
   const stop = useCallback(() => {
     stopStreamingTimer()
@@ -524,11 +522,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       cleanupResources()
     }
   }, [cleanupResources])
-
-  const onAudioChunk = useCallback((callback: (chunk: Float32Array) => void) => {
-    chunkCallbackRef.current = callback
-    return () => { chunkCallbackRef.current = null }
-  }, [])
 
   const onStreamingChunk = useCallback((callback: (buffer: Float32Array) => void) => {
     streamingCallbackRef.current = callback
@@ -562,7 +555,6 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
     hasVirtualAudioDevice,
     start,
     stop,
-    onAudioChunk,
     onStreamingChunk,
     onSpeechSegmentEnd,
     onRealtimeChunk,

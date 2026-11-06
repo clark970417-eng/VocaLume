@@ -1,5 +1,14 @@
 // Interface copy only; never convert user text or interpolation values.
 export const UI_ZH_CN = {
+  'OBS live captions': 'OBS 实时字幕',
+  'Caption file output': '字幕文件输出',
+  'Off': '关闭',
+  'Translation only': '仅显示译文',
+  'Original and translation': '原文与译文',
+  'In OBS, add a Text source and enable Read from file. Select this file after enabling output.': '在 OBS 添加文本来源并勾选「从文件读取」。开启输出后，选择下方文件。',
+  'OBS caption file path': 'OBS 字幕文件路径',
+  'Could not configure OBS caption output.': '无法设置 OBS 字幕输出。',
+
   'Copyright & use': '版权与使用',
   'Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.': '免费供非商业使用；商用与转售需取得同意。衍生版本须在 README 与关于界面注明 VocaLume 来源。第三方原授权不变。',
   "Interface language": "接口语言",

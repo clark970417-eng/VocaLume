@@ -12,7 +12,7 @@ import { DeepFilterNet3Core } from 'deepfilternet3-noise-filter'
  * Design decisions:
  *  - 48 kHz AudioContext required by DeepFilterNet3 WASM; VAD resamples
  *    internally to 16 kHz so this is transparent to downstream consumers.
- *  - Assets (WASM + model) are loaded from the default CDN on first init.
+ *  - Assets (WASM + model) are loaded from the bundled assets on first init.
  *  - Suppression level defaults to 60 (0–100 scale).
  */
 
@@ -92,7 +92,10 @@ export function useNoiseSuppression(): UseNoiseSuppressionReturn {
 
       const core = new DeepFilterNet3Core({
         sampleRate: ctx.sampleRate,
-        noiseReductionLevel: suppressionLevel
+        noiseReductionLevel: suppressionLevel,
+        assetConfig: {
+          cdnUrl: window.location.protocol === 'file:' ? 'vad-asset://host/deepfilter' : '/vad/deepfilter'
+        }
       })
       await core.initialize()
       coreRef.current = core

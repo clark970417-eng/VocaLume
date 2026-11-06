@@ -4,7 +4,6 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { store } from './store'
 import type { AppContext } from './app-context'
-import { setupAudioPort } from './audio-port'
 
 /** Calculate subtitle window height based on display scale factor */
 export function getSubtitleHeight(display: Electron.Display): number {
@@ -94,7 +93,6 @@ export function createSubtitleWindow(ctx: AppContext, show = true): void {
 export function ensureDesktopWindows(ctx: AppContext, show = true): BrowserWindow {
   if (!ctx.mainWindow || ctx.mainWindow.isDestroyed()) {
     createMainWindow(ctx, show)
-    ctx.mainWindow!.webContents.on('did-finish-load', () => setupAudioPort(ctx))
   }
   if (!ctx.subtitleWindow || ctx.subtitleWindow.isDestroyed()) createSubtitleWindow(ctx, show && !ctx.extensionConnected)
   if (show && !isUiTest) { ctx.mainWindow!.show(); ctx.mainWindow!.focus() }

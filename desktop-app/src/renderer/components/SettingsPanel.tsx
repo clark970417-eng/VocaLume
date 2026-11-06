@@ -1,3 +1,5 @@
+import { FileTranscript } from './settings/FileTranscript'
+import { ObsCaptionSettings } from './settings/ObsCaptionSettings'
 import { t } from '../ui-language'
 import React, { useEffect, useRef, useState } from 'react'
 import { useSettingsState } from '../hooks/useSettingsState'
@@ -48,27 +50,64 @@ function SettingsPanel(): React.JSX.Element {
     if (jobId === mediaJobId) s.setStatus(`Translating file: ${formatMediaTime(processedSeconds)} processed`)
   }), [mediaJobId, s.setStatus])
 
-  const handleTranslateFile = async (file: File): Promise<void> => {
+  const mediaBusy = useRef(false)
+  const translatePath = async (path: string, name: string): Promise<void> => {
+    if (mediaBusy.current) return
+    mediaBusy.current = true
     let started = false
+    let finalStatus: string | undefined
     const jobId = crypto.randomUUID()
     try {
-      const path = window.api.getPathForFile(file)
       if (!path) throw new Error('The selected file cannot be accessed.')
       setMediaJobId(jobId)
-      s.setStatus(`Opening ${file.name}...`)
+      s.setStatus(`Opening ${name}...`)
       started = await s.handleStart({ captureAudio: false })
       if (!started) return
       const result = await window.api.processMediaFile(path, jobId)
-      s.setStatus(result.cancelled
-        ? `Cancelled ${file.name} at ${formatMediaTime(result.processedSeconds)}`
-        : `Finished ${file.name} (${formatMediaTime(result.processedSeconds)})`)
+      finalStatus = result.cancelled
+        ? `Cancelled ${name} at ${formatMediaTime(result.processedSeconds)}`
+        : `Finished ${name} (${formatMediaTime(result.processedSeconds)})`
     } catch (error) {
-      s.setStatus(`File translation failed: ${error instanceof Error ? error.message : String(error)}`)
+      finalStatus = `File translation failed: ${error instanceof Error ? error.message : String(error)}`
     } finally {
       setMediaJobId(null)
-      if (started) await s.handleStop()
+      try { if (started) await s.handleStop() }
+      finally {
+        if (finalStatus) s.setStatus(finalStatus)
+        mediaBusy.current = false
+      }
     }
   }
+
+  const [watchFolder, setWatchFolder] = useState<string | null>(null)
+  const watchState = useRef({ seen: new Map<string, string>(), attempted: new Map<string, string>(), busy: false })
+  const scanFolder = useRef<() => Promise<void>>(async () => {})
+  scanFolder.current = async () => {
+    const state = watchState.current
+    if (!watchFolder || disabled || mediaJobId || state.busy) return
+    state.busy = true
+    try {
+      const files = await window.api.scanMediaFolder()
+      if (state !== watchState.current) return
+      const next = files.find(file => state.seen.get(file.path) === file.revision &&
+        state.attempted.get(file.path) !== file.revision)
+      state.seen = new Map(files.map(file => [file.path, file.revision]))
+      if (next && !mediaBusy.current) {
+        state.attempted.set(next.path, next.revision)
+        await translatePath(next.path, next.name)
+      }
+    } catch (error) {
+      s.setStatus(String(error))
+      setWatchFolder(null)
+    } finally {
+      state.busy = false
+    }
+  }
+  useEffect(() => {
+    if (!watchFolder) return
+    const timer = setInterval(() => void scanFolder.current(), 3000)
+    return () => clearInterval(timer)
+  }, [watchFolder])
 
   const cancelMediaFile = async (): Promise<void> => {
     if (!mediaJobId) return
@@ -167,10 +206,20 @@ function SettingsPanel(): React.JSX.Element {
           s.setStreamingIntervalMs(v)
           window.api.saveSettings({ streamingIntervalMs: v })
         }}
-        onTranslateFile={handleTranslateFile}
+        onTranslateFile={file => translatePath(window.api.getPathForFile(file), file.name)}
         mediaImportActive={mediaJobId !== null}
         onCancelMediaImport={cancelMediaFile}
       />
+      <button type="button" disabled={disabled || !!mediaJobId} onClick={async () => {
+        watchState.current = { seen: new Map(), attempted: new Map(), busy: false }
+        if (watchFolder) setWatchFolder(null)
+        else {
+          try { setWatchFolder(await window.api.chooseMediaFolder()) }
+          catch (error) { s.setStatus(String(error)) }
+        }
+      }}>{watchFolder ? '停止監看資料夾' : '監看資料夾並自動翻譯'}</button>
+      {watchFolder && <p className="settings-note">{watchFolder}</p>}
+      <FileTranscript jobId={mediaJobId} />
 
           <p className="settings-note">{t("Watching a browser video? Start captions from the VocaLume extension on that tab.")}</p>
         </section>
@@ -342,6 +391,7 @@ function SettingsPanel(): React.JSX.Element {
               {!s.sessions.length && !s.lastTranscriptPath && <p className="settings-intro">{t("Completed sessions will appear here.")}</p>}
             </details>
             <details className="settings-disclosure"><summary>{t("Keyboard shortcuts")}</summary><KeyboardShortcuts /></details>
+            <ObsCaptionSettings />
             <details className="settings-disclosure"><summary>{t("Help & updates")}</summary><UpdateStatus /><SupportSettings /></details>
             <details className="settings-disclosure"><summary>{t("Organization & privacy")}</summary><EnterpriseSettings disabled={disabled} /></details>
           </>}

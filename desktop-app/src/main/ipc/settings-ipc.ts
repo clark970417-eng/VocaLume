@@ -1,3 +1,4 @@
+import { configureObsCaptions, obsCaptionStatus } from '../obs-captions'
 import { app, ipcMain, dialog, shell } from 'electron'
 import { arch, platform, release, totalmem } from 'os'
 import { readFile, writeFile } from 'fs/promises'
@@ -19,6 +20,8 @@ const _log = createLogger('ipc:settings')
 
 /** Register settings persistence IPC handlers */
 export function registerSettingsIpc(ctx: AppContext): void {
+  ipcMain.handle('obs-caption-status', () => obsCaptionStatus())
+  ipcMain.handle('configure-obs-captions', (_event, mode: unknown) => configureObsCaptions(mode))
   const supportUrls = new Set([
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=translation-quality.yml',

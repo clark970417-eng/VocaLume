@@ -2,10 +2,13 @@ export interface ElectronAPI {
   pipelineStart: (config: unknown) => Promise<{ success?: boolean; error?: string }>
   pipelineStop: () => Promise<{ logPath?: string }>
   processAudio: (audioData: number[]) => Promise<unknown>
-  processAudioStreaming: (audioData: number[]) => Promise<unknown>
-  finalizeStreaming: (audioData: number[]) => Promise<unknown>
+  processAudioStreaming: (audioData: number[] | Float32Array) => Promise<unknown>
+  finalizeStreaming: (audioData: number[] | Float32Array) => Promise<unknown>
   getPathForFile: (file: File) => string
   decodeMediaFile: (path: string) => Promise<Uint8Array>
+  exportFileTranscript: (contents: string) => Promise<void>
+  chooseMediaFolder: () => Promise<string | null>
+  scanMediaFolder: () => Promise<{ path: string; name: string; revision: string }[]>
   processMediaFile: (path: string, jobId: string) => Promise<{ processedSeconds: number; cancelled: boolean }>
   cancelMediaFile: (jobId: string) => Promise<{ cancelled: boolean }>
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => (() => void)
@@ -202,15 +205,14 @@ export interface ElectronAPI {
   onShortcutAction: (callback: (action: string) => void) => (() => void)
   onLanguageSwitched: (callback: (data: { sourceLanguage: string; targetLanguage: string }) => void) => (() => void)
 
-  // Audio MessagePort for zero-copy transfer (#553)
-  onAudioPort: (callback: (port: MessagePort) => void) => (() => void)
-
   // Auto-update (#314)
   updateCheck: () => Promise<{ success?: boolean; error?: string }>
   updateDownload: () => Promise<{ success?: boolean; openedBrowser?: boolean; error?: string }>
   updateInstall: () => Promise<{ success?: boolean; deferred?: boolean }>
   updateSetChannel: (channel: 'stable' | 'beta') => Promise<{ success?: boolean; error?: string }>
   updateGetStatus: () => Promise<{ state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }>
+  obsCaptionStatus: () => Promise<{ mode: 'off' | 'translation' | 'bilingual'; path: string; error: string }>
+  configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ReturnType<ElectronAPI['obsCaptionStatus']>
   exportDiagnostics: () => Promise<{ success?: boolean; canceled?: boolean; path?: string; error?: string }>
   openSupportUrl: (url: string) => Promise<{ success?: boolean; error?: string }>
   onUpdateStatus: (callback: (status: { state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }) => void) => (() => void)

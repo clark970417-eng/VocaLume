@@ -6,7 +6,7 @@
 
 為想看懂外語直播、跟不同語言的朋友聊天的人製作。語音、閱讀和打字可分別選擇翻譯語言，不只限於日文。
 
-[網站與影片示範](https://vocalume.vercel.app/) · [4.6.3 測試版下載](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.3) · [English](../README.md)
+[網站與影片示範](https://vocalume.vercel.app/) · [4.6.4 測試版下載](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.4) · [English](../README.md)
 
 [简体中文](README.zh-CN.md)
 
@@ -16,13 +16,13 @@
 
 | 你的電腦 | 下載 |
 | --- | --- |
-| Windows x64 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/VocaLume.Setup.4.6.3.exe) |
-| Mac · Apple Silicon (M1–M5) | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/VocaLume-4.6.3-arm64.dmg) |
-| Mac · Intel | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/VocaLume-4.6.3.dmg) |
-| Linux x64 · 實驗性 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/VocaLume-4.6.3.AppImage) |
-| Opera GX / Chrome 擴充功能 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/vocalume-extension.zip) |
+| Windows x64 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume.Setup.4.6.4.exe) |
+| Mac · Apple Silicon (M1–M5) | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4-arm64.dmg) |
+| Mac · Intel | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4.dmg) |
+| Linux x64 · 實驗性 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4.AppImage) |
+| Opera GX / Chrome 擴充功能 | [點這裡下載](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/vocalume-extension.zip) |
 
-下方提供 **4.6.3 測試版** App 與擴充功能；請依電腦平台下載。
+下方提供 **4.6.4 測試版** App 與擴充功能；請依電腦平台下載。
 
 不知道 Mac 是哪種？點 ** → 關於這台 Mac**，查看「晶片」或「處理器」。
 
@@ -49,7 +49,7 @@
 - **目前是公開測試版。** 辨識與翻譯可能失敗或翻錯，重要內容請對照原文。
 - **提供 Mac、Windows App；Linux 為實驗性。** Mac 本機瀏覽器字幕支援 Opera GX／Chrome，需要[一次性連接 App](user-guide.md#連接-mac-app-與-extension)。Windows／Linux 可使用獨立 App；瀏覽器模式需要 WebGPU 與網路文字翻譯，目前沒有同樣的本機連接安裝流程。
 - **安裝檔尚未簽章／公證。** 遇到系統提示請參考使用手冊。
-- **中文介面：** 4.6.3 App 與擴充功能提供繁體中文、簡體中文與英文介面。網站介面語言與 App、翻譯語言是不同設定。
+- **中文介面：** 4.6.4 App 與擴充功能提供繁體中文、簡體中文與英文介面。網站介面語言與 App、翻譯語言是不同設定。
 
 ## 一起讓它更好用
 
@@ -67,7 +67,7 @@
 <details>
 <summary>更多設定、測試記錄與授權</summary>
 
-[擴充功能與 API 設定](extension-guide.md) · [測試結果與待驗證項目](quality/README.md) · [4.6.3 更新](releases/4.6.3.md) · [開發說明](development.md) · [隱私](legal/privacy.md) · [第三方來源與授權](legal/third-party-notices.md)
+[擴充功能與 API 設定](extension-guide.md) · [測試結果與待驗證項目](quality/README.md) · [4.6.4 更新](releases/4.6.4.md) · [開發說明](development.md) · [隱私](legal/privacy.md) · [第三方來源與授權](legal/third-party-notices.md)
 
 自動檢查不代表已完成雙語人工驗收或所有電腦的實機測試。桌面部分衍生自 [LiveTranslate](https://github.com/rioX432/live-translate)，保留原作者 MIT 授權；模型另有各自授權。
 

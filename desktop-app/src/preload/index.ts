@@ -5,10 +5,13 @@ contextBridge.exposeInMainWorld('api', {
   pipelineStart: (config: unknown) => ipcRenderer.invoke('pipeline-start', config),
   pipelineStop: () => ipcRenderer.invoke('pipeline-stop'),
   processAudio: (audioData: number[]) => ipcRenderer.invoke('process-audio', audioData),
-  processAudioStreaming: (audioData: number[]) => ipcRenderer.invoke('process-audio-streaming', audioData),
-  finalizeStreaming: (audioData: number[]) => ipcRenderer.invoke('finalize-streaming', audioData),
+  processAudioStreaming: (audioData: number[] | Float32Array) => ipcRenderer.invoke('process-audio-streaming', audioData),
+  finalizeStreaming: (audioData: number[] | Float32Array) => ipcRenderer.invoke('finalize-streaming', audioData),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   decodeMediaFile: (path: string) => ipcRenderer.invoke('decode-media-file', path),
+  exportFileTranscript: (contents: string) => ipcRenderer.invoke('export-file-transcript', contents),
+  chooseMediaFolder: () => ipcRenderer.invoke('choose-media-folder'),
+  scanMediaFolder: () => ipcRenderer.invoke('scan-media-folder'),
   processMediaFile: (path: string, jobId: string) => ipcRenderer.invoke('process-media-file', path, jobId),
   cancelMediaFile: (jobId: string) => ipcRenderer.invoke('cancel-media-file', jobId),
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => {
@@ -196,17 +199,6 @@ contextBridge.exposeInMainWorld('api', {
   enterpriseGetTelemetryConsent: () => ipcRenderer.invoke('enterprise-get-telemetry-consent'),
   enterpriseSetTelemetryConsent: (consent: boolean) => ipcRenderer.invoke('enterprise-set-telemetry-consent', consent),
 
-  // Audio MessagePort for zero-copy transfer (#553)
-  onAudioPort: (callback: (port: MessagePort) => void) => {
-    const handler = (event: Electron.IpcRendererEvent): void => {
-      if (event.ports && event.ports.length > 0) {
-        callback(event.ports[0])
-      }
-    }
-    ipcRenderer.on('audio-port', handler)
-    return () => ipcRenderer.off('audio-port', handler)
-  },
-
   // Onboarding: progressive model loading (#575, #694)
   onboardingGetStatus: () => ipcRenderer.invoke('onboarding-get-status'),
   onboardingStartDownload: () => ipcRenderer.invoke('onboarding-start-download'),
@@ -240,6 +232,8 @@ contextBridge.exposeInMainWorld('api', {
   updateInstall: () => ipcRenderer.invoke('update-install'),
   updateSetChannel: (channel: 'stable' | 'beta') => ipcRenderer.invoke('update-set-channel', channel),
   updateGetStatus: () => ipcRenderer.invoke('update-get-status'),
+  obsCaptionStatus: () => ipcRenderer.invoke('obs-caption-status'),
+  configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ipcRenderer.invoke('configure-obs-captions', mode),
   exportDiagnostics: () => ipcRenderer.invoke('export-diagnostics'),
   openSupportUrl: (url: string) => ipcRenderer.invoke('open-support-url', url),
   onUpdateStatus: (callback: (status: { state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }) => void) => {

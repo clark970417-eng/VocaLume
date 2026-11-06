@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { beforeEach, expect, it, vi } from 'vitest'
-const state = vi.hoisted(() => ({ options: [] as Array<Record<string, unknown>>, setup: vi.fn() }))
+const state = vi.hoisted(() => ({ options: [] as Array<Record<string, unknown>> }))
 vi.mock('electron', () => ({
   BrowserWindow: class extends EventEmitter {
     webContents = new EventEmitter()
@@ -15,24 +15,20 @@ vi.mock('electron', () => ({
 vi.mock('@electron-toolkit/utils', () => ({ is: { dev: false } }))
 vi.mock('./ui-test-mode', () => ({ isUiTest: false }))
 vi.mock('./store', () => ({ store: { get: () => undefined } }))
-vi.mock('./audio-port', () => ({ setupAudioPort: state.setup }))
 import { ensureDesktopWindows } from './window-manager'
 import { createAppContext } from './app-context'
 beforeEach(() => { state.options.length = 0; vi.clearAllMocks() })
 
-it('creates a hidden TTS renderer on demand and never duplicates windows or audio-port listeners', () => {
+it('creates a hidden TTS renderer on demand and never duplicates windows', () => {
   const ctx = createAppContext()
   expect(ctx.mainWindow).toBeNull()
   ensureDesktopWindows(ctx, false)
   expect(state.options.map(options => options.show)).toEqual([false, false])
-  ctx.mainWindow!.webContents.emit('did-finish-load')
-  expect(state.setup).toHaveBeenCalledTimes(1)
   ensureDesktopWindows(ctx, false)
   expect(state.options).toHaveLength(2)
   ensureDesktopWindows(ctx)
   expect(ctx.mainWindow!.show).toHaveBeenCalledTimes(1)
   expect(ctx.mainWindow!.focus).toHaveBeenCalledTimes(1)
-  expect(state.setup).toHaveBeenCalledTimes(1)
 })
 
 it('opens settings during browser capture without showing a duplicate desktop subtitle overlay', () => {

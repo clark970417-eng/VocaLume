@@ -111,69 +111,30 @@ export function useSessionSettings(): SessionSettingsState {
     window.api.listSessions().then(setSessions).catch((e) => console.warn('[settings] Failed to load sessions:', e))
   }, [isRunning])
 
-  // Audio MessagePort for zero-copy transfer (#553)
-  const audioPortRef = useRef<MessagePort | null>(null)
-
+  // Send typed audio directly through IPC. MessagePort cannot cross the
+  // isolated preload bridge as a callable object.
   useEffect(() => {
-    const unsub = window.api.onAudioPort((port) => {
-      audioPortRef.current = port
-      console.log('[session] Audio MessagePort received — using zero-copy transfer')
+    const unsubscribeStreaming = audio.onStreamingChunk((buffer) => {
+      void window.api.processAudioStreaming(buffer)
     })
-    return () => {
-      unsub()
-      audioPortRef.current = null
-    }
-  }, [])
-
-  // Send audio via MessagePort (zero-copy) or fall back to IPC (JSON-serialized)
-  const sendAudio = useCallback((type: string, data: Float32Array) => {
-    const port = audioPortRef.current
-    if (port) {
-      // Zero-copy: transfer the underlying ArrayBuffer
-      const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
-      port.postMessage({ type, audio: buffer }, [buffer])
-    } else {
-      // Fallback: JSON-serialized IPC
-      const arr = Array.from(data)
-      if (type === 'process-audio') {
-        window.api.processAudio(arr)
-      } else if (type === 'process-audio-streaming') {
-        window.api.processAudioStreaming(arr)
-      } else if (type === 'finalize-streaming') {
-        window.api.finalizeStreaming(arr)
-      } else if (type === 'push-realtime-audio') {
-        window.api.pushRealtimeAudio(arr)
-      }
-    }
-  }, [])
-
-  // Handle audio: streaming chunks during speech, final segment on speech end
-  useEffect(() => {
-    const unsub1 = audio.onAudioChunk((chunk) => {
-      sendAudio('process-audio', chunk)
-    })
-    const unsub2 = audio.onStreamingChunk((buffer) => {
-      sendAudio('process-audio-streaming', buffer)
-    })
-    const unsub3 = audio.onSpeechSegmentEnd((finalBuffer) => {
-      sendAudio('finalize-streaming', finalBuffer)
+    const unsubscribeFinal = audio.onSpeechSegmentEnd((buffer) => {
+      void window.api.finalizeStreaming(buffer)
     })
     // #721: realtime cloud e2e — continuous 100ms chunks + VAD turn-boundary hints
-    const unsub4 = audio.onRealtimeChunk((chunk) => {
-      sendAudio('push-realtime-audio', chunk)
+    const unsubscribeRealtime = audio.onRealtimeChunk((chunk) => {
+      void window.api.pushRealtimeAudio(Array.from(chunk))
     })
-    const unsub5 = audio.onSpeechBoundary((boundary) => {
+    const unsubscribeBoundary = audio.onSpeechBoundary((boundary) => {
       window.api.speechBoundary(boundary)
     })
 
     return () => {
-      unsub1()
-      unsub2()
-      unsub3()
-      unsub4()
-      unsub5()
+      unsubscribeStreaming()
+      unsubscribeFinal()
+      unsubscribeRealtime()
+      unsubscribeBoundary()
     }
-  }, [sendAudio])
+  }, [audio.onStreamingChunk, audio.onSpeechSegmentEnd, audio.onRealtimeChunk, audio.onSpeechBoundary])
 
   // Listen for status updates from main process
   useEffect(() => {

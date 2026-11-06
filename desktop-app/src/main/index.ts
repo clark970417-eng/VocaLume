@@ -1,3 +1,4 @@
+import { publishObsCaption } from './obs-captions'
 import { updatePerformanceState } from './performance-state'
 import { bindMemoryPressure } from './memory-pressure'
 import { isUiTest } from './ui-test-mode'
@@ -251,6 +252,7 @@ async function initPipeline(): Promise<void> {
 
   // Forward results to subtitle window and logger
   ctx.pipeline.on('result', (result: TranslationResult) => {
+    publishObsCaption(result)
     ctx.subtitleWindow?.webContents.send('translation-result', result)
     ctx.mainWindow?.webContents.send('translation-result', result)
     ctx.logger?.log(result)
@@ -308,7 +310,7 @@ registerUpdateHandlers(ctx)
 // --- Register custom protocol for serving VAD assets outside asar ---
 // Must be called before app.whenReady()
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'vad-asset', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+  { scheme: 'vad-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
 ])
 
 // --- Initialize electron-audio-loopback before app is ready ---
@@ -331,13 +333,21 @@ app.whenReady().then(async () => {
   }
   // Serve VAD assets (ONNX, WASM, worklet) from filesystem.
   // In packaged app, these are in app.asar.unpacked; dynamic import() can't read from asar.
-  protocol.handle('vad-asset', (request) => {
+  protocol.handle('vad-asset', async (request) => {
     const filename = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, '')
     const { join } = require('path')
     const vadDir = app.isPackaged
       ? join(process.resourcesPath, 'app.asar.unpacked', 'out', 'renderer', 'vad')
       : join(__dirname, '../renderer/vad')
-    return net.fetch(`file://${join(vadDir, filename)}`)
+    const isDeepFilterAsset = filename === 'deepfilter/v2/pkg/df_bg.wasm' ||
+      filename === 'deepfilter/v2/models/DeepFilterNet3_onnx.tar.gz'
+    if (!isDeepFilterAsset && !/^[\w.-]+\.(?:onnx|wasm|m?js)$/.test(filename)) {
+      return new Response(null, { status: 404 })
+    }
+    const asset = await net.fetch(require('node:url').pathToFileURL(join(vadDir, filename)).href)
+    const headers = new Headers(asset.headers)
+    headers.set('Access-Control-Allow-Origin', '*')
+    return new Response(asset.body, { status: asset.status, headers })
   })
 
   // #519: Load MDM managed preferences early (before pipeline init)
@@ -381,6 +391,7 @@ app.whenReady().then(async () => {
 
   await initPipeline()
   if (!isUiTest) await startExtensionCompanion(ctx)
+  else if (process.env.JTL_UI_TEST_COMPANION === '1') await startExtensionCompanion(ctx, app.getPath('userData'))
 
   // Initialize TTS manager (#508)
   ctx.ttsManager = new TTSManager()

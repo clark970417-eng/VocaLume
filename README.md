@@ -6,7 +6,7 @@
 
 **免費在自己的電腦翻譯直播與聊天。** 看雙語字幕、讀懂聊天室，打中文也能翻成日文再回覆。
 
-[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [4.6.3 beta downloads](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.3)
+[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [4.6.4 beta downloads](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.4)
 
 [简体中文](docs/README.zh-CN.md)
 
@@ -16,15 +16,15 @@ Click the link for your computer. You do not need the **Source code** files.
 
 | Your computer | Installer |
 | --- | --- |
-| Windows x64 | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/VocaLume.Setup.4.6.3.exe) |
-| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/VocaLume-4.6.3-arm64.dmg) |
-| Mac · Intel | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/VocaLume-4.6.3.dmg) |
-| Linux x64 · experimental | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/VocaLume-4.6.3.AppImage) |
-| Opera GX / Chrome extension | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.3/vocalume-extension.zip) |
+| Windows x64 | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume.Setup.4.6.4.exe) |
+| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4-arm64.dmg) |
+| Mac · Intel | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4.dmg) |
+| Linux x64 · experimental | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4.AppImage) |
+| Opera GX / Chrome extension | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/vocalume-extension.zip) |
 
 Not sure which Mac you have? Open ** → About This Mac** and check the chip or processor.
 
-**4.6.3 beta** installers and extension are available below. [Release notes](docs/releases/4.6.3.md)
+**4.6.4 beta** installers and extension are available below. [Release notes](docs/releases/4.6.4.md)
 
 ## Start in three steps
 
@@ -49,7 +49,7 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 - **This is a public beta.** Recognition and translation can fail or be inaccurate. Check important content against the original.
 - **macOS and Windows desktop apps are available; Linux is experimental.** The local browser connection currently supports macOS Opera GX / Chrome and requires [one-time setup](docs/installation.md#connect-the-mac-app). Windows/Linux can use the standalone app. Browser-only captions need WebGPU and network translation; an equivalent native connection installer is not included yet.
 - **Installers are unsigned previews.** Follow the installation guide if your system displays a warning.
-- **Interface languages:** 4.6.3 app and extension downloads offer English, Traditional Chinese and Simplified Chinese. Website language choices are separate from app and translation languages.
+- **Interface languages:** 4.6.4 app and extension downloads offer English, Traditional Chinese and Simplified Chinese. Website language choices are separate from app and translation languages.
 
 ## Help shape the next version
 
@@ -75,7 +75,7 @@ A Star saves the repository; it does not subscribe you to releases or update the
 | [docs](docs/) | Guides, release notes, quality reports, legal notices |
 | [scripts](scripts/) | Packaging and maintenance |
 
-[Development](docs/development.md) · [Quality results & limitations](docs/quality/README.md) · [4.6.3 changes](docs/releases/4.6.3.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
+[Development](docs/development.md) · [Quality results & limitations](docs/quality/README.md) · [4.6.4 changes](docs/releases/4.6.4.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
 
 Automated checks are not equivalent to bilingual human review or testing on every device. Desktop components derive in part from [LiveTranslate](https://github.com/rioX432/live-translate), retaining its MIT license. Models have separate licenses.
 
