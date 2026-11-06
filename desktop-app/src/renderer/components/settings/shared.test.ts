@@ -1,3 +1,4 @@
+import { resolveSpeechEngine } from '../../../engine-selection'
 import { describe, it, expect } from 'vitest'
 import { buildEngineConfig, resolveEngineMode, getEngineDisplayName, LEGACY_TRANSLATION_ENGINES, LLM_ENGINE_MODES, API_ENGINE_MODES } from './shared'
 import type { EngineMode, SttEngineType } from './shared'
@@ -221,3 +222,20 @@ describe('buildEngineConfig realtime e2e precedence (#723)', () => {
  it('routes Hy-MT2 to its registered local engine', () => {
    expect(buildEngineConfig('offline-hymt2', 'mlx-whisper', {apiKey:'',deeplApiKey:'',geminiApiKey:'',microsoftApiKey:'',microsoftRegion:''})).toEqual({mode:'cascade',sttEngineId:'mlx-whisper',translatorEngineId:'hunyuan-mt-2'})
  })
+
+
+describe('local speech language routing', () => {
+  it('defaults Japanese to Haas with hints and preserves the opt-out', () => {
+    expect(resolveSpeechEngine('ja', STT, true)).toBe('haas-ja-fast')
+    expect(resolveSpeechEngine('ja', 'haas-ja-fast', true)).toBe('haas-ja-fast')
+    expect(resolveSpeechEngine('ja', 'haas-ja-fast', false)).toBe('whisper-local')
+  })
+
+  it('uses SenseVoice for supported languages and keeps unsupported speech on a compatible engine', () => {
+    for (const language of ['zh', 'zh-TW', 'yue', 'en', 'ko']) {
+      expect(resolveSpeechEngine(language, 'haas-ja-fast', true)).toBe('sensevoice-sherpa')
+    }
+    expect(resolveSpeechEngine('fr', 'sensevoice-sherpa', true, STT)).toBe(STT)
+    expect(resolveSpeechEngine('auto', 'haas-ja-fast', true, STT)).toBe(STT)
+  })
+})

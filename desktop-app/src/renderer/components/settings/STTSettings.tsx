@@ -1,3 +1,4 @@
+import { resolveSpeechEngine } from '../../../engine-selection'
 import { t } from '../../ui-language'
 import React from 'react'
 import { Section } from './Section'
@@ -32,15 +33,18 @@ export function STTSettings({
   // Kotoba-Whisper outputs JA only — show when source is JA or auto, on Apple Silicon
   const showKotobaWhisper = platform === 'darwin' && (sourceLanguage === 'ja' || sourceLanguage === 'auto')
 
-  const usesHaas = sttEngine === 'haas-ja-recommended' || sttEngine === 'haas-ja-fast'
+  const effectiveEngine = resolveSpeechEngine(sourceLanguage, sttEngine, platform === 'darwin' || platform === 'win32')
+  const usesHaas = effectiveEngine.startsWith('haas-ja-')
+  const usesSenseVoice = /^(zh|yue|en|ko)(?:-|$)/i.test(sourceLanguage)
+  const automaticEngine = usesHaas || usesSenseVoice
 
   return (
     <Section label={t("Speech Recognition")} helpText={t("Choose a speech recognition engine. Whisper Local is recommended for most users.")}>
       <select
-        value={sttEngine}
+        value={effectiveEngine}
         onChange={(e) => onSttEngineChange(e.target.value as SttEngineType)}
         style={selectStyle}
-        disabled={disabled}
+        disabled={disabled || automaticEngine}
         aria-label={t("STT engine")}
       >
         {(platform === 'darwin' || platform === 'win32') && sourceLanguage === 'ja' && <>
@@ -53,7 +57,7 @@ export function STTSettings({
         {showKotobaWhisper && (
           <option value="kotoba-whisper">{t("Kotoba-Whisper v2.0 (JA-optimized, Apple Silicon)")}</option>
         )}
-        <option value="sensevoice-sherpa">{t("SenseVoice Small (Ultra-fast, ~70ms, Offline)")}</option>
+        <option value="sensevoice-sherpa">{t("SenseVoice Small (Offline)")}</option>
         {platform === 'darwin' && (
           <option value="qwen3-asr">{t("Qwen3-ASR 0.6B (Best accuracy, Apple Silicon)")}</option>
         )}
@@ -63,11 +67,11 @@ export function STTSettings({
         <option value="whisper-local">{t("Whisper (whisper.cpp)")}</option>
       </select>
       {usesHaas && <label>
-        <input type="checkbox" disabled={disabled} checked={sttEngine === 'haas-ja-recommended'}
+        <input type="checkbox" disabled={disabled} checked={effectiveEngine === 'haas-ja-recommended'}
           onChange={event => onSttEngineChange(event.target.checked ? 'haas-ja-recommended' : 'haas-ja-fast')} />
         {t("Use limited phrase hints")}
       </label>}
-      {sttEngine === 'whisper-local' && (
+      {effectiveEngine === 'whisper-local' && (
         <div style={{ marginTop: '8px' }}>
           <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '4px' }}>{t("Whisper Model")} </div>
           <select
