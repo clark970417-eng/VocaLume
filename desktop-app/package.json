@@ -1,6 +1,6 @@
 {
   "name": "live-translate",
-  "version": "4.6.5",
+  "version": "4.6.6",
   "description": "Local-first multilingual live captions and browser translation",
   "main": "./out/main/index.js",
   "scripts": {
@@ -43,7 +43,8 @@
     "ws": "^8.20.0"
   },
   "optionalDependencies": {
-    "naudiodon": "^2.3.0"
+    "naudiodon": "^2.3.0",
+    "sherpa-onnx-node": "^2.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -59,11 +60,11 @@
     "eslint": "^10.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "temp": "file:vendor/temp",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.57.2",
     "vite": "^7.3.7",
-    "vitest": "^4.1.0",
-    "temp": "file:vendor/temp"
+    "vitest": "^4.1.0"
   },
   "repository": {
     "type": "git",
