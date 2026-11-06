@@ -225,7 +225,7 @@ function SettingsPanel(): React.JSX.Element {
         </section>
         <section id="settings-panel-subtitles" role="tabpanel" aria-labelledby="settings-tab-subtitles" tabIndex={0} hidden={selectedTab !== 'subtitles'}>
           {visited.subtitles && <>
-            <h2>{t("Subtitle appearance")}</h2>
+            <h2>{t("Subtitles")}</h2>
             <p className="settings-intro">{t("Changes apply immediately to the desktop subtitle window. Browser subtitle appearance is in the extension.")}</p>
           <SubtitleSettings
             fontSize={s.subtitleFontSize}
@@ -249,6 +249,7 @@ function SettingsPanel(): React.JSX.Element {
             onDisplayChange={s.handleDisplayChange}
           />
 
+            <ObsCaptionSettings />
             <details className="settings-disclosure"><summary>{t("Reading & accessibility")}</summary>
           <AccessibilitySettings
             highContrast={s.accessibility.highContrast}
@@ -391,7 +392,6 @@ function SettingsPanel(): React.JSX.Element {
               {!s.sessions.length && !s.lastTranscriptPath && <p className="settings-intro">{t("Completed sessions will appear here.")}</p>}
             </details>
             <details className="settings-disclosure"><summary>{t("Keyboard shortcuts")}</summary><KeyboardShortcuts /></details>
-            <ObsCaptionSettings />
             <details className="settings-disclosure"><summary>{t("Help & updates")}</summary><UpdateStatus /><SupportSettings /></details>
             <details className="settings-disclosure"><summary>{t("Organization & privacy")}</summary><EnterpriseSettings disabled={disabled} /></details>
           </>}

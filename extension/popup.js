@@ -156,6 +156,11 @@ async function loadCurrentSiteAccess() {
   renderTextAccess();
   renderSpeech();
 }
+listen('#streamerChatMode', 'change', async () => {
+  const chosen = $('#streamerChatMode').checked;
+  try { await savePreferences({streamerChatMode: chosen}); }
+  catch (error) { $('#streamerChatMode').checked = !chosen; throw error; }
+});
 listen('#websiteText', 'change', async () => {
   const chosen = $('#websiteText').checked;
   try { await savePreferences({websiteTextOptInEnabled: chosen}, chosen ? '網站文字翻譯已開啟' : '網站文字翻譯已關閉；語音字幕不受影響'); }
@@ -188,6 +193,7 @@ function paintLabels() {
   preview.style.webkitTextStroke = outline ? `0.4px ${value.outlineColor}` : '0 transparent';
   preview.style.textShadow = outline ? `0 0 2px ${value.outlineColor}` : 'none';
   preview.style.opacity = value.captionOpacity / 100;
+  preview.style.bottom = value.position + '%';
   preview.style.fontSize = Math.min(26, value.fontSize) + 'px';
   $('#previewJa').style.color = value.japaneseColor;
   $('#previewZh').style.color = value.chineseColor;
@@ -376,7 +382,7 @@ listen('#retryRecording', 'click', async () => {
 
 async function initialize() {
   $('#extensionVersion').textContent = 'v' + chrome.runtime.getManifest().version;
-  const saved = await chrome.storage.local.get(['languageSettings', 'subtitleSettings', 'captionStyleV34', 'speechMode', 'writingStyle', 'writingQuality', 'websiteTextOptInEnabled', 'popupPanel']);
+  const saved = await chrome.storage.local.get(['languageSettings', 'subtitleSettings', 'captionStyleV34', 'speechMode', 'writingStyle', 'writingQuality', 'websiteTextOptInEnabled', 'streamerChatMode', 'popupPanel']);
   const languages = {...languageDefaults, ...saved.languageSettings};
   for (const id of languageIds) {
     if (id === 'syncTextLanguages') $('#' + id).checked = Boolean(languages[id]);
@@ -394,6 +400,7 @@ async function initialize() {
     else $('#' + id).value = subtitles[id];
   }
   paintLabels();
+  $('#streamerChatMode').checked = saved.streamerChatMode === true;
   $('#websiteText').checked = saved.websiteTextOptInEnabled === true;
   $('#engineMode').value = saved.speechMode === 'desktop' ? 'desktop' : 'browser';
   $('#writingStyle').value = ['general', 'viewer', 'polite'].includes(saved.writingStyle) ? saved.writingStyle : 'general';

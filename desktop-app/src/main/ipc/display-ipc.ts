@@ -38,6 +38,7 @@ export function registerDisplayIpc(ctx: AppContext): void {
   ipcMain.handle('toggle-subtitle-drag-mode', (_event, enabled: boolean) => {
     if (!ctx.subtitleWindow) return
     if (enabled) {
+      ctx.subtitleWindow.showInactive()
       ctx.subtitleWindow.setIgnoreMouseEvents(false)
     } else {
       ctx.subtitleWindow.setIgnoreMouseEvents(true, { forward: true })
