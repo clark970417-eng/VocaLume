@@ -1,3 +1,5 @@
+import { resolveSpeechEngine } from '../../engine-selection'
+import type { SttEngineType } from '../../engine-selection'
 import { ipcMain } from 'electron'
 import { GoogleTranslator } from '../../engines/translator/GoogleTranslator'
 import { DeepLTranslator } from '../../engines/translator/DeepLTranslator'
@@ -67,6 +69,14 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
       if (mdm.lockedEngine && config.translatorEngineId) {
         log.info(`MDM: Overriding translator engine from ${config.translatorEngineId} to ${mdm.lockedEngine}`)
         config.translatorEngineId = mdm.lockedEngine
+      }
+      if (config.sttEngineId && !mdm.lockedSttEngine) {
+        const appleSilicon = process.platform === 'darwin' && process.arch === 'arm64'
+        const supportsHaas = appleSilicon || (process.platform === 'win32' && process.arch === 'x64')
+        config.sttEngineId = resolveSpeechEngine(
+          store.get('sourceLanguage'), config.sttEngineId as SttEngineType, supportsHaas,
+          appleSilicon ? 'mlx-whisper' : 'whisper-local'
+        )
       }
       if (mdm.lockedSttEngine && config.sttEngineId) {
         log.info(`MDM: Overriding STT engine from ${config.sttEngineId} to ${mdm.lockedSttEngine}`)

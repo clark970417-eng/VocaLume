@@ -69,6 +69,9 @@
       if (!entry.source || !entry.target) continue;
       for (let at=source.indexOf(entry.source);at>=0;at=source.indexOf(entry.source,at+1)) {
         const end=at+entry.source.length;
+        if (/^w{2,}$/i.test(entry.source) &&
+            (/[\p{Script=Latin}\d_]/u.test(source[at-1]||'') ||
+             /^(?:[\p{Script=Latin}\d_]|\.[a-z0-9])/iu.test(source.slice(end)))) continue;
         if (spans.some(span=>at<span.end && end>span.start)) continue;
         if (/^[\p{Script=Katakana}ー]/u.test(entry.source) && /[\p{Script=Katakana}ー]/u.test(source[at-1]||'')) continue;
         if (/[\p{Script=Katakana}ー]$/u.test(entry.source) && /[\p{Script=Katakana}ー]/u.test(source[end]||'')) continue;

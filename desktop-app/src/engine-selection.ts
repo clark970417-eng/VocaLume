@@ -1,6 +1,23 @@
 export type EngineMode = 'auto' | 'rotation' | 'online' | 'online-deepl' | 'online-gemini' | 'online-microsoft' | 'offline-hymt15' | 'offline-hymt2' | 'offline-hunyuan-mt' | 'offline-apple'
 export type SttEngineType = 'haas-ja-recommended' | 'haas-ja-fast' | 'whisper-local' | 'mlx-whisper' | 'kotoba-whisper' | 'qwen3-asr' | 'sensevoice-sherpa' | 'apple-speech-transcriber'
 
+/** Route explicit speech languages to compatible local recognition engines. */
+export function resolveSpeechEngine(
+  language: string,
+  selected: SttEngineType,
+  supportsHaas: boolean,
+  fallback: SttEngineType = 'whisper-local'
+): SttEngineType {
+  const usesHaas = selected === 'haas-ja-recommended' || selected === 'haas-ja-fast'
+  if (language === 'ja' && supportsHaas) {
+    return selected === 'haas-ja-fast' ? selected : 'haas-ja-recommended'
+  }
+  if (/^(zh|yue|en|ko)(?:-|$)/i.test(language)) return 'sensevoice-sherpa'
+  if (usesHaas || (selected === 'sensevoice-sherpa' && language !== 'auto' && language !== 'ja') ||
+      (selected === 'kotoba-whisper' && language !== 'ja' && language !== 'auto')) return fallback
+  return selected
+}
+
 /** Resolve 'auto' engine mode to a concrete mode based on available keys and GPU */
 export function resolveEngineMode(
   mode: EngineMode,
