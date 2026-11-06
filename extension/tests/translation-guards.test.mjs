@@ -78,3 +78,10 @@ test('livestream wording disambiguates broadcast vocabulary in English and both 
   assert.equal(normalizeLivestreamChat('昨日の配信アーカイブを見ました。', 'ja-zh'), '昨日のライブ配信の録画を見ました。');
   assert.equal(normalizeLivestreamChat('我會看直播回放。', 'zh-ja'), '我會看直播的錄影。');
 });
+
+test('typed drafts preserve laughter without treating a web address as laughter', async () => {
+ const {protectDraftText}=await import('../translation-policy.mjs');
+ const draft=protectDraftText('好好笑ww，網址是 www.example.com','zh','ja');
+ assert.deepEqual(draft.entries.filter(entry=>/^w+$/i.test(entry.source)).map(entry=>entry.source),['ww']);
+ assert.equal(draft.restore(draft.text),'好好笑ww，網址是 www.example.com');
+});

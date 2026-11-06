@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,readFile,writeFile,mkdir} from 'node:fs/promises';
+import {mkdtemp,readFile,writeFile,mkdir,symlink,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -41,24 +41,36 @@ with tempfile.TemporaryDirectory() as root:
  assert.equal(result.status,0,result.stderr);
 });
 
-test('an unavailable external Whisper cache falls back without changing the symlink',()=>{
+test('an unavailable external Whisper cache falls back without changing its link',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'vocalume-cache-link-'));
+ await writeFile(join(root,'not-a-directory'),'blocked');
+ // NTFS junctions exercise the same unavailable external-directory case without
+ // requiring Developer Mode or elevated symbolic-link privileges on Windows.
+ await symlink(join(root,'not-a-directory','cache'),join(root,'external-link'),process.platform==='win32'?'junction':'dir');
  const code=`import ast, os, pathlib, sys, tempfile
 from pathlib import Path
-source=ast.parse(pathlib.Path('desktop-app/resources/mlx-whisper-bridge.py').read_text())
+source=ast.parse(pathlib.Path('desktop-app/resources/mlx-whisper-bridge.py').read_text(encoding='utf-8'))
 function=next(node for node in source.body if isinstance(node,ast.FunctionDef) and node.name=='configure_model_cache')
 exec(compile(ast.Module(body=[function],type_ignores=[]),'cache','exec'))
-with tempfile.TemporaryDirectory() as root:
+root=sys.argv[1]
+if True:
  os.environ['HF_HOME']=root+'/external-link'
- blocked=pathlib.Path(root+'/not-a-directory');blocked.write_text('blocked')
- pathlib.Path(os.environ['HF_HOME']).symlink_to(blocked/'cache')
+ os.environ.pop('HF_HUB_CACHE',None);os.environ.pop('HUGGINGFACE_HUB_CACHE',None)
+ link=pathlib.Path(os.environ['HF_HOME']);before=link.lstat()
  old=pathlib.Path.home
  pathlib.Path.home=classmethod(lambda cls:pathlib.Path(root))
  try:
   result=configure_model_cache()
   assert result.is_dir() and 'vocalume' in str(result).lower()
-  assert pathlib.Path(root+'/external-link').is_symlink()
+  assert os.path.lexists(link)
+  after=link.lstat()
+  assert before.st_ino==after.st_ino
+  assert getattr(before,'st_reparse_tag',None)==getattr(after,'st_reparse_tag',None)
+  if sys.platform!='win32':assert link.is_symlink()
  finally:pathlib.Path.home=old
 `;
- const result=spawnSync(python,['-c',code],{cwd:process.cwd(),encoding:'utf8'});
- assert.equal(result.status,0,result.stderr);
+ try {
+  const result=spawnSync(python,['-I','-c',code,root],{cwd:process.cwd(),encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
+ } finally {await rm(root,{recursive:true,force:true});}
 });
