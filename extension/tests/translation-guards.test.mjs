@@ -46,3 +46,15 @@ test('Chinese with names is already Chinese, while Japanese clauses and delibera
  assert.equal(alreadyTargetLanguage('無料','ja','zh'),false,'shared hanzi alone are not proof of Chinese');
  assert.equal(alreadyTargetLanguage('今日はありがとう','zh','ja'),true);
 });
+
+test('streamer chat skips the selected language and translates identifiable foreign messages', async () => {
+  const {streamerChatDirection} = globalThis.VocaLumeTranslationGuards;
+  const detectEnglish = async () => ({isReliable: true, languages: [{language: 'en', percentage: 99}]});
+  assert.equal(await streamerChatDirection('こんばんは！', 'ja'), null);
+  assert.equal(await streamerChatDirection('今天直播好好看！', 'ja'), 'zh-ja');
+  assert.equal(await streamerChatDirection('안녕하세요!', 'ja'), 'ko-ja');
+  assert.equal(await streamerChatDirection('Thanks for streaming!', 'ja', detectEnglish), 'en-ja');
+  assert.equal(await streamerChatDirection('Thanks for streaming!', 'en', detectEnglish), null);
+  assert.equal(await streamerChatDirection('https://example.invalid/abc 😄 草 www', 'ja', detectEnglish), null);
+  assert.equal(await streamerChatDirection('Nice', 'ja', async () => ({isReliable: false})), null);
+});
