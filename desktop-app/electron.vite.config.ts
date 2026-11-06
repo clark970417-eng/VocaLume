@@ -38,6 +38,7 @@ export default defineConfig({
         entry: {
           index: resolve(__dirname, 'src/main/index.ts'),
           'gpu-probe': resolve(__dirname, 'src/main/gpu-probe.ts'),
+          'whisper-worker': resolve(__dirname, 'src/main/whisper-worker.ts'),
           'slm-worker': resolve(__dirname, 'src/main/slm-worker.ts')
         }
       },
