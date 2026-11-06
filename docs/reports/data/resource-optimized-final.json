@@ -1,0 +1,150 @@
+{
+  "label": "resource-optimized-final",
+  "logicalCpus": 32,
+  "modelReadyMs": 5437,
+  "wallMs": 11743.6785,
+  "resources": {
+    "sampledCpuSeconds": 9.510440000000006,
+    "peakWorkingSetMiB": 1968.4296875,
+    "peakPrivateMiB": 6878.00390625,
+    "heartbeatP95Ms": 31.825600000000122,
+    "heartbeatMaxMs": 35.348799999999756
+  },
+  "audioRows": [
+    {
+      "round": 0,
+      "sttMs": 647.2694000000001,
+      "translationMs": 399.98049999999967,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 1,
+      "sttMs": 80.2493999999997,
+      "translationMs": 378.7423999999992,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 2,
+      "sttMs": 81.67239999999947,
+      "translationMs": 379.6237000000001,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 3,
+      "sttMs": 76.59960000000046,
+      "translationMs": 366.0066999999999,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 4,
+      "sttMs": 73.61620000000039,
+      "translationMs": 365.57980000000043,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 5,
+      "sttMs": 75.90370000000075,
+      "translationMs": 364.48699999999917,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    },
+    {
+      "round": 6,
+      "sttMs": 74.02120000000104,
+      "translationMs": 366.1962999999996,
+      "source": "And so my fellow Americans, ask not what your country can do for you, ask what you can do for your country.",
+      "translated": "所以，我的美國同胞們，不要問你的國家能為你做什麼，而要問你能為你的國家做什麼。"
+    }
+  ],
+  "qualityRows": [
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "明日の配信は午後八時からです。今日は配信しません。",
+      "translated": "明天的直播時間是下午八點開始。今天不會進行直播。",
+      "translationMs": 219.73219999999856
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "薬を二錠ではなく、一錠だけ飲んでください。",
+      "translated": "請只服用一顆藥丸，而不是兩顆。",
+      "translationMs": 192.70470000000023
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "この動画はアーカイブに残さないそうです。",
+      "translated": "聽說這個影片不會被保留下來作為直播存檔。",
+      "translationMs": 213.17139999999927
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "敵は右ではなく左にいます。まだ撃たないで。",
+      "translated": "敵人並不在右邊，而是在左邊。還不要開槍。",
+      "translationMs": 245.96219999999994
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "田中さんが佐藤さんに本を貸しました。",
+      "translated": "田中先生把書借給了佐藤先生。",
+      "translationMs": 160.35900000000038
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "参加できないわけじゃないけど、少し遅れます。",
+      "translated": "雖然也不是不能參加，但會稍微遲一些。",
+      "translationMs": 194.34979999999996
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "図書館のアーカイブで歴史資料を調べています。",
+      "translated": "我在圖書館的檔案室裡，正在研究歷史資料。",
+      "translationMs": 225.10690000000068
+    },
+    {
+      "from": "ja",
+      "to": "zh",
+      "source": "それは、ちょっと……",
+      "translated": "那個有點……",
+      "translationMs": 98.88329999999951
+    },
+    {
+      "from": "en",
+      "to": "zh",
+      "source": "The price fell from 150 dollars to 120 dollars, not by 120 dollars.",
+      "translated": "價格從 150 美元下降到了 120 美元，而不是下降 120 美元。",
+      "translationMs": 272.1974000000009
+    },
+    {
+      "from": "en",
+      "to": "zh",
+      "source": "Please do not restart the computer until the download has finished.",
+      "translated": "請在下載完成之前，不要重新啟動電腦。",
+      "translationMs": 203.45910000000003
+    },
+    {
+      "from": "zh",
+      "to": "ja",
+      "source": "明天晚上八點開始直播，今天不直播。",
+      "translated": "明日の夜8時から配信を開始します。今日は配信しません。",
+      "translationMs": 248.6226999999999
+    },
+    {
+      "from": "zh",
+      "to": "en",
+      "source": "他沒有說一定會成功，只說可以試試看。",
+      "translated": "He didn’t say that it would definitely work, but he suggested that it could be tried.",
+      "translationMs": 245.6198000000004
+    }
+  ]
+}
