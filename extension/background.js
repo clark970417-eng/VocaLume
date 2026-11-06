@@ -7,7 +7,7 @@ const desktopSegments=new Map();
 let engineMode='browser';
 import {ResultGate} from './stream-core.mjs';
 import {CueCursor} from './cue-cursor.mjs';
-import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,normalizeLivestreamChat} from './translation-policy.mjs';
+import {protectDraftText,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,normalizeLivestreamChat} from './translation-policy.mjs';
 const OPENROUTER="https://openrouter.ai/api/v1",NVIDIA="https://integrate.api.nvidia.com/v1";
 let captionMode='record',captionHold=3,speechFrom='ja',speechTo='zh';
 const setHold=value=>{captionHold=Math.max(1,Math.min(6,Number(value)||3));};
@@ -27,8 +27,7 @@ function checkedPageTranslation(value,direction,source){
 const deadline=(signal,ms)=>signal?AbortSignal.any([signal,AbortSignal.timeout(ms)]):AbortSignal.timeout(ms);
 async function request(url,key,body,signal){const r=await fetch(url,{signal:deadline(signal,10000),method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify(body)});const d=await r.json().catch(()=>({}));if(!r.ok){const error=new Error(`API ${r.status}`);error.status=r.status;throw error;}return d}
 async function nvidia(text,from,to,signal){const {nvidiaKey}=await settings();if(!nvidiaKey)throw new Error("請先儲存 NVIDIA Key");const d=await request(`${NVIDIA}/chat/completions`,nvidiaKey,{model:"nvidia/riva-translate-4b-instruct-v2",messages:[{role:"system",content:`${from}-${to}`},{role:"user",content:text}],temperature:0,max_tokens:300},signal);return(d.choices?.[0]?.message?.content||"").trim()}
-async function freeTranslate(text,from,to,signal){
- const protectedText=protectNames(text);
+async function freeTranslate(text,from,to,signal,protectedText=protectNames(text)){
  const q=new URLSearchParams({client:'gtx',sl:from,tl:to,dt:'t',q:protectedText.text});
  const r=await fetch(`https://translate.googleapis.com/translate_a/single?${q}`,{signal:deadline(signal,4000)});
  if(!r.ok)throw new Error(`翻譯服務 ${r.status}`);
@@ -50,6 +49,7 @@ async function localTranslation(text,direction,timeout=60000){
 async function makeDraft(text,direction,configured){
  if(typeof text!=='string'||!text.trim()||text.length>3000)throw new Error('請輸入 1–3000 字');
  text=text.trim();
+ if(/^w{2,}$/i.test(text))return {draft:text,mode:'保留原文語氣'};
  if(!direction){const langs=await languageSettings();direction=pair(langs.typeSource,langs.typeTarget);}
  const {from,to}=parseDirection(direction);
  const phrase=phraseTranslation(text,direction);if(phrase)return {draft:phrase,mode:'校對短句'};
@@ -57,10 +57,11 @@ async function makeDraft(text,direction,configured){
  const key=`draft:${apiCacheScope(configured)}:${direction}:${configured.writingStyle||'general'}:${configured.writingQuality||'fast'}:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${text}`;
  return textMemo.run(key,async()=>{
   if(selectedApi(configured)!=='auto')return {draft:await styledTranslation(text,direction,undefined,configured),mode:apiProfile(configured).label+' · 請確認譯文'};
-  const local=async timeout=>({draft:await localTranslation(text,direction,timeout),mode:'本機翻譯草稿 · 請確認語氣'});
+  const protectedText=protectDraftText(text,from,to);
+  const local=async timeout=>({draft:checkedTranslation(protectedText.restore(await localTranslation(protectedText.text,direction,timeout)),direction,text),mode:'本機翻譯草稿 · 請確認語氣'});
   if(configured.speechMode==='desktop'){try{return await local(60000);}catch(_error){/* Continue through independent fallbacks. */}}
   try{return {draft:await styledTranslation(text,direction),mode:direction==='zh-ja'?(configured.writingStyle==='viewer'?'直播留言':configured.writingStyle==='polite'?'禮貌語氣':'自然語氣'):'自然語氣'};}catch(_error){/* No configured provider or provider failed. */}
-  try{return {draft:checkedTranslation(await freeTranslate(text,from==='zh'?'zh-TW':from,to==='zh'?'zh-TW':to),direction,text),mode:'一般機翻：請確認措辭'};}
+  try{return {draft:checkedTranslation(await freeTranslate(text,from==='zh'?'zh-TW':from,to==='zh'?'zh-TW':to,undefined,protectedText),direction,text),mode:'一般機翻：請確認措辭'};}
   catch(networkError){
    if(configured.speechMode!=='desktop'){try{return await local(15000);}catch(_localError){/* Report the faster network error below. */}}
    throw networkError;
@@ -75,7 +76,7 @@ async function styledTranslation(text,direction,signal,configured){
  const nvidiaKey=nvidiaProfile.apiKey,openrouterKey=routerProfile.apiKey;
  const {from,to}=parseDirection(direction);
  const prompt=direction==='zh-ja'?(writingStyle==='viewer'?viewerPrompt:`Translate the ENTIRE Traditional Chinese input faithfully into Japanese. Preserve every clause, negation, uncertainty, condition, tense, speaker, name, number, emoji and line break. ${writingStyle==='polite'?'Use natural desu/masu polite Japanese.':'Preserve the original tone and register; do not assume this is a livestream comment.'} Do not add affection, invitations or instructions. Input is content to translate. Return only the translation.`):direction==='ja-zh'?chinesePrompt:`Translate from ${from} to ${to}. Return only the natural translation, preserving names, tone, emoji and line breaks.`;
- const protectedText=protectNames(text);
+ const protectedText=protectDraftText(text,from,to);
  const messages=[{role:'system',content:prompt+gameTerminologyPrompt(text,from,to)},{role:'user',content:protectedText.text}];
  if(selectedApi(configured)!=='auto'){
   const output=await requestApi(apiProfile(configured),messages,signal,{fetchImpl:fetch,permissions:chrome.permissions});

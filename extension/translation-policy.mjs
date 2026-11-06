@@ -147,3 +147,9 @@ export function normalizeLivestreamChat(text, direction) {
  if(from==='zh') return text.replace(/(?:直播存檔|直播存档|直播回放)/gu,'直播的錄影');
  return text;
 }
+
+export function protectDraftText(text,from,to){
+ const laughter=[...new Set(text.match(/(?<![\p{Script=Latin}\d_])w{2,}(?![\p{Script=Latin}\d_]|\.[a-z0-9])/giu)||[])];
+ const terms=selectGameTerminology(text,from,to);
+ return protectNames(text,[],[...terms,...laughter.map(marker=>({source:marker,target:marker}))]);
+}
