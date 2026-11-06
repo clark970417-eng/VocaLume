@@ -17,10 +17,10 @@ export function windowsVramPadding(totalBytes: number): number {
 }
 
 /** Lower only the inference child, never the UI/capture process. */
-export function lowerInferencePriority(): boolean {
+export function lowerInferencePriority(pid = 0): boolean {
   if (process.platform !== 'win32') return false
   try {
-    setPriority(0, constants.priority.PRIORITY_BELOW_NORMAL)
+    setPriority(pid, constants.priority.PRIORITY_BELOW_NORMAL)
     return true
   } catch {
     // Sandboxed environments may deny this; thread limits still apply.
