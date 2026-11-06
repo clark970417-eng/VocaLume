@@ -182,7 +182,7 @@ export const store = new Store<AppSettings>({
     geminiLiveApiKey: '',
     cloudRealtimeEnabled: false,
     geminiLiveEnabled: false,
-    sttEngine: 'mlx-whisper',
+    sttEngine: process.platform === 'darwin' && process.arch === 'arm64' ? 'mlx-whisper' : 'whisper-local',
     selectedMicrophone: '',
     selectedDisplay: 0,
     quotaTracking: {},

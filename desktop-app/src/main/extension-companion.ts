@@ -229,7 +229,7 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                 const keys = { apiKey: store.get('googleApiKey'), deeplApiKey: store.get('deeplApiKey'),
                   geminiApiKey: store.get('geminiApiKey'), microsoftApiKey: store.get('microsoftApiKey'),
                   microsoftRegion: store.get('microsoftRegion') }
-                const mode = resolveEngineMode(store.get('translationEngine') as EngineMode, keys, null)
+                const mode = resolveEngineMode(store.get('translationEngine') as EngineMode, keys, null, process.platform)
                 const config = buildEngineConfig(mode, store.get('sttEngine') as SttEngineType, keys) as unknown as PipelineStartConfig
                 const started = await startPipeline(ctx, config)
                 if ('error' in started) throw new Error(started.error)
