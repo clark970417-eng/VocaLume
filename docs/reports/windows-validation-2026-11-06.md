@@ -198,3 +198,14 @@ benchmark 會使用本機權重、產生 `translation-demo-result.json` 與本�
 6. 另行修復／建置 naudiodon，或清楚停用不支援的虛擬麥克風功能。不要安靜地把 optional dependency 缺失當成成功。
 7. 新增不同語言、噪音、專有名詞、數字、否定句的 holdout 音訊／翻譯評測，再決定較大模型、量化或 decoding 選項。單一 JFK 片段不夠。
 8. 驗收後才重新建置、核對 checksum 並發佈 Windows release。這次原始碼上傳不會自動更新舊安裝檔。
+
+## 追加補測（2026-11-06）
+
+- App/Electron 介面：18 項通過，啟動 pipeline 的既有測試仍跳過。
+- Extension Chrome 編輯器 fixture：22 項全通過，涵蓋八個網站按鈕／Tab 草稿寫入、IME、拒絕寫入處理。使用固定翻譯回覆，沒有發送真實貼文，不能替代網站 native host 端到端驗收。
+- Extension popup 語言切換、API 欄位與預覽保留：1 項通過。修正 fixture 路徑檢查，使用 node:path sep 相容 Windows。
+- Extension 單元測試最新結果：297 通過、2 失敗，共 299 項。新增 VOCALUME_TEST_PYTHON 指定真正 Python，隔離 USERPROFILE，修正路徑表示方式；原三項失敗已通過。
+- 剩餘兩項仍未通過：外部快取符號連結 fixture 遭 Windows 權限 WinError 1314 拒絕；release fixture 缺少 zip 工具。沒有移除斷言或跳過以取得通過。
+- 首次 E2E 缺少 Playwright Chromium；改用 PLAYWRIGHT_CHANNEL=chrome 補跑編輯器與 popup。分批合計 41 項通過、1 項跳過，並非一次全套成功。
+
+本節更新前面 extension 自動測試的數量。其餘安裝生命週期、OBS、實際收音長跑、API、跨平台等未通過項目維持原狀，尚未完成全部驗收。
