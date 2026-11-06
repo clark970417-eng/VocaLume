@@ -1,5 +1,7 @@
 # Windows 啟動、翻譯效能與相容性修補報告
 
+> 最新狀態：請以 [Windows 4.6.6 本機驗收與 Haas-JA 報告](windows-acceptance-2026-11-06.md) 為準。以下為早期調查歷史；原先 2 項失敗／跳過現已補測通過，最新為 App 904、介面 42、extension 303 項全通過。OBS、安裝生命週期與音訊補測結果及尚未驗收事項見新報告。
+
 日期：2026-11-06（台灣時間）。這份報告記錄本次 Windows 實機調查、已修改的程式、實測成果，以及尚未完成的項目，供 Mac 上的 Codex 從 GitHub 接手。
 
 後續已完成 [第二輪回應速度、資源使用與品質修補](windows-performance-2026-11-06.md)：Windows Whisper 背景程序、CPU 預算、VRAM 餘裕、892 項單元測試及 41 項介面測試結果。原有未驗收項目的狀態以兩份報告的明確範圍為準。
@@ -130,7 +132,7 @@ node scripts/windows-validation/run-benchmark.cjs C:\path\to\assets
 
 benchmark 會使用本機權重、產生 `translation-demo-result.json` 與本機日誌，不使用雲端、麥克風或瀏覽器。腳本執行後會刪除暫存編譯入口；若中斷後要打包，先重新 `npm run build`。
 
-## 驗證狀態
+## 歷史驗證狀態（已由最新驗收報告取代）
 
 ### 標記規則
 
@@ -173,7 +175,7 @@ benchmark 會使用本機權重、產生 `translation-demo-result.json` 與本�
 | 虛擬麥克風 | 打包時缺少 optional naudiodon native 套件 | **未通過（已確認依賴缺失，功能不可用，尚未修復）** |
 | 新 Windows release 發佈 | 原始碼已上傳 PR，沒有發佈新安裝檔 | **未通過（尚未建置並驗收新 release）** |
 
-### 自動測試中明確未通過的項目
+### 歷史自動測試失敗項目（後續已補測通過）
 
 下列 5 項 extension 測試曾實際執行失敗，不能只寫成「尚未測試」。前 4 項的執行環境回覆找不到 Python（Windows App Execution Alias），第 5 項缺少 zip 工具；目前沒有完成替代環境重跑，所以維持 **未通過（測試環境受阻）**：
 
