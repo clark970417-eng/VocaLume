@@ -130,22 +130,63 @@ benchmark 會使用本機權重、產生 `translation-demo-result.json` 與本�
 
 ## 驗證狀態
 
-| 功能／檢查 | 結果與限制 |
-|---|---|
-| 公開 4.6.4 Windows 安裝檔 | 曾安裝並開啟，下載 checksum 與官方一致 |
-| 本機修補版 App | 建置與可攜包啟動通過，Translate／Models 畫面檢查通過 |
-| 最終 Windows-only 分支 | 872 項桌面測試通過、2 項略過；兩個 TypeScript 專案及 production build 通過 |
-| Extension | 先前合併實驗分支時 295 通過、5 失敗；原主線測試時 294 通過、5 失敗。5 項涉及 Python/Mac 安裝測試與 zip 工具，不能稱全套通過。此 Windows-only 分支不包含實驗分支增加的測試 |
-| 原生 GPU 隔離 | 實際 Whisper＋GPU probe 共存通過；Mac 分支只有 mock 回歸測試 |
-| 音訊翻譯 | 公開 WAV → 真實辨識 → 真實繁中譯文通過 |
-| FFmpeg | mp3、wav、flac、ogg、matroska、mov/mp4/m4a、mpegts、avi、webm 格式 probe 通過 |
-| Native messaging | host ↔ App 通過；瀏覽器到字幕顯示的全路徑尚未通過 |
-| OBS | 官方可攜版可開啟；App 字幕檔 generation 的自動測試通過。OBS 文字來源已建立，但檔案選擇操作受工具限制，未完成實際字幕渲染驗收 |
-| 現場麥克風／電腦聲音 | 沒有完整持續使用驗收，不宣稱延遲與準確度已達標 |
-| 檔案翻譯、編輯、匯出、監看資料夾 | 有既有自動測試，沒有完整真實媒體 UI 驗收 |
-| DeepFilterNet3 降噪 | 沒有完成同一噪音語音的開／關比較 |
-| BYOK／付費 API | 未使用真實金鑰測試 |
-| 虛擬麥克風 | 仍未解決：打包時缺少 optional naudiodon native 套件 |
+### 標記規則
+
+**已實作不等於已通過。** 下表把「做了但沒測」、「只通過單元／mock 測試」、「測試受環境阻擋」以及「實際失敗」全部明確標成 **未通過**，並各自註明原因。這裡的未通過是「尚未通過驗收」，不會把未測試或工具受阻誤寫成已證實的產品故障。只有有直接證據的指定範圍標記已通過。
+
+本次沒有新增測試結果來解除下列未通過項目；不能因為其他測試通過，就自行把它們改成完成。
+
+| 功能／已完成工作 | 本次證據 | 驗收標記與原因 |
+|---|---|---|
+| 公開 4.6.4 Windows 安裝、開啟與 checksum | 原公開安裝檔曾安裝並開啟，checksum 一致 | **已通過（僅舊公開安裝檔的安裝／開啟）** |
+| 新修補版可攜包啟動及 Translate／Models 頁面 | 實機開啟並檢查頁面、Windows STT 顯示 base | **已通過（指定畫面與啟動路徑）** |
+| 新修補版 NSIS 安裝／升級／移除 | 有建置命令與可攜包，未完整跑新安裝器生命週期 | **未通過（已做修補，安裝器實機驗收未完成）** |
+| 型別檢查及 production build | 兩個 TypeScript 專案與 build 通過 | **已通過（建置檢查）** |
+| 桌面自動測試全項驗收 | 872 通過、2 略過 | **未通過（仍有 2 項略過；872 項通過結果保留）** |
+| Extension 自動測試全項驗收 | 此 Windows-only 範圍為 294 通過、5 失敗；先前合併實驗分支時 295 通過、5 失敗 | **未通過（5 項測試失敗，詳見下方清單）** |
+| Windows 引擎預設／舊設定遷移 | 已修改，單元測試通過；一個既有設定案例實機顯示 base | **未通過（完整新用戶、升級與各種舊設定組合尚未驗收）** |
+| Windows GPU 程序隔離成功路徑 | 實際 Whisper＋GPU probe 共存成功，取得兩張 GPU | **已通過（本機成功路徑）** |
+| GPU probe 逾時、程序中止與重試 | 已實作，mock 測試通過 | **未通過（真實驅動失效／GPU 不可用情境尚未測）** |
+| Mac/Linux 原有 GPU 路徑保留 | 程式分流與 Mac mock 回歸測試通過 | **未通過（本輪沒有實體 Mac/Linux 驗收）** |
+| 下載進度節流、活躍 Promise 鎖與重啟恢復 | 已實作，封包進度與殘留 downloading 狀態的自動測試通過 | **未通過（完整真實下載、中斷、續傳及 CPU 前後對照未驗收）** |
+| 延後 Whisper addon 載入與 companion 啟動容錯 | 已實作；缺 DLL 的單元測試與一般啟動檢查通過 | **未通過（實機故意破壞 DLL、named pipe 衝突等失敗情境未完整驗收）** |
+| 選定來源語言、結果語言標記與短漢字保留 | 已實作；日文／法文設定、東京／台北／你好等回歸測試通過；英文音訊實測通過 | **未通過（其他語言、專有名詞與真實短句音訊尚未完成評測）** |
+| Windows Auto 使用 HY-MT1.5、保留手動 7B/API | 已實作，路由回歸測試通過 | **未通過（各 GPU/VRAM 裝置與 1.8B/7B 品質比較未驗收）** |
+| ONNX WebGPU→WASM 備援 | 已實作，mock WebGPU 失敗後轉 WASM 測試通過 | **未通過（實際不支援 WebGPU 的裝置尚未驗收）** |
+| 公開 WAV → 真實辨識 → 真實繁中譯文 | JFK 11 秒樣本成功，原始數據已保存 | **已通過（僅此音訊與模型組合）** |
+| 整體翻譯準確度、多人／噪音／多語延遲 | 只有單一清晰英語樣本，沒有大型 holdout | **未通過（尚未完成代表性評測）** |
+| FFmpeg 指定格式 probe | mp3、wav、flac、ogg、matroska、mov/mp4/m4a、mpegts、avi、webm probe 通過 | **已通過（格式能力 probe；非所有媒體實檔驗收）** |
+| Extension 在獨立測試瀏覽器載入 | 已載入、路徑正確、無停用原因 | **已通過（僅載入檢查）** |
+| Windows native host ↔ App | 實際 framed request 往返成功 | **已通過（host 到 App 的通道）** |
+| 新 Windows 註冊腳本與一般 Chrome／Edge／Opera 整合 | 腳本已完成，host 通道通過；一般瀏覽器流程不完整 | **未通過（瀏覽器啟動 launcher、各瀏覽器／路徑情境未完整驗收）** |
+| 瀏覽器語音字幕、網頁／聊天室讀取、回覆翻譯 | 程式與部分自動測試存在，沒有完整真實網站流程 | **未通過（端到端未驗收；操作工具亦有視窗辨識限制）** |
+| OBS 可攜版開啟 | 官方 OBS 可開啟主畫面 | **已通過（僅 OBS 啟動）** |
+| App OBS 字幕檔 generation | 自動測試涵蓋 final-only、雙語與關閉清空 | **已通過（檔案產生的自動測試）** |
+| OBS 讀取字幕檔與持續更新渲染 | 已建立文字來源，尚未完成檔案選取與實際渲染 | **未通過（工具受阻，未完成實機驗收）** |
+| 現場麥克風／電腦聲音與長時間穩定性 | 尚無完整持續使用驗收 | **未通過（尚未測試至驗收完成）** |
+| 檔案翻譯、編輯、匯出 | 已有功能與自動測試，沒有完整真實媒體 UI 流程 | **未通過（實機流程未驗收）** |
+| 監看資料夾 | 已有功能與自動測試，沒有完整真實新增檔案流程 | **未通過（實機流程未驗收）** |
+| DeepFilterNet3 降噪 | 已有實作；未完成同一噪音音訊開／關比較 | **未通過（尚未測試至驗收完成）** |
+| BYOK／付費 API，含雲端即時功能 | 已有實作；未使用真實金鑰驗證 | **未通過（未實測）** |
+| 虛擬麥克風 | 打包時缺少 optional naudiodon native 套件 | **未通過（已確認依賴缺失，功能不可用，尚未修復）** |
+| 新 Windows release 發佈 | 原始碼已上傳 PR，沒有發佈新安裝檔 | **未通過（尚未建置並驗收新 release）** |
+
+### 自動測試中明確未通過的項目
+
+下列 5 項 extension 測試曾實際執行失敗，不能只寫成「尚未測試」。前 4 項的執行環境回覆找不到 Python（Windows App Execution Alias），第 5 項缺少 zip 工具；目前沒有完成替代環境重跑，所以維持 **未通過（測試環境受阻）**：
+
+1. `native installer preserves another browser extension origin`
+2. `relay imports without the optional OpenCC package`
+3. `relay finds VocaLume after an obsolete registered application was deleted`
+4. `an unavailable external Whisper cache falls back without changing the symlink`
+5. `release completeness gate covers native files and checksums the provenance`
+
+桌面另有 2 項略過，沒有通過結果，同樣標記 **未通過（本輪略過）**：
+
+- `virtual-mic-manager.test.ts` 的 macOS 26 PortAudio 相容性案例，只在 darwin 執行。
+- `mlx-module-probe.test.ts` 的 MLX 可用性探測案例，在本機缺少所需環境時略過。
+
+驗收者應逐項補上測試日期、環境、輸入、輸出與結果後，才將相應列改成已通過。修補存在、單元測試通過、實機元件通過與完整使用者流程通過是不同層級。
 
 ## 給 Mac Codex 的接手順序
 
