@@ -53,7 +53,7 @@ function wrapObsText(text: string): string {
     for (const { segment } of words.segment(paragraph)) {
       const characters = Array.from(graphemes.segment(segment), ({ segment: char }) => ({
         char,
-        width: /^[\x00-\xff]+$/.test(char) ? 1 : 2
+        width: Array.from(char).every(codePoint => codePoint.codePointAt(0)! <= 0xff) ? 1 : 2
       }))
       const wordWidth = characters.reduce((total, character) => total + character.width, 0)
       if (segment.trim() && width + wordWidth > OBS_LINE_WIDTH) pushLine()
