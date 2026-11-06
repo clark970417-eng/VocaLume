@@ -47,6 +47,7 @@ heartbeat 的最大間隔在本次測試下降約 97%；第 95 百分位接近�
 - TypeScript／build 再次通過；Desktop 892 通過、2 跳過；E2E 一次執行 41 通過、1 跳過。
 - Extension 現為 302 項：300 通過、2 失敗，仍為原符號連結權限與 zip 工具問題，不標成全通過。
 - 最新 checkout 及 folder 打包內 worker 都完成真實翻譯與停止釋放。數據見下方兩份 4.6.5 JSON；打包內 worker 的 heartbeat 最大 32.7 ms。
+- CI 曾抓到兩項 GPU fixture 在 Linux 誤走原生路徑：測試未明確設定 Windows 平台。已新增每項測試前的平台設定及結束後的平台／mock 清理；本機重跑通過，遠端結果由 PR Checks 保留。
 - 新的 Haas-ja 需要另外安裝 speech.cpp runtime 與 haas-q8.gguf；本機沒有該套資產，因此其實機速度／品質仍為 **未通過**，不能套用 Whisper 的結果。
 
 ## 準確度的證據範圍
