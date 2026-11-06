@@ -14,10 +14,15 @@ const names = [`VocaLume-${version}-arm64.dmg`, `VocaLume-${version}.dmg`,
   `VocaLume.Setup.${version}.exe`, `VocaLume-${version}.AppImage`, 'vocalume-extension.zip'];
 for (const name of names) if (statSync(join(root, name)).size < 1000) throw new Error(`Missing or empty package: ${name}`);
 const extension = join(root, 'vocalume-extension.zip');
-const manifest = JSON.parse(execFileSync('unzip', ['-p', extension, 'manifest.json'], {encoding:'utf8'}));
+const python = process.env.VOCALUME_TEST_PYTHON || process.env.VOCALUME_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+// Python's standard ZIP reader works on all release runners, including Windows
+// installations without the external zip/unzip command-line tools.
+const archive = JSON.parse(execFileSync(python, ['-I','-c',
+  'import json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); print(json.dumps({"manifest":json.loads(z.read("manifest.json")),"entries":z.namelist()}))', extension], {encoding:'utf8'}));
+const manifest = archive.manifest;
 if (manifest.version !== version || !manifest.name.includes('VocaLume')) throw new Error('Wrong extension manifest');
-const entries = new Set(execFileSync('unzip', ['-Z1', extension], {encoding:'utf8'}).trim().split('\n'));
-for (const required of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md','LICENSE']) {
+const entries = new Set(archive.entries);
+for (const required of ['cloud-api.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/install-windows.ps1','desktop/windows-host.cjs','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md','LICENSE']) {
   if (!entries.has(required)) throw new Error(`Extension installer dependency missing: ${required}`);
 }
 const provenance = {tag, commit, builtAt:new Date().toISOString(), workflow, signed:false, channel:'beta', version,
