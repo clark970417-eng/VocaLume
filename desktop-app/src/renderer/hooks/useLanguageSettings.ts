@@ -68,24 +68,8 @@ export function useLanguageSettings(): LanguageSettingsState {
     }).catch((e) => console.warn('[settings] Failed to load platform/settings:', e))
   }, [])
 
-  // Apply language compatibility only to an explicit UI change. Hydrating saved
-  // settings must not silently replace the user's selected recognition engine.
-  const changeSourceLanguage = (next: SourceLanguage): void => {
-    setSourceLanguage(next)
-    if (next !== 'ja' && sttEngine.startsWith('haas-ja-')) {
-      setSttEngine(platform === 'darwin' ? 'mlx-whisper' : 'whisper-local')
-      return
-    }
-    if (platform !== 'darwin') return
-    if (next === 'ja' && sttEngine === 'mlx-whisper') {
-      setSttEngine('kotoba-whisper')
-    } else if (next !== 'ja' && next !== 'auto' && sttEngine === 'kotoba-whisper') {
-      setSttEngine('mlx-whisper')
-    }
-  }
-
   return {
-    sourceLanguage, setSourceLanguage: changeSourceLanguage,
+    sourceLanguage, setSourceLanguage,
     targetLanguage, setTargetLanguage,
     sttEngine, setSttEngine,
     whisperVariant, setWhisperVariant,
