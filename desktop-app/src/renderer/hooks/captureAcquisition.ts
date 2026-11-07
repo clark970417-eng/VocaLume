@@ -67,22 +67,19 @@ export async function acquireSystemAudio(
   let stream: MediaStream | undefined
   await display.enableLoopbackAudio()
   try {
-    // Chromium requires video for getDisplayMedia. Release it as soon as audio is acquired.
-    stream = await media.getDisplayMedia({ video: true, audio: true })
-    if (!keepLiveAudio(stream)) {
-      throw new AudioCaptureStartError('No system audio was captured. Check that your system allows sharing audio, then retry.')
+    try {
+      // Chromium requires video for getDisplayMedia. Release it as soon as audio is acquired.
+      stream = await media.getDisplayMedia({ video: true, audio: true })
+      if (!keepLiveAudio(stream)) {
+        throw new AudioCaptureStartError('No system audio was captured. Check that your system allows sharing audio, then retry.')
+      }
+      return { stream, route: 'display' }
+    } finally {
+      await display.disableLoopbackAudio()
     }
-    return { stream, route: 'display' }
   } catch (error) {
+    // The caller never receives ownership when acquisition or cleanup fails.
     stopTracks(stream)
     throw error
-  } finally {
-    try {
-      await display.disableLoopbackAudio()
-    } catch (error) {
-      // The caller never received ownership of the stream if cleanup failed.
-      stopTracks(stream)
-      throw error
-    }
   }
 }
