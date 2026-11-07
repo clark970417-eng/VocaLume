@@ -30,7 +30,7 @@ async function fixture(platform:Platform,reject=false):Promise<Page> {
     const box=document.querySelector('[data-editor]') as HTMLElement & {value?:string}
     let model=source
     if(textarea)box.value=source;else box.innerText=source
-    const state={submitted:[] as string[],requests:[] as Array<{type:string;direction?:string;text?:string}>}
+    const state={submitted:[] as string[],requests:[] as Array<{type:string;direction?:string;text?:string}>,readModel:()=>model}
     Object.assign(window,{__fixture:state})
     // Reproduce editors that report success but reject the native transaction.
     if(reject)document.execCommand=()=>true
@@ -113,9 +113,15 @@ for(const platform of platforms.filter(p=>['YouTube','X'].includes(p.name)))test
   const page=await fixture(platform,true)
   try{
     await translate(page,platform)
-    await expect(page.getByRole('status').last()).toContainText('未接受')
+    const notice=platform.name==='X'?'請複製上方草稿後貼入留言框。':'未接受'
+    await expect(page.getByRole('status').last()).toContainText(notice)
     await expect(page.locator('[data-editor]')).toHaveText(source)
-    await expect(page.locator('textarea').last()).toHaveValue(draft)
-    expect(await page.evaluate(()=> (window as any).__fixture.submitted)).toEqual([])
+    const preview=page.locator('textarea').last()
+    await expect(preview).toBeVisible()
+    await expect(preview).toHaveValue(draft)
+    expect(await page.evaluate(()=>{
+      const state=(window as any).__fixture
+      return {editorModel:state.readModel(),submitted:state.submitted}
+    })).toEqual({editorModel:source,submitted:[]})
   }finally{await page.close()}
 })
