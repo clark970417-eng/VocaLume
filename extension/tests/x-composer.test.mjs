@@ -11,7 +11,7 @@ test('X offers reading translation for a Japanese sentence but not Chinese conta
  const node=text=>({textContent:text,insertAdjacentElement(_,control){control.isConnected=true;controls.push(control);}});
  const document={createElement:()=>({children:[],classList:{add(){}},setAttribute(){},append(...children){this.children.push(...children);},remove(){this.isConnected=false;}})};
  const add=vm.runInNewContext(localize+source.slice(source.indexOf('  function addPost'),source.indexOf('  function installPanel'))+'\naddPost',{
-  document,posts:new WeakMap(),read:node=>node.textContent,matchesReadLanguage:text=>shouldTranslateReading(text,'ja','zh'),
+  document,posts:new WeakMap(),postControls:new Set(),read:node=>node.textContent,matchesReadLanguage:text=>shouldTranslateReading(text,'ja','zh'),
   languageSettings:{readSource:'ja',readTarget:'zh'},langLabel:x=>x,button:()=>({classList:{add(){}},setAttribute(){}})
  });
  for(const text of ['這已經是中文','我喜歡まほろちゃん','まほろ'])add(node(text));
@@ -71,7 +71,7 @@ test('X Spaces controls stay outside native positioning and are reused on repeat
  const code=source.slice(source.indexOf('  function installPanel'),source.indexOf('  async function poll'));
  // Use the real mounting/synchronization logic with a stable native dialog.
  const api=vm.runInNewContext('let panel,captionBox,listening=false;\n'+localize+code+'\nfindSpaceHost=()=>host; ({syncSpacePanel,getPanel:()=>panel})',{
-  document,host,button:make,window:{JtlCaptionWindow:class{}},message(){throw Error('must not start a model');}
+  document,host,button:make,window:{JtlCaptionWindow:class{}},poll(){},message(){throw Error('must not start a model');}
  });
  api.syncSpacePanel();const original=api.getPanel();
  for(let i=0;i<20;i++)api.syncSpacePanel();
@@ -89,8 +89,8 @@ function pollingFixture() {
  const toggle=tracked(),status=tracked();
  const panel={isConnected:true,querySelector:s=>s==='button'?toggle:status};
  const captionBox={controller:{render(){renders++;}}};
- const api=vm.runInNewContext('let polling=false,listening=false,subtitleSignature; let panel=initialPanel,captionBox=initialCaption;\n'+localize+source.slice(source.indexOf('  async function poll()'),source.indexOf('  function scan()'))+'\n({poll,close(){panel.isConnected=false;panel=null;captionBox=null;},replace(value){panel=value;},getListening:()=>listening})',{
-  initialPanel:panel,initialCaption:captionBox,Date,JSON,
+ const api=vm.runInNewContext('let listening=false,subtitleSignature; let panel=initialPanel,captionBox=initialCaption;\n'+localize+source.slice(source.indexOf('  let subtitleRevision='),source.indexOf('  chrome.runtime.onMessage?.addListener'))+'\n({poll,close(){panel.isConnected=false;panel=null;captionBox=null;},replace(value){panel=value;},getListening:()=>listening})',{
+  initialPanel:panel,initialCaption:captionBox,document:{hidden:false},Date,JSON,clearTimeout,setTimeout,
   message:()=>new Promise((resolve,fail)=>{reply=resolve;reject=fail;})
  });
  return {api,panel,respond:data=>reply(data),reject:error=>reject(error),counts:()=>({renders,writes})};

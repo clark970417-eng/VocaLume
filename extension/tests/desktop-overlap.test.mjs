@@ -1,4 +1,6 @@
+import {NativeCueTimeline} from '../youtube-cue.mjs';
 import * as cloudApi from '../cloud-api.mjs';
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -9,7 +11,7 @@ import {CueCursor} from '../cue-cursor.mjs';
 import * as policy from '../translation-policy.mjs';
 
 test('pending desktop acknowledgements keep Japanese open for late Chinese and retain row order',async()=>{
- let listener,client;
+ let listener,client,speechTarget='zh';
  const segments=[];
  class NativeClient {
   constructor(){client=this;}
@@ -21,9 +23,9 @@ test('pending desktop acknowledgements keep Japanese open for late Chinese and r
    return {text,translated:'',pending:true};
   }
  }
- const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'record'},recordedCaptions:[]}),set:async()=>{}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
+ const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'record'},languageSettings:{speechTarget},recordedCaptions:[]}),set:async()=>{}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloudApi,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date});
+ vm.runInNewContext(source,{...cloudApi,...taiwanChinese,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,...policy,URLSearchParams,AbortSignal,AbortController,Date});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
  for(let i=1;i<=5;i++)await call({type:'desktop-request',op:'decode',segment:String(i),utterance:'one-continuous-speech',final:true,audio:'test',speechAt:Date.now()+i,audioEndAt:Date.now()},{url:'chrome-extension://test/offscreen.html'});
@@ -43,6 +45,16 @@ test('pending desktop acknowledgements keep Japanese open for late Chinese and r
  assert.deepEqual(Array.from(entries,e=>e.translated),['中文第1句','中文第2句','中文第3句','中文第4句','中文第5句']);
  assert.equal(entries.filter(e=>e.state==='done').length,5);
  assert.equal(entries[0].error,'','a valid final after decoder recovery repairs the failed caption');
+ const decode=segment=>call({type:'desktop-request',op:'decode',segment,final:true,audio:'test',speechAt:Date.now(),audioEndAt:Date.now()},{url:'chrome-extension://test/offscreen.html'});
+ await decode('old-pending');
+ const oldPending=segments.at(-1);
+ await call({type:'subtitle-control',action:'stop'});
+ speechTarget='en';
+ await call({type:'subtitle-control',action:'start',tabId:7});
+ for(let i=0;i<201;i++)await decode('new-'+i);
+ client.onEvent({event:'caption',segment:oldPending,result:{text:'日本語6',translated:'中文第6句',targetLanguage:'zh',final:true}});
+ entries=(await call({type:'recording-export'})).text;
+ assert.equal(entries.find(entry=>entry.key===oldPending).translated,'中文第6句','retiring old completed metadata must leave a prior pending recording and its language intact');
  await call({type:'subtitle-control',action:'stop'});
 });
 
@@ -53,7 +65,7 @@ test('single-pair mode waits for Chinese even when the next sentence has already
   async request(op,fields){if(op!=='decode')return {};segments.push(fields.segment);this.onEvent({event:'source',segment:fields.segment,text:'日本語'+segments.length});return {text:'日本語'+segments.length,pending:true};}
  }
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'realtime'}}),set:async()=>{}}},tabs:{sendMessage:async(_,m)=>updates.push(m),onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=>'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
- vm.runInNewContext(fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),{...cloudApi,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,setTimeout:fn=>{timers.set(++sequence,fn);return sequence;},clearTimeout:id=>timers.delete(id)});
+ vm.runInNewContext(fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),{...cloudApi,...taiwanChinese,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,...policy,URLSearchParams,AbortSignal,AbortController,Date,setTimeout:fn=>{timers.set(++sequence,fn);return sequence;},clearTimeout:id=>timers.delete(id)});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
  for(let i=0;i<2;i++)await call({type:'desktop-request',op:'decode',segment:String(i),utterance:String(i),audio:'test',speechAt:Date.now()+i,audioEndAt:Date.now(),final:true},{url:'chrome-extension://test/offscreen.html'});
@@ -67,6 +79,9 @@ test('single-pair mode waits for Chinese even when the next sentence has already
  // Late corrections to the earlier segment cannot replace the new pair.
  client.onEvent({event:'caption',segment:segments[0],result:{text:'日本語1',translated:'舊句修正',correction:true}});
  assert.equal(updates.at(-1).item.translated,'第二句中文');
+ client.onEvent({event:'caption',segment:segments[1],result:{text:'日本語2',translated:'第二句新修正',correction:true,revision:2}});
+ client.onEvent({event:'caption',segment:segments[1],result:{text:'日本語2',translated:'過時的修正',correction:true,revision:1}});
+ assert.equal(updates.at(-1).item.translated,'第二句新修正');
  await call({type:'subtitle-control',action:'stop'});assert.equal(timers.size,0);
 });
 
@@ -84,7 +99,7 @@ test('desktop diagnostics measure final-source and final-translation delivery on
  }
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'record'},recordedCaptions:[]}),set:async()=>{}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloudApi,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock});
+ vm.runInNewContext(source,{...cloudApi,...taiwanChinese,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
  await call({type:'desktop-request',op:'decode',segment:'1',final:true,audio:'test',speechAt:500,audioEndAt:1000},{url:'chrome-extension://test/offscreen.html'});

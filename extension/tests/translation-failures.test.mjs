@@ -1,4 +1,6 @@
+import {NativeCueTimeline} from '../youtube-cue.mjs';
 import * as cloudApi from '../cloud-api.mjs';
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -16,7 +18,7 @@ function setup(languageSettings={}, translateResult=fields=>fields.text.includes
   close(){}
  }
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloudApi,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch:async()=>{throw Error('offline');}});
+ vm.runInNewContext(source,{...cloudApi,...taiwanChinese,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch:async()=>{throw Error('offline');}});
  return {requests,call:message=>new Promise(resolve=>listener(message,{},resolve))};
 }
 
@@ -24,7 +26,7 @@ test('emoji, numbers and a URL on separate chat lines cannot fail an otherwise v
  const t=setup();
  const result=await t.call({type:'translate',text:'今日は楽しかったです。\n🎉🎉\n7/14\nhttps://example.invalid/live/123',direction:'ja-zh'});
  assert.equal(result.ok,true,result.error);
- assert.equal(result.text,'今天很開心。🎉🎉7/14https://example.invalid/live/123');
+ assert.equal(result.text,'今天很開心。\n🎉🎉\n7/14\nhttps://example.invalid/live/123');
  assert.deepEqual(t.requests.filter(r=>r.op==='translate').map(r=>r.text),['今日は楽しかったです。']);
 });
 
@@ -43,7 +45,7 @@ test('all other targets use their requested pair and preserve multi-line literal
  assert.equal((await t.call({type:'subtitle-control',action:'start',tabId:7})).ok,true);
  for(const [to,expected] of Object.entries(outputs)){
   const direction=`ja-${to}`,result=await t.call({type:'translate',text:'明日は配信を休みます。\n🎉\n٧/١٤\nhttps://example.invalid/live',direction});
-  assert.equal(result.ok,true,result.error);assert.equal(result.text,expected+'🎉٧/١٤https://example.invalid/live',direction);
+  assert.equal(result.ok,true,result.error);assert.equal(result.text,expected+'\n🎉\n٧/١٤\nhttps://example.invalid/live',direction);
   assert.equal(t.requests.filter(r=>r.op==='translate'&&r.direction===direction).length,1);
  }
  await t.call({type:'subtitle-control',action:'stop'});

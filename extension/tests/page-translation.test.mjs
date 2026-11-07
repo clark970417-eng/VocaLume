@@ -6,7 +6,7 @@ import fs from 'node:fs';
 /** Live chat and comment translation with a recyclable node, as a virtualized
  * list gives us: the same element object is reused for a different message. */
 function setup(semanticOnly=false,titleConfig=null){
- const chat=[], requests=[], rendered=[], intervals=[]; let change, navigate, receive;
+ const chat=[], requests=[], statusRequests=[], rendered=[]; let change, navigate, receive;
  const makeLine=()=>({className:'',textContent:'',dataset:{},children:[],isConnected:false,
   classList:{add(){},remove(){},toggle(){}},style:{setProperty(){}},
   setAttribute(){},append(...kids){this.children.push(...kids);},replaceChildren(...kids){this.children=kids;},
@@ -36,13 +36,13 @@ function setup(semanticOnly=false,titleConfig=null){
  const window={};window.top=window;
  const chrome={storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true})},
    onChanged:{addListener:f=>change=f}},
-  runtime:{onMessage:{addListener:f=>receive=f},sendMessage:(message,reply)=>requests.push({message,reply})}};
+  runtime:{onMessage:{addListener:f=>receive=f},sendMessage:(message,reply)=>(message.type==='subtitles'?statusRequests:requests).push({message,reply})}};
  let scan;
  vm.runInNewContext((fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8')),
   {chrome,window,document,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
-   setInterval(fn){intervals.push(fn);},setTimeout(fn,delay){if(delay===250)fn();return 0;},clearTimeout(){},console});
+   setInterval(){return 1;},clearInterval(){},setTimeout(fn,delay){if(delay===250)fn();return 0;},clearTimeout(){},console});
  return {chat,title,requests,makeNode,scan:()=>scan(),navigate:()=>navigate?.(),runtime:chrome.runtime,
-  rendered,poll:()=>intervals[0](),push:item=>receive({type:'subtitle-update',item}),
+  rendered,statusRequests,push:item=>receive({type:'subtitle-update',item}),
   toggle:v=>change({websiteTextOptInEnabled:{newValue:v}},'local')};
 }
 
@@ -162,11 +162,10 @@ test('a queued duplicate remains valid after its first consumer leaves the scree
 
 test('an older subtitle poll cannot clear a newly pushed caption',async()=>{
  const t=setup();await settle();
- const poll=t.poll();
  const caption={id:2,original:'今',translated:'新字幕',expiresAt:Date.now()/1000+30};
  t.push(caption);
- t.requests[0].reply({ok:true,text:{running:false,items:[]}});
- await poll;
+ t.statusRequests[0].reply({ok:true,text:{running:false,items:[]}});
+ await settle();
  assert.equal(t.rendered.length,1);
  assert.equal(t.rendered[0][0],caption);
 });
