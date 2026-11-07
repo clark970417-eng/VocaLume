@@ -36,8 +36,7 @@ export function getEnrichedPath(): string {
  * In packaged app: extraResources/bridge-scripts/ via process.resourcesPath.
  */
 export function resolveBridgeScript(scriptName: string): string {
-  const { app } = require('electron')
-  if (app.isPackaged) {
+  if (process.versions.electron && require('electron').app?.isPackaged) {
     return join(process.resourcesPath, 'bridge-scripts', scriptName)
   }
   // Dev mode: __dirname = out/main/ → ../../resources/
