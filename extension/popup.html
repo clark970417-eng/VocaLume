@@ -79,6 +79,9 @@
         <button id="openAppearance" class="text-button" type="button">字幕預覽、文字大小與顏色 →</button>
         <details id="engineOptions"><summary id="engineSummary">翻譯方式</summary>
           <label for="engineMode">使用<select id="engineMode"><option value="desktop">VocaLume 桌面程式 · 本機模型</option><option value="browser">瀏覽器 · 辨識＋網路翻譯</option></select></label>
+          <label id="browserSpeechOptions" for="browserSpeechProfile">瀏覽器辨識模型
+            <select id="browserSpeechProfile"><option value="default">Whisper Small · FP32（預設）</option><option value="small-fp16">Whisper Small · FP16（支援時試用）</option></select>
+          </label>
           <button id="desktopSettings" class="text-button" type="button">開啟 App 調整模型 ↗</button>
         </details>
         <details id="speechToneOptions"><summary>語氣與笑聲</summary>

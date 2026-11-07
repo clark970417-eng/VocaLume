@@ -2,7 +2,7 @@
   color: #2fbe7c !important;
   font: 500 0.92em/1.4 -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif !important;
   margin-top: 3px !important;
-  white-space: normal !important;
+  white-space: pre-wrap !important;
   overflow-wrap: anywhere !important;
 }
 

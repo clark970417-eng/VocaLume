@@ -44,7 +44,7 @@ function stopCapture(drain){
 }
 function resetAudio(s){
  s.previewBudget.resetSource();
- s.epoch++;s.queue.clear();s.filter.reset();s.agreement.reset();s.vadQueue=[];s.lastId=null;s.previewId=null;s.origin=Date.now();
+ s.epoch++;s.queue.clear();s.filter.reset();s.agreement.reset();s.vadQueue=[];s.lastId=null;s.previewId=null;s.origin=Date.now();s.nativeCoverage=null;
  s.vad?.postMessage({type:'reset',epoch:s.epoch,origin:s.origin,rate:s.context.sampleRate,desktop:s.desktop});
 }
 function decode(s,job){
@@ -53,7 +53,9 @@ function decode(s,job){
  if(s.busy){try{s.queue.push(job);}catch(error){send(s,'speech-error',{error:error.message});stop();}return;}
  // The rolling VAD buffer keeps all speech. Skip only speculative revisions;
  // completed utterances bypass the cooldown and retain their queue order.
- if(!job.final&&(s.queue.jobs.some(x=>x.final)||s.previewBudget.remainingMs(performance.now(),s.performance)>0)){
+ const covered=s.nativeCoverage&&Date.now()-s.nativeCoverage.end<650&&
+  job.speechAt>=s.nativeCoverage.start&&job.audioEndAt<=s.nativeCoverage.end;
+ if(!job.final&&(covered||s.queue.jobs.some(x=>x.final)||s.previewBudget.remainingMs(performance.now(),s.performance)>0)){
   s.previewsSkipped++;const next=s.queue.takeFresh(Date.now(),s.epoch);if(next)decode(s,next);else finishDrain(s);return;
  }
  if(!s.recording&&!s.desktop&&Date.now()-job.audioEndAt>4000){s.expired++;return;}
@@ -71,7 +73,6 @@ function sample(s,data){
  if(active!==s||s.inputFlushed)return;
  s.frames++;let energy=0;for(const v of data)energy+=v*v;s.level=Math.sqrt(energy/data.length);
  if(!s.vadReady||(!s.ready&&!(s.recording&&s.receiving)))return;
- if(s.nativeUntil){if(Date.now()<s.nativeUntil)return;s.nativeUntil=0;resetAudio(s);}
  if(!s.receiving){s.receiving=true;resetAudio(s);}
  if(s.vadQueue.length>=(s.recording?120:12)){if(s.recording){send(s,'speech-error',{error:'收音處理積壓，已停止收音；已辨識文字仍保留'});stop();return;}s.overruns++;resetAudio(s);}
  s.vadQueue.push(data);drainVad(s);
@@ -81,6 +82,7 @@ function restartWorker(s,reason){
  if(s.restarts>=MAX_WORKER_RESTARTS){send(s,'speech-error',{error:reason+'；自動復原已達上限，請按停止後再開始'});stop();return;}
  const attempt=++s.restarts,delay=restartDelay(attempt);
  clearTimeout(s.timeout);
+ if(!s.ready&&s.profile==='small-fp16'){s.profile='default';s.profileFallback=true;}
  if(s.busy&&(s.recording||s.desktop))s.queue.retry(s.busy);
  const failed=s.worker;s.worker=null;failed?.terminate();s.ready=false;s.busy=null;
  if(!s.recording&&!s.desktop){s.receiving=false;resetAudio(s);}
@@ -94,12 +96,21 @@ function initializeWorker(s){
  worker.onmessage=async({data})=>{
   if(active!==s||s.worker!==worker)return;
   if(data.type==='progress'){clearTimeout(s.timeout);s.timeout=setTimeout(()=>restartWorker(s,'模型載入逾時'),120000);if(Date.now()-(s.lastProgress||0)>1000){s.lastProgress=Date.now();send(s,'model-status',{text:'下載辨識模型 '+data.progress+'%…'});}return;}
-  if(data.type==='ready'){clearTimeout(s.timeout);s.ready=true;s.model=data.model;s.dtype=data.dtype;send(s,'model-status',{text:data.model+' 已就緒，等待人聲'});const next=s.queue.takeFresh(Date.now(),s.epoch);if(next)decode(s,next);return;}
+  if(data.type==='profile-fallback'&&s.profile==='small-fp16'){
+   clearTimeout(s.timeout);worker.terminate();s.profile='default';s.profileFallback=true;
+   initializeWorker(s);return;
+  }
+  if(data.type==='ready'){
+   clearTimeout(s.timeout);s.ready=true;s.model=data.model;s.dtype=data.dtype;
+   const status=s.profileFallback||data.fallback?'，已回到 FP32':'';
+   send(s,'model-status',{text:data.model+(data.dtype?' '+data.dtype:'')+status+' 已就緒，等待人聲'});
+   const next=s.queue.takeFresh(Date.now(),s.epoch);if(next)decode(s,next);return;
+  }
   if(data.type==='error'){restartWorker(s,data.error);return;}
   if(data.type==='partial'){
    if(s.desktop)return;
    const job=s.busy;
-   if(!job||data.id!==job.id||job.epoch!==s.epoch||s.nativeUntil||Date.now()-job.audioEndAt>=5000)return;
+   if(!job||data.id!==job.id||job.epoch!==s.epoch||Date.now()-job.audioEndAt>=5000)return;
    const text=cleanText(data.text);
    if(!text||job.voicedSeconds<.4||/視聴|チャンネル登録/.test(text))return;
    const result=s.agreement.preview(text,job);if(!result)return;
@@ -114,7 +125,7 @@ function initializeWorker(s){
   const job=s.busy;
   if(job)s.previewBudget.observeSource(data.text||'',job.final);
   if(job&&data.text)s.vad?.postMessage({type:'transcript',epoch:s.epoch,id:job.id,utteranceId:job.utteranceId,sampleCount:job.sampleCount,text:data.text});
-  if(job&&job.epoch===s.epoch&&!s.nativeUntil&&(s.recording||Date.now()-job.audioEndAt<5000)){
+  if(job&&job.epoch===s.epoch&&(s.recording||Date.now()-job.audioEndAt<5000)){
    if(s.desktop&&data.text&&s.lastId!==job.id){s.lastId=job.id;s.metrics.add('firstJapaneseMs',Date.now()-job.speechAt);s.metrics.add('audioLagMs',Date.now()-job.audioEndAt);}
    const text=s.desktop?null:s.filter.accept(data.text,job);
    const result=text?s.agreement.accept(text,job):null;
@@ -127,7 +138,7 @@ function initializeWorker(s){
   if(active!==s||s.worker!==worker)return;
   s.busy=null;const next=s.queue.takeFresh(Date.now(),s.epoch);if(next)decode(s,next);else finishDrain(s);
  };
- worker.postMessage({type:'init'});
+ worker.postMessage({type:'init',sourceLanguage:s.sourceLanguage,profile:s.profile});
 }
 function initializeVad(s){
  s.vad=new Worker('vad-worker.js?v=4.5.1',{type:'module'});
@@ -139,7 +150,7 @@ function initializeVad(s){
   if(m.type==='flushed'&&m.epoch===s.epoch){clearTimeout(s.vadTimeout);s.vadFlushed=true;s.queue.jobs=s.queue.jobs.filter(job=>job.final);finishDrain(s);return;}
   if(m.type==='error'){send(s,'speech-error',{error:'人聲偵測失敗：'+m.error});stop();return;}
   if(m.type==='processed'){clearTimeout(s.vadTimeout);s.vadBusy=false;s.probability=m.probability;s.metrics.add('vadMs',m.vadMs);drainVad(s);}
-  if(m.type==='segment'&&m.job.epoch===s.epoch&&!s.nativeUntil){
+  if(m.type==='segment'&&m.job.epoch===s.epoch){
    if(m.job.final)s.metrics.add('cueMs',m.job.audio.length/16);
    decode(s,m.job);
   }
@@ -149,7 +160,8 @@ function initializeVad(s){
 async function start(m){
  stop();const s=active={session:m.session,epoch:0,ready:false,vadReady:false,restarts:0,restartTimer:null,frames:0,level:0,decodeMs:500,previewBudget:new PreviewBudget(),previewsSkipped:0,recording:Boolean(m.recording),queue:new DecodeQueue({retainFinals:Boolean(m.recording)||m.mode==='desktop',retainInterim:m.mode==='desktop'}),vadQueue:[],filter:new SpeechResultFilter(),agreement:new Agreement(),metrics:new Measurements(),expired:0,rejected:0,overruns:0};
  try{
-  s.desktop=m.mode==='desktop';
+  s.desktop=m.mode==='desktop';s.sourceLanguage=m.sourceLanguage;
+  s.profile=!s.desktop&&m.speechProfile==='small-fp16'?'small-fp16':'default';
   s.stream=await navigator.mediaDevices.getUserMedia({audio:{mandatory:{chromeMediaSource:'tab',chromeMediaSourceId:m.streamId}},video:false});
   if(active!==s){s.stream.getTracks().forEach(t=>t.stop());return;}
   s.context=new AudioContext();await s.context.resume();s.source=s.context.createMediaStreamSource(s.stream);s.source.connect(s.context.destination);
@@ -162,11 +174,13 @@ async function start(m){
  }catch(error){send(s,'speech-error',{error:error.message});stop();throw error;}
 }
 chrome.runtime.onMessage.addListener((m,s,reply)=>{
- if(m.type==='offscreen-native'){
-  if(active&&m.session===active.session){if(!active.nativeUntil)resetAudio(active);active.nativeUntil=Date.now()+1800;}
+ if(m.type==='offscreen-native-coverage'){
+  if(active&&m.session===active.session&&Number.isFinite(m.start)&&Number.isFinite(m.end)&&m.start<=m.end){
+   active.nativeCoverage={start:m.start,end:m.end};
+  }
   reply({ok:true});return;
  }
  if(m.type==='offscreen-start'){start(m).then(()=>reply({ok:true}),e=>reply({ok:false,error:e.message}));return true;}
- if(m.type==='offscreen-reset'){if(active){active.session=m.session;active.nativeUntil=0;resetAudio(active);}reply({ok:Boolean(active)});return;}
+ if(m.type==='offscreen-reset'){if(active){active.session=m.session;resetAudio(active);}reply({ok:Boolean(active)});return;}
  if(m.type==='offscreen-stop'){stopCapture(m.drain).then(reply,e=>reply({ok:false,error:e.message}));return true;}
 });

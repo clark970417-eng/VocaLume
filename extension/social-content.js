@@ -128,7 +128,7 @@
   let composerLayoutObserver;
   let composerPosition;
   let contextInvalid = false;
-  let pollTimer;
+  let subtitleExpiry;
   let pageObserver;
   const contextRecoveryMessage = '擴充功能已重新載入。請先保留未送出的留言，再重新整理此頁恢復翻譯。';
   const cache = new Map();
@@ -142,8 +142,6 @@
   let globalTextEnabled = true;
   let currentSiteEnabled = dedicatedSite;
   let epoch = 0;
-  let polling = false;
-  let nextSubtitlePollAt = 0;
   let subtitleRevision = 0;
   let lastSubtitleSignature = '';
   let captionBox;
@@ -159,8 +157,7 @@
   }
   const langLabel=code=>{const label=({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();return pageUi?.label(code,label)??label;};
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
-  const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
-  const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
+  const matchesLanguage=(text,lang)=>globalThis.VocaLumeTranslationGuards.shouldTranslateWriting(text,lang);
   const matchesReadLanguage=text=>globalThis.VocaLumeTranslationGuards.shouldTranslateReading(text,languageSettings.readSource,languageSettings.readTarget);
 
   const hasJapanese = text => /[\u3040-\u30ff]/.test(text);
@@ -193,7 +190,7 @@
     if (!contextInvalid && !/extension context invalidated/i.test(description)) return new Error(description);
     if (!contextInvalid) {
       contextInvalid = true;
-      if (pollTimer != null) clearInterval(pollTimer);
+      clearTimeout(subtitleExpiry);
       pageObserver?.disconnect?.();
       composerLayoutObserver?.disconnect();
       if (captionBox) captionBox.hidden = true;
@@ -280,14 +277,15 @@
     const auto = site === 'twitch' && streamerChatMode && !isTitle;
     if (!isTitle && !auto) node = messageTextNode(node);
     const detectionEpoch = epoch;
-    const source = clean(node.innerText || node.textContent);
+    const readText = () => String(node.innerText || node.textContent || '').trim();
+    const source = readText();
     const parent = node.parentElement;
     // The background translator safely splits long messages. Keep only a
     // generous guard against accidentally selecting an entire chat timeline.
     const readDirection = auto
       ? await globalThis.VocaLumeTranslationGuards.streamerChatDirection(source, languageSettings.readTarget, value => chrome.i18n.detectLanguage(value))
       : matchesReadLanguage(source) ? direction('read') : null;
-    if (detectionEpoch !== epoch || !node.isConnected || clean(node.innerText || node.textContent) !== source) return;
+    if (detectionEpoch !== epoch || !node.isConnected || readText() !== source) return;
     let line = parent?.querySelector(':scope > .jtl-social-translation');
     if (!source || source.length > 3000 || !readDirection) {
       if (translated.has(node)) {
@@ -307,7 +305,7 @@
     const owner = {};
     lineOwners.set(line, owner);
     const ownsLine = () => lineOwners.get(line) === owner;
-    const valid = () => ownsLine() && enabled && currentEpoch === epoch && node.isConnected && clean(node.innerText || node.textContent) === source;
+    const valid = () => ownsLine() && enabled && currentEpoch === epoch && node.isConnected && readText() === source;
     const discard = () => {
       if (currentEpoch === epoch && translated.get(node) === source) translated.delete(node);
       if (ownsLine()) line.remove();
@@ -612,52 +610,60 @@
 
   function renderSubtitles(data) {
     if (document.hidden) return;
-    installCaptionBox();
-    if (!captionBox) return;
+    clearTimeout(subtitleExpiry);
     const item = data.running ? data.items?.at(-1) : null;
     const fresh = item && !item.expired && Date.now() / 1000 < (item.expiresAt ?? item.updatedAt + 3);
     const rows = data.running ? (item?.recordingRows || (fresh ? [item] : [])) : [];
+    if(rows.length)installCaptionBox();
+    if(!captionBox)return;
     const signature = JSON.stringify(rows);
     if (signature !== lastSubtitleSignature) {
       lastSubtitleSignature = signature;
       captionBox.controller.render(rows);
     }
     captionBox.hidden = !rows.length;
+    if(fresh&&!item.recordingRows){
+      const expires=(item.expiresAt??item.updatedAt+3)*1000;
+      subtitleExpiry=setTimeout(()=>{
+        if(Date.now()>=expires&&lastSubtitleSignature===signature)renderSubtitles({running:true,items:[]});
+      },Math.max(0,expires-Date.now())+5);
+    }
   }
 
   async function pollSubtitles() {
-    if (contextInvalid || document.hidden || window.top !== window || polling || Date.now() < nextSubtitlePollAt) return;
-    polling = true;
-    const revision = subtitleRevision;
+    if (contextInvalid || document.hidden || window.top !== window) return;
+    const revision = ++subtitleRevision;
     try {
       const data = await message({type: 'subtitles'});
       if (revision !== subtitleRevision) return;
-      nextSubtitlePollAt = Date.now() + (data.running ? 0 : 10000);
       renderSubtitles(data);
     }
-    catch (_) { nextSubtitlePollAt = Date.now() + 10000; /* The popup reports actionable capture/desktop errors. */ }
-    finally { polling = false; }
+    catch (_) { /* The popup reports actionable capture/desktop errors. */ }
   }
 
-  function scan() {
+  const domWork=globalThis.VocaLumeDomWork;
+  const query=(selector,roots)=>domWork?.query(document,selector,roots)??[...document.querySelectorAll(selector)];
+  const regionSelector='[role="log"], [aria-live="polite"], [aria-live="assertive"]';
+  function scan(roots) {
     if (contextInvalid || document.hidden) return;
     if (activeControls) positionComposerControls(activeComposer, activeControls);
-    if (window.top === window) installCaptionBox();
     if (!enabled) return;
-    if (window.top === window) config.title.forEach(selector => document.querySelectorAll(selector).forEach(node => translateNode(node, true, 1_000_000_000 + ++translationOrder)));
+    if (window.top === window) config.title.forEach(selector => query(selector,roots).forEach(node => translateNode(node, true, 1_000_000_000 + ++translationOrder)));
     // Both sites restore large virtualized chat histories. Keep model work
     // bounded and always let the newest visible messages enter the queue first.
     // Hashed classes change frequently on both sites. ARIA live regions are a
     // stable semantic contract, so scan their smallest Japanese leaves as a
     // fallback when product-specific selectors no longer match.
-    const semanticMessages = (site === 'discord' || (site === 'twitch' && streamerChatMode)) ? [] : [...document.querySelectorAll('[role="log"], [aria-live="polite"], [aria-live="assertive"]')]
-      .flatMap(region => [...region.querySelectorAll('span,p,div')])
+    const regions = (site === 'discord' || (site === 'twitch' && streamerChatMode)) ? []
+      : roots ? new Set([...query(regionSelector,roots),...roots.filter(root=>root.closest?.(regionSelector))]) : query(regionSelector);
+    const semanticMessages = [...regions]
+      .flatMap(region => [...(roots&&region.matches?.('span,p,div')?[region]:[]),...region.querySelectorAll('span,p,div')])
       .filter(element => {
         const text = clean(element.innerText || element.textContent);
         return text && matchesReadLanguage(text) && ![...element.children].some(child => matchesReadLanguage(clean(child.innerText || child.textContent)));
       });
     const messages = [...new Set([
-      ...(site === 'twitch' && streamerChatMode ? config.text.slice(0, 2) : config.text).flatMap(selector => [...document.querySelectorAll(selector)]),
+      ...(site === 'twitch' && streamerChatMode ? config.text.slice(0, 2) : config.text).flatMap(selector => query(selector,roots)),
       ...semanticMessages
     ])].slice(-20);
     const batch = ++translationOrder * 1000;
@@ -665,7 +671,7 @@
     if (!isUsableComposer(activeComposer) || !activeControls?.isConnected) {
       let candidate;
       for (const selector of config.composer) {
-        candidate = [...document.querySelectorAll(selector)].find(isUsableComposer);
+        candidate = query(selector,roots).find(isUsableComposer);
         if (candidate) break;
       }
       if (candidate) installComposer(candidate);
@@ -674,6 +680,7 @@
 
   function setEnabled(value) {
     enabled = value !== false;
+    pageObserver?.sync?.();
     epoch++;
     translated = new WeakMap();
     if (!enabled) {
@@ -692,8 +699,7 @@
   chrome.runtime.onMessage.addListener(payload => {
     if (payload.type === 'subtitle-update' && window.top === window) {
       subtitleRevision++;
-      nextSubtitlePollAt = 0;
-      renderSubtitles({running: true, items: [payload.item]});
+      renderSubtitles({running: payload.running??Boolean(payload.item), items: [payload.item]});
     }
   });
   chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess','streamerChatMode']).then(settings => {
@@ -726,18 +732,20 @@
     }
   });
   let scheduled = false;
-  pageObserver = new MutationObserver(() => {
-    if (contextInvalid) return;
-    if (scheduled) return;
-    scheduled = true;
-    setTimeout(() => { scheduled = false; scan(); }, 250);
-  });
-  pageObserver.observe(document.documentElement, {subtree: true, childList: true, attributes: true, attributeFilter: ['contenteditable']});
+  if(domWork){
+    pageObserver=domWork.observe(document,[...config.title,...config.text,...config.composer,regionSelector].join(','),scan,
+      {enabled:()=>enabled&&!contextInvalid});
+  }else{
+    pageObserver=new MutationObserver(()=>{
+      if(contextInvalid||scheduled)return;
+      scheduled=true;setTimeout(()=>{scheduled=false;scan();},250);
+    });
+    pageObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['contenteditable']});
+  }
   document.addEventListener('focusin', focusedComposer, true);
   document.addEventListener('visibilitychange', () => {
     subtitleRevision++;
     if (document.hidden || contextInvalid) return;
-    nextSubtitlePollAt = 0;
     void pollSubtitles();
     scan();
   });
@@ -753,5 +761,5 @@
   window.addEventListener?.('resize', reposition, {passive: true});
   document.addEventListener('scroll', reposition, {capture: true, passive: true});
   scan();
-  if (window.top === window) pollTimer = setInterval(pollSubtitles, 700);
+  if (window.top === window) void pollSubtitles();
 })();

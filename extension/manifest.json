@@ -46,6 +46,12 @@
   },
   "content_scripts": [
     {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["youtube-source.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
       "matches": ["https://vocalume.vercel.app/*"],
       "js": ["website-language-content.js"],
       "run_at": "document_idle"
@@ -58,6 +64,7 @@
         "streamer-vocabulary.js",
         "translation-guards.js",
         "page-language.js",
+        "dom-work.js",
         "caption-window.js",
         "content.js"
       ],
@@ -79,6 +86,7 @@
         "streamer-vocabulary.js",
         "translation-guards.js",
         "page-language.js",
+        "dom-work.js",
         "caption-window.js",
         "x-content.js"
       ],
@@ -102,6 +110,7 @@
         "streamer-vocabulary.js",
         "translation-guards.js",
         "page-language.js",
+        "dom-work.js",
         "caption-window.js",
         "social-content.js"
       ],
@@ -136,6 +145,7 @@
         "streamer-vocabulary.js",
         "translation-guards.js",
         "page-language.js",
+        "dom-work.js",
         "caption-window.js",
         "social-content.js"
       ],

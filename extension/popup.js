@@ -212,6 +212,7 @@ function renderEngine() {
   const desktop = $('#engineMode').value === 'desktop';
   $('#engineSummary').textContent = desktop ? '翻譯方式 · 本機 App' : '翻譯方式 · 瀏覽器';
   $('#desktopSettings').hidden = !desktop;
+  $('#browserSpeechOptions').hidden = desktop;
   $('#speechToneMode').disabled = !desktop;
 }
 listen('#engineMode', 'change', async () => {
@@ -219,6 +220,7 @@ listen('#engineMode', 'change', async () => {
   await savePreferences({speechMode: $('#engineMode').value}, '翻譯方式已儲存；下次開始時套用');
 });
 for (const id of ['writingStyle', 'writingQuality']) listen('#' + id, 'change', () => savePreferences({[id]: $('#' + id).value}));
+listen('#browserSpeechProfile','change',()=>savePreferences({browserSpeechProfile:$('#browserSpeechProfile').value},'翻譯方式已儲存；下次開始時套用'));
 
 function renderSpeech() {
   const d = lastHealth;
@@ -375,7 +377,7 @@ listen('#retryRecording', 'click', async () => {
 
 async function initialize() {
   $('#extensionVersion').textContent = 'v' + chrome.runtime.getManifest().version;
-  const saved = await chrome.storage.local.get(['languageSettings', 'subtitleSettings', 'captionStyleV34', 'speechMode', 'writingStyle', 'writingQuality', 'websiteTextOptInEnabled', 'streamerChatMode', 'popupPanel']);
+  const saved = await chrome.storage.local.get(['languageSettings', 'subtitleSettings', 'captionStyleV34', 'speechMode', 'browserSpeechProfile', 'writingStyle', 'writingQuality', 'websiteTextOptInEnabled', 'streamerChatMode', 'popupPanel']);
   const languages = {...languageDefaults, ...saved.languageSettings};
   for (const id of languageIds) {
     if (id === 'syncTextLanguages') $('#' + id).checked = Boolean(languages[id]);
@@ -396,6 +398,7 @@ async function initialize() {
   $('#streamerChatMode').checked = saved.streamerChatMode === true;
   $('#websiteText').checked = saved.websiteTextOptInEnabled === true;
   $('#engineMode').value = saved.speechMode === 'desktop' ? 'desktop' : 'browser';
+  $('#browserSpeechProfile').value = saved.browserSpeechProfile==='small-fp16'?'small-fp16':'default';
   $('#writingStyle').value = ['general', 'viewer', 'polite'].includes(saved.writingStyle) ? saved.writingStyle : 'general';
   $('#writingQuality').value = saved.writingQuality === 'quality' ? 'quality' : 'fast';
   renderEngine();
