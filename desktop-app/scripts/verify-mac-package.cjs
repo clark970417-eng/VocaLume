@@ -7,7 +7,8 @@ const asar = require('@electron/asar')
 const { verifyBuild, manifestName } = require('./build-provenance.cjs')
 const app = path.resolve(process.argv[2] || 'dist/mac-arm64/VocaLume.app')
 const build = path.resolve(process.argv[3] || 'out')
-const appArchitectures = execFileSync('lipo', ['-archs', path.join(app, 'Contents/MacOS/VocaLume')], { encoding: 'utf8' }).trim()
+const executable = path.join(app, 'Contents/MacOS/VocaLume')
+const appArchitectures = execFileSync('lipo', ['-archs', executable], { encoding: 'utf8' }).trim()
 const arch = { arm64: 'arm64', x86_64: 'x64' }[appArchitectures]
 assert(arch, `Expected a single supported Mac architecture, received ${appArchitectures}`)
 const resources = path.join(app, 'Contents/Resources')
@@ -49,8 +50,10 @@ const whisperDir = path.join(nodeModules, '@kutalia/whisper-node-addon/dist')
 const addon = path.join(whisperDir, `mac-${arch}/whisper.node`)
 const addonAlias = path.join(whisperDir, `darwin-${arch}/whisper.node`)
 assert.equal(fs.realpathSync(addonAlias), fs.realpathSync(addon), 'Whisper loader alias points to a different binding')
-for (const binding of [ortBinding, addon]) {
-  assert.equal(execFileSync('lipo', ['-archs', binding], { encoding: 'utf8' }).trim(), appArchitectures, `Native architecture mismatch: ${binding}`)
+const ffmpeg = path.join(nodeModules, 'ffmpeg-static/ffmpeg')
+for (const binary of [ortBinding, addon, ffmpeg]) {
+  const architectures = execFileSync('lipo', ['-archs', binary], { encoding: 'utf8' }).trim().split(/\s+/)
+  assert(architectures.includes(appArchitectures), `Native architecture mismatch: ${binary} (${architectures.join(', ')})`)
 }
 const dylibs = execFileSync('otool', ['-L', addon], {encoding:'utf8'})
 assert(!/\/(?:Users|home)\//.test(dylibs.split('\n').slice(1).join('\n')), 'Developer library path in native addon')
@@ -58,4 +61,15 @@ const commands = execFileSync('otool', ['-l', addon], {encoding:'utf8'})
 const rpaths = [...commands.matchAll(/cmd LC_RPATH\n[\s\S]*?\n\s*path (.+?) \(offset /g)].map(m => m[1])
 assert(rpaths.includes('@loader_path') && rpaths.every(p => !/^\/(Users|home)\//.test(p)), 'Non-portable addon search path')
 execFileSync('codesign', ['--verify', '--deep', '--strict', app], {stdio:'pipe'})
-console.log(JSON.stringify({version, arch, entries:entries.length, runtimeMatches:true, sourceMatches:true, rendererAssetsPresent:true, signatureValid:true, portableAddon:true}))
+const nativeLoadTested = process.arch === arch
+if (nativeLoadTested) {
+  execFileSync(executable, ['-e', `
+    const assert = require('node:assert/strict')
+    const path = require('node:path')
+    const modules = path.join(process.argv[1], 'node_modules')
+    assert.equal(typeof require(path.join(modules, 'onnxruntime-node')).InferenceSession.create, 'function')
+    assert.equal(typeof require(path.join(modules, '@kutalia/whisper-node-addon')).transcribe, 'function')
+  `, archive], {env:{...process.env, ELECTRON_RUN_AS_NODE:'1'}, stdio:'pipe'})
+  execFileSync(ffmpeg, ['-version'], {stdio:'pipe'})
+}
+console.log(JSON.stringify({version, arch, entries:entries.length, runtimeMatches:true, sourceMatches:true, rendererAssetsPresent:true, signatureValid:true, portableAddon:true, nativeLoadTested}))

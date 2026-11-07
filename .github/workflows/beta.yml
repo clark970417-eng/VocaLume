@@ -58,8 +58,16 @@ jobs:
       matrix:
         include:
           - os: macos-15
-            command: npx electron-builder --mac dmg zip --arm64 --x64 --publish never --config.mac.identity=-
-            artifact: macOS
+            command: npx electron-builder --mac dmg zip --arm64 --publish never --config.mac.identity=-
+            artifact: macOS-Apple-Silicon
+            mac_app: dist/mac-arm64/VocaLume.app
+            files: |
+              desktop-app/dist/*.dmg
+              desktop-app/dist/*-mac.zip
+          - os: macos-15-intel
+            command: npx electron-builder --mac dmg zip --x64 --publish never --config.mac.identity=-
+            artifact: macOS-Intel
+            mac_app: dist/mac/VocaLume.app
             files: |
               desktop-app/dist/*.dmg
               desktop-app/dist/*-mac.zip
@@ -102,6 +110,9 @@ jobs:
       - run: npm run lint
         if: runner.os == 'Linux'
       - run: npm test -- --run
+      - name: Build the Intel Mac speech engine
+        if: matrix.os == 'macos-15-intel'
+        run: node scripts/rebuild-whisper-mac-x64.cjs
       - run: npm run build
       - name: Build unsigned beta package
         env:
@@ -109,9 +120,9 @@ jobs:
         run: ${{ matrix.command }}
       - name: Verify Mac package contents
         if: runner.os == 'macOS'
-        run: |
-          node scripts/verify-mac-package.cjs dist/mac-arm64/VocaLume.app
-          node scripts/verify-mac-package.cjs dist/mac/VocaLume.app
+        env:
+          MAC_APP: ${{ matrix.mac_app }}
+        run: node scripts/verify-mac-package.cjs "$MAC_APP"
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.artifact }}
