@@ -18,7 +18,6 @@ import {
   TranslatorSettings,
   SubtitleSettings,
   TTSSettings,
-  VirtualMicSettings,
   SessionControls,
   UpdateStatus,
   SupportSettings,
@@ -46,7 +45,7 @@ function SettingsPanel(): React.JSX.Element {
   const [gerEnabled, setGerEnabled] = useState(false)
   useEffect(() => { window.api.getSettings().then(v => setGerEnabled(!!v.gerEnabled)) }, [])
   const disabled = s.isRunning || s.isStarting
-  const { mediaJobId, translatePath, cancelMediaFile, watchFolder, toggleWatchFolder } =
+  const { mediaJobId, translatePath, cancelMediaFile, watchFolder, toggleWatchFolder, rows, editCue, reviewFile, setReviewFile } =
     useFileTranslation({ disabled, handleStart: s.handleStart, handleStop: s.handleStop, setStatus: s.setStatus })
 
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -128,6 +127,7 @@ function SettingsPanel(): React.JSX.Element {
           />
 
       <AudioSettings
+        showLevel={selectedTab === 'translate'}
         audio={s.audio}
         disabled={disabled}
         noiseSuppressionEnabled={s.noiseSuppression.enabled}
@@ -157,6 +157,10 @@ function SettingsPanel(): React.JSX.Element {
             onToggleWatchFolder={toggleWatchFolder}
             onTranslateFile={file => translatePath(window.api.getPathForFile(file), file.name)}
             onCancel={cancelMediaFile}
+            rows={rows}
+            onEditCue={editCue}
+            review={reviewFile}
+            onReview={setReviewFile}
           />}
         </section>
         <section id="settings-panel-subtitles" role="tabpanel" aria-labelledby="settings-tab-subtitles" tabIndex={0} hidden={selectedTab !== 'subtitles'}>
@@ -173,6 +177,8 @@ function SettingsPanel(): React.JSX.Element {
             onBgOpacityChange={(v) => { s.setSubtitleBgOpacity(v); s.pushSubtitleSettings({ backgroundOpacity: v }) }}
             position={s.subtitlePosition}
             onPositionChange={(v) => { s.setSubtitlePosition(v); s.pushSubtitleSettings({ position: v }) }}
+            lowPowerRendering={s.lowPowerRendering}
+            onLowPowerRenderingChange={(v) => { s.setLowPowerRendering(v); s.pushSubtitleSettings({ lowPowerRendering: v }) }}
             showConfidenceIndicator={s.showConfidenceIndicator}
             onShowConfidenceIndicatorChange={(v) => {
               s.setShowConfidenceIndicator(v)
@@ -295,7 +301,7 @@ function SettingsPanel(): React.JSX.Element {
             <h2>{t("More settings")}</h2>
             <details className="settings-disclosure"><summary>{t("Copyright & use")}</summary><p>© 2026 Clark · VocaLume</p><p>{t("Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.")}</p><a href="https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("License")} ↗</a></details>
             <details className="settings-disclosure"><summary>{t("Tone & laughter")}</summary><SpeechToneSettings /></details>
-            <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} /><VirtualMicSettings disabled={disabled} /></details>
+            <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} platform={s.platform} /></details>
             <details className="settings-disclosure"><summary>{t("Saved sessions & summaries")}</summary>
       <SessionControls view="history"
         isRunning={s.isRunning}

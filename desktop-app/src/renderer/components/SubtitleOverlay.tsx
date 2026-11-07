@@ -23,6 +23,7 @@ interface SubtitleConfig {
   translatedTextColor: string
   backgroundOpacity: number
   position: 'top' | 'bottom'
+  lowPowerRendering: boolean
   accessibility: AccessibilityConfig
   showConfidenceIndicator: boolean
 }
@@ -33,6 +34,7 @@ const DEFAULT_CONFIG: SubtitleConfig = {
   translatedTextColor: '#7dd3fc',
   backgroundOpacity: 78,
   position: 'bottom',
+  lowPowerRendering: /Windows/i.test(navigator.userAgent),
   accessibility: DEFAULT_ACCESSIBILITY,
   showConfidenceIndicator: true
 }
@@ -192,6 +194,8 @@ interface ResultData {
   translationFailed?: boolean
   confirmedText?: string
   interimText?: string
+  isInterim?: boolean
+  captionRevision?: number
   speakerLabel?: string
   speakerIndex?: number
   /** Sentence-level confidence from STT (0.0–1.0) */
@@ -218,15 +222,15 @@ function SubtitleOverlay(): React.JSX.Element {
   const [editSaving, setEditSaving] = useState(false)
   const editInputRef = useRef<HTMLInputElement>(null)
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isDraggingRef = useRef(false)
-  const dragStartRef = useRef({ screenX: 0, screenY: 0 })
+  const captionRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ id: number; x: number; y: number; frame?: number } | null>(null)
 
   const a11y = config.accessibility
 
   const resetSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     silenceTimerRef.current = setTimeout(() => {
-      setVisible(false)
+      if (!dragRef.current) setVisible(false)
     }, SILENCE_TIMEOUT_MS)
   }, [])
 
@@ -252,9 +256,9 @@ function SubtitleOverlay(): React.JSX.Element {
     setConfidence(result.confidence)
     setTokenConfidences(result.tokenConfidences)
 
-    // Update speaker label from diarization (#549)
-    if (result.speakerLabel !== undefined) {
-      setSpeakerLabel(result.speakerLabel)
+    // Each final owns its label. A translation revision keeps that cue's speaker.
+    if (result.speakerLabel !== undefined || (!result.isInterim && !result.captionRevision)) {
+      setSpeakerLabel(result.speakerLabel ?? null)
       setSpeakerIndex(result.speakerIndex ?? 0)
     }
 
@@ -262,38 +266,41 @@ function SubtitleOverlay(): React.JSX.Element {
     resetSilenceTimer()
   }, [resetSilenceTimer])
 
-  // Drag handlers
-  const handleDragMouseDown = useCallback((e: React.MouseEvent) => {
-    isDraggingRef.current = true
-    dragStartRef.current = { screenX: e.screenX, screenY: e.screenY }
-    e.preventDefault()
-  }, [])
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (isEditMode || event.button !== 0 || !event.isPrimary || dragRef.current) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragRef.current = { id: event.pointerId, x: event.screenX, y: event.screenY }
+    window.api.subtitlePointerDrag('start', event.screenX, event.screenY)
+  }
 
-  useEffect(() => {
-    if (!isDragMode) return
+  const moveDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const drag = dragRef.current
+    if (!drag || drag.id !== event.pointerId) return
+    drag.x = event.screenX
+    drag.y = event.screenY
+    drag.frame ??= requestAnimationFrame(() => {
+      drag.frame = undefined
+      if (dragRef.current === drag) window.api.subtitlePointerDrag('move', drag.x, drag.y)
+    })
+  }
 
-    const handleMouseMove = (e: MouseEvent): void => {
-      if (!isDraggingRef.current) return
-      const dx = e.screenX - dragStartRef.current.screenX
-      const dy = e.screenY - dragStartRef.current.screenY
-      dragStartRef.current = { screenX: e.screenX, screenY: e.screenY }
-      window.api.moveSubtitleByDelta?.(dx, dy)
-    }
-
-    const handleMouseUp = (): void => {
-      if (isDraggingRef.current) {
-        isDraggingRef.current = false
-        window.api.saveSubtitlePosition?.()
-      }
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragMode])
+  const endDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const drag = dragRef.current
+    if (!drag || drag.id !== event.pointerId) return
+    dragRef.current = null
+    if (drag.frame !== undefined) cancelAnimationFrame(drag.frame)
+    const useEventPoint = event.type === 'pointerup'
+    window.api.subtitlePointerDrag('end', useEventPoint ? event.screenX : drag.x, useEventPoint ? event.screenY : drag.y)
+    resetSilenceTimer()
+  }
+  const dragHandlers = {
+    onPointerDown: startDrag,
+    onPointerMove: moveDrag,
+    onPointerUp: endDrag,
+    onPointerCancel: endDrag,
+    onLostPointerCapture: endDrag
+  }
 
   // Load initial settings and listen for changes
   useEffect(() => {
@@ -337,8 +344,13 @@ function SubtitleOverlay(): React.JSX.Element {
         setEditValue('')
       }
     })
+    let active = true
+    void window.api.getSubtitleInteractionMode?.().then(mode => {
+      if (active) { setIsDragMode(mode === 'drag'); setIsEditMode(mode === 'edit') }
+    })
 
     return () => {
+      active = false
       unsubscribe?.()
       unsubDrag?.()
       unsubEdit?.()
@@ -407,6 +419,28 @@ function SubtitleOverlay(): React.JSX.Element {
   const effectiveFontSize = a11y.highContrast ? Math.max(config.fontSize + 4, 34) : config.fontSize
   const translatedFontSize = Math.max(effectiveFontSize - 2, 16)
   const hasContent = confirmedText || interimText
+  const captionVisible = visible && !!hasContent
+  useEffect(() => {
+    const caption = captionRef.current
+    if (!caption || !captionVisible) {
+      window.api.setSubtitleCaptionArea?.(null)
+      window.api.setSubtitleCaptionHover?.(false)
+      return
+    }
+    if (!navigator.userAgent.includes('Windows')) return
+    const updateArea = (): void => {
+      const { x, y, width, height } = caption.getBoundingClientRect()
+      window.api.setSubtitleCaptionArea({ x, y, width, height })
+    }
+    updateArea()
+    const observer = new ResizeObserver(updateArea)
+    observer.observe(caption)
+    window.addEventListener('resize', updateArea)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateArea)
+    }
+  }, [captionVisible, config.position])
 
   const effectiveSourceColor = a11y.highContrast ? '#ffffff' : config.sourceTextColor
   const effectiveTranslatedColor = a11y.highContrast ? '#ffff00' : config.translatedTextColor
@@ -415,8 +449,9 @@ function SubtitleOverlay(): React.JSX.Element {
   const effectiveFontFamily = a11y.dyslexiaFont ? DYSLEXIA_FONT_FAMILY : BASE_FONT_FAMILY
 
   // Transition: instant for reduced motion, normal otherwise
-  const fadeOutTransition = a11y.reducedMotion ? 'none' : `opacity ${FADE_OUT_MS}ms ease-out`
-  const fadeInTransition = a11y.reducedMotion ? 'none' : 'opacity 0.15s ease-out'
+  const staticAppearance = a11y.reducedMotion || config.lowPowerRendering
+  const fadeOutTransition = staticAppearance ? 'none' : `opacity ${FADE_OUT_MS}ms ease-out`
+  const fadeInTransition = staticAppearance ? 'none' : 'opacity 0.15s ease-out'
 
   // WCAG 1.4.12 spacing
   const spacingStyle: React.CSSProperties = {
@@ -431,6 +466,8 @@ function SubtitleOverlay(): React.JSX.Element {
       style={{
         width: '100%',
         height: '100%',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: config.position === 'top' ? 'flex-start' : 'flex-end',
@@ -464,11 +501,12 @@ function SubtitleOverlay(): React.JSX.Element {
       {/* Drag handle overlay */}
       {isDragMode && (
         <div
-          onMouseDown={handleDragMouseDown}
+          {...dragHandlers}
           style={{
             position: 'fixed',
             inset: 0,
             cursor: 'move',
+            touchAction: 'none',
             zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
@@ -494,15 +532,21 @@ function SubtitleOverlay(): React.JSX.Element {
 
       {/* Single subtitle slot */}
       <div
+        ref={captionRef}
+        {...dragHandlers}
+        onPointerEnter={() => window.api.setSubtitleCaptionHover?.(true)}
+        onPointerLeave={() => window.api.setSubtitleCaptionHover?.(false)}
         style={{
           background: `rgba(0, 0, 0, ${effectiveBgOpacity / 100})`,
           borderRadius: a11y.highContrast ? '0' : '0.625rem',
           padding: '0.625rem 1.25rem',
-          backdropFilter: a11y.highContrast ? 'none' : 'blur(8px)',
-          WebkitBackdropFilter: a11y.highContrast ? 'none' : 'blur(8px)',
-          opacity: visible && hasContent ? 1 : 0,
+          backdropFilter: a11y.highContrast || config.lowPowerRendering ? 'none' : 'blur(8px)',
+          WebkitBackdropFilter: a11y.highContrast || config.lowPowerRendering ? 'none' : 'blur(8px)',
+          opacity: captionVisible ? 1 : 0,
           transition: visible ? fadeInTransition : fadeOutTransition,
-          pointerEvents: visible ? 'auto' : 'none',
+          pointerEvents: captionVisible ? 'auto' : 'none',
+          cursor: isEditMode ? 'auto' : 'move',
+          touchAction: isEditMode ? 'auto' : 'none',
           textAlign: 'center'
         }}
       >
@@ -562,7 +606,7 @@ function SubtitleOverlay(): React.JSX.Element {
               marginTop: '0.25rem',
               textShadow: effectiveTextShadow,
               wordBreak: 'break-word',
-              cursor: isEditMode ? 'text' : 'default',
+              cursor: isEditMode ? 'text' : 'inherit',
               borderBottom: isEditMode ? '1px dashed rgba(255,255,255,0.3)' : 'none',
               paddingBottom: isEditMode ? '2px' : 0,
               ...spacingStyle
