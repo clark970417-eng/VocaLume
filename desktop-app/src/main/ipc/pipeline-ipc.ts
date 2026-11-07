@@ -1,5 +1,7 @@
-import { resolveSpeechEngine } from '../../engine-selection'
+import { availableParallelism, totalmem } from 'node:os'
+import { resolveSpeechEngine, resolveWindowsJapaneseFallback } from '../../engine-selection'
 import { isHaasAvailable } from '../../engines/stt/HaasJaEngine'
+import { isSenseVoiceModelInstalled } from '../../engines/stt/SenseVoiceSherpaEngine'
 import type { SttEngineType } from '../../engine-selection'
 import { ipcMain } from 'electron'
 import { GoogleTranslator } from '../../engines/translator/GoogleTranslator'
@@ -14,6 +16,7 @@ import { GeminiLiveE2E } from '../../engines/e2e/GeminiLiveE2E'
 import { TranscriptLogger } from '../../logger/TranscriptLogger'
 import { store } from '../store'
 import type { AppContext } from '../app-context'
+import { claimLiveCapture } from '../live-capture-claim'
 import type { EngineConfig } from '../../engines/types'
 import { sanitizeErrorMessage } from '../error-utils'
 import { createLogger } from '../logger'
@@ -55,8 +58,55 @@ export interface PipelineStartConfig extends EngineConfig {
   geminiLiveApiKey?: string
 }
 
-/** Shared start path for desktop capture and the browser companion. */
-export async function startPipeline(ctx: AppContext, config: PipelineStartConfig) {
+const captureClaims = new WeakMap<AppContext, () => void>()
+const observedPipelines = new WeakSet<NonNullable<AppContext['pipeline']>>()
+
+function releaseCaptureClaim(ctx: AppContext): void {
+  const release = captureClaims.get(ctx)
+  captureClaims.delete(ctx)
+  release?.()
+}
+
+/** Claim the source before a model can start loading in either client. */
+export async function startPipeline(ctx: AppContext, config: PipelineStartConfig, owner: NonNullable<AppContext['pipelineInputOwner']> = 'app') {
+  const pipeline = ctx.pipeline
+  if (!pipeline) return { error: 'Pipeline not initialized' }
+  if (ctx.pipelineStarting) return { error: 'A caption session is already starting.' }
+  ctx.pipelineStarting = true
+  try {
+    if (owner !== 'file' && ctx.liveCaptureClaimPath && !captureClaims.has(ctx)) {
+      const release = await claimLiveCapture(ctx.liveCaptureClaimPath)
+      if (!release) return { error: 'Chrome already owns live audio. Stop its browser capture before starting desktop capture.' }
+      captureClaims.set(ctx, release)
+    }
+    if (!observedPipelines.has(pipeline)) {
+      observedPipelines.add(pipeline)
+      pipeline.on('state-change', state => {
+        // Recovery briefly enters idle while retaining the current session.
+        if (state === 'idle' && !ctx.pipelineStarting && pipeline.sessionStartTime === null) {
+          ctx.pipelineInputOwner = undefined
+          releaseCaptureClaim(ctx)
+        }
+      })
+    }
+    const result = await configurePipeline(ctx, config)
+    if (result.success) {
+      ctx.pipelineInputOwner = owner
+      if (owner === 'file') releaseCaptureClaim(ctx)
+    }
+    return result
+  } catch (error) {
+    return { error: sanitizeErrorMessage(String(error)) }
+  } finally {
+    ctx.pipelineStarting = false
+    if (!pipeline.active) {
+      ctx.pipelineInputOwner = undefined
+      releaseCaptureClaim(ctx)
+    }
+  }
+}
+
+async function configurePipeline(ctx: AppContext, config: PipelineStartConfig) {
     if (!ctx.pipeline) return { error: 'Pipeline not initialized' }
     if (ctx.pipeline.active) {
       await ctx.pipeline.stop() // Auto-stop before restart
@@ -79,8 +129,14 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
           appleSilicon ? 'mlx-whisper' : 'whisper-local'
         )
         if (config.sttEngineId.startsWith('haas-ja-') && !(await isHaasAvailable())) {
-          config.sttEngineId = appleSilicon ? 'kotoba-whisper' : 'whisper-local'
-          ctx.mainWindow?.webContents.send('status-update', 'Haas-ja is not installed; using Whisper. Install the Haas-ja runtime and model to enable it.')
+          config.sttEngineId = process.platform === 'win32' ? resolveWindowsJapaneseFallback({
+            logicalCpus: availableParallelism(),
+            totalMemoryBytes: totalmem(),
+            senseVoiceInstalled: isSenseVoiceModelInstalled()
+          }) : appleSilicon ? 'kotoba-whisper' : 'whisper-local'
+          const fallback = config.sttEngineId === 'sensevoice-sherpa' ? 'SenseVoice' : 'Whisper'
+          log.info(`Haas-ja unavailable. Using ${fallback} for this session.`)
+          ctx.mainWindow?.webContents.send('status-update', `Haas-ja is not installed. Using ${fallback}.`)
         }
       }
       if (mdm.lockedSttEngine && config.sttEngineId) {
@@ -263,7 +319,7 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
         }
 
         // #575: Auto-fallback to cloud engine if local engine fails on fresh install
-        const isLocalEngine = config.translatorEngineId && !['google-translate', 'deepl-translate', 'gemini-translate', 'microsoft-translate', 'rotation-controller'].includes(config.translatorEngineId)
+        const isLocalEngine = config.translatorEngineId && !['google-translate', 'google-public-translate', 'deepl-translate', 'gemini-translate', 'microsoft-translate', 'rotation-controller'].includes(config.translatorEngineId)
         if (isLocalEngine && config.apiKey) {
           log.warn(`Local engine ${config.translatorEngineId} failed, falling back to Google Translate`)
           ctx.mainWindow?.webContents.send('status-update', `Local engine failed — falling back to cloud translation`)
@@ -315,9 +371,9 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
 
 /** Register pipeline control IPC handlers */
 export function registerPipelineIpc(ctx: AppContext): void {
-  ipcMain.handle('pipeline-start', async (_event, config: PipelineStartConfig) => {
+  ipcMain.handle('pipeline-start', async (_event, config: PipelineStartConfig, captureAudio = true) => {
     if (ctx.extensionConnected) return { error: 'Caption session is controlled by the browser extension.' }
-    return startPipeline(ctx, config)
+    return startPipeline(ctx, config, captureAudio === false ? 'file' : 'app')
   })
 
   ipcMain.handle('pipeline-stop', async () => {
