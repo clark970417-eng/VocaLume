@@ -28,10 +28,8 @@ export function resolveEngineMode(
   if (mode !== 'auto') return mode
   const hasKeys = !!(apiKeys.apiKey || apiKeys.deeplApiKey || apiKeys.geminiApiKey || (apiKeys.microsoftApiKey && apiKeys.microsoftRegion))
   if (hasKeys) return 'rotation'
-  // A GPU name alone says nothing about VRAM or available capacity. Keep the
-  // realtime Windows default on the compact translation model; 7B remains an
-  // explicit quality option rather than an automatic multi-GB upgrade.
-  if (platform === 'win32') return 'offline-hymt15'
+  // Use the compact model for automatic live translation on known desktop platforms.
+  if (platform === 'win32' || platform === 'darwin') return 'offline-hymt15'
   if (gpuInfo?.hasGpu) return 'offline-hunyuan-mt'
   return 'offline-hymt15'
 }

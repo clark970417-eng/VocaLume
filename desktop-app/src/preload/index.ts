@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.off('media-file-progress', handler)
   },
   // Cloud realtime e2e streaming (#721)
-  pushRealtimeAudio: (audioData: number[]) => ipcRenderer.invoke('push-realtime-audio', audioData),
+  pushRealtimeAudio: (audioData: Float32Array | number[]) => ipcRenderer.invoke('push-realtime-audio', audioData),
   speechBoundary: (boundary: 'start' | 'end') => ipcRenderer.invoke('speech-boundary', boundary),
 
   // Translation results

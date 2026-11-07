@@ -14,11 +14,6 @@
       "source": "/download",
       "destination": "https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.3",
       "permanent": false
-    },
-    {
-      "source": "/download/:path*",
-      "destination": "https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.3",
-      "permanent": false
     }
   ]
 }

@@ -8,6 +8,7 @@ import { validateSubtitleSettings } from '../ipc-validators'
 import type { AppContext } from '../app-context'
 import { createLogger } from '../logger'
 import { isSpeechToneMode } from '../../pipeline/SpeechTone'
+import { localizedWebsiteUrl } from '../../../../extension/website-language.mjs'
 import {
   parseGlossary,
   detectGlossaryFormat,
@@ -26,7 +27,8 @@ export function registerSettingsIpc(ctx: AppContext): void {
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=translation-quality.yml',
     'https://github.com/clark970417-eng/VocaLume/blob/main/docs/legal/privacy.md',
-    'https://github.com/clark970417-eng/VocaLume/releases'
+    'https://github.com/clark970417-eng/VocaLume/releases',
+    ...['en', 'zh-TW', 'zh-CN', 'ja', 'ko'].map(localizedWebsiteUrl)
   ])
 
   ipcMain.handle('open-support-url', async (_event, url: unknown) => {

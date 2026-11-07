@@ -1,8 +1,8 @@
-# Windows 修補版使用方式（尚未發佈 release）
+# Windows 本機連接與驗收
 
-這份文件適用於 Windows 修補分支的原始碼建置。GitHub 現有的 4.6.4 安裝檔不會因為分支更新而自動改變。
+請從 [GitHub Actions 的 Artifacts](https://github.com/clark970417-eng/VocaLume/actions/runs/42227646353) 下載同一輪的 `desktop-Windows` 和 `browser-extension`。這組擴充功能含 Windows 本機連接工具，公開 4.6.6 Beta 的擴充功能 ZIP 缺少這兩個檔案。
 
-完整調查、測試數據、限制及 Mac Codex 接手事項：[Windows 實機修補報告](reports/windows-validation-2026-11-06.md)。
+完整調查、測試數據、限制及 Mac Codex 接手事項：[Windows 4.6.6 實機驗收報告](reports/windows-acceptance-2026-11-06.md)。
 
 ## 建置 App
 
@@ -40,4 +40,4 @@ App 首次使用仍需下載及載入模型。Windows Auto 本機模式優先選
 
 此 host 依賴 Electron RunAsNode fuse 保持啟用。若日後關閉該 fuse，需要改成獨立 host executable，不能只沿用此腳本。
 
-目前驗證到 native host ↔ App 的實際通訊，尚未完成一般 Chrome／Edge／Opera 中所有字幕及翻譯情境的端到端驗收。請勿把「已註冊」寫成「所有瀏覽器功能已通過」。
+Chrome for Testing 和 Edge 已驗證本機橋接、文字翻譯與測試音訊轉字幕。真實網站的分頁收音、留言與 Opera GX 仍待完整驗收。

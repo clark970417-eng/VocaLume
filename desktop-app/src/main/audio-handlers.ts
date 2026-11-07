@@ -49,8 +49,8 @@ function toValidAudioChunk(audioData: unknown): Float32Array | null {
 }
 
 /**
- * Convert realtime IPC audio data to Float32Array (#721). IPC always delivers a
- * plain number[]; unlike {@link toValidAudioChunk} this applies neither the 0.5s
+ * Accept typed PCM directly, or convert an older number[] payload.
+ * Unlike {@link toValidAudioChunk}, this applies neither the 0.5s
  * minimum nor silence gating, since cloud realtime APIs expect a continuous
  * stream where 100ms chunks and silence are part of the provider's own turn
  * detection.
@@ -68,7 +68,6 @@ export function registerAudioHandlers(ctx: AppContext): void {
   // the pipeline to prevent concurrent native addon calls (#363)
   let processingAudio = false
   let processingStreaming = false
-  let processingFinalize = false
 
   // Process audio chunk from renderer
   ipcMain.handle('process-audio', async (_event, audioData: unknown) => {
@@ -135,12 +134,10 @@ export function registerAudioHandlers(ctx: AppContext): void {
   // Finalize streaming (speech segment ended)
   ipcMain.handle('finalize-streaming', async (_event, audioData: unknown) => {
     if (!ctx.pipeline?.running) return null
-    if (processingFinalize) return null
 
     const chunk = toValidAudioChunk(audioData)
     if (!chunk) return null
 
-    processingFinalize = true
     const t0 = performance.now()
     try {
       const result = await ctx.pipeline.finalizeStreaming(chunk, SAMPLE_RATE)
@@ -150,8 +147,6 @@ export function registerAudioHandlers(ctx: AppContext): void {
     } catch (err) {
       log.error('Finalize streaming error:', err)
       return null
-    } finally {
-      processingFinalize = false
     }
   })
 }

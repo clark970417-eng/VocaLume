@@ -40,7 +40,7 @@ for (const id of ['openai','nvidia','openrouter','custom']) test(`${id} sends th
  assert.deepEqual(observed.body.messages,messages);
  assert.equal(observed.headers.Authorization,'Bearer test-secret');
  assert.equal(observed.headers['x-goog-api-key'],undefined);
- assert.equal(observed.redirect,'error');assert.equal(observed.credentials,'omit');
+ assert.equal(observed.redirect,'manual');assert.equal(observed.credentials,'omit');
  assert.equal(id==='openai'?observed.body.max_completion_tokens:observed.body.max_tokens,2048);
  if(id==='openai'){assert.equal(observed.body.max_tokens,undefined);assert.equal(observed.body.temperature,undefined);assert.equal(observed.body.store,false);}
 });
@@ -99,4 +99,23 @@ test('real loopback HTTP transport translates through a custom server and refuse
  assert.equal(received[0].url,'/v1/chat/completions');assert.equal(received[0].key,undefined);
  await assert.rejects(api.requestApi(profile('custom',{baseUrl:base+'/redirect',apiKey:'local-secret'}),messages),/無法連線/);
  assert.deepEqual(received.map(r=>r.url),['/v1/chat/completions','/redirect/chat/completions']);
+});
+
+test('a long rate-limit wait or cancellation never replays a selected-provider request',async()=>{
+ let attempts=0;
+ await assert.rejects(api.requestApi(profile('openai'),messages,undefined,{fetchImpl:async()=>{
+  attempts++;
+  return {ok:false,status:429,headers:new Headers({'Retry-After':'60'})};
+ }}),/429/);
+ assert.equal(attempts,1);
+
+ const controller=new AbortController();
+ const request=api.requestApi(profile('openai'),messages,controller.signal,{fetchImpl:async()=>{
+  attempts++;
+  return {ok:false,status:503};
+ }});
+ await new Promise(resolve=>setTimeout(resolve,0));
+ controller.abort();
+ await assert.rejects(request,/取消/);
+ assert.equal(attempts,2);
 });

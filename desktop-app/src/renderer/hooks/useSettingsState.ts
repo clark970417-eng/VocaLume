@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { AudioCaptureStartError, type UseAudioCaptureReturn } from './useAudioCapture'
 
 function friendlyError(err: unknown): string {
+  if (err instanceof AudioCaptureStartError) return err.message
   const msg = err instanceof Error ? err.message : String(err)
   if (msg.includes('timed out')) return 'Failed to start — model loading took too long. Try restarting the app.'
   if (msg.includes('Model not found') || msg.includes('model not found')) return 'Model not found. It may need to be downloaded first.'
@@ -8,7 +10,6 @@ function friendlyError(err: unknown): string {
   if (msg.includes('ENOENT') || msg.includes('No such file')) return 'Required file not found. Try reinstalling the app.'
   return `Unexpected error: ${msg}`
 }
-import type { UseAudioCaptureReturn } from './useAudioCapture'
 import type { UseNoiseSuppressionReturn } from './useNoiseSuppression'
 import { useEngineSettings } from './useEngineSettings'
 import { useDisplaySettings } from './useDisplaySettings'
@@ -231,6 +232,14 @@ export function useSettingsState(): SettingsState {
     catch (error) { session.setStatus(`Could not save settings: ${String(error)}`) }
   }
 
+  const rollbackFailedCapture = async (pipelineStarted: boolean): Promise<void> => {
+    session.audio.stop()
+    if (!pipelineStarted) return
+    // Release the running model worker when the capture setup fails.
+    try { await withIpcTimeout(window.api.pipelineStop(), 10_000, 'pipelineStopAfterCaptureFailure') }
+    catch (error) { console.warn('[settings] Could not roll back failed capture:', error) }
+  }
+
   const handleStart = async (options?: { captureAudio?: boolean }): Promise<boolean> => {
     if (session.isStarting) return false
     session.setIsStarting(true)
@@ -267,15 +276,7 @@ export function useSettingsState(): SettingsState {
       session.setStatus(options?.captureAudio === false ? 'Ready to process audio file...' : 'Listening...')
       return true
     } catch (err) {
-      // Starting the engine succeeds before microphone/VAD capture begins. If
-      // capture setup fails, roll the engine back as well; otherwise its model
-      // worker remains active and can make browser draft translation fail when
-      // it tries to acquire the shared worker.
-      session.audio.stop()
-      if (pipelineStarted) {
-        try { await withIpcTimeout(window.api.pipelineStop(), 10_000, 'pipelineStopAfterCaptureFailure') }
-        catch (stopError) { console.warn('[settings] Could not roll back failed start:', stopError) }
-      }
+      await rollbackFailedCapture(pipelineStarted)
       session.setStatus(friendlyError(err))
       session.setIsRunning(false)
       session.stopSessionTimer()
@@ -306,6 +307,7 @@ export function useSettingsState(): SettingsState {
   const handleResume = async (): Promise<void> => {
     if (!session.crashedSession || session.isStarting) return
     session.setIsStarting(true)
+    let pipelineStarted = false
 
     try {
       session.setStatus('Resuming previous session...')
@@ -315,6 +317,7 @@ export function useSettingsState(): SettingsState {
         session.setIsStarting(false)
         return
       }
+      pipelineStarted = true
       // #721: preserve the resumed session's capture mode
       const resumeMode = (session.crashedSession.config as { mode?: string }).mode === 'e2e' ? 'realtime' : 'cascade'
       await session.audio.start({ captureMode: resumeMode })
@@ -324,9 +327,9 @@ export function useSettingsState(): SettingsState {
       session.setStatus('Listening... (resumed)')
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      session.setStatus(`Resume failed: ${msg}`)
+      await rollbackFailedCapture(pipelineStarted)
+      session.setStatus(err instanceof AudioCaptureStartError ? msg : `Resume failed: ${msg}`)
       session.setIsRunning(false)
-      session.audio.stop()
       session.stopSessionTimer()
     } finally {
       session.setIsStarting(false)

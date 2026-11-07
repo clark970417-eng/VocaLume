@@ -1,4 +1,5 @@
 import { UI_LANGUAGE_KEY, uiLanguagePreference, resolveUiLanguage, translateUiText } from './ui-language.mjs';
+import { localizedWebsiteUrl } from './website-language.mjs';
 
 export async function initializePopupLanguage() {
   const selector = document.querySelector('#uiLanguage');
@@ -6,32 +7,56 @@ export async function initializePopupLanguage() {
   let preference = 'auto';
   try { preference = uiLanguagePreference((await chrome.storage.local.get(UI_LANGUAGE_KEY))[UI_LANGUAGE_KEY]); } catch { /* Keep the popup usable without storage. */ }
   const texts = new WeakMap(), attributes = new WeakMap();
-  const excluded = node => node.parentElement?.closest('script,style,textarea,pre,#captionPreview,#uiLanguage option[lang]');
+  const excluded = node => node.parentElement?.closest('script,style,textarea,#uiLanguage option[lang]');
   const locale = () => resolveUiLanguage(preference, navigator.languages?.length ? navigator.languages : [navigator.language]);
-  function updateValue(current, previous, language) {
+  function updateValue(current, previous, translate) {
     const source = previous && current === previous.last ? previous.source : current;
-    return { source, last: translateUiText(source, language) };
+    return { source, last: translate(source) };
   }
   function render() {
     const language = locale();
+    const translate = source => translateUiText(source, language);
+    const translateDiagnostic = line => {
+      const separator = line.indexOf('：');
+      if (separator < 0) return translate(line);
+      const label = line.slice(0, separator);
+      const value = line.slice(separator + 1);
+      const localizedSeparator = language === 'en' || language === 'ko' ? ':' : '：';
+      if (!value) return translate(label) + localizedSeparator;
+      const detail = label === '辨識模型' ? value : translate(value);
+      return translate(label) + localizedSeparator + (localizedSeparator === ':' ? ' ' : '') + detail;
+    };
+    const translateError = source => {
+      const match = source.match(/^(提示|尚未完成|語言尚未儲存|無法讀取設定，請重新開啟)：(.+)$/s);
+      return match ? translateUiText(match[1] + '：{0}', language, [translate(match[2])]) : translate(source);
+    };
     document.documentElement.lang = language;
     selector.value = preference;
+    const website = document.querySelector('#officialWebsite');
+    if (website) website.href = localizedWebsiteUrl(language);
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node; (node = walker.nextNode());) {
       if (excluded(node) || !node.nodeValue.trim()) continue;
       const current = node.nodeValue;
       const spacing = current.match(/^(\s*)([\s\S]*?)(\s*)$/);
-      const value = updateValue(spacing[2], texts.get(node), language);
+      let translateText = translate;
+      if (node.parentElement?.hasAttribute('data-ui-lines')) {
+        translateText = source => source.split('\n').map(translateDiagnostic).join('\n');
+      } else if (node.parentElement?.hasAttribute('data-ui-pair')) {
+        translateText = source => source.split(' → ').map(translate).join(' → ');
+      } else if (node.parentElement?.getAttribute('role') === 'status') {
+        translateText = translateError;
+      }
+      const value = updateValue(spacing[2], texts.get(node), translateText);
       texts.set(node, value);
       const next = spacing[1] + value.last + spacing[3];
       if (current !== next) node.nodeValue = next;
     }
     for (const element of document.querySelectorAll('[aria-label],[title],[placeholder]')) {
-      if (element.closest('#captionPreview,textarea,pre')) continue;
       const records = attributes.get(element) || {};
       for (const name of ['aria-label', 'title', 'placeholder']) {
         if (!element.hasAttribute(name)) continue;
-        const value = updateValue(element.getAttribute(name), records[name], language);
+        const value = updateValue(element.getAttribute(name), records[name], translate);
         records[name] = value;
         if (element.getAttribute(name) !== value.last) element.setAttribute(name, value.last);
       }

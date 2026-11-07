@@ -111,7 +111,7 @@ describe('resolveEngineMode (#702)', () => {
     expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-hymt15')
     expect(resolveEngineMode('offline-hunyuan-mt', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-hunyuan-mt')
     expect(resolveEngineMode('auto', ALL_KEYS, { hasGpu: true }, 'win32')).toBe('rotation')
-    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'darwin')).toBe('offline-hunyuan-mt')
+    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'darwin')).toBe('offline-hymt15')
   })
   it('resolves auto → rotation when at least one API key is configured', () => {
     expect(resolveEngineMode('auto', ALL_KEYS, { hasGpu: false })).toBe('rotation')

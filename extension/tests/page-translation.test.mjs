@@ -6,7 +6,7 @@ import fs from 'node:fs';
 /** Live chat and comment translation with a recyclable node, as a virtualized
  * list gives us: the same element object is reused for a different message. */
 function setup(semanticOnly=false,titleConfig=null){
- const chat=[], requests=[]; let change, navigate;
+ const chat=[], requests=[], rendered=[], intervals=[]; let change, navigate, receive;
  const makeLine=()=>({className:'',textContent:'',dataset:{},children:[],isConnected:false,
   classList:{add(){},remove(){},toggle(){}},style:{setProperty(){}},
   setAttribute(){},append(...kids){this.children.push(...kids);},replaceChildren(...kids){this.children=kids;},
@@ -20,8 +20,9 @@ function setup(semanticOnly=false,titleConfig=null){
   return node;
  };
  const title=titleConfig?makeNode(titleConfig.text):null;
+ const overlay={...makeLine(),captionWindow:{render:rows=>rendered.push(rows)}};
  const document={documentElement:{},
-  querySelector:selector=>selector===titleConfig?.selector?title:null,
+  querySelector:selector=>selector==='#jtl-subtitles'?overlay:selector===titleConfig?.selector?title:null,
   // Match the live-chat message selector only; the composer selector also
   // mentions yt-live-chat and must not receive these nodes.
   querySelectorAll:selector=>{
@@ -35,12 +36,13 @@ function setup(semanticOnly=false,titleConfig=null){
  const window={};window.top=window;
  const chrome={storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true})},
    onChanged:{addListener:f=>change=f}},
-  runtime:{onMessage:{addListener(){}},sendMessage:(message,reply)=>requests.push({message,reply})}};
+  runtime:{onMessage:{addListener:f=>receive=f},sendMessage:(message,reply)=>requests.push({message,reply})}};
  let scan;
  vm.runInNewContext((fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8')),
   {chrome,window,document,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
-   setInterval(){},setTimeout(fn){fn();return 0;},clearTimeout(){},console});
- return {chat,title,requests,makeNode,scan:()=>scan(),navigate:()=>navigate?.(),
+   setInterval(fn){intervals.push(fn);},setTimeout(fn,delay){if(delay===250)fn();return 0;},clearTimeout(){},console});
+ return {chat,title,requests,makeNode,scan:()=>scan(),navigate:()=>navigate?.(),runtime:chrome.runtime,
+  rendered,poll:()=>intervals[0](),push:item=>receive({type:'subtitle-update',item}),
   toggle:v=>change({websiteTextOptInEnabled:{newValue:v}},'local')};
 }
 
@@ -143,31 +145,73 @@ test('a queued live-chat message that left the screen is skipped',async()=>{
  assert.equal(t.requests[3].message.text,'画面のコメント0です');
 });
 
-test('a failed live-chat translation shows retry state and retries once',async()=>{
+test('a queued duplicate remains valid after its first consumer leaves the screen',async()=>{
+ const t=setup();await settle();
+ const first=t.makeNode('同じコメントです'), second=t.makeNode(first.textContent);
+ t.chat.push(second,first,...['次のコメントです','次々のコメントです','最後のコメントです'].map(t.makeNode));
+ t.scan();await settle();
+ assert.equal(t.requests.length,3);
+ first.isConnected=false;
+ t.requests[0].reply({ok:true,text:'最新'});await settle();
+ assert.equal(t.requests.length,4);
+ assert.equal(t.requests[3].message.text,second.textContent);
+ assert.equal(second.lines[0].textContent,'中：翻譯中…');
+ t.requests[3].reply({ok:true,text:'這是同一則留言'});await settle();
+ assert.equal(second.lines[0].textContent,'中：這是同一則留言');
+});
+
+test('an older subtitle poll cannot clear a newly pushed caption',async()=>{
+ const t=setup();await settle();
+ const poll=t.poll();
+ const caption={id:2,original:'今',translated:'新字幕',expiresAt:Date.now()/1000+30};
+ t.push(caption);
+ t.requests[0].reply({ok:true,text:{running:false,items:[]}});
+ await poll;
+ assert.equal(t.rendered.length,1);
+ assert.equal(t.rendered[0][0],caption);
+});
+
+test('a blank live-chat reply is not cached or rendered as a successful translation',async()=>{
  const t=setup();await settle();const node=t.makeNode('もう一度翻訳してください');
  t.chat.push(node);t.scan();await settle();
  assert.equal(node.lines[0].textContent,'中：翻譯中…');
- t.requests[0].reply({ok:false,error:'temporary'});await settle();
- assert.equal(t.requests.length,2);
- assert.equal(node.lines[0].textContent,'中：第一次失敗，正在重試…');
+ t.requests[0].reply({ok:true,text:' '});await settle();
+ assert.equal(t.requests.length,1);
+ assert.equal(node.lines[0].textContent,'中：翻譯暫時失敗。');
+ const retry=node.lines[0].children[0];
+ retry.onclick({preventDefault(){},stopPropagation(){}});await settle();
  t.requests[1].reply({ok:true,text:'請再翻譯一次'});await settle();
  assert.equal(node.lines[0].textContent,'中：請再翻譯一次');
 });
 
-test('a second live-chat failure stops instead of creating a retry loop',async()=>{
+test('a terminal background failure stops instead of creating a retry loop',async()=>{
  const t=setup();await settle();const node=t.makeNode('翻訳が失敗するコメントです');
  t.chat.push(node);t.scan();await settle();
- t.requests[0].reply({ok:false,error:'first'});await settle();
- t.requests[1].reply({ok:false,error:'second'});await settle();
+ t.requests[0].reply({ok:false,error:'background retries exhausted'});await settle();
  assert.equal(node.lines[0].textContent,'中：翻譯暫時失敗。');
  t.scan();t.scan();await settle();
- assert.equal(t.requests.length,2);
+ assert.equal(t.requests.length,1);
  const retry=node.lines[0].children[0];assert.equal(retry.textContent,'再試一次');
  retry.onclick({preventDefault(){},stopPropagation(){}});await settle();
- assert.equal(t.requests.length,3);
- retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,3);
- t.requests[2].reply({ok:true,text:'重試成功'});await settle();
+ assert.equal(t.requests.length,2);
+ retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,2);
+ t.requests[1].reply({ok:true,text:'重試成功'});await settle();
  assert.equal(node.lines[0].textContent,'中：重試成功');
+});
+
+test('a synchronous messaging failure does not strand subsequent chat translations',async()=>{
+ const t=setup();await settle();
+ const send=t.runtime.sendMessage;
+ let blocked=0;
+ t.runtime.sendMessage=(message,reply)=>{
+  if(message.type==='translate' && blocked++<3) throw new Error('Extension message could not be sent');
+  send(message,reply);
+ };
+ for(let i=0;i<4;i++) t.chat.push(t.makeNode(`コメントの番号は${i}です。`));
+ t.scan();await settle();
+ assert.equal(t.requests.length,1);
+ t.requests[0].reply({ok:true,text:'留言編號是零。'});await settle();
+ assert.equal(t.chat[0].lines[0].textContent,'中：留言編號是零。');
 });
 
 test('YouTube live chat survives selector changes through its semantic log region',async()=>{

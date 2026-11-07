@@ -1,5 +1,5 @@
-import type { TranslatorEngine, Language } from '../types'
-import { apiFetch, apiInitialize, DEFAULT_TIMEOUT_MS } from './api-utils'
+import type { TranslatorEngine, Language, TranslateContext } from '../types'
+import { apiFetch, apiInitialize, DEFAULT_TIMEOUT_MS, translateProtectedCloudText } from './api-utils'
 import { createLogger } from '../../main/logger'
 
 const log = createLogger('microsoft-translate')
@@ -57,7 +57,7 @@ export class MicrosoftTranslator implements TranslatorEngine {
     if (!alreadyInit) this.initialized = true
   }
 
-  async translate(text: string, from: Language, to: Language): Promise<string> {
+  async translate(text: string, from: Language, to: Language, context?: TranslateContext): Promise<string> {
     if (!text.trim()) return ''
     if (from === to) return text
 
@@ -67,24 +67,25 @@ export class MicrosoftTranslator implements TranslatorEngine {
       to
     })
 
-    const data = await apiFetch<Array<{ translations: Array<{ text: string; to: string }> }>>({
-      url: `${MS_TRANSLATE_URL}?${params}`,
-      init: {
-        method: 'POST',
-        headers: {
-          'Ocp-Apim-Subscription-Key': this.apiKey,
-          'Ocp-Apim-Subscription-Region': this.region,
-          'Content-Type': 'application/json'
+    return translateProtectedCloudText(text, context?.glossary, async source => {
+      const data = await apiFetch<Array<{ translations?: Array<{ text?: string }> }>>({
+        url: `${MS_TRANSLATE_URL}?${params}`,
+        init: {
+          method: 'POST',
+          headers: {
+            'Ocp-Apim-Subscription-Key': this.apiKey,
+            'Ocp-Apim-Subscription-Region': this.region,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify([{ text: source }])
         },
-        body: JSON.stringify([{ text }])
-      },
-      timeoutMs: this.timeoutMs,
-      serviceName: 'Microsoft Translator',
-      errorMappings: ERROR_MAPPINGS,
-      classifyErrorBody: classifyMicrosoftError
+        timeoutMs: this.timeoutMs,
+        serviceName: 'Microsoft Translator',
+        errorMappings: ERROR_MAPPINGS,
+        classifyErrorBody: classifyMicrosoftError
+      })
+      return data?.[0]?.translations?.[0]?.text
     })
-
-    return data[0]?.translations[0]?.text || ''
   }
 
   async dispose(): Promise<void> {

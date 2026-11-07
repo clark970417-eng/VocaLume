@@ -82,6 +82,16 @@ describe('ApiRotationController', () => {
     expect(result).toBe('result-b')
   })
 
+  it('uses the next provider when the first returns a blank translation', async () => {
+    vi.mocked(engine1.translate).mockResolvedValue('  ')
+    await controller.initialize()
+
+    expect(await controller.translate('hello', 'en', 'ja')).toBe('result-b')
+    expect(engine1.translate).toHaveBeenCalledOnce()
+    expect(engine2.translate).toHaveBeenCalledOnce()
+    expect(persistence.store['provider-b']?.charCount).toBe(5)
+  })
+
   it('throws when all providers fail', async () => {
     vi.mocked(engine1.translate).mockRejectedValue(new Error('fail-a'))
     vi.mocked(engine2.translate).mockRejectedValue(new Error('fail-b'))

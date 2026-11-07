@@ -20,20 +20,25 @@ const record=async(name,evidence)=>{const gaps=await app.evaluate(()=>globalThis
  let page=await app.firstWindow();await page.waitForLoadState('domcontentloaded')
  for(let i=0;i<100;i++){const found=app.windows().find(w=>/index\.html/.test(w.url()));if(found){page=found;break}await new Promise(r=>setTimeout(r,50))}
  await page.waitForFunction(()=>window.api)
+ await page.locator('.interface-language select').selectOption('en')
+ const openFileTranslation=()=>page.getByRole('tab',{name:'File translation',exact:true}).click()
  await page.evaluate(()=>window.api.saveSettings({sourceLanguage:'en',targetLanguage:'zh',whisperVariant:'base',translationEngine:'offline-hymt15',sttEngine:'whisper-local',uiLanguage:'en',speculativeDecoding:false}))
  await page.reload();await page.getByRole('combobox',{name:'Source language',exact:true}).waitFor()
  await expect(page.getByRole('combobox',{name:'Source language',exact:true})).toHaveValue('en')
+ await openFileTranslation()
  page.on('console',message=>{if(message.type()==='error')fs.appendFileSync(path.join(output,'renderer-errors.log'),message.text()+'\n')})
  await app.evaluate(()=>{globalThis.__acceptanceGaps=[];let last=performance.now();globalThis.__acceptanceTimer=setInterval(()=>{const now=performance.now();globalThis.__acceptanceGaps.push(now-last);last=now},20)})
  const caption=await page.evaluate(()=>window.api.configureObsCaptions('bilingual'))
+ assert.equal(caption.mode,'bilingual',caption.error)
+ const readCaption=()=>fs.readFileSync(caption.path,'utf8')
  await page.locator('#media-file').setInputFiles(path.join(assets,'jfk.wav'))
  await page.waitForFunction(()=>/Finished jfk|File translation failed|The selected file cannot/.test(document.body.innerText),{},{timeout:120000})
  await expect(page.getByText(/Finished jfk\.wav/)).toBeVisible({timeout:120000})
- await expect(page.getByText('翻譯紀錄編輯器',{exact:true})).toBeVisible()
- const obsText=fs.readFileSync(caption.path,'utf8');assert.match(obsText,/americans/i);assert.match(obsText,/[\u4e00-\u9fff]/)
- await record('file import: real FFmpeg → SenseVoice → local translation → OBS file',{caption:obsText})
- await page.getByText('翻譯紀錄編輯器',{exact:true}).click()
- const editor=page.locator('details').filter({hasText:'翻譯紀錄編輯器'}).locator('textarea').first();await expect(editor).toHaveValue(/.+/)
+ await expect(page.getByText('Transcript editor',{exact:true})).toBeVisible()
+ await expect.poll(readCaption).toBe('')
+ await record('UI file import completes and clears OBS output on stop',{})
+ await page.getByText('Transcript editor',{exact:true}).click()
+ const editor=page.locator('details').filter({hasText:'Transcript editor'}).locator('textarea').first();await expect(editor).toHaveValue(/.+/)
  await editor.fill('驗收編輯：保留中文、123 與 emoji 😊')
  await page.getByRole('searchbox').fill('驗收編輯');await expect(editor).toBeVisible()
  await page.getByRole('searchbox').fill('不應找到這段');await expect(editor).toBeHidden()
@@ -42,38 +47,77 @@ const record=async(name,evidence)=>{const gaps=await app.evaluate(()=>globalThis
  // The native dialog alone is supplied a controlled test path; production
  // renderer editing, IPC and actual UTF-8 file writing remain unchanged.
  await app.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file})},exported)
- await page.getByRole('button',{name:'匯出文字檔',exact:true}).click()
+ await page.getByRole('button',{name:'Export text file',exact:true}).click()
  await expect.poll(()=>{try{return fs.readFileSync(exported,'utf8')}catch{return ''}}).toContain('驗收編輯：保留中文、123 與 emoji 😊')
  assert.match(fs.readFileSync(exported,'utf8'),/驗收編輯：保留中文、123 與 emoji 😊/)
  await record('transcript search, editing and UTF-8 export',{nativeDialog:'controlled path fixture'})
  const obsConfig=path.resolve('../../obs-test/config/obs-studio/plugin_config/obs-websocket/config.json')
+ let obsVersion,emptyPreview
+ const screenshot=async()=>{
+  const image=await obs.call('GetSourceScreenshot',{sourceName:source,imageFormat:'png',imageWidth:1280,imageHeight:220})
+  return Buffer.from(image.imageData.split(',')[1],'base64')
+ }
  if(fs.existsSync(obsConfig)){
   obs=await connectObs(JSON.parse(fs.readFileSync(obsConfig,'utf8')))
-  const version=await obs.call('GetVersion');scene='VocaLume acceptance '+Date.now();source=scene+' text'
+  obsVersion=(await obs.call('GetVersion')).obsVersion
+  scene='VocaLume acceptance '+Date.now();source=scene+' text'
   const kinds=await obs.call('GetInputKindList');const textKind=kinds.inputKinds.find(kind=>kind.startsWith('text_gdiplus'))
   assert.ok(textKind,'OBS GDI+ text source is available')
   await obs.call('CreateScene',{sceneName:scene})
   await obs.call('CreateInput',{sceneName:scene,inputName:source,inputKind:textKind,inputSettings:{read_from_file:true,file:caption.path,font:{face:'Microsoft JhengHei',size:24,flags:0},color:0xffffff,extents:true,extents_cx:1280,extents_cy:220,wrap:true},sceneItemEnabled:true})
-  await new Promise(r=>setTimeout(r,1500))
-  const image=await obs.call('GetSourceScreenshot',{sourceName:source,imageFormat:'png',imageWidth:1280,imageHeight:220})
-  fs.writeFileSync(path.join(output,'obs-first.png'),Buffer.from(image.imageData.split(',')[1],'base64'))
-  await record('OBS reads and renders the actual App bilingual caption file',{obsVersion:version.obsVersion})
+  emptyPreview=await screenshot()
+ }
+ // UI imports stop the pipeline on completion. Hold a separate real IPC
+ // session open until OBS has read and rendered its generated caption file.
+ async function inspectCaption(media,sttEngineId,jobId,validate,previousImage){
+  const started=await page.evaluate(sttEngineId=>window.api.pipelineStart({mode:'cascade',sttEngineId,translatorEngineId:'hunyuan-mt-15'}),sttEngineId)
+  assert.ok(started.success,JSON.stringify(started))
+  let text,image
+  try{
+   const result=await page.evaluate(({media,jobId})=>window.api.processMediaFile(media,jobId),{media,jobId})
+   assert.ok(!result.cancelled&&result.processedSeconds>0)
+   await expect.poll(readCaption).toMatch(/[\u4e00-\u9fff]/)
+   text=readCaption()
+   validate(text)
+   if(obs){
+    await expect.poll(async()=>{
+     image=await screenshot()
+     return !image.equals(emptyPreview)&&(!previousImage||!image.equals(previousImage))
+    },{timeout:15000}).toBe(true)
+   }
+  }finally{
+   await page.evaluate(()=>window.api.pipelineStop())
+  }
+  await expect.poll(readCaption).toBe('')
+  return {text,image}
+ }
+ const first=await inspectCaption(path.join(assets,'jfk.wav'),'sensevoice-sherpa','obs-english',text=>assert.match(text,/americans/i))
+ await record('file import: real FFmpeg → SenseVoice → local translation → OBS file',{caption:first.text})
+ if(obs){
+  fs.writeFileSync(path.join(output,'obs-first.png'),first.image)
+  await record('OBS reads and renders the actual App bilingual caption file',{obsVersion})
  }
  await app.evaluate(({dialog},folder)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]})},watch)
- await page.getByRole('button',{name:'監看資料夾並自動翻譯',exact:true}).click()
+ await page.getByRole('button',{name:'Watch folder and translate automatically',exact:true}).click()
  fs.copyFileSync(path.join(assets,'jfk.wav'),path.join(watch,'watched.wav'))
  await expect(page.getByText(/Finished watched\.wav/)).toBeVisible({timeout:120000})
- await page.getByRole('button',{name:'停止監看資料夾',exact:true}).click()
+ await page.getByRole('button',{name:'Stop watching folder',exact:true}).click()
  await record('watch folder discovers a newly added real WAV and translates it',{nativeFolderDialog:'controlled path fixture'})
  await page.evaluate(()=>window.api.saveSettings({sourceLanguage:'ja',targetLanguage:'zh',sttEngine:'haas-ja-fast'}));await page.reload()
  await expect(page.getByRole('combobox',{name:'Source language',exact:true})).toHaveValue('ja')
+ await openFileTranslation()
  const corpusRoot=path.resolve('../../haas-assets'),corpus=JSON.parse(fs.readFileSync(path.join(corpusRoot,'corpus.json'),'utf8'))
  const sample=corpus.rows[0]
- await page.locator('#media-file').setInputFiles(path.join(corpusRoot,'corpus',sample.id+'.wav'))
+ const japaneseMedia=path.join(corpusRoot,'corpus',sample.id+'.wav')
+ await page.locator('#media-file').setInputFiles(japaneseMedia)
  await expect(page.getByText(new RegExp('Finished '+sample.id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\.wav'))).toBeVisible({timeout:120000})
- const second=fs.readFileSync(caption.path,'utf8');assert.notEqual(second,obsText);assert.match(second,/[\u4e00-\u9fff]/)
- await record('Japanese file import uses Haas-ja and produces translated captions',{caption:second})
- if(obs){await new Promise(r=>setTimeout(r,1500));const image=await obs.call('GetSourceScreenshot',{sourceName:source,imageFormat:'png',imageWidth:1280,imageHeight:220});const png=Buffer.from(image.imageData.split(',')[1],'base64');fs.writeFileSync(path.join(output,'obs-updated.png'),png);assert.notDeepEqual(png,fs.readFileSync(path.join(output,'obs-first.png')));await record('OBS refreshes rendering after the App changes the caption file',{})}
+ await expect(page.getByText('Transcript editor',{exact:true})).toBeVisible()
+ const second=await inspectCaption(japaneseMedia,'haas-ja-fast','obs-japanese',text=>assert.notEqual(text,first.text),first.image)
+ await record('Japanese file import produces translated captions',{caption:second.text})
+ if(obs){
+  fs.writeFileSync(path.join(output,'obs-updated.png'),second.image)
+  await record('OBS refreshes rendering after the App changes the caption file',{})
+ }
  const formatDir=path.join(output,'format-fixtures');fs.mkdirSync(formatDir,{recursive:true});const decodedFormats=[]
  for(const extension of ['mp3','flac','ogg','m4a','mp4','webm','mkv','avi','ts']){
   const file=path.join(formatDir,'public-speech.'+extension)

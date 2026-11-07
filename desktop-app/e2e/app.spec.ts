@@ -159,7 +159,7 @@ test.describe('Start/Stop pipeline', () => {
 
 test.describe('Settings persistence', () => {
   test('should have microphone selector', async () => {
-    await openSection('Translate')
+    await openSection('Live translation')
     const micSelect = settingsWindow.locator('[aria-label="Microphone device"]')
     await expect(micSelect).toBeVisible()
   })
@@ -173,7 +173,7 @@ test.describe('Settings persistence', () => {
   })
 
   test('should have language selectors directly on the translate page', async () => {
-    await openSection('Translate')
+    await openSection('Live translation')
 
     const sourceSelect = settingsWindow.locator('[aria-label="Source language"]')
     await expect(sourceSelect).toBeVisible()
@@ -186,7 +186,7 @@ test.describe('Settings persistence', () => {
   })
 
   test('should allow changing target language', async () => {
-    await openSection('Translate')
+    await openSection('Live translation')
 
     const targetSelect = settingsWindow.locator('[aria-label="Target language"]')
     await expect(targetSelect).toBeVisible()
@@ -214,14 +214,16 @@ test.describe('Window management', () => {
 
 test.describe('Simple navigation', () => {
   test('common controls need at most one section change and the start button stays in view', async () => {
-    for (const name of ['Translate', 'Subtitles', 'Models', 'More']) {
+    for (const name of ['Live translation', 'File translation', 'Subtitles & OBS', 'Models', 'Advanced settings']) {
       await openSection(name)
       await expect(settingsWindow.getByRole('button', {name: 'Start translation', exact: true})).toBeInViewport()
       await expect(settingsWindow.getByRole('button', {name: 'Save settings', exact: true})).toBeInViewport()
     }
-    await openSection('Subtitles')
+    await openSection('File translation')
+    await expect(settingsWindow.getByLabel('Choose a file to begin translation')).toBeVisible()
+    await openSection('Subtitles & OBS')
     await expect(settingsWindow.getByRole('slider', {name: 'Subtitle font size'})).toBeVisible()
-    await openSection('Translate')
+    await openSection('Live translation')
     await expect(settingsWindow.getByRole('combobox', {name: 'Source language', exact: true})).toBeVisible()
     await expect(settingsWindow.getByRole('combobox', {name: 'Audio source', exact: true})).toBeVisible()
   })
@@ -229,13 +231,13 @@ test.describe('Simple navigation', () => {
   test('switching sections preserves unsaved model and language choices', async () => {
     await openSection('Models')
     await settingsWindow.locator('[role="radiogroup"] label').filter({hasText: 'Hunyuan-MT 7B'}).locator('input').check()
-    await openSection('Translate')
+    await openSection('Live translation')
     await settingsWindow.getByRole('combobox', {name: 'Source language', exact: true}).selectOption('ko')
     await settingsWindow.getByRole('combobox', {name: 'Target language', exact: true}).selectOption('zh')
     await settingsWindow.getByRole('button', {name: 'Swap translation languages'}).click()
     await openSection('Models')
-    await openSection('More')
-    await openSection('Translate')
+    await openSection('Advanced settings')
+    await openSection('Live translation')
     await expect(settingsWindow.getByRole('combobox', {name: 'Source language', exact: true})).toHaveValue('zh')
     await expect(settingsWindow.getByRole('combobox', {name: 'Target language', exact: true})).toHaveValue('ko')
     await openSection('Models')
@@ -243,10 +245,11 @@ test.describe('Simple navigation', () => {
   })
 
   test('section tabs support keyboard navigation', async () => {
-    await openSection('Translate')
-    await settingsWindow.getByRole('tab', {name: 'Translate', exact: true}).press('ArrowRight')
-    await expect(settingsWindow.getByRole('tab', {name: 'Subtitles', exact: true})).toBeFocused()
-    await settingsWindow.getByRole('tab', {name: 'Subtitles', exact: true}).press('End')
-    await expect(settingsWindow.getByRole('tab', {name: 'More', exact: true})).toBeFocused()
+    await openSection('Live translation')
+    await settingsWindow.getByRole('tab', {name: 'Live translation', exact: true}).press('ArrowRight')
+    const filesTab = settingsWindow.getByRole('tab', {name: 'File translation', exact: true})
+    await expect(filesTab).toBeFocused()
+    await filesTab.press('End')
+    await expect(settingsWindow.getByRole('tab', {name: 'Advanced settings', exact: true})).toBeFocused()
   })
 })

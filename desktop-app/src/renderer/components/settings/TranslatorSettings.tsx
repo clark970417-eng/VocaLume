@@ -1,6 +1,5 @@
 import { t } from '../../ui-language'
 import React from 'react'
-import { GlossarySettings } from './GlossarySettings'
 import { Section } from './Section'
 import { LLM_ENGINE_MODES, disclosureArrowStyle, disclosureToggleStyle, inputStyle, radioLabelStyle, selectStyle } from './shared'
 import type { EngineMode } from './shared'
@@ -54,12 +53,6 @@ interface TranslatorSettingsProps {
   // API options visibility (controlled by parent for settings restore)
   showApiOptions: boolean
   onShowApiOptionsChange: (v: boolean) => void
-  // Glossary
-  glossaryTerms: Array<{ source: string; target: string }>
-  onGlossaryTermsChange: (terms: Array<{ source: string; target: string }>) => void
-  // Organization glossary (#517)
-  orgGlossaryTerms: Array<{ source: string; target: string }>
-  onOrgGlossaryTermsChange: (terms: Array<{ source: string; target: string }>) => void
 }
 
 export function TranslatorSettings({
@@ -103,11 +96,7 @@ export function TranslatorSettings({
   geminiLiveEnabled,
   onGeminiLiveEnabledChange,
   showApiOptions,
-  onShowApiOptionsChange,
-  glossaryTerms,
-  onGlossaryTermsChange,
-  orgGlossaryTerms,
-  onOrgGlossaryTermsChange
+  onShowApiOptionsChange
 }: TranslatorSettingsProps): React.JSX.Element {
   const showLlmOptions = LLM_ENGINE_MODES.includes(engineMode)
 
@@ -128,7 +117,7 @@ export function TranslatorSettings({
   return (
     <>
       <Section label={t("Translation Engine")} helpText={t("Auto picks the best engine for your setup. HY-MT 1.5 is the recommended offline default.")}>
-        <fieldset role="radiogroup" aria-label={t("Translation Engine")} style={{ border: 'none', margin: 0, padding: 0 }}>
+        <fieldset role="radiogroup" aria-label={t("Translation Engine")} style={{ border: 'none', margin: 0, padding: 0, minInlineSize: 0 }}>
         <legend style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>{t("Translation Engine")}</legend>
         <label style={radioLabelStyle}>
           <input
@@ -140,7 +129,6 @@ export function TranslatorSettings({
           />
           <div>
             <div style={{ fontWeight: 500 }}>{t("Auto (Recommended)")}</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Picks the best engine for your hardware and API keys")}</div>
           </div>
         </label>
         <label style={radioLabelStyle}>
@@ -153,7 +141,6 @@ export function TranslatorSettings({
           />
           <div>
             <div style={{ fontWeight: 500 }}>{t("HY-MT 1.5 (Offline default)")}</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Compact local model, about 1 GB. Lower resource use; review important translations.")}</div>
           </div>
         </label>
         <label style={radioLabelStyle}>
@@ -161,7 +148,6 @@ export function TranslatorSettings({
             onChange={() => onEngineModeChange('offline-hymt2')} disabled={disabled} />
           <div>
             <div style={{ fontWeight: 500 }}>{t("Hy-MT2 7B (Offline)")}</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("About 4.6 GB. More natural wording in some cases; longer processing time and higher memory use.")}</div>
           </div>
         </label>
         <label style={radioLabelStyle}>
@@ -174,7 +160,6 @@ export function TranslatorSettings({
           />
           <div>
             <div style={{ fontWeight: 500 }}>{t("Hunyuan-MT 7B (High Quality, GPU recommended)")}</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("WMT25 winner, 33 languages, ~4GB — slower but higher quality")}</div>
           </div>
         </label>
         {platform === 'darwin' && (
@@ -188,7 +173,6 @@ export function TranslatorSettings({
             />
             <div>
               <div style={{ fontWeight: 500 }}>{t("Apple Translate (Built-in, macOS 15+)")}</div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>{t("Zero config, on-device, ANE-optimized — no model download")}</div>
             </div>
           </label>
         )}
@@ -202,11 +186,7 @@ export function TranslatorSettings({
           />
           <div>
             <div style={{ fontWeight: 500 }}>{t("Online API (Auto Rotation)")}</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-              {hasAnyApiKey
-                ? t("Azure → Google → DeepL → Gemini — up to 4M+ chars/month free")
-                : t("Configure an API key below to enable cloud translation")}
-            </div>
+            {!hasAnyApiKey && <div>{t("Configure an API key below to enable cloud translation")}</div>}
           </div>
         </label>
 
@@ -517,13 +497,6 @@ export function TranslatorSettings({
         )}
       </Section>
 
-      <GlossarySettings
-        disabled={disabled}
-        glossaryTerms={glossaryTerms}
-        onGlossaryTermsChange={onGlossaryTermsChange}
-        orgGlossaryTerms={orgGlossaryTerms}
-        onOrgGlossaryTermsChange={onOrgGlossaryTermsChange}
-      />
     </>
   )
 }

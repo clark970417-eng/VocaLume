@@ -2,10 +2,11 @@ import { t } from '../ui-language'
 import React from 'react'
 
 export const SETTINGS_TABS = [
-  { id: 'translate', label: 'Translate' },
-  { id: 'subtitles', label: 'Subtitles' },
+  { id: 'translate', label: 'Live translation' },
+  { id: 'files', label: 'File translation' },
+  { id: 'subtitles', label: 'Subtitles & OBS' },
   { id: 'models', label: 'Models' },
-  { id: 'more', label: 'More' }
+  { id: 'more', label: 'Advanced settings' }
 ] as const
 export type SettingsTab = typeof SETTINGS_TABS[number]['id']
 

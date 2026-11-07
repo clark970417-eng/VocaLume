@@ -1,6 +1,6 @@
 import type { TranslatorEngine, Language, TranslateContext } from '../types'
 import { LANG_NAMES_EN } from '../language-names'
-import { apiFetch, DEFAULT_TIMEOUT_MS } from './api-utils'
+import { apiFetch, DEFAULT_TIMEOUT_MS, translateProtectedCloudText } from './api-utils'
 import { formatGlossaryPrompt } from './glossary-utils'
 import { createLogger } from '../../main/logger'
 
@@ -73,35 +73,35 @@ export class GeminiTranslator implements TranslatorEngine {
     }
     const contextSection = contextParts.length > 0 ? contextParts.join('\n\n') + '\n\n' : ''
 
-    const prompt = `${contextSection}Translate the following ${LANG_NAMES_EN[from]} text to ${LANG_NAMES_EN[to]}. Output ONLY the translated text, nothing else.\n\n${text}`
-
-    const data = await apiFetch<{
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> }
-      }>
-    }>({
-      url: GEMINI_API_URL,
-      init: {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': this.apiKey
+    return translateProtectedCloudText(text, context?.glossary, async (source, hasNames) => {
+      const nameInstruction = hasNames ? ' Copy all bracketed name markers exactly.' : ''
+      const prompt = `${contextSection}Translate the following ${LANG_NAMES_EN[from]} text to ${LANG_NAMES_EN[to]}. Output ONLY the translated text, nothing else.${nameInstruction}\n\n${source}`
+      const data = await apiFetch<{
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+      }>({
+        url: GEMINI_API_URL,
+        init: {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.apiKey
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 256
+            }
+          })
         },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 256
-          }
-        })
-      },
-      timeoutMs: this.timeoutMs,
-      serviceName: 'Gemini API',
-      errorMappings: ERROR_MAPPINGS,
-      classifyErrorBody: classifyGeminiError
+        timeoutMs: this.timeoutMs,
+        serviceName: 'Gemini API',
+        errorMappings: ERROR_MAPPINGS,
+        classifyErrorBody: classifyGeminiError
+      })
+      const translated = data?.candidates?.[0]?.content?.parts?.[0]?.text
+      return typeof translated === 'string' ? translated.trim() : undefined
     })
-
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
   }
 
   async dispose(): Promise<void> {

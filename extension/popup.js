@@ -1,5 +1,6 @@
 import {API_PROVIDERS,selectedApi,apiProfile,apiEndpoint,apiSettingsUpdate,validateApiProfile} from './cloud-api.mjs';
 import {captureStatus} from './capture-status.mjs';
+import {translateUiText} from './ui-language.mjs';
 
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
@@ -16,6 +17,7 @@ const languageDefaults = {readSource: 'ja', readTarget: 'zh', typeSource: 'zh', 
 const languageIds = Object.keys(languageDefaults);
 const defaults = {japaneseColor: '#ffffff', chineseColor: '#ffffff', fontSize: 22, showOutline: true, outlineColor: '#000000', outlineWidth: 1, captionOpacity: 100, backgroundColor: '#000000', backgroundOpacity: 60, position: 6, holdSeconds: 3, captionMode: 'realtime', speechToneMode: 'off'};
 const controls = Object.keys(defaults);
+const appearanceControls = ['japaneseColor', 'chineseColor', 'fontSize', 'showOutline', 'outlineColor', 'outlineWidth', 'captionOpacity', 'backgroundColor', 'backgroundOpacity', 'position'];
 const numericControls = ['fontSize', 'outlineWidth', 'position', 'holdSeconds', 'backgroundOpacity', 'captionOpacity'];
 const dedicatedHosts = ['youtube.com', 'x.com', 'twitter.com', 'bilibili.com', 'tiktok.com', 'twitch.tv', 'facebook.com', 'instagram.com', 'discord.com', 'discordapp.com'];
 const isDedicatedHost = host => dedicatedHosts.some(domain => host === domain || host.endsWith('.' + domain));
@@ -97,21 +99,21 @@ function applySync() {
     $('#typeTarget').value = $('#readSource').value;
   }
   $('#syncSummary').textContent = synced
-    ? `留言：${languageLabel($('#typeSource').value)} → ${languageLabel($('#typeTarget').value)}`
-    : '分開選擇留言的原文與譯文語言';
+    ? `${languageLabel($('#typeSource').value)} → ${languageLabel($('#typeTarget').value)}`
+    : '';
   $('#writingOptions').hidden = $('#typeSource').value !== 'zh' || $('#typeTarget').value !== 'ja';
 }
 async function saveLanguages() {
   applySync();
   const value = Object.fromEntries(languageIds.map(id => [id, id === 'syncTextLanguages' ? $('#' + id).checked : $('#' + id).value]));
-  const invalid = [];
-  for (const [prefix, label] of [['read', '讀取文字'], ['type', '輸入留言'], ['speech', '語音字幕']]) {
+  let invalid = false;
+  for (const prefix of ['read', 'type', 'speech']) {
     const same = value[prefix + 'Source'] === value[prefix + 'Target'];
     for (const suffix of ['Source', 'Target']) $('#' + prefix + suffix).setAttribute('aria-invalid', String(same));
-    if (same) invalid.push(label);
+    invalid ||= same;
   }
-  if (invalid.length) {
-    feedback(`${invalid.join('、')}的兩種語言須不同，尚未儲存。`, 'error');
+  if (invalid) {
+    feedback('兩種語言須不同，尚未儲存。', 'error');
     return;
   }
   await savePreferences({languageSettings: value}, '語言已儲存；語音於下次開始時套用');
@@ -131,19 +133,12 @@ for (const button of $$('[data-swap]')) {
 function renderTextAccess() {
   const enabled = $('#websiteText').checked;
   const dedicated = isDedicatedHost(currentSiteHost);
-  $('#textToggleHint').textContent = enabled ? '已開啟 · 讀取文字與留言翻譯' : '關閉中 · 不會自動翻譯網站文字';
-  $('#currentSiteSection').hidden = false;
+  $('#currentSiteSection').hidden = supportedTab && dedicated;
   $('#currentSiteControl').hidden = !supportedTab || dedicated;
   $('#currentSiteTranslation').disabled = !supportedTab || dedicated;
   $('#currentSiteLabel').textContent = `允許 ${currentSiteHost} 翻譯`;
-  $('#currentSiteHint').textContent = !supportedTab
-    ? '請先打開要翻譯的網站，再點 VocaLume。'
-    : dedicated ? `${currentSiteHost.replace(/^www\./, '')} · 支援此網站${enabled ? '' : '，開啟上方開關即可使用'}`
-    : '此網站需另外允許，避免不需要的頁面被翻譯。';
-  $('#writingHint').textContent = !enabled ? '先開啟上方「網站文字翻譯」，留言框才會出現翻譯按鈕。'
-    : !supportedTab ? '請回到網站的留言框使用。'
-    : !dedicated && !$('#currentSiteTranslation').checked ? '還需開啟上方的網站開關，才能在此頁翻譯留言。'
-    : '適用於網站中可辨識的留言框；不會自動送出訊息。';
+  $('#currentSiteHint').textContent = supportedTab ? '' : '請先打開要翻譯的網站，再點 VocaLume。';
+  $('#streamerChatMode').disabled = !enabled;
 }
 async function loadCurrentSiteAccess() {
   const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
@@ -163,7 +158,7 @@ listen('#streamerChatMode', 'change', async () => {
 });
 listen('#websiteText', 'change', async () => {
   const chosen = $('#websiteText').checked;
-  try { await savePreferences({websiteTextOptInEnabled: chosen}, chosen ? '網站文字翻譯已開啟' : '網站文字翻譯已關閉；語音字幕不受影響'); }
+  try { await savePreferences({websiteTextOptInEnabled: chosen}, chosen ? '網站文字翻譯已開啟' : '已關閉網站翻譯'); }
   catch (error) { $('#websiteText').checked = !chosen; throw error; }
   finally { renderTextAccess(); }
 });
@@ -190,6 +185,7 @@ function paintLabels() {
   preview.style.backgroundColor = value.backgroundColor + Math.round(value.backgroundOpacity * 2.55).toString(16).padStart(2, '0');
   $('#outlineColor').disabled = !value.showOutline;
   $('#outlineWidth').disabled = !value.showOutline;
+  $('#holdSeconds').disabled = value.captionMode !== 'realtime';
   preview.style.webkitTextStroke = outline ? `0.4px ${value.outlineColor}` : '0 transparent';
   preview.style.textShadow = outline ? `0 0 2px ${value.outlineColor}` : 'none';
   preview.style.opacity = value.captionOpacity / 100;
@@ -205,7 +201,7 @@ async function saveSettings() {
 }
 for (const id of controls) listen('#' + id, 'input', saveSettings);
 listen('#reset', 'click', async () => {
-  for (const id of controls) {
+  for (const id of appearanceControls) {
     if (id === 'showOutline') $('#' + id).checked = defaults[id];
     else $('#' + id).value = defaults[id];
   }
@@ -215,7 +211,6 @@ listen('#reset', 'click', async () => {
 function renderEngine() {
   const desktop = $('#engineMode').value === 'desktop';
   $('#engineSummary').textContent = desktop ? '翻譯方式 · 本機 App' : '翻譯方式 · 瀏覽器';
-  $('#engineHint').textContent = desktop ? '需先安裝 VocaLume 桌面程式；開始時會自動啟動。' : '首次使用需下載辨識模型；文字翻譯需要網路連線。';
   $('#desktopSettings').hidden = !desktop;
   $('#speechToneMode').disabled = !desktop;
 }
@@ -236,7 +231,7 @@ function renderSpeech() {
     : error ? `提示：${error}`
     : !supportedTab && !d.running && !d.draining ? '請回到影片或直播分頁，再開啟 VocaLume。'
     : !healthReady ? '正在確認字幕狀態…'
-    : captureStatus(d).replace(/^●\s*/, '').replaceAll('日文', '原文').replaceAll('中文', '譯文');
+    : captureStatus(d).replace(/^●\s*/, '');
   $('#status').textContent = message;
   $('#captureDot').dataset.state = error ? 'error' : d.running || busy ? 'active' : 'idle';
   $('#start').disabled = !initialized || !healthReady || !supportedTab || Boolean(d.running) || busy;
@@ -252,7 +247,7 @@ function renderDiagnostics(d) {
   const metric = name => { const m = x.metrics?.[name]; return m ? `${m.p50} / ${m.p95} ms` : '尚無資料'; };
   const delivery = name => { const m = x.deliveryMetrics?.[name]; return m ? `${m.p50} / ${m.p95} / ${m.p99} ms（${m.count} 句）` : '尚無資料'; };
   const time = value => Number.isFinite(value) && value >= 0 ? `${Math.round(value)} ms` : '尚無資料';
-  $('#diagnostics').textContent = `音訊：${x.frames || 0} 區塊\n音量 RMS：${(x.level || 0).toFixed(5)}\nVAD 樣本（最多 120）：${x.metrics?.vadMs?.count || 0}\n辨識模型：${x.model || '—'} ${x.dtype || ''}\n人聲機率：${Math.round((x.probability || 0) * 100)}%\n模型：${x.ready ? '就緒' : '尚未就緒'}\n單段處理（依模式可能不含譯文）：${time(x.decodeMs)}\n最近翻譯：${time(x.translationMs)}\n片段結束到最近譯文：${time(x.chineseLagMs)}\n首段暫定文字 P50/P95：${metric('firstTokenMs')}\n首段處理完成 P50/P95：${metric('firstJapaneseMs')}\n單段處理 P50/P95：${metric('decodeMs')}\n片段結束至開始處理 P50/P95：${metric('queueMs')}\n桌面模式最近 120 句，P50/P95/P99：\n片段結束至最終原文：${delivery('endToSourceMs')}\n最終原文至譯文（含排隊）：${delivery('sourceToTranslationMs')}\n片段結束至最終譯文：${delivery('endToTranslationMs')}\n節能調整：${x.performance?.thermalState || 'unknown'}${x.performance?.coolingDown ? '（冷卻恢復中）' : ''} · ${x.performance?.previewsPaused ? '暫停草稿，優先完成句子' : `草稿間隔 ${x.cadenceMs || 500} ms`}\n記憶體狀態：${({ nominal: '正常', warning: '偏高', critical: '很高', unknown: '未取得' })[x.performance?.memoryPressure] || '未取得'}\n節能略過草稿：${x.previewsSkipped || 0}\n待處理：${x.queueDepth || 0}\n略過過期音訊：${x.dropped || 0}\n不可靠結果：${x.rejected || 0}\n音訊重同步：${x.overruns || 0}${d.lastError ? '\n最近錯誤：' + d.lastError : ''}`;
+  $('#diagnostics').textContent = `音訊：${x.frames || 0} 區塊\n音量 RMS：${(x.level || 0).toFixed(5)}\nVAD 樣本（最多 120）：${x.metrics?.vadMs?.count || 0}\n辨識模型：${x.model || '—'} ${x.dtype || ''}\n人聲機率：${Math.round((x.probability || 0) * 100)}%\n模型：${x.ready ? '就緒' : '尚未就緒'}\n單段處理（依模式可能不含譯文）：${time(x.decodeMs)}\n最近翻譯：${time(x.translationMs)}\n片段結束到最近譯文：${time(x.chineseLagMs)}\n首段暫定文字 P50/P95：${metric('firstTokenMs')}\n首段處理完成 P50/P95：${metric('firstJapaneseMs')}\n單段處理 P50/P95：${metric('decodeMs')}\n片段結束至開始處理 P50/P95：${metric('queueMs')}\n桌面模式最近 120 句，P50/P95/P99：\n片段結束至最終原文：${delivery('endToSourceMs')}\n最終原文至譯文（含排隊）：${delivery('sourceToTranslationMs')}\n片段結束至最終譯文：${delivery('endToTranslationMs')}\n節能調整：${x.performance?.coolingDown ? '冷卻恢復中' : x.performance?.thermalState || 'unknown'}\n${x.performance?.previewsPaused ? '暫停草稿，優先完成句子' : `草稿間隔 ${x.cadenceMs || 500} ms`}\n記憶體狀態：${({ nominal: '正常', warning: '偏高', critical: '很高', unknown: '未取得' })[x.performance?.memoryPressure] || '未取得'}\n節能略過草稿：${x.previewsSkipped || 0}\n待處理：${x.queueDepth || 0}\n略過過期音訊：${x.dropped || 0}\n不可靠結果：${x.rejected || 0}\n音訊重同步：${x.overruns || 0}${d.lastError ? '\n最近錯誤：' + d.lastError : ''}`;
 }
 async function refresh() {
   if (refreshing) return;
@@ -309,10 +304,6 @@ function renderApiProvider() {
   $('#apiKey').placeholder = profile.apiKey ? '已儲存（留空保留）' : '尚未設定';
   $('#apiClearKey').checked = Boolean(draft.clearKey);
   $('#apiClearLabel').hidden = !profile.apiKey;
-  $('#apiProviderHint').textContent = apiSelected === 'auto'
-    ? '保留原本本機與自動翻譯流程，不會自動啟用網站翻譯。'
-    : apiSelected === 'custom' ? '支援 Chat Completions 格式。填入服務的 Base URL；本機服務可用 localhost。'
-    : `連線到 ${new URL(profile.baseUrl).hostname}。模型名稱請依你的 API 帳戶填寫。`;
   $('#testTranslation').disabled = !canTestApi();
 }
 async function loadTranslationStatus() {
@@ -365,11 +356,13 @@ listen('#testTranslation', 'click', async () => {
 listen('#exportRecording', 'click', async () => {
   const entries = await send({type: 'recording-export'});
   if (!entries.length) { $('#recordingFeedback').textContent = '還沒有字幕記錄，開始語音字幕後即可累積。'; return; }
-  const text = entries.map(entry => new Date(entry.createdAt).toLocaleString() + '\n' + entry.original + '\n' + (entry.translated || '[尚未翻譯]')).join('\n\n');
+  const locale = document.documentElement.lang;
+  const missingTranslation = translateUiText('[尚未翻譯]', locale);
+  const text = entries.map(entry => new Date(entry.createdAt).toLocaleString(locale) + '\n' + entry.original + '\n' + (entry.translated || missingTranslation)).join('\n\n');
   const url = URL.createObjectURL(new Blob([text], {type: 'text/plain;charset=utf-8'}));
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'VocaLume 字幕記錄.txt';
+  a.download = translateUiText('VocaLume 字幕記錄.txt', locale);
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   $('#recordingFeedback').textContent = `已匯出 ${entries.length} 句字幕。`;
@@ -412,7 +405,7 @@ async function initialize() {
   $('#controls').disabled = false;
   $('main').setAttribute('aria-busy', 'false');
   renderSpeech();
-  feedback('設定會自動儲存', 'idle');
+  feedback('', 'idle');
 }
 initialize().catch(error => {
   feedback(`無法讀取設定，請重新開啟：${error.message}`, 'error');

@@ -1,4 +1,5 @@
-import { t } from '../../ui-language'
+import { localizedWebsiteUrl } from '../../../../../extension/website-language.mjs'
+import { t, uiLocale } from '../../ui-language'
 import React, { useState } from 'react'
 import { Section } from './Section'
 
@@ -28,6 +29,7 @@ export function SupportSettings(): React.JSX.Element {
     <Section label={t("Support & Privacy")}>
       <p style={{ color: '#94a3b8', fontSize: '12px', lineHeight: 1.5 }}>{t("Diagnostic exports exclude API keys, microphone audio, captions, and translation text.")} </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <button type="button" style={actionStyle} onClick={() => open(localizedWebsiteUrl(uiLocale()))}>{t("Official website")}</button>
         <button style={actionStyle} onClick={exportDiagnostics}>{t("Export Diagnostics")}</button>
         <button style={actionStyle} onClick={() => open(links.bug)}>{t("Report a Problem")}</button>
         <button style={actionStyle} onClick={() => open(links.translation)}>{t("Report Translation Quality")}</button>
