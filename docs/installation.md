@@ -25,19 +25,19 @@ Keep the extracted folder: it is the installed extension. Do not delete it after
 
 ## Connect the Mac App
 
-Local browser captions require this one-time registration. The bundled installer currently supports **macOS Opera GX / Chrome**.
+Local browser captions require a one-time registration with the matching App and extension.
 
-1. Install VocaLume in Applications and open it once. Python 3 must already be available. The relay needs no extra Python packages; the optional MLX recognition engine has its own environment requirements. New users can start with the App's Whisper Local engine.
-2. Copy VocaLume's 32-character extension ID from the browser's extension page.
-3. Open Terminal in the extracted extension folder. Replace `YOUR_EXTENSION_ID` below with that ID:
+1. Install VocaLume in Applications and open it once.
+2. Copy VocaLume's 32-character ID from Chrome, Edge or Opera GX's extension page.
+3. Open Terminal in the extracted extension folder and replace `YOUR_EXTENSION_ID` with the copied ID.
 
 ```sh
-python3 desktop/install.py --extension-id YOUR_EXTENSION_ID --app '/Applications/VocaLume.app/Contents/MacOS/VocaLume'
+ELECTRON_RUN_AS_NODE=1 '/Applications/VocaLume.app/Contents/MacOS/VocaLume' desktop/install-mac.cjs YOUR_EXTENSION_ID
 ```
 
 4. Reload the extension and the video page. In VocaLume's speech tab, select the desktop engine and start captions.
 
-Do not omit `--app`; that selects the retained legacy Python inference host. If your App or extension ID changes, repeat registration. No audio is sent during registration.
+The connection uses the App's bundled runtime. If your earlier download only contains `desktop/install.py`, use Python 3 with `python3 desktop/install.py --extension-id YOUR_EXTENSION_ID --app '/Applications/VocaLume.app/Contents/MacOS/VocaLume'` for that matching older App and extension. Run the new installer once when updating an older Python connection. Registration sends no audio.
 
 ## Connect the Windows App
 

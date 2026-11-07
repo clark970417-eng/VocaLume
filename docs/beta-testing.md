@@ -34,13 +34,7 @@ Each release includes `SHA256SUMS.txt` and `release-manifest.json`. Verify the i
 3. Turn on Developer mode, choose **Load unpacked**, and select the unzipped folder.
 4. Keep the desktop app open when using desktop recognition or local writing translation.
 
-**Mac local captions need a one-time native connection registration.** With Python 3 installed, open a terminal in the extracted extension folder, replace the ID below with the extension's ID from the browser's extension manager, and run:
-
-```sh
-python3 desktop/install.py --extension-id YOUR_EXTENSION_ID --app '/Applications/VocaLume.app/Contents/MacOS/VocaLume'
-```
-
-Reload the extension and the video page afterward. The ZIP includes the installer and relay. This connection installer currently supports macOS Opera GX and Chrome. The [Windows test packages](installation.md#connect-the-windows-app) include a separate connection installer. Linux users can use the standalone App or browser-only mode. Browser-only mode requires WebGPU and network text translation.
+Local captions need a one-time connection registration with the matching App and extension. Follow the [Mac registration steps](installation.md#connect-the-mac-app) or the [Windows registration steps](installation.md#connect-the-windows-app), then reload the extension and the video page. Linux users can use the standalone App or browser-only mode. Browser-only mode requires WebGPU and network text translation.
 
 Do not delete or move the extracted extension directory. To update, overwrite that same directory, reload the extension, and refresh open pages so the extension ID and settings stay associated.
 
