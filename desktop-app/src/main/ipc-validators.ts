@@ -77,6 +77,7 @@ export function validateSubtitleSettings(data: unknown): string | null {
   if (!VALID_SUBTITLE_POSITIONS.includes(obj.position as (typeof VALID_SUBTITLE_POSITIONS)[number])) {
     return `position must be one of: ${VALID_SUBTITLE_POSITIONS.join(', ')}`
   }
+  if (obj.lowPowerRendering !== undefined && typeof obj.lowPowerRendering !== 'boolean') return 'lowPowerRendering must be a boolean'
 
   // Accessibility settings are optional — validate only if present
   if (obj.accessibility != null) {

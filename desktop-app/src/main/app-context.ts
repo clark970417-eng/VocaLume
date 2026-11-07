@@ -17,6 +17,10 @@ export interface AppContext {
   openSettings?: () => BrowserWindow | null
   /** Prevent the desktop capture controls from interrupting an extension session. */
   extensionConnected?: boolean
+  /** Shared with the Windows native host to prevent a second live decoder. */
+  liveCaptureClaimPath?: string
+  pipelineStarting?: boolean
+  pipelineInputOwner?: 'app' | 'extension' | 'file'
   mainWindow: BrowserWindow | null
   subtitleWindow: BrowserWindow | null
   pipeline: TranslationPipeline | null

@@ -10,7 +10,7 @@
  * sequential calls inside one scheduler task and the three audio operations
  * waited 1504, 1907 and 2307 ms.
  */
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { CompanionScheduler } from './companion-scheduler'
 import { translateWrittenDraft } from './draft-fidelity'
 
@@ -68,8 +68,19 @@ async function measureAudioWaits(audioCount: number): Promise<{
   return { waits, draftCalls: worker.calls() - audioCount, draft: completed }
 }
 
+async function measureWithVirtualClock(audioCount: number) {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
+  try {
+    const result = measureAudioWaits(audioCount)
+    await vi.runAllTimersAsync()
+    return await result
+  } finally {
+    vi.useRealTimers()
+  }
+}
+
 it('lets live audio preempt optional draft repair on the shared worker', async () => {
-  const { waits, draftCalls, draft } = await measureAudioWaits(3)
+  const { waits, draftCalls, draft } = await measureWithVirtualClock(3)
 
   // Only the first full translation runs; the optional repair is released.
   expect(draftCalls).toBe(1)
@@ -88,7 +99,7 @@ it('lets live audio preempt optional draft repair on the shared worker', async (
 })
 
 it('still repairs a lost uncertainty marker when no audio contends', async () => {
-  const { draftCalls, draft } = await measureAudioWaits(0)
+  const { draftCalls, draft } = await measureWithVirtualClock(0)
 
   expect(draftCalls).toBe(4)
   expect(draft.repaired).toBe(true)

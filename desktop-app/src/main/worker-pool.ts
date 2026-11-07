@@ -59,7 +59,7 @@ export class WorkerTerminatedError extends Error {
 export type RequestType = 'translate' | 'translate-incremental' | 'translate-ssbd' | 'translate-simulmt' | 'summarize' | 'ger-correct'
 
 const TIMEOUT_BY_TYPE: Record<RequestType, number> = {
-  'translate': WORKER_TRANSLATE_TIMEOUT_MS,
+  'translate': process.platform === 'win32' ? 60_000 : WORKER_TRANSLATE_TIMEOUT_MS,
   'translate-incremental': WORKER_TRANSLATE_TIMEOUT_MS,
   'translate-ssbd': WORKER_TRANSLATE_TIMEOUT_MS,
   'translate-simulmt': WORKER_TRANSLATE_TIMEOUT_MS,

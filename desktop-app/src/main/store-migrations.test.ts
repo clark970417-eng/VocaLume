@@ -2,10 +2,38 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   migrateLegacyTranslationEngine,
   migrateLegacyAdaptiveRoutingQualityEngine,
+  migrateUnsupportedStt,
+  migrateUnsupportedTranslator,
   LEGACY_TRANSLATION_ENGINES,
   LEGACY_ADAPTIVE_QUALITY_ENGINES
 } from './store-migrations'
 import type { MigratableStore } from './store-migrations'
+import { buildEngineConfig, resolveEngineMode } from '../engine-selection'
+
+it('uses a compatible recognizer for a Windows profile previously using Mac Qwen3-ASR', () => {
+  const entries = new Map([['sttEngine', 'qwen3-asr'], ['whisperVariant', 'kotoba-v2.0']])
+  const store: MigratableStore = { get: key => entries.get(key), set: (key, value) => { entries.set(key, value) } }
+  expect(migrateUnsupportedStt(store, 'darwin', 'arm64')).toBe(false)
+  expect(migrateUnsupportedStt(store, 'win32', 'x64')).toBe(true)
+  expect(entries.get('sttEngine')).toBe('whisper-local')
+  expect(entries.get('whisperVariant')).toBe('base')
+  expect(migrateUnsupportedStt(store, 'win32', 'x64')).toBe(false)
+})
+
+it('preserves offline translation when a Windows profile has the Apple translator', () => {
+  const fixture = mockStore('offline-apple')
+  expect(migrateUnsupportedTranslator(fixture.store, 'darwin')).toBe(false)
+  expect(migrateUnsupportedTranslator(fixture.store, 'win32')).toBe(true)
+  expect(fixture.getCurrent()).toBe('offline-hymt15')
+  expect(migrateUnsupportedTranslator(fixture.store, 'win32')).toBe(false)
+  const keys = { apiKey: 'configured', deeplApiKey: '', geminiApiKey: '', microsoftApiKey: '', microsoftRegion: '' }
+  const selected = resolveEngineMode('offline-apple', keys, null, 'win32')
+  expect(buildEngineConfig(selected, 'whisper-local', keys)).toEqual({
+    mode: 'cascade', sttEngineId: 'whisper-local', translatorEngineId: 'hunyuan-mt-15'
+  })
+  expect(resolveEngineMode('offline-apple', keys, null, 'darwin')).toBe('offline-apple')
+  expect(resolveEngineMode('auto', keys, null, 'win32')).toBe('rotation')
+})
 
 /** Build an in-memory mock store seeded with a translationEngine value */
 function mockStore(initial: unknown): { store: MigratableStore; getCurrent: () => unknown; setCalls: number } {

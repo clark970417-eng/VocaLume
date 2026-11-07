@@ -1,5 +1,6 @@
 import { execFile } from 'child_process'
 import { readFile } from 'fs/promises'
+import { join } from 'path'
 import type { EventEmitter } from 'events'
 import type { MemoryPressure } from './performance-state'
 
@@ -30,10 +31,57 @@ export function linuxMemoryPressure(value: string): MemoryPressure {
   return total && available ? availableMemoryPressure({ total: Number(total[1]), free: Number(available[1]) }) : 'unknown'
 }
 
+interface WindowsMemoryInfo { total: number; free: number; swapTotal: number; swapFree: number }
+
+export function windowsMemoryPressure(memory: WindowsMemoryInfo, sustainedPaging = false): MemoryPressure {
+  const physical = availableMemoryPressure(memory)
+  const { free, total, swapFree, swapTotal } = memory
+  if (physical === 'unknown' || physical === 'critical') return physical
+  // Chromium maps these Windows fields to GlobalMemoryStatusEx commit
+  // capacity and remaining commit, in KiB.
+  if (!Number.isFinite(swapTotal) || !Number.isFinite(swapFree) ||
+      swapTotal <= 0 || swapFree < 0 || swapFree > swapTotal) return physical
+  const commitRemaining = swapFree / swapTotal
+  if (commitRemaining <= .025 || swapFree < 256 * 1024) return 'critical'
+  if (physical === 'warning' || commitRemaining <= .09 ||
+      (free < Math.min(total * .1, 768 * 1024) && swapFree < 1536 * 1024) ||
+      (sustainedPaging && free < 1024 * 1024 && commitRemaining < .25)) return 'warning'
+  return physical
+}
+
+let nextPagingSample = 0
+let pagingStreak = 0
+
+async function readWindowsMemoryPressure(memory: WindowsMemoryInfo): Promise<MemoryPressure> {
+  const pressure = windowsMemoryPressure(memory)
+  // Normal load uses the existing in-process read. Check page reads only
+  // when physical and commit headroom are both falling near the threshold.
+  if (pressure !== 'nominal' || memory.free >= 1024 * 1024 || memory.swapFree >= memory.swapTotal * .25) {
+    pagingStreak = 0
+    return pressure
+  }
+  const now = performance.now()
+  if (now >= nextPagingSample) {
+    nextPagingSample = now + 20_000
+    const systemRoot = process.env.SystemRoot || 'C:\\Windows'
+    const shell = join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    const pages = await new Promise<number>((resolve) => {
+      execFile(shell, ['-NoProfile', '-NonInteractive', '-Command',
+        '(Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory -Property PagesInputPersec).PagesInputPersec'],
+      { timeout: 1500, windowsHide: true }, (error, stdout) => resolve(error || !stdout.trim() ? NaN : Number(stdout.trim())))
+    })
+    pagingStreak = Number.isFinite(pages) && pages >= 150 ? Math.min(2, pagingStreak + 1) : 0
+  }
+  return windowsMemoryPressure(memory, pagingStreak >= 2)
+}
+
 export function readMemoryPressure(): Promise<MemoryPressure> {
   if (process.platform === 'linux') return readFile('/proc/meminfo', 'utf8').then(linuxMemoryPressure, () => 'unknown')
   if (process.platform !== 'darwin') {
-    try { return Promise.resolve(availableMemoryPressure(process.getSystemMemoryInfo())) }
+    try {
+      const memory = process.getSystemMemoryInfo()
+      return process.platform === 'win32' ? readWindowsMemoryPressure(memory) : Promise.resolve(availableMemoryPressure(memory))
+    }
     catch { return Promise.resolve('unknown') }
   }
   return new Promise(resolve => {

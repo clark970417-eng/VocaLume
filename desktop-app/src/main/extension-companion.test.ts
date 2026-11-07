@@ -12,6 +12,7 @@ import { startPipeline } from './ipc/pipeline-ipc'
 vi.mock('./store', () => ({ store: { get: vi.fn() } }))
 vi.mock('./ipc/pipeline-ipc', () => ({ startPipeline: vi.fn(async () => ({ success: true })) }))
 const textInference = vi.hoisted(() => vi.fn(async () => 'こんにちは'))
+const disposeTextModel = vi.hoisted(() => vi.fn(async () => {}))
 
 it('uses a Windows named pipe instead of an unsupported Unix socket path', () => {
   const first = companionEndpoint('C:\\Users\\one\\caption', 'win32')
@@ -22,12 +23,47 @@ it('uses a Windows named pipe instead of an unsupported Unix socket path', () =>
 })
 
 vi.mock('../engines/translator/HunyuanMT15Translator', () => ({ HunyuanMT15Translator: class {
-  async initialize() {} async dispose() {}
+  async initialize() {}
+  async dispose() { await disposeTextModel() }
   async translate(...args: unknown[]) { return textInference(...(args as [])) }
 } }))
 
+it('releases a drafts-only model while the pipe stays connected without stopping a live App session', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'jtl-idle-draft-'))
+  const pipeline = Object.assign(new EventEmitter(), { running: true, active: true, stop: vi.fn() })
+  const server = await startExtensionCompanion({ pipeline } as unknown as AppContext, directory, 80)
+  const socket = connect(companionEndpoint(directory))
+  socket.setEncoding('utf8')
+  let buffer = ''
+  const messages: Array<{ id: number; ok: boolean }> = []
+  socket.on('data', chunk => {
+    buffer += chunk
+    let end: number
+    while ((end = buffer.indexOf('\n')) >= 0) {
+      messages.push(JSON.parse(buffer.slice(0, end)))
+      buffer = buffer.slice(end + 1)
+    }
+  })
+  disposeTextModel.mockClear()
+  try {
+    socket.write(JSON.stringify({ id: 1, op: 'translate', direction: 'ja-zh', text: '明日のライブ' }) + '\n')
+    await vi.waitFor(() => expect(messages[0]).toMatchObject({ id: 1, ok: true }), { interval: 5 })
+    expect(disposeTextModel).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(disposeTextModel).toHaveBeenCalledOnce())
+    expect(socket.destroyed).toBe(false)
+    expect(pipeline.stop).not.toHaveBeenCalled()
+    socket.write(JSON.stringify({ id: 2, op: 'translate', direction: 'ja-zh', text: '次のライブ' }) + '\n')
+    await vi.waitFor(() => expect(messages[1]).toMatchObject({ id: 2, ok: true }), { interval: 5 })
+  } finally {
+    socket.destroy()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
 vi.mock('../engines/translator/HunyuanMT2Translator', () => ({ HunyuanMT2Translator: class {
-  async initialize() {} async dispose() {} async translate() { return '新しいモデル' }
+  async initialize() {} async dispose() {}
+  async translate(_text: string, from: string) { return from === 'ja' ? '今天公休。' : '新しいモデル' }
 } }))
 
 it('reports background window state without opening settings, and opens them only on request', async () => {
@@ -55,6 +91,57 @@ it('reports background window state without opening settings, and opens them onl
     expect(messages[1]).toMatchObject({ ok: true, result: { opened: true } })
     expect(openSettings).toHaveBeenCalledTimes(1)
   } finally {
+    socket.destroy()
+    await new Promise<void>(resolve => server.close(() => resolve()))
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+it('shares App system captions with matching languages and leaves App ownership on detach', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'jtl-mirror-'))
+  const pipeline = Object.assign(new EventEmitter(), { active: true, running: true,
+    sessionStartTime: 100, stop: vi.fn(async () => {}), process: vi.fn() })
+  const ctx = { pipeline, pipelineInputOwner: 'app', pipelineStarting: true } as unknown as AppContext
+  const server = await startExtensionCompanion(ctx, directory)
+  const socket = connect(companionEndpoint(directory))
+  let buffer = ''
+  const messages: Array<Record<string, unknown>> = []
+  socket.setEncoding('utf8')
+  socket.on('data', data => {
+    buffer += data
+    let end: number
+    while ((end = buffer.indexOf('\n')) >= 0) { messages.push(JSON.parse(buffer.slice(0, end))); buffer = buffer.slice(end + 1) }
+  })
+  const request = (message: object): void => { socket.write(JSON.stringify(message) + '\n') }
+  const selection = { op: 'browser-claim', subscription: 'current-tab', sourceLanguage: 'ja', targetLanguage: 'zh' }
+  const result = { sourceText: 'こんにちは', translatedText: '您好。', sourceLanguage: 'ja', targetLanguage: 'zh', timestamp: 1000 }
+  try {
+    request({ id: 1, ...selection })
+    await vi.waitFor(() => expect(messages[0]).toMatchObject({ id: 1, result: { role: 'starting' } }))
+    ctx.pipelineStarting = false
+    const preferences: Record<string, string> = { audioSource: 'microphone', sourceLanguage: 'ja', targetLanguage: 'zh' }
+    vi.mocked(store.get).mockImplementation(key => preferences[String(key)] as never)
+    request({ id: 2, ...selection })
+    await vi.waitFor(() => expect(messages[1]).toMatchObject({ id: 2, result: { role: 'incompatible', reason: 'audio-source' } }))
+    preferences.audioSource = 'system'
+    request({ id: 3, ...selection, targetLanguage: 'en' })
+    await vi.waitFor(() => expect(messages[2]).toMatchObject({ id: 3, result: { role: 'incompatible', reason: 'language' } }))
+    request({ id: 4, ...selection })
+    await vi.waitFor(() => expect(messages[3]).toMatchObject({ id: 4, result: { role: 'shared', subscription: 'current-tab' } }))
+    pipeline.emit('result', result)
+    pipeline.emit('ger-corrected', { ...result, translatedText: '大家好。', captionRevision: 1 })
+    await vi.waitFor(() => expect(messages).toHaveLength(6))
+    expect(messages[4]).toMatchObject({ event: 'shared-caption', result: { translated: '您好。', timestamp: 1000, revision: 0 } })
+    expect(messages[5]).toMatchObject({ event: 'shared-caption', result: { translated: '大家好。', timestamp: 1000, revision: 1 } })
+    request({ id: 5, op: 'release-capture', subscription: 'current-tab' })
+    await vi.waitFor(() => expect(messages[6]).toMatchObject({ id: 5, ok: true }))
+    pipeline.emit('result', { ...result, timestamp: 1001 })
+    request({ id: 6, op: 'status' })
+    await vi.waitFor(() => expect(messages[7]).toMatchObject({ id: 6, result: { captureActive: true } }))
+    expect(pipeline.stop).not.toHaveBeenCalled()
+    expect(pipeline.process).not.toHaveBeenCalled()
+  } finally {
+    vi.mocked(store.get).mockReset()
     socket.destroy()
     await new Promise<void>(resolve => server.close(() => resolve()))
     rmSync(directory, { recursive: true, force: true })
@@ -313,12 +400,21 @@ it('uses the draft model only while no caption session is running', async () => 
     send({ id: 1, op: 'translate', direction: 'zh-ja', text: '謝謝你', quality: 'quality' })
     await vi.waitFor(() => expect(messages.some(m => m.id === 1 && m.ok)).toBe(true))
     expect((messages.find(m => m.id === 1)?.result as { text: string }).text).toBe('新しいモデル')
+    send({ id: 4, op: 'translate', direction: 'ja-zh', text: '本日休業', quality: 'quality' })
+    await vi.waitFor(() => expect(messages.find(m => m.id === 4)).toMatchObject({
+      ok: true, result: { text: '今天公休。', quality: 'quality' }
+    }))
 
     // While captions run, a draft must not swap the shared worker's model.
     pipeline.running = true
     send({ id: 2, op: 'translate', direction: 'zh-ja', text: '謝謝你', quality: 'quality' })
     await vi.waitFor(() => expect(messages.some(m => m.id === 2 && m.ok)).toBe(true))
     expect((messages.find(m => m.id === 2)?.result as { text: string }).text).toBe('こんにちは')
+    textInference.mockResolvedValueOnce('今天休息。')
+    send({ id: 5, op: 'translate', direction: 'ja-zh', text: '本日休業', quality: 'quality' })
+    await vi.waitFor(() => expect(messages.find(m => m.id === 5)).toMatchObject({
+      ok: true, result: { text: '今天休息。', quality: 'fast' }
+    }))
   } finally {
     socket.destroy()
     await new Promise<void>(resolve => server.close(() => resolve()))
