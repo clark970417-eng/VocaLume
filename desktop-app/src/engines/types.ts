@@ -57,6 +57,8 @@ export interface TranslationResult {
   timestamp: number
   /** Whether this is an interim (unconfirmed) result from streaming mode */
   isInterim?: boolean
+  /** A correction keeps the final cue timestamp and increments its revision. */
+  captionRevision?: number
   /** Stable confirmed portion of source text (for stable subtitle display) */
   confirmedText?: string
   /** Unstable trailing portion still being recognized */
@@ -128,6 +130,8 @@ export interface TranslatorEngine {
   readonly id: string
   readonly name: string
   readonly isOffline: boolean
+  /** Optional capability check for restricted-direction engines. */
+  supportsDirection?(from: Language, to: Language): boolean
 
   /** Initialize (e.g. validate API key) */
   initialize(): Promise<void>
@@ -291,7 +295,7 @@ export interface GlossaryEntry {
 
 /** Context passed to translators that support context-aware translation */
 export interface TranslateContext {
-  /** One validated adjacent source question for a short spoken reply. */
+  /** One validated, adjacent source utterance for a spoken reply or explicit reference. */
   sourceContext?: string
   /** Optional register for written drafts. Undefined preserves the original tone. */
   writingStyle?: 'general' | 'viewer' | 'polite'
@@ -320,7 +324,7 @@ export interface TTSEngine {
    * Synthesize speech from text.
    * Returns PCM audio data as Float32Array and the sample rate.
    */
-  synthesize(text: string, language: Language): Promise<TTSResult>
+  synthesize(text: string, language: Language, signal?: AbortSignal): Promise<TTSResult>
 
   /** Release resources */
   dispose(): Promise<void>
@@ -332,6 +336,19 @@ export interface TTSResult {
   audio: Float32Array
   /** Sample rate in Hz (e.g. 24000) */
   sampleRate: number
+}
+
+export interface TTSPlaybackData {
+  audio: Float32Array | number[]
+  sampleRate: number
+  volume: number
+  outputDevice: string
+}
+
+export interface TtsVoiceOption {
+  id: string
+  label: string
+  language: Language
 }
 
 /** Speaker diarization result for an audio chunk */
@@ -352,6 +369,8 @@ export interface DiarizationResult {
 export interface SpeakerDiarizer {
   readonly id: string
   readonly name: string
+  /** Analyze finalized cue audio instead of rolling preview windows. */
+  readonly finalOnly?: boolean
 
   /** Load models and prepare for inference */
   initialize(): Promise<void>
