@@ -1,5 +1,6 @@
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
 import { readFileSync } from 'fs'
+import { createRequire } from 'node:module'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import type { Plugin } from 'vite'
@@ -9,23 +10,18 @@ import type { Plugin } from 'vite'
 // which Vite tries to transform. We resolve it to the actual file in node_modules
 // and load it directly, bypassing Vite's transform pipeline.
 function serveOrtWasm(): Plugin {
-  const ortDist = resolve(__dirname, 'node_modules', 'onnxruntime-web', 'dist')
+  const require = createRequire(resolve(__dirname, 'package.json'))
+  const vadDist = dirname(require.resolve('@ricky0123/vad-web'))
+  const loader = require.resolve('onnxruntime-web/ort-wasm-simd-threaded.mjs', { paths: [vadDist] })
   return {
     name: 'serve-ort-wasm',
     enforce: 'pre',
     resolveId(id) {
-      // Match /vad/ort-wasm-*.mjs (with or without ?import query)
-      const cleanId = id.split('?')[0]
-      if (cleanId.startsWith('/vad/') && cleanId.endsWith('.mjs')) {
-        const fileName = cleanId.split('/').pop()!
-        return resolve(ortDist, fileName)
-      }
+      if (id.split('?')[0] === '/vad/ort-wasm-simd-threaded.mjs') return loader
     },
     load(id) {
       // Serve ORT files from node_modules as-is without transformation
-      if (id.startsWith(ortDist) && id.endsWith('.mjs')) {
-        return readFileSync(id, 'utf-8')
-      }
+      if (id === loader) return readFileSync(id, 'utf-8')
     }
   }
 }

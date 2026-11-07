@@ -32,7 +32,6 @@
     "@electron-toolkit/utils": "^3.0.0",
     "@huggingface/transformers": "^3.8.0",
     "@kutalia/whisper-node-addon": "^1.1.0",
-    "@ricky0123/vad-web": "^0.0.30",
     "deepfilternet3-noise-filter": "^1.2.1",
     "electron-audio-loopback": "^1.0.6",
     "electron-store": "^10.0.0",
@@ -49,6 +48,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
+    "@ricky0123/vad-web": "^0.0.30",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/ws": "^8.18.1",

@@ -107,6 +107,11 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: ${{ matrix.command }}
+      - name: Verify Mac package contents
+        if: runner.os == 'macOS'
+        run: |
+          node scripts/verify-mac-package.cjs dist/mac-arm64/VocaLume.app
+          node scripts/verify-mac-package.cjs dist/mac/VocaLume.app
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.artifact }}

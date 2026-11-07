@@ -1,13 +1,20 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 
-test('beta archive includes every local static module dependency',()=>{
+test('beta archive includes local dependencies and only the ONNX runtime used by both browser workers',()=>{
  const root=new URL('../',import.meta.url);
  const workflow=readFileSync(new URL('../.github/workflows/beta.yml',root),'utf8');
  const command=workflow.match(/zip -r \.\.\/beta\/vocalume-extension.zip ([\s\S]*?)\n          cd \.\./)?.[1];
  assert.ok(command,'extension archive command exists');
  const files=new Set(command.replace(/\\\n/g,' ').trim().split(/\s+/));
+ // whisper-runtime.js is the WebGPU bundle. It loads this same pair when
+ // the workers run WebGPU speech recognition or CPU-based Silero VAD.
+ assert.ok(files.has('ort'),'the archive includes the runtime directory');
+ assert.deepEqual(readdirSync(new URL('ort/',root)).sort(),[
+  'ort-wasm-simd-threaded.asyncify.mjs',
+  'ort-wasm-simd-threaded.asyncify.wasm'
+ ]);
  for(const file of ['desktop/install-windows.ps1','desktop/windows-host.cjs'])assert.ok(files.has(file),`${file} missing from Windows browser setup`);
  for(const file of files){
   if(!/\.(?:m?js)$/.test(file))continue;

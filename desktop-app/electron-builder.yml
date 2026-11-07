@@ -2,19 +2,6 @@ appId: org.jtl.desktop
 productName: VocaLume
 directories:
   buildResources: build
-files:
-  - 'out/**/*'
-  - 'package.json'
-  - '!out/main/benchmark-*.cjs'
-  - '!out/main/verify-*.cjs'
-  - '!out/main/soak-*.cjs'
-  - '!out/benchmark-*/**'
-  - '!out/speech-benchmark-*/**'
-  - '!out/**/*.test.*'
-  - '!out/**/*.spec.*'
-  - '!out/**/*.tsbuildinfo'
-  - '!out/**/*.d.ts'
-  - '!out/**/*.d.ts.map'
 extraResources:
   - from: '../LICENSE'
     to: 'legal/VOCALUME-LICENSE.txt'
@@ -22,6 +9,8 @@ extraResources:
     to: 'legal/UPSTREAM-MIT-LICENSE.txt'
   - from: '../docs/legal/third-party-notices.md'
     to: 'legal/THIRD_PARTY_NOTICES.md'
+  - from: '../extension/vendor/silero/LICENSE'
+    to: 'legal/SILERO-VAD-ISC-MIT.txt'
   - from: 'resources/'
     to: 'bridge-scripts/'
     filter:
@@ -39,6 +28,20 @@ publish:
   repo: VocaLume
 mac:
   icon: build/icon.icns
+  files:
+    # Keep the application allowlist in the same matcher as native exclusions.
+    # A separate exclusions-only matcher implicitly includes the workspace.
+    - &compiledApp 'out/**/*'
+    - &appManifest 'package.json'
+    - &excludeBenchScripts '!out/main/{benchmark,verify,soak}-*.cjs'
+    - &excludeBenchOutput '!out/{benchmark-*,speech-benchmark-*}/**'
+    - &excludeDevOutput '!out/**/*.{test.*,spec.*,tsbuildinfo,d.ts,d.ts.map}'
+    # The native loaders use the runtime OS and architecture. Keep the
+    # matching Whisper directory and its darwin alias.
+    - '!**/node_modules/onnxruntime-node/bin/napi-v3/{linux,win32}{,/**/*}'
+    - '!**/node_modules/onnxruntime-node/bin/napi-v3/darwin/!(${arch}){,/**/*}'
+    - '!**/node_modules/@kutalia/whisper-node-addon/dist/{linux-*,win-*,win32-*}{,/**/*}'
+    - '!**/node_modules/@kutalia/whisper-node-addon/dist/{darwin,mac}-!(${arch}){,/**/*}'
   target:
     - target: dmg
       arch:
@@ -67,6 +70,16 @@ win:
       arch:
         - x64
   icon: build/icon.ico
+  files:
+    - *compiledApp
+    - *appManifest
+    - *excludeBenchScripts
+    - *excludeBenchOutput
+    - *excludeDevOutput
+    - '!**/node_modules/onnxruntime-node/bin/napi-v3/{darwin,linux}{,/**/*}'
+    - '!**/node_modules/onnxruntime-node/bin/napi-v3/win32/!(${arch}){,/**/*}'
+    - '!**/node_modules/@kutalia/whisper-node-addon/dist/{darwin-*,linux-*,mac-*}{,/**/*}'
+    - '!**/node_modules/@kutalia/whisper-node-addon/dist/{win,win32}-!(${arch}){,/**/*}'
   asarUnpack:
     - 'node_modules/@kutalia/whisper-node-addon/**'
     - 'node_modules/node-llama-cpp/**'
@@ -77,6 +90,16 @@ linux:
       arch:
         - x64
   category: Utility
+  files:
+    - *compiledApp
+    - *appManifest
+    - *excludeBenchScripts
+    - *excludeBenchOutput
+    - *excludeDevOutput
+    - '!**/node_modules/onnxruntime-node/bin/napi-v3/{darwin,win32}{,/**/*}'
+    - '!**/node_modules/onnxruntime-node/bin/napi-v3/linux/!(${arch}){,/**/*}'
+    - '!**/node_modules/@kutalia/whisper-node-addon/dist/{darwin-*,mac-*,win-*,win32-*}{,/**/*}'
+    - '!**/node_modules/@kutalia/whisper-node-addon/dist/linux-!(${arch}){,/**/*}'
   asarUnpack:
     - 'node_modules/@kutalia/whisper-node-addon/**'
     - 'node_modules/node-llama-cpp/**'
