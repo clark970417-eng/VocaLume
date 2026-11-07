@@ -63,8 +63,8 @@ export class MicrosoftTranslator implements TranslatorEngine {
 
     const params = new URLSearchParams({
       'api-version': API_VERSION,
-      from,
-      to
+      from: from === 'zh' ? 'zh-Hant' : from,
+      to: to === 'zh' ? 'zh-Hant' : to
     })
 
     return translateProtectedCloudText(text, context?.glossary, async source => {
@@ -80,12 +80,13 @@ export class MicrosoftTranslator implements TranslatorEngine {
           body: JSON.stringify([{ text: source }])
         },
         timeoutMs: this.timeoutMs,
+        signal: context?.signal,
         serviceName: 'Microsoft Translator',
         errorMappings: ERROR_MAPPINGS,
         classifyErrorBody: classifyMicrosoftError
       })
       return data?.[0]?.translations?.[0]?.text
-    })
+    }, { from, to, sourceContext: context?.sourceContext })
   }
 
   async dispose(): Promise<void> {

@@ -1,5 +1,8 @@
 import { protectNames } from '../../../../extension/translation-guards.mjs'
-import type { TranslateContext } from '../types'
+import { validateTranslation } from '../../../../extension/translation-policy.mjs'
+import { applyTaiwanLivestreamTerminology, normalizeTaiwanChinese } from '../../../../extension/taiwan-chinese.mjs'
+import type { Language, TranslateContext } from '../types'
+import { finishJaZhTranslation } from './ja-zh-fidelity'
 
 /**
  * Shared utilities for API-based translators.
@@ -21,7 +24,8 @@ export class TemporaryTranslationServiceError extends Error {
 export async function translateProtectedCloudText(
   text: string,
   glossary: TranslateContext['glossary'],
-  request: (source: string, hasNames: boolean) => Promise<string | undefined>
+  request: (source: string, hasNames: boolean) => Promise<string | undefined>,
+  route?: { from: Language; to: Language; sourceContext?: string }
 ): Promise<string> {
   const names = protectNames(text, glossary)
   const hasNames = names.entries.length > 0
@@ -30,7 +34,12 @@ export async function translateProtectedCloudText(
   if (typeof translated !== 'string' || !translated.trim()) {
     throw new TemporaryTranslationServiceError('Translation service returned no text')
   }
-  return hasNames ? names.restore(translated) : translated
+  let output = route?.to === 'zh' ? normalizeTaiwanChinese(translated) : translated
+  if (route?.from === 'ja' && route.to === 'zh') {
+    output = finishJaZhTranslation(names.text, applyTaiwanLivestreamTerminology(names.text, output, route.sourceContext))
+  }
+  if (hasNames) output = names.restore(output)
+  return route?.from === 'ja' && route.to === 'zh' ? validateTranslation(output, 'ja-zh', text, glossary) : output
 }
 
 /** HTTP error mapping entry: status code(s) to human-readable message */
@@ -51,6 +60,7 @@ export interface ApiFetchOptions {
   url: string
   init: RequestInit
   timeoutMs: number
+  signal?: AbortSignal
   /** Service name for error messages (e.g. "Google Translation API") */
   serviceName: string
   /** Custom status-to-message mappings, checked before the generic fallback */
@@ -72,13 +82,14 @@ export async function apiFetch<T>(options: ApiFetchOptions): Promise<T> {
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
+  const signal = options.signal ? AbortSignal.any([controller.signal, options.signal]) : controller.signal
 
   try {
     let response: Response
     try {
-      response = await fetch(url, { ...init, signal: controller.signal })
+      response = await fetch(url, { ...init, signal })
     } catch (error) {
-      if (!(error instanceof TypeError) || controller.signal.aborted) throw error
+      if (!(error instanceof TypeError) || signal.aborted) throw error
       throw new TemporaryTranslationServiceError(`${serviceName}: Network request failed`, { cause: error })
     }
 
@@ -88,7 +99,7 @@ export async function apiFetch<T>(options: ApiFetchOptions): Promise<T> {
         try {
           body = await response.text()
         } catch (error) {
-          if (controller.signal.aborted) throw error
+          if (signal.aborted) throw error
           // ignore — fall through to status-only handling
         }
         const classified = classifyErrorBody(response.status, body)
@@ -104,7 +115,7 @@ export async function apiFetch<T>(options: ApiFetchOptions): Promise<T> {
     try {
       data = (await response.json()) as T
     } catch (error) {
-      if (controller.signal.aborted) throw error
+      if (signal.aborted) throw error
       throw new TemporaryTranslationServiceError(`${serviceName}: Invalid JSON response`, { cause: error })
     }
 

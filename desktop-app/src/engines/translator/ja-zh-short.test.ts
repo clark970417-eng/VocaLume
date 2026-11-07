@@ -25,6 +25,16 @@ it.each([
 })
 
 it.each([
+  ['ご視聴ありがとうございました。', '感謝收看。'],
+  ['チャンネル登録よろしくお願いします！', '請訂閱頻道！'],
+  ['まもなくライブ配信が始まります', '直播即將開始'],
+  ['ライブ配信は十五分後に始まります。', '直播將在十五分鐘後開始。'],
+  ['電車は５分後に到着します。', '電車將在5分鐘後到達。']
+])('translates complete standalone livestream and timing captions: %s', (source, result) => {
+  expect(shortJaZhTranslation(source)).toBe(result)
+})
+
+it.each([
   ['明日は？', '明天呢？'], ['ところで、明日は？', '對了，明天呢？'],
   ['来週は？', '下週呢？'], ['今夜は?', '今晚呢？'],
   ['それはちょっと。', '那個有點……'], ['ません。', '不……']
@@ -37,6 +47,9 @@ it.each([
   '本当にいいの？', '本当に', '明日は何曜日？', '明日は晴れですか？',
   '「ありがとう」の意味は？', 'ありがとうさんが来ました。', 'ありがとう、でもまだです。',
   'それはちょっと難しい。', '今日は行きません。', '魚が逃げてしまいました。',
+  'ライブ配信は五、六分後に始まります。', 'ライブ配信は五分後に始まりますか？',
+  'ライブ配信は五分後に始まりません。', 'ライブ配信は約五分後に始まります。',
+  '電車は五分後に到着しますが、バスは遅れます。',
   'ありがとうございます\nでも待って。', 'constructor', 'toString', '__proto__', ''
 ])('keeps names, ambiguous replies and longer/quoted input on the model path: %s', source => {
   expect(shortJaZhTranslation(source)).toBeUndefined()

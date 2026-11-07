@@ -11,7 +11,7 @@ const DEEPL_PRO_URL = 'https://api.deepl.com/v2/translate'
 const LANG_MAP: Record<Language, { source: string; target: string }> = {
   ja: { source: 'JA', target: 'JA' },
   en: { source: 'EN', target: 'EN-US' },
-  zh: { source: 'ZH', target: 'ZH-HANS' },
+  zh: { source: 'ZH', target: 'ZH-HANT' },
   ko: { source: 'KO', target: 'KO' },
   fr: { source: 'FR', target: 'FR' },
   de: { source: 'DE', target: 'DE' },
@@ -84,7 +84,9 @@ export class DeepLTranslator implements TranslatorEngine {
 
     // Build context string from previous segments for DeepL's context parameter
     let contextStr: string | undefined
-    if (context?.previousSegments?.length) {
+    if (from === 'ja' && to === 'zh') {
+      contextStr = context?.sourceContext
+    } else if (context?.previousSegments?.length) {
       contextStr = context.previousSegments.map((s) => s.source).join(' ')
     }
 
@@ -105,12 +107,13 @@ export class DeepLTranslator implements TranslatorEngine {
           })
         },
         timeoutMs: this.timeoutMs,
+        signal: context?.signal,
         serviceName: 'DeepL API',
         errorMappings: ERROR_MAPPINGS,
         classifyErrorBody: classifyDeepLError
       })
       return data?.translations?.[0]?.text
-    })
+    }, { from, to, sourceContext: context?.sourceContext })
   }
 
   async dispose(): Promise<void> {

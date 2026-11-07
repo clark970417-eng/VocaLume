@@ -14,6 +14,17 @@ function createMockEngine(id: string, result = 'translated'): TranslatorEngine {
 }
 
 describe('HybridTranslator', () => {
+  it('does not publish an English draft for a Japanese to Traditional Chinese request', async () => {
+    const draft = { ...createMockEngine('opus', 'wrong language'), supportsDirection: (_from: string, to: string) => to === 'en' }
+    const refine = createMockEngine('refine', '今天不直播。')
+    const hybrid = new HybridTranslator(draft, refine, () => ['ja','zh']), shown = vi.fn()
+    await hybrid.initialize()
+    hybrid.setOnDraft(shown)
+    expect(await hybrid.translate('今日は配信しません。','ja','zh')).toBe('今天不直播。')
+    expect(draft.translate).not.toHaveBeenCalled()
+    expect(draft.initialize).not.toHaveBeenCalled()
+    expect(shown).not.toHaveBeenCalled()
+  })
   it('returns refined text when it differs from draft', async () => {
     const draft = createMockEngine('draft', 'draft translation')
     const refine = createMockEngine('refine', 'refined translation')
