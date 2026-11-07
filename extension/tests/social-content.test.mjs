@@ -7,7 +7,7 @@ import {isStandaloneGreeting} from '../streamer-vocabulary.mjs';
 const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../social-content.js',import.meta.url),'utf8'));
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
-function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={},wrappedComposer=false){
+function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={},wrappedComposer=false,bilibiliPanelOnly=false){
  const requests=[], selectors=[], documentEvents={}, storageListeners=[], rendered=[];
  let now=0, runtimeListener;
  const translationLines=[];
@@ -20,7 +20,7 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
  const composerHost={append(node){node.isConnected=true;controls.push(node);}};
  const box={value:'今天也很可愛',isConnected:true,focus(){},dispatchEvent(){},addEventListener(){},
   matches(selector){return /textarea|textbox|contenteditable|comment|message|chat|reply/.test(selector);},
-  getAttribute(name){return name==='role'?'textbox':name==='placeholder'?'Write a comment':'';},
+  getAttribute(name){return name==='role'?'textbox':name==='placeholder'&&!bilibiliPanelOnly?'Write a comment':'';},
   getBoundingClientRect(){return {width:300,height:40};},
   closest(selector){return selector.includes('.jtl-social-controls')?null:composerHost;},parentElement:composerHost};
  const shell={textContent:'今天也很可愛',isConnected:true,readOnly:false,closest:()=>null,
@@ -39,6 +39,7 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
       ((hostname.includes('facebook')||hostname.includes('instagram'))&&selector.includes('[dir="auto"]'))||
       (hostname==='example.com'&&(selector.includes('comment')||selector.includes('role="article"')))))return Array.isArray(japanese)?japanese:[japanese];
    if(semanticOnly&&selector.includes('[role="log"]'))return [{querySelectorAll:()=>Array.isArray(japanese)?japanese:[japanese]}];
+   if(bilibiliPanelOnly)return selector==='#chat-control-panel-vm textarea'?[box]:[];
    if(selector.includes('chat-input textarea')||selector.includes('comment-input"] textarea')||selector.includes('data-a-target="chat-input"')||
       ((hostname.includes('facebook')||hostname.includes('instagram')||hostname==='example.com')&&(selector.includes('comment')||selector.includes('role="textbox"'))))return [box];
    if(composerDistractor&&selector.includes('textarea:not([disabled])'))return [composerDistractor];
@@ -361,4 +362,17 @@ test('holding the reply button drags it without translating or modifying the dra
  assert.equal(controls.style.top,'250px');
  assert.equal(t.requests.length,before);
  assert.equal(t.box.value,'今天也很可愛');
+});
+
+test('Bilibili live finds the danmaku editor inside its chat panel without a placeholder',async()=>{
+ const t=setup('live.bilibili.com',null,null,false,false,{},false,true);
+ await settle();
+ assert.equal(t.controls.length,1);
+ t.controls[0].children[0].onclick({preventDefault(){},stopPropagation(){}});
+ await settle();
+ const draft=t.requests.find(x=>x.message.type==='make-draft');
+ assert.equal(draft.message.text,'今天也很可愛');
+ draft.reply({ok:true,text:{draft:'今日もとても可愛いですね！'}});
+ await settle();
+ assert.equal(t.box.value,'今日もとても可愛いですね！');
 });

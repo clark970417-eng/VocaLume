@@ -30,6 +30,9 @@
         '.comment-container .text', 'bili-comment-renderer [class*="content"]'
       ],
       composer: [
+        '#chat-control-panel-vm textarea', 'chat-control-panel textarea',
+        '.chat-input-ctnr textarea', '.chat-input-ctnr input[type="text"]',
+        '.chat-input-ctnr [contenteditable="true"]', 'textarea.chat-input', 'input.chat-input',
         '.chat-input textarea', '.chat-input input', '.chat-input[contenteditable="true"]', '.chat-input [contenteditable="true"]',
         'textarea[placeholder*="弹幕"]', 'input[placeholder*="弹幕"]', '[contenteditable="true"][data-placeholder*="弹幕"]',
         '[contenteditable="true"][aria-label*="弹幕"]',
