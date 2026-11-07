@@ -36,7 +36,7 @@ export function STTSettings({
   const effectiveEngine = resolveSpeechEngine(sourceLanguage, sttEngine, platform === 'darwin' || platform === 'win32')
   const usesHaas = effectiveEngine.startsWith('haas-ja-')
   const usesSenseVoice = /^(zh|yue|en|ko)(?:-|$)/i.test(sourceLanguage)
-  const automaticEngine = usesHaas || usesSenseVoice
+  const automaticEngine = (usesHaas && platform !== 'win32') || usesSenseVoice
 
   return (
     <Section label={t("Speech Recognition")} helpText={t("Choose a speech recognition engine. Whisper Local is recommended for most users.")}>

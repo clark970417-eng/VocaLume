@@ -120,6 +120,14 @@ export function TranslatorSettings({
         <fieldset role="radiogroup" aria-label={t("Translation Engine")} style={{ border: 'none', margin: 0, padding: 0, minInlineSize: 0 }}>
         <legend style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>{t("Translation Engine")}</legend>
         <label style={radioLabelStyle}>
+          <input type="radio" name="engine" checked={engineMode === 'online-public'}
+            onChange={() => onEngineModeChange('online-public')} disabled={disabled} />
+          <div>
+            <div style={{ fontWeight: 500 }}>{t('Google Translate (no API key)')}</div>
+            <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t('Recognized text is sent to Google Translate. Internet connection required.')}</div>
+          </div>
+        </label>
+        <label style={radioLabelStyle}>
           <input
             type="radio"
             name="engine"

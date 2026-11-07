@@ -11,7 +11,7 @@ interface SpeakerSettingsProps {
 
 /**
  * Speaker diarization settings panel (#549).
- * Uses the bundled FluidAudio bridge on macOS.
+ * Uses local speaker models on macOS and Windows.
  */
 export function SpeakerSettings({
   speakerDiarizationEnabled,
@@ -19,8 +19,7 @@ export function SpeakerSettings({
   platform,
   disabled
 }: SpeakerSettingsProps): React.JSX.Element | null {
-  // Only show on macOS — FluidAudio is CoreML-native
-  if (platform !== 'darwin') return null
+  if (platform !== 'darwin' && platform !== 'win32') return null
 
   return (
     <Section label={t("Speaker Diarization")}>
@@ -39,7 +38,9 @@ export function SpeakerSettings({
           disabled={disabled}
           style={{ width: '16px', height: '16px' }}
         />{t("Enable speaker identification")} </label>
-      <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Identifies speakers via FluidAudio (CoreML). Color-coded labels appear on subtitles. Downloads about 32 MB of model data. Speaker labels are estimates.")} </div>
+      <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{platform === 'win32'
+        ? t('Identifies speakers locally. Color-coded labels appear on completed subtitles. Downloads about 28 MB on first use.')
+        : t("Identifies speakers via FluidAudio (CoreML). Color-coded labels appear on subtitles. Downloads about 32 MB of model data. Speaker labels are estimates.")} </div>
     </Section>
   )
 }

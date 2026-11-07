@@ -1,8 +1,9 @@
 import { t } from '../../ui-language'
-import React from 'react'
+import React, { useSyncExternalStore } from 'react'
 import { Section } from './Section'
 import { selectStyle, sliderLabelStyle } from './shared'
 import type { UseAudioCaptureReturn, AudioSource } from '../../hooks/useAudioCapture'
+import type { AudioLevel } from '../../hooks/audioLevel'
 
 /** Audio source display labels */
 const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string }> = [
@@ -13,6 +14,7 @@ const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string }> = [
 
 interface AudioSettingsProps {
   audio: UseAudioCaptureReturn
+  showLevel: boolean
   disabled: boolean
   /** #313: Noise suppression enabled state */
   noiseSuppressionEnabled: boolean
@@ -24,8 +26,33 @@ interface AudioSettingsProps {
   onStreamingIntervalChange: (ms: number) => void
 }
 
-export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange }: AudioSettingsProps): React.JSX.Element {
+function AudioLevelMeter({ level }: { level: AudioLevel }): React.JSX.Element {
+  const percent = useSyncExternalStore(level.subscribe, level.read)
+  return <>
+    <div style={{ marginTop: '6px', height: '4px', background: '#1e293b', borderRadius: '2px' }}>
+      <div
+        role="progressbar"
+        aria-label={t('Volume level')}
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        style={{
+          height: '100%',
+          width: `${percent}%`,
+          background: percent > 70 ? '#ef4444' : '#22c55e',
+          borderRadius: '2px',
+          transition: 'width 0.1s'
+        }}
+      />
+    </div>
+    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{t('Input level:')} {percent}%</div>
+  </>
+}
+
+export function AudioSettings({ audio, showLevel, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange }: AudioSettingsProps): React.JSX.Element {
   const showMicSelector = audio.audioSource !== 'system'
+  const showWindowsLoopback = platform === 'win32' && audio.audioSource !== 'microphone'
+  const loopbackInputs = audio.systemLoopbackInputs.filter(input => audio.audioSource !== 'both' || input.deviceId !== audio.selectedDevice)
 
   return (
     <Section label={t("Sound source")}>
@@ -45,6 +72,24 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
       </select>
       {audio.audioSource !== 'microphone' && platform === 'darwin' && (
         <p className="settings-notice">{t("Screen Recording permission is required.")}</p>
+      )}
+      {showWindowsLoopback && (
+        <label className="settings-field">
+          {t('Windows system audio input')}
+          <select
+            value={audio.systemLoopbackDeviceId}
+            onChange={event => audio.setSystemLoopbackDeviceId(event.target.value)}
+            style={selectStyle}
+            disabled={disabled}
+          >
+            <option value="">{t('Screen-sharing audio')}</option>
+            {audio.systemLoopbackDeviceId && !loopbackInputs.some(input => input.deviceId === audio.systemLoopbackDeviceId) && (
+              <option value={audio.systemLoopbackDeviceId}>{t('Previously selected audio input')}</option>
+            )}
+            {loopbackInputs.map(input => <option key={input.deviceId} value={input.deviceId}>{input.label}</option>)}
+          </select>
+          <span className="settings-note">{t('Use Stereo Mix or a routed virtual cable for audio-only capture. Screen sharing is used if the input is unavailable.')}</span>
+        </label>
       )}
       {/* Microphone device selector — hidden when system-only mode */}
       {showMicSelector && (
@@ -66,25 +111,7 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
           )}
         </select>
       )}
-      {/* Volume meter */}
-      <div style={{ marginTop: '6px', height: '4px', background: '#1e293b', borderRadius: '2px' }}>
-        <div
-          role="progressbar"
-          aria-label={t("Volume level")}
-          aria-valuenow={Math.round(audio.volume * 100)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          style={{
-            height: '100%',
-            width: `${audio.volume * 100}%`,
-            background: audio.volume > 0.7 ? '#ef4444' : '#22c55e',
-            borderRadius: '2px',
-            transition: 'width 0.1s'
-          }}
-        />
-      </div>
-      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{t("Input level:")} {Math.round(audio.volume * 100)}%
-      </div>
+      {showLevel ? <AudioLevelMeter level={audio.level} /> : null}
       <details className="settings-disclosure"><summary>{t("Audio options")}</summary>
       {/* #313: Noise suppression toggle — only relevant when microphone is active */}
       {showMicSelector && (

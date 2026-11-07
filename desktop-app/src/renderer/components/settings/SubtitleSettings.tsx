@@ -1,5 +1,5 @@
 import { t } from '../../ui-language'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Section } from './Section'
 import { buttonStyle, colorInputStyle, selectStyle, sliderLabelStyle } from './shared'
 import type { DisplayInfo, SubtitlePositionType } from './shared'
@@ -15,6 +15,8 @@ interface SubtitleSettingsProps {
   onBgOpacityChange: (v: number) => void
   position: SubtitlePositionType
   onPositionChange: (v: SubtitlePositionType) => void
+  lowPowerRendering: boolean
+  onLowPowerRenderingChange: (v: boolean) => void
   showConfidenceIndicator: boolean
   onShowConfidenceIndicatorChange: (v: boolean) => void
   displays: DisplayInfo[]
@@ -33,6 +35,8 @@ export function SubtitleSettings({
   onBgOpacityChange,
   position,
   onPositionChange,
+  lowPowerRendering,
+  onLowPowerRenderingChange,
   showConfidenceIndicator,
   onShowConfidenceIndicatorChange,
   displays,
@@ -40,26 +44,30 @@ export function SubtitleSettings({
   onDisplayChange
 }: SubtitleSettingsProps): React.JSX.Element {
   const [isDragMode, setIsDragMode] = useState(false)
+  useEffect(() => {
+    let active = true
+    const unsubscribe = window.api.onDragModeChanged?.(setIsDragMode)
+    void window.api.getSubtitleInteractionMode?.().then(mode => { if (active) setIsDragMode(mode === 'drag') })
+    return () => { active = false; unsubscribe?.() }
+  }, [])
 
   const handleToggleDragMode = useCallback(() => {
-    const next = !isDragMode
-    setIsDragMode(next)
-    window.api.toggleSubtitleDragMode?.(next)
+    void window.api.toggleSubtitleDragMode?.(!isDragMode)
   }, [isDragMode])
 
   const handleResetPosition = useCallback(() => {
-    window.api.resetSubtitlePosition?.()
-    // Also exit drag mode if active
-    if (isDragMode) {
-      setIsDragMode(false)
-      window.api.toggleSubtitleDragMode?.(false)
-    }
+    void window.api.resetSubtitlePosition?.()
+    if (isDragMode) void window.api.toggleSubtitleDragMode?.(false)
   }, [isDragMode])
 
   return (
     <>
       <Section label={t("Subtitle Appearance")}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <label>
+            <input type="checkbox" checked={lowPowerRendering} onChange={event => onLowPowerRenderingChange(event.target.checked)} />
+            {' '}{t('Low-power subtitle display')}
+          </label>
           <div>
             <div style={sliderLabelStyle}>{t("Font Size:")} {fontSize}px</div>
             <input
@@ -187,6 +195,7 @@ export function SubtitleSettings({
           {isDragMode && (
             <div style={{ fontSize: '11px', color: '#f59e0b' }}>{t("Drag the subtitle overlay to your preferred position, then click \"Done Repositioning\"")} </div>
           )}
+          {!isDragMode && <span className="settings-note">{t('Press and drag the subtitle box to move it. The position is saved for each display.')}</span>}
         </div>
       </Section>
     </>
