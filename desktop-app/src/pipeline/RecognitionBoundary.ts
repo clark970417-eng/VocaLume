@@ -5,31 +5,40 @@ import type {SpeechEvidence, SourceLanguage} from '../engines/types'
  * Normal pauses, seeks, rate/language changes and missing metadata never reuse it.
  */
 export class RecognitionBoundary {
-  private previous?: {tail: Float32Array; rate: number; end: number; segment: string; text: string; language: SourceLanguage}
+  private previous?: {tail: Float32Array; tailSpeechSeconds: number; rate: number; end: number; segment: string; text: string; language: SourceLanguage}
   clear(): void {this.previous=undefined}
 
   remember(audio: Float32Array, rate: number, evidence: SpeechEvidence | undefined, text: string, language: SourceLanguage): void {
     this.clear()
     if (!['ja','zh'].includes(language) || !text.trim() || !evidence?.continuationExpected || !evidence.segment ||
         !Number.isSafeInteger(evidence.captureEndSample) || !Number.isSafeInteger(evidence.captureStartSample) ||
-        evidence.captureEndSample! - evidence.captureStartSample! !== audio.length ||
-        !Number.isSafeInteger(evidence.speechEndSample) || evidence.speechEndSample! > audio.length ||
+        evidence.captureStartSample! < 0 || evidence.captureEndSample! - evidence.captureStartSample! !== audio.length ||
+        !Number.isSafeInteger(evidence.speechEndSample) || evidence.speechEndSample! <= 0 || evidence.speechEndSample! > audio.length ||
+        !Number.isFinite(evidence.speechSeconds) || evidence.speechSeconds <= 0 ||
         audio.length-evidence.speechEndSample! > rate*.096 || !Number.isFinite(rate) || rate<=0 || audio.length<rate) return
     // A short tail after an earlier completed sentence can drag that sentence's
     // ending into the new clause (e.g. "です後で…"). Do not reuse such audio.
     if (text.length > 120 || /[。.!！?？]/u.test(text.trim().replace(/[。.!！?？]+$/u, ''))) return
-    this.previous={tail:audio.slice(-Math.round(rate*2)),rate,end:evidence.captureEndSample!,segment:evidence.segment,text,language}
+    const tail = audio.slice(-Math.round(rate * 2))
+    // Only credit speech that must have been inside the retained tail.
+    const tailSpeechSeconds = Math.max(0, Math.min(tail.length / rate,
+      evidence.speechSeconds - (audio.length - tail.length) / rate))
+    this.previous={tail,tailSpeechSeconds,rate,end:evidence.captureEndSample!,segment:evidence.segment,text,language}
   }
 
   prepare(audio: Float32Array, rate: number, evidence: SpeechEvidence | undefined, language: SourceLanguage) {
     const previous=this.previous
     if (!previous || !evidence?.segment || previous.segment===evidence.segment || previous.rate!==rate || previous.language!==language ||
-        evidence.captureStartSample!==previous.end || !Number.isSafeInteger(evidence.speechEndSample) ||
-        evidence.speechEndSample!<0 || evidence.speechEndSample!>audio.length || audio.length>rate || audio.length===0) return null
+        evidence.captureStartSample!==previous.end || evidence.captureEndSample!==previous.end+audio.length ||
+        !Number.isSafeInteger(evidence.speechEndSample) || evidence.speechEndSample!<=0 ||
+        evidence.speechEndSample!>Math.min(rate,audio.length) || audio.length>rate*2.5) return null
+    // The voiced continuation must be short, but the renderer may retain
+    // up to 1.4 seconds of quiet while waiting for the VAD to end the turn.
+    if (audio.length > rate && audio.subarray(rate).some(sample => !Number.isFinite(sample) || Math.abs(sample) > .01)) return null
     const samples=new Float32Array(previous.tail.length+audio.length)
     samples.set(previous.tail);samples.set(audio,previous.tail.length)
     return {audio:samples,evidence:{...evidence,
-      speechSeconds:evidence.speechSeconds+previous.tail.length/rate,
+      speechSeconds:evidence.speechSeconds+previous.tailSpeechSeconds,
       speechEndSample:evidence.speechEndSample!+previous.tail.length,
       captureStartSample:evidence.captureStartSample!-previous.tail.length},
       restore:(text:string)=>restoreRecognizedOverlap(previous.text,text)}

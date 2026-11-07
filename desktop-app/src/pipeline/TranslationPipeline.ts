@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import { availableParallelism, totalmem } from 'node:os'
 import type {
   EngineConfig,
   STTEngine,
@@ -10,7 +11,8 @@ import type {
   Language,
   SourceLanguage,
   GlossaryEntry,
-  SpeechEvidence
+  SpeechEvidence,
+  STTResult
 } from '../engines/types'
 import { E2EStreamingAdapter } from './E2EStreamingAdapter'
 import { LocalAgreement } from './LocalAgreement'
@@ -25,6 +27,8 @@ import { MemoryMonitor } from './MemoryMonitor'
 import { AdaptiveRouter } from './AdaptiveRouter'
 import type { AdaptiveRoutingConfig } from './AdaptiveRouter'
 import { createLogger } from '../main/logger'
+import { isNetworkCascadeTranslator } from '../engine-selection'
+import { contextualShortReply } from '../engines/translator/contextual-short-reply'
 
 const log = createLogger('pipeline')
 
@@ -65,6 +69,14 @@ export enum PipelineState {
 
 const MAX_CONSECUTIVE_ERRORS = 3
 const RECOVERY_DELAY_MS = 1000
+
+/** File imports resolve overlapping source speech before machine translation. */
+export interface FileSegmentOptions {
+  prepareSource: (recognized: STTResult) => string | null
+  onTranslationFailure: (result: TranslationResult) => void
+  publish: () => boolean
+  signal: AbortSignal
+}
 
 /**
  * Manages the STT → Translation pipeline.
@@ -149,6 +161,10 @@ export class TranslationPipeline extends EventEmitter {
         return this.translationCache.get(text, from, to)
       },
       canReuseInterimTranslation: () => !this.adaptiveRouter.getConfig().enabled,
+      // An optional preview can stay visible longer on a constrained Windows
+      // machine. The first preview and all acoustic finals bypass this floor.
+      previewMinIntervalMs: process.platform === 'win32' && availableParallelism() <= 8 && totalmem() <= 9 * 1024 ** 3
+        ? 1600 : 0,
       translateFinal: this.translateFinal.bind(this),
       getSimulMtConfig: () => ({ enabled: this.simulMtEnabled, waitK: this.simulMtWaitK }),
       getSpeechToneMode: () => this.speechToneMode,
@@ -345,7 +361,7 @@ export class TranslationPipeline extends EventEmitter {
       this.ger.reset()
       this.translationCache.clear()
       await this.engineManager.disposeEngines()
-      await this.engineManager.initializeEngines(config, this)
+      await this.engineManager.initializeEngines(config, this, this.sourceLanguage)
       this.engineManager.sttEngine?.setLanguage?.(this.sourceLanguage)
       this.engineManager.sttEngine?.setVocabularyHints?.(this.glossary.map(entry => entry.source))
 
@@ -360,9 +376,10 @@ export class TranslationPipeline extends EventEmitter {
       }
 
       // Initialize speaker diarizer if enabled (#549)
-      if (this.diarizationEnabled && process.platform === 'darwin') {
+      const diarizerId = process.platform === 'win32' ? 'sherpa-speaker' : process.platform === 'darwin' ? 'fluid-audio' : undefined
+      if (this.diarizationEnabled && diarizerId) {
         try {
-          await this.engineManager.initDiarizer('fluid-audio', this)
+          await this.engineManager.initDiarizer(diarizerId, this)
         } catch (err) {
           log.warn('Speaker diarization initialization failed (non-fatal):', err)
           this.emit('engine-loading', 'Speaker diarization not available — continuing without speaker labels')
@@ -441,31 +458,35 @@ export class TranslationPipeline extends EventEmitter {
 
   // --- Audio processing ---
 
-  async process(audioChunk: Float32Array, sampleRate: number): Promise<TranslationResult | null> {
+  async process(audioChunk: Float32Array, sampleRate: number, file?: FileSegmentOptions): Promise<TranslationResult | null> {
+    if (file?.signal.aborted) return null
     if (this._state !== PipelineState.RUNNING || !this.engineManager.config) return null
     if (this.batchLock) return null
 
     this.processingCount++
     this.batchLock = true
     const generation = this.generation, revision = this.configurationRevision
-    const current = (): boolean => this.running && generation === this.generation && revision === this.configurationRevision
+    const current = (): boolean => !file?.signal.aborted && this.running &&
+      generation === this.generation && revision === this.configurationRevision
     try {
       let result: TranslationResult | null = null
 
       if (this.engineManager.config.mode === 'e2e' && this.engineManager.e2eEngine) {
+        // E2E recognizers cannot apply the source check used by file review.
+        if (file && !file.publish()) return null
         result = await this.engineManager.e2eEngine.processAudio(audioChunk, sampleRate)
       } else if (this.engineManager.config.mode === 'cascade' && this.engineManager.sttEngine) {
-        result = await this.processCascade(audioChunk, sampleRate, current)
+        result = await this.processCascade(audioChunk, sampleRate, current, file)
       }
 
       if (!current()) return null
-      if (result) {
+      if (result && (!file || file.publish())) {
         this.consecutiveErrors = 0
         this.emit('result', result)
       }
       return result
     } catch (err) {
-      if (!current()) return null
+      if (!current() || file && !file.publish()) return null
       this.consecutiveErrors++
       const error = err instanceof Error ? err : new Error(String(err))
       this.emit('error', error)
@@ -486,37 +507,59 @@ export class TranslationPipeline extends EventEmitter {
   }
 
   private async translateFinal(
-    text: string, from: Language, to: Language, recognitionConfidence?: number, sourceContext?: string
+    text: string, from: Language, to: Language, recognitionConfidence?: number, sourceContext?: string, signal?: AbortSignal
   ): Promise<string> {
+    signal?.throwIfAborted()
     if (from === to) return text
-    const cached = this.translationCache.get(text, from, to, sourceContext)
-    if (cached !== undefined) return cached
+    const contextual = contextualShortReply(text, from, to, sourceContext)
+    if (contextual !== undefined && !this.glossary.some(entry => entry.source && text.includes(entry.source))) return contextual
     const translator = this.engineManager.translator
     if (!translator) throw new Error('Translator engine not initialized')
-    const context = {
-      ...this.contextBuffer.getContext(this.glossary.length ? this.glossary : undefined),
-      ...(sourceContext && { sourceContext })
+    const context = { ...this.contextBuffer.forCaption(from, to, this.glossary.length ? this.glossary : undefined, sourceContext),
+      ...(signal && { signal }) }
+    // For other directions some engines still consume generated history. Avoid
+    // carrying an answer from a different previous segment over to this cue.
+    const allowCache = !this.adaptiveRouter.getConfig().enabled && ((from === 'ja' && to === 'zh') ||
+      !['gemini-translate', 'deepl-translate', 'rotation-controller'].includes(translator.id))
+    if (allowCache) {
+      const cached = this.translationCache.get(text, from, to, sourceContext)
+      if (cached !== undefined) return cached
     }
     const generation = this.generation
     const revision = this.configurationRevision
-    const current = (): boolean => this.running && generation === this.generation &&
+    const current = (): boolean => !signal?.aborted && this.running && generation === this.generation &&
       revision === this.configurationRevision && translator === this.engineManager.translator && to === this.targetLanguage
     const translated = await recoverFinalTranslation(async () => this.adaptiveRouter.getConfig().enabled && this.adaptiveRouter.isReady
       ? (await this.adaptiveRouter.translate(text, from, to, context, recognitionConfidence)).translated
       : await translator.translate(text, from, to, context), current)
-    if (current()) this.translationCache.set(text, from, to, translated, sourceContext)
+    if (current() && allowCache) this.translationCache.set(text, from, to, translated, sourceContext)
     return translated
   }
 
   private async processCascade(
     audioChunk: Float32Array,
     sampleRate: number,
-    current: () => boolean
+    current: () => boolean,
+    file?: FileSegmentOptions
   ): Promise<TranslationResult | null> {
-    if (!this.engineManager.sttEngine) return null
+    const recognizer = this.engineManager.sttEngine
+    if (!recognizer) return null
 
     const t0 = performance.now()
-    const sttResult = await this.engineManager.sttEngine.processAudio(audioChunk, sampleRate)
+    const stopFileRecognition = (): void => {
+      // File IPC owns this session. Retire only the recognizer that took the
+      // job, including any native worker or sidecar currently decoding it.
+      if (this.engineManager.sttEngine !== recognizer) return
+      this.engineManager.sttEngine = null
+      void recognizer.dispose().catch(error => log.warn('File recognizer cleanup failed:', error))
+    }
+    file?.signal.addEventListener('abort', stopFileRecognition, { once: true })
+    let sttResult: STTResult | null
+    try {
+      sttResult = await recognizer.processAudio(audioChunk, sampleRate)
+    } finally {
+      file?.signal.removeEventListener('abort', stopFileRecognition)
+    }
     if (!current()) return null
     const sttMs = (performance.now() - t0).toFixed(0)
     if (!sttResult || !sttResult.isFinal || !sttResult.text.trim()) {
@@ -525,21 +568,24 @@ export class TranslationPipeline extends EventEmitter {
     }
     log.info(`STT: ${sttMs}ms → "${sttResult.text}" [${sttResult.language}]`)
 
+    const sourceText = file ? file.prepareSource(sttResult) : sttResult.text
+    if (!sourceText?.trim()) return null
     const targetLang = this.resolveTargetLanguage(sttResult.language)
-    this.emit('source-result', sttResult.text)
+    const publish = !file || file.publish()
+    if (publish) this.emit('source-result', sourceText)
     if (!current()) return null
 
     try {
       const t1 = performance.now()
-      const translated = await this.translateFinal(sttResult.text, sttResult.language, targetLang)
+      const translated = await this.translateFinal(sourceText, sttResult.language, targetLang, undefined, undefined, file?.signal)
 
       if (!current()) return null
       log.info(`Translate: ${(performance.now() - t1).toFixed(0)}ms → "${translated}"`)
-      this.contextBuffer.add(sttResult.text, translated)
+      if (publish) this.contextBuffer.add(sourceText, translated)
 
       // Fire-and-forget GER correction (async, non-blocking)
-      this.ger.maybeCorrect(
-        sttResult.text,
+      if (!file) this.ger.maybeCorrect(
+        sourceText,
         sttResult.confidence,
         sttResult.language,
         targetLang,
@@ -548,7 +594,7 @@ export class TranslationPipeline extends EventEmitter {
       )
 
       return {
-        sourceText: sttResult.text,
+        sourceText,
         translatedText: translated,
         sourceLanguage: sttResult.language,
         targetLanguage: targetLang,
@@ -558,11 +604,15 @@ export class TranslationPipeline extends EventEmitter {
     } catch (translatorErr) {
       if (!current()) return null
       log.error('Translator error:', translatorErr)
-      this.emit('translation-failed', {
-        sourceText: sttResult.text, translatedText: '', sourceLanguage: sttResult.language,
+      const failed = {
+        sourceText, translatedText: '', sourceLanguage: sttResult.language,
         targetLanguage: targetLang, timestamp: Date.now()
-      } satisfies TranslationResult)
-      this.emit('error', new Error(`Translation failed: ${translatorErr instanceof Error ? translatorErr.message : translatorErr}`))
+      } satisfies TranslationResult
+      file?.onTranslationFailure(failed)
+      if (publish) {
+        this.emit('translation-failed', failed)
+        this.emit('error', new Error(`Translation failed: ${translatorErr instanceof Error ? translatorErr.message : translatorErr}`))
+      }
       return null
     }
   }
@@ -615,11 +665,19 @@ export class TranslationPipeline extends EventEmitter {
     return this.streaming.processStreaming(audioBuffer, sampleRate, evidence)
   }
 
+  get audioPreviewDelayMs(): number {
+    return this.running && this.engineManager.config?.mode === 'cascade' ? this.streaming.previewDelayMs() : 1500
+  }
+
   /** GPU-local translation and recognition competed in matched load tests.
    * Only network translators can overlap without increasing local GPU pressure. */
   get canOverlapFinalTranslation(): boolean {
-    return ['google-translate', 'deepl-translate', 'microsoft-translate', 'gemini-translate']
-      .includes(this.engineManager.config?.translatorEngineId || '') && !this.simulMtEnabled
+    return isNetworkCascadeTranslator(this.engineManager.config?.translatorEngineId) && !this.simulMtEnabled
+  }
+
+  /** Identity for captured audio waiting to be accepted by this session. */
+  get audioSessionGeneration(): number {
+    return this.generation
   }
 
   async prepareFinalStreaming(audioChunk: Float32Array, sampleRate: number, evidence?: SpeechEvidence) {

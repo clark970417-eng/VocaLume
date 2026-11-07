@@ -79,7 +79,7 @@ it('a continued negation cancels preparation and translates the entire final sou
   const pending=await f.processor.prepareFinalStreaming(finalAudio,16000,{...evidence,speechSeconds:1.3,speechEndSample:28000})
   expect(f.signal()?.aborted).toBe(true)
   expect((await pending?.completion)?.translatedText).toBe('今天不玩遊戲。')
-  expect(f.translateFinal).toHaveBeenCalledWith('今日は遊びませんと言ったけど、少しだけ遊びます。','ja','zh',undefined,undefined)
+  expect(f.translateFinal).toHaveBeenCalledWith('今日は遊びませんと言ったけど、少しだけ遊びます。','ja','zh',undefined,undefined,undefined)
   f.finish('過期的候選譯文');await Promise.resolve();await Promise.resolve()
   expect(f.events.some(r=>r.translatedText==='過期的候選譯文')).toBe(false)
  } finally {f.processor.reset()}
@@ -120,7 +120,7 @@ it('hanging clauses and thermal pressure never start optional preparation',async
   f.setSource('魚が逃げて。')
   await f.processor.processStreaming(audio,16000,evidence)
   expect(f.translate).not.toHaveBeenCalled()
-  const policy=vi.spyOn(pressure,'performanceState').mockReturnValue({thermalState:'fair',speedLimit:100,previewFloorMs:0,previewDutyCycle:.65,previewsPaused:false,coolingDown:false})
+  const policy=vi.spyOn(pressure,'performanceState').mockReturnValue({thermalState:'fair',speedLimit:100,previewFloorMs:0,previewDutyCycle:.65,previewsPaused:false,coolingDown:false,optionalAnalysisAllowed:false})
   try {
    f.setSource('魚が逃げてしまいました。')
    await f.processor.processStreaming(audio,16000,{...evidence,segment:'1:2'})
