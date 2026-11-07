@@ -109,7 +109,8 @@ export class KokoroTTSEngine implements TTSEngine {
     }
   }
 
-  async synthesize(text: string, language: Language): Promise<TTSResult> {
+  async synthesize(text: string, language: Language, signal?: AbortSignal): Promise<TTSResult> {
+    signal?.throwIfAborted()
     if (!this.tts) {
       throw new Error('Kokoro TTS not initialized')
     }
@@ -124,6 +125,9 @@ export class KokoroTTSEngine implements TTSEngine {
 
     try {
       const rawAudio = await this.tts.generate(text, { voice })
+      // Kokoro's native generation has no AbortSignal. The caller serializes
+      // runs, and a cancelled completion must never reach audio playback.
+      signal?.throwIfAborted()
       const elapsed = (performance.now() - t0).toFixed(0)
       log.info(`TTS: ${elapsed}ms, ${text.length} chars, voice=${voice}`)
 
@@ -133,7 +137,7 @@ export class KokoroTTSEngine implements TTSEngine {
         sampleRate: (rawAudio as RawAudioLike).sampling_rate ?? 24000
       }
     } catch (err) {
-      log.error('TTS synthesis failed:', err)
+      if (!signal?.aborted) log.error('TTS synthesis failed:', err)
       throw err
     }
   }
@@ -145,14 +149,17 @@ export class KokoroTTSEngine implements TTSEngine {
   }
 
   async dispose(): Promise<void> {
+    const instance = this.tts
     this.tts = null
     this.initialized = false
+    await instance?.model.dispose()
     log.info('Kokoro-82M TTS engine disposed')
   }
 }
 
 /** Minimal type for the kokoro-js KokoroTTS instance */
 interface KokoroTTSInstance {
+  model: { dispose(): Promise<unknown> }
   generate(text: string, options: { voice: string; speed?: number }): Promise<RawAudioLike>
 }
 
