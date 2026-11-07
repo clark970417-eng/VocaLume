@@ -16,6 +16,9 @@ extraResources:
     filter:
       - '*.py'
       - 'bin/**'
+      - '!ane-translate-bridge.py'
+      - '!mlx-whisper-bridge.py'
+      - '!bin/{fluid-audio-bridge,voice-tone-helper,capture-claim-helper}'
 asarUnpack:
   - 'node_modules/ffmpeg-static/**'
   - 'node_modules/@kutalia/whisper-node-addon/**'
@@ -28,6 +31,14 @@ publish:
   repo: VocaLume
 mac:
   icon: build/icon.icns
+  extraResources:
+    - &appleBridgeResources
+      from: 'resources/'
+      to: 'bridge-scripts/'
+      filter:
+        - 'ane-translate-bridge.py'
+        - 'mlx-whisper-bridge.py'
+        - 'bin/{fluid-audio-bridge,voice-tone-helper,capture-claim-helper}'
   files:
     # Keep the application allowlist in the same matcher as native exclusions.
     # A separate exclusions-only matcher implicitly includes the workspace.
@@ -80,6 +91,21 @@ win:
     - '!**/node_modules/onnxruntime-node/bin/napi-v3/win32/!(${arch}){,/**/*}'
     - '!**/node_modules/@kutalia/whisper-node-addon/dist/{darwin-*,linux-*,mac-*}{,/**/*}'
     - '!**/node_modules/@kutalia/whisper-node-addon/dist/{win,win32}-!(${arch}){,/**/*}'
+    - '!**/node_modules/@node-llama-cpp/{linux-*,mac-*,win-!(${arch}|${arch}-*)}{,/**/*}'
+    # Windows runs prebuilt llama bindings and never compiles llama.cpp locally.
+    - '!**/node_modules/node-llama-cpp/llama/{gitRelease.bundle,CMakeLists.txt}'
+    - '!**/node_modules/node-llama-cpp/llama/{addon,cmake,toolchains,xpack}{,/**/*}'
+    - '!**/node_modules/@node-llama-cpp/win-*/bins/**/*.{lib,exp,pdb}'
+    # Main-process Transformers and Kokoro select the Node exports.
+    # The renderer's compiled VAD and DeepFilter assets remain in out/renderer.
+    - '!**/node_modules/onnxruntime-web{,/**/*}'
+    - '!**/node_modules/{@protobufjs/*,flatbuffers,guid-typescript,long,platform,protobufjs}{,/**/*}'
+    - '!**/node_modules/@huggingface/transformers/dist/{transformers,transformers.min,transformers.web,transformers.web.min}.js{,.map}'
+    - '!**/node_modules/@huggingface/transformers/dist/ort-wasm-*.{mjs,wasm}'
+    - '!**/node_modules/kokoro-js/dist/kokoro.web.js'
+    - '!**/node_modules/deepfilternet3-noise-filter{,/**/*}'
+    # Windows routes the virtual microphone through the selected renderer output.
+    - '!**/node_modules/{naudiodon,segfault-handler}{,/**/*}'
   asarUnpack:
     - 'node_modules/@kutalia/whisper-node-addon/**'
     - 'node_modules/node-llama-cpp/**'
@@ -90,6 +116,9 @@ linux:
       arch:
         - x64
   category: Utility
+  # Retain the existing Linux extra-resource set.
+  extraResources:
+    - *appleBridgeResources
   files:
     - *compiledApp
     - *appManifest
