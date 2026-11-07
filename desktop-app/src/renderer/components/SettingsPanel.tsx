@@ -301,7 +301,7 @@ function SettingsPanel(): React.JSX.Element {
             <h2>{t("More settings")}</h2>
             <details className="settings-disclosure"><summary>{t("Copyright & use")}</summary><p>© 2026 Clark · VocaLume</p><p>{t("Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.")}</p><a href="https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("License")} ↗</a></details>
             <details className="settings-disclosure"><summary>{t("Tone & laughter")}</summary><SpeechToneSettings /></details>
-            <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} platform={s.platform} /></details>
+            {s.platform && <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} platform={s.platform} /></details>}
             <details className="settings-disclosure"><summary>{t("Saved sessions & summaries")}</summary>
       <SessionControls view="history"
         isRunning={s.isRunning}
