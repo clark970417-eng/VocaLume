@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AudioCaptureStartError, type UseAudioCaptureReturn } from './useAudioCapture'
+import { isNetworkCascadeTranslator } from '../../engine-selection'
 
 function friendlyError(err: unknown): string {
   if (err instanceof AudioCaptureStartError) return err.message
@@ -97,6 +98,8 @@ export interface SettingsState {
   subtitleFontSize: number
   setSubtitleFontSize: (v: number) => void
   subtitleSourceColor: string
+  lowPowerRendering: boolean
+  setLowPowerRendering: (v: boolean) => void
   setSubtitleSourceColor: (v: string) => void
   subtitleTranslatedColor: string
   setSubtitleTranslatedColor: (v: string) => void
@@ -218,6 +221,7 @@ export function useSettingsState(): SettingsState {
         targetLanguage: language.targetLanguage,
         noiseSuppressionEnabled: session.noiseSuppression.enabled,
         audioSource: session.audio.audioSource,
+        systemLoopbackDeviceId: session.audio.systemLoopbackDeviceId,
         draftSttEnabled: language.draftSttEnabled,
         speakerDiarizationEnabled: language.speakerDiarizationEnabled,
         adaptiveRoutingEnabled: engine.adaptiveRoutingEnabled,
@@ -258,7 +262,7 @@ export function useSettingsState(): SettingsState {
         geminiLiveEnabled: options?.captureAudio === false ? false : engine.geminiLiveEnabled
       })
 
-      const result = await withIpcTimeout(window.api.pipelineStart(config), 120_000, 'pipelineStart')
+      const result = await withIpcTimeout(window.api.pipelineStart(config, options?.captureAudio !== false), 120_000, 'pipelineStart')
       if (result.error) {
         session.setStatus(`Error: ${result.error}`)
         session.setIsStarting(false)
@@ -269,7 +273,10 @@ export function useSettingsState(): SettingsState {
       // #721: cloud e2e pipelines consume a continuous 100ms PCM stream; cascade
       // pipelines use the VAD-segmented rolling buffer.
       if (options?.captureAudio !== false) {
-        await session.audio.start({ captureMode: config.mode === 'e2e' ? 'realtime' : 'cascade' })
+        await session.audio.start({
+          captureMode: config.mode === 'e2e' ? 'realtime' : 'cascade',
+          ...(config.mode === 'cascade' && isNetworkCascadeTranslator(config.translatorEngineId) ? { preferPauseBoundaries: true } : {})
+        })
       }
       session.setIsRunning(true)
       session.startSessionTimer()
@@ -320,7 +327,10 @@ export function useSettingsState(): SettingsState {
       pipelineStarted = true
       // #721: preserve the resumed session's capture mode
       const resumeMode = (session.crashedSession.config as { mode?: string }).mode === 'e2e' ? 'realtime' : 'cascade'
-      await session.audio.start({ captureMode: resumeMode })
+      await session.audio.start({
+        captureMode: resumeMode,
+        ...(resumeMode === 'cascade' && isNetworkCascadeTranslator(session.crashedSession.config.translatorEngineId) ? { preferPauseBoundaries: true } : {})
+      })
       session.setIsRunning(true)
       session.setCrashedSession(null)
       session.startSessionTimer()
@@ -386,6 +396,7 @@ export function useSettingsState(): SettingsState {
     // Subtitle
     subtitleFontSize: subtitle.subtitleFontSize, setSubtitleFontSize: subtitle.setSubtitleFontSize,
     subtitleSourceColor: subtitle.subtitleSourceColor, setSubtitleSourceColor: subtitle.setSubtitleSourceColor,
+    lowPowerRendering: subtitle.lowPowerRendering, setLowPowerRendering: subtitle.setLowPowerRendering,
     subtitleTranslatedColor: subtitle.subtitleTranslatedColor, setSubtitleTranslatedColor: subtitle.setSubtitleTranslatedColor,
     subtitleBgOpacity: subtitle.subtitleBgOpacity, setSubtitleBgOpacity: subtitle.setSubtitleBgOpacity,
     subtitlePosition: subtitle.subtitlePosition, setSubtitlePosition: subtitle.setSubtitlePosition,

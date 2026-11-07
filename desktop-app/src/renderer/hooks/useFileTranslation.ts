@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { mergeMediaCue, type MediaTranscriptRow } from '../../media-transcript'
 
 export function useFileTranslation({ disabled, handleStart, handleStop, setStatus }: {
   disabled: boolean
@@ -7,31 +8,51 @@ export function useFileTranslation({ disabled, handleStart, handleStop, setStatu
   setStatus: (status: string) => void
 }) {
   const [mediaJobId, setMediaJobId] = useState<string | null>(null)
+  const activeJob = useRef<string | null>(null)
+  const cancelRequested = useRef(false)
+  const [reviewFile, setReviewFile] = useState(false)
+  const [rows, setRows] = useState<MediaTranscriptRow[]>([])
 
   useEffect(() => window.api.onMediaFileProgress(({ jobId, processedSeconds }) => {
-    if (jobId === mediaJobId) setStatus(`Translating file: ${formatMediaTime(processedSeconds)} processed`)
-  }), [mediaJobId, setStatus])
+    if (jobId === activeJob.current && !cancelRequested.current) setStatus(`Translating file: ${formatMediaTime(processedSeconds)} processed`)
+  }), [setStatus])
+  useEffect(() => window.api.onMediaFileCue(cue => {
+    const job = activeJob.current
+    setRows(current => mergeMediaCue(current, job, cue))
+  }), [])
+
+  const editCue = (jobId: string, cueId: number, editedText: string): void => {
+    setRows(current => current.map(row => row.jobId === jobId && row.cueId === cueId ? { ...row, editedText } : row))
+  }
 
   const mediaBusy = useRef(false)
   const translatePath = async (path: string, name: string): Promise<void> => {
     if (mediaBusy.current) return
     mediaBusy.current = true
+    cancelRequested.current = false
     let started = false
     let finalStatus: string | undefined
     const jobId = crypto.randomUUID()
     try {
       if (!path) throw new Error('The selected file cannot be accessed.')
+      activeJob.current = jobId
+      setRows([])
       setMediaJobId(jobId)
       setStatus(`Opening ${name}...`)
       started = await handleStart({ captureAudio: false })
       if (!started) return
-      const result = await window.api.processMediaFile(path, jobId)
+      if (cancelRequested.current) {
+        finalStatus = `Cancelled ${name} at 0:00`
+        return
+      }
+      const result = await window.api.processMediaFile(path, jobId, reviewFile)
       finalStatus = result.cancelled
         ? `Cancelled ${name} at ${formatMediaTime(result.processedSeconds)}`
         : `Finished ${name} (${formatMediaTime(result.processedSeconds)})`
     } catch (error) {
       finalStatus = `File translation failed: ${error instanceof Error ? error.message : String(error)}`
     } finally {
+      activeJob.current = null
       setMediaJobId(null)
       try { if (started) await handleStop() }
       finally {
@@ -67,12 +88,14 @@ export function useFileTranslation({ disabled, handleStart, handleStop, setStatu
   }
   useEffect(() => {
     if (!watchFolder) return
+    void scanFolder.current()
     const timer = setInterval(() => void scanFolder.current(), 3000)
     return () => clearInterval(timer)
   }, [watchFolder])
 
   const cancelMediaFile = async (): Promise<void> => {
     if (!mediaJobId) return
+    cancelRequested.current = true
     setStatus('Cancelling file translation...')
     await window.api.cancelMediaFile(mediaJobId)
   }
@@ -86,7 +109,7 @@ export function useFileTranslation({ disabled, handleStart, handleStop, setStatu
     }
   }
 
-  return { mediaJobId, translatePath, cancelMediaFile, watchFolder, toggleWatchFolder }
+  return { mediaJobId, translatePath, cancelMediaFile, watchFolder, toggleWatchFolder, rows, editCue, reviewFile, setReviewFile }
 }
 
 function formatMediaTime(seconds: number): string {

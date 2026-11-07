@@ -4,7 +4,7 @@ import { useSettingsState } from './useSettingsState'
 
 const session = vi.hoisted(() => ({
   audio: { start: vi.fn(), stop: vi.fn() },
-  crashedSession: { config: { mode: 'e2e' } },
+  crashedSession: { config: { mode: 'e2e' } as Record<string, unknown> },
   isStarting: false,
   setIsStarting: vi.fn(),
   setIsRunning: vi.fn(),
@@ -30,6 +30,7 @@ describe('resume desktop capture', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    session.crashedSession.config = { mode: 'e2e' }
     pipelineStart.mockResolvedValue({ success: true })
     pipelineStop.mockResolvedValue({})
     session.audio.start.mockResolvedValue(undefined)
@@ -58,5 +59,12 @@ describe('resume desktop capture', () => {
 
     expect(session.audio.start).not.toHaveBeenCalled()
     expect(pipelineStop).not.toHaveBeenCalled()
+  })
+
+  it('restores pause-based segmentation for public cloud captions', async () => {
+    session.crashedSession.config = { mode: 'cascade', translatorEngineId: 'google-public-translate' }
+    await useSettingsState().handleResume()
+    expect(session.audio.start).toHaveBeenCalledWith({ captureMode: 'cascade', preferPauseBoundaries: true })
+    expect(session.setIsRunning).toHaveBeenLastCalledWith(true)
   })
 })

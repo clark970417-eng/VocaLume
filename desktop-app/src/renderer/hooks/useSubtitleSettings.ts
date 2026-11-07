@@ -26,6 +26,8 @@ export interface SubtitleSettingsState {
   setSubtitleBgOpacity: (v: number) => void
   subtitlePosition: SubtitlePositionType
   setSubtitlePosition: (v: SubtitlePositionType) => void
+  lowPowerRendering: boolean
+  setLowPowerRendering: (v: boolean) => void
   showConfidenceIndicator: boolean
   setShowConfidenceIndicator: (v: boolean) => void
   accessibility: AccessibilityState
@@ -38,6 +40,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
   const [subtitleTranslatedColor, setSubtitleTranslatedColor] = useState('#7dd3fc')
   const [subtitleBgOpacity, setSubtitleBgOpacity] = useState(78)
   const [subtitlePosition, setSubtitlePosition] = useState<SubtitlePositionType>('bottom')
+  const [lowPowerRendering, setLowPowerRendering] = useState(false)
   const [showConfidenceIndicator, setShowConfidenceIndicator] = useState(true)
 
   // Accessibility state
@@ -57,6 +60,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
         if (sub.translatedTextColor) setSubtitleTranslatedColor(str(sub.translatedTextColor, '#7dd3fc'))
         if (sub.backgroundOpacity !== undefined) setSubtitleBgOpacity(num(sub.backgroundOpacity, 78))
         if (sub.position) setSubtitlePosition(str(sub.position, 'bottom') as SubtitlePositionType)
+        setLowPowerRendering(bool(sub.lowPowerRendering, /Windows/i.test(navigator.userAgent)))
 
         // Load accessibility settings
         const a11y = rec(sub.accessibility)
@@ -81,6 +85,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
       translatedTextColor: subtitleTranslatedColor,
       backgroundOpacity: subtitleBgOpacity,
       position: subtitlePosition,
+      lowPowerRendering,
       accessibility: {
         highContrast,
         dyslexiaFont,
@@ -99,6 +104,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
     subtitleTranslatedColor, setSubtitleTranslatedColor,
     subtitleBgOpacity, setSubtitleBgOpacity,
     subtitlePosition, setSubtitlePosition,
+    lowPowerRendering, setLowPowerRendering,
     showConfidenceIndicator, setShowConfidenceIndicator,
     accessibility: {
       highContrast, setHighContrast,

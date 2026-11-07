@@ -51,7 +51,7 @@ export function useLanguageSettings(): LanguageSettingsState {
       const isTahoe = macVer !== null && parseInt(macVer.split('.')[0], 10) >= 26
       setIsMacOS26(isTahoe)
       window.api.getSettings().then((s) => {
-        if (p !== 'darwin' && ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber'].includes(String(s.sttEngine))) {
+        if (p !== 'darwin' && ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber', 'qwen3-asr'].includes(String(s.sttEngine))) {
           setSttEngine('whisper-local')
           setWhisperVariant('base')
         } else if (!s.sttEngine) {
