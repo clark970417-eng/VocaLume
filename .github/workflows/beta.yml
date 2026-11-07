@@ -122,6 +122,12 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: ${{ matrix.command }}
+      - name: Verify packaged Windows FFmpeg
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & './dist/win-unpacked/resources/app.asar.unpacked/node_modules/ffmpeg-static/ffmpeg.exe' -hide_banner -version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify Mac package contents and native browser transport
         if: runner.os == 'macOS'
         env:
