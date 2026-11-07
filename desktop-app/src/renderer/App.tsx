@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from 'react'
-import SubtitleOverlay from './components/SubtitleOverlay'
-import SettingsPanel from './components/SettingsPanel'
+import React, { lazy, Suspense, useEffect, useState } from 'react'
+
+const SubtitleOverlay = lazy(() => import('./components/SubtitleOverlay'))
+const SettingsPanel = lazy(() => import('./components/SettingsPanel'))
 
 function App(): React.JSX.Element {
-  const [isSubtitleMode, setIsSubtitleMode] = useState(false)
+  const [isSubtitleMode, setIsSubtitleMode] = useState(() => window.location.hash === '#/subtitle')
 
   useEffect(() => {
     // Hash routing: #/subtitle for subtitle overlay window
-    setIsSubtitleMode(window.location.hash === '#/subtitle')
-
     const handleHashChange = (): void => {
       setIsSubtitleMode(window.location.hash === '#/subtitle')
     }
@@ -16,11 +15,7 @@ function App(): React.JSX.Element {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  if (isSubtitleMode) {
-    return <SubtitleOverlay />
-  }
-
-  return <SettingsPanel />
+  return <Suspense fallback={null}>{isSubtitleMode ? <SubtitleOverlay /> : <SettingsPanel />}</Suspense>
 }
 
 export default App
