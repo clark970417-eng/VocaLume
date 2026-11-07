@@ -1,17 +1,23 @@
+import type { SpeechEvidence, TTSPlaybackData, TtsVoiceOption } from '../engines/types'
+import type { MediaFileCue } from '../media-transcript'
+
 export interface ElectronAPI {
-  pipelineStart: (config: unknown) => Promise<{ success?: boolean; error?: string }>
+  pipelineStart: (config: unknown, captureAudio?: boolean) => Promise<{ success?: boolean; error?: string }>
   pipelineStop: () => Promise<{ logPath?: string }>
   processAudio: (audioData: number[]) => Promise<unknown>
-  processAudioStreaming: (audioData: number[] | Float32Array) => Promise<unknown>
-  finalizeStreaming: (audioData: number[] | Float32Array) => Promise<unknown>
+  processAudioStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) => Promise<unknown>
+  getAudioPreviewDelay: () => Promise<number>
+  processAudioPreview: (audioData: Float32Array, evidence: SpeechEvidence) => Promise<number>
+  finalizeStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) => Promise<unknown>
   getPathForFile: (file: File) => string
   decodeMediaFile: (path: string) => Promise<Uint8Array>
   exportFileTranscript: (contents: string) => Promise<void>
   chooseMediaFolder: () => Promise<string | null>
   scanMediaFolder: () => Promise<{ path: string; name: string; revision: string }[]>
-  processMediaFile: (path: string, jobId: string) => Promise<{ processedSeconds: number; cancelled: boolean }>
+  processMediaFile: (path: string, jobId: string, review?: boolean) => Promise<{ processedSeconds: number; cancelled: boolean }>
   cancelMediaFile: (jobId: string) => Promise<{ cancelled: boolean }>
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => (() => void)
+  onMediaFileCue: (callback: (cue: MediaFileCue) => void) => (() => void)
   pushRealtimeAudio: (audioData: Float32Array | number[]) => Promise<unknown>
   speechBoundary: (boundary: 'start' | 'end') => Promise<unknown>
   onTranslationResult: (callback: (data: unknown) => void) => (() => void)
@@ -81,7 +87,10 @@ export interface ElectronAPI {
   ttsSetVolume: (volume: number) => Promise<void>
   ttsSetOutputDevice: (deviceId: string) => Promise<void>
   ttsGetSettings: () => Promise<{ enabled: boolean; voice: string; outputDevice: string; volume: number }>
-  onTtsAudio: (callback: (data: { audio: number[]; sampleRate: number; volume: number; outputDevice: string }) => void) => (() => void)
+  ttsGetVoices: () => Promise<TtsVoiceOption[]>
+  onTtsError: (callback: (message: string) => void) => (() => void)
+  onTtsAudio: (callback: (data: TTSPlaybackData) => void) => (() => void)
+  onTtsStop: (callback: () => void) => (() => void)
 
   // Virtual Mic (#515)
   virtualMicGetStatus: () => Promise<{
@@ -152,8 +161,11 @@ export interface ElectronAPI {
 
   // Subtitle drag mode (#509)
   toggleSubtitleDragMode: (enabled: boolean) => Promise<void>
-  moveSubtitleByDelta: (dx: number, dy: number) => void
-  saveSubtitlePosition: () => Promise<void>
+  getSubtitleInteractionMode: () => Promise<'view' | 'drag' | 'edit'>
+  setSubtitleCaptionArea: (area: { x: number; y: number; width: number; height: number } | null) => void
+  setSubtitleCaptionHover: (hovered: boolean) => void
+  subtitlePointerDrag: (phase: 'start' | 'move' | 'end', x: number, y: number) => void
+  onSubtitleDisplayChanged: (callback: (displayId: number) => void) => (() => void)
   resetSubtitlePosition: () => Promise<void>
   onDragModeChanged: (callback: (enabled: boolean) => void) => (() => void)
 
@@ -210,9 +222,11 @@ export interface ElectronAPI {
   updateDownload: () => Promise<{ success?: boolean; openedBrowser?: boolean; error?: string }>
   updateInstall: () => Promise<{ success?: boolean; deferred?: boolean }>
   updateSetChannel: (channel: 'stable' | 'beta') => Promise<{ success?: boolean; error?: string }>
-  updateGetStatus: () => Promise<{ state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }>
-  obsCaptionStatus: () => Promise<{ mode: 'off' | 'translation' | 'bilingual'; path: string; error: string }>
+  updateGetStatus: () => Promise<{ state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string; managedDisabled?: boolean }>
+  obsCaptionStatus: () => Promise<{ mode: 'off' | 'translation' | 'bilingual'; transport: 'file' | 'push';
+    source: string; pushAvailable: boolean; path: string; error: string }>
   configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ReturnType<ElectronAPI['obsCaptionStatus']>
+  configureObsCaptionTransport: (transport: 'file' | 'push', source: string) => ReturnType<ElectronAPI['obsCaptionStatus']>
   exportDiagnostics: () => Promise<{ success?: boolean; canceled?: boolean; path?: string; error?: string }>
   openSupportUrl: (url: string) => Promise<{ success?: boolean; error?: string }>
   onUpdateStatus: (callback: (status: { state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }) => void) => (() => void)
