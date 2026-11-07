@@ -1,10 +1,11 @@
 import { getModelPath, isModelDownloaded, downloadModel } from '../model-downloader'
 import type { WhisperVariant } from '../model-downloader'
 import { filterWhisperHallucination } from '../../pipeline/whisper-filter'
-import type { STTEngine, STTResult, Language, SourceLanguage } from '../types'
+import type { STTEngine, STTResult, Language, SourceLanguage, SpeechEvidence } from '../types'
 import { createLogger } from '../../main/logger'
 import { windowsInferenceThreads } from '../inference-resources'
 import type { WhisperWorkerClient } from './whisper-worker-client'
+import { SpeechLanguageStabilizer } from './SpeechLanguageStabilizer'
 
 const log = createLogger('whisper-local')
 
@@ -19,9 +20,11 @@ export class WhisperLocalEngine implements STTEngine {
   private onProgress?: (message: string) => void
   private modelVariant?: WhisperVariant
   private sourceLanguage: SourceLanguage = 'auto'
+  private languageStabilizer = new SpeechLanguageStabilizer()
   private generation = 0
 
   setLanguage(language: SourceLanguage): void {
+    if (this.sourceLanguage !== language) this.languageStabilizer.reset()
     this.sourceLanguage = language
   }
 
@@ -64,7 +67,7 @@ export class WhisperLocalEngine implements STTEngine {
     this.transcribe = transcribe
   }
 
-  async processAudio(audioChunk: Float32Array, _sampleRate: number): Promise<STTResult | null> {
+  async processAudio(audioChunk: Float32Array, _sampleRate: number, evidence?: SpeechEvidence): Promise<STTResult | null> {
     if (!this.modelPath || !this.transcribe) return null
     // Snapshot per request: a later settings change must not relabel queued audio.
     const requestedLanguage = this.sourceLanguage
@@ -96,6 +99,7 @@ export class WhisperLocalEngine implements STTEngine {
         translate: false,
         vad: false,
         no_timestamps: true,
+        ...(process.platform === 'win32' && process.env.VOCALUME_WHISPER_CPU === '1' ? { use_gpu: false } : {}),
         ...(process.platform === 'win32' ? { n_threads: windowsInferenceThreads().whisper } : {}),
         no_prints: true
       })
@@ -107,13 +111,17 @@ export class WhisperLocalEngine implements STTEngine {
 
       // A configured language is authoritative. Script heuristics misclassify
       // short Japanese names written only in kanji and Latin-script languages.
-      const language = requestedLanguage === 'auto' ? this.detectLanguage(text) : requestedLanguage
+      const timestamp = Date.now()
+      const detected = requestedLanguage === 'auto' ? this.detectLanguage(text) : requestedLanguage
+      const language = requestedLanguage === 'auto' && this.sourceLanguage === 'auto'
+        ? this.languageStabilizer.detect(detected, text, timestamp, evidence)
+        : detected
 
       return {
         text,
         language,
         isFinal: true,
-        timestamp: Date.now()
+        timestamp
       }
     } catch (err) {
       log.error('Transcription error:', err)
@@ -130,31 +138,28 @@ export class WhisperLocalEngine implements STTEngine {
     this.workerClient = null
     this.transcribe = null
     this.modelPath = ''
+    this.languageStabilizer.reset()
   }
 
   private detectLanguage(text: string): Language {
     if (!text || text.length === 0) return 'en'
 
     // Japanese: Hiragana, Katakana, CJK ideographs (when mixed with kana)
-    const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF]/g
-    const jpMatches = text.match(japanesePattern)
-    const jpCount = jpMatches?.length || 0
-    const jpRatio = jpCount / text.length
-    if (jpRatio > 0.3 && jpCount >= 2) return 'ja'
+    if (/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text)) return 'ja'
 
     // Chinese: CJK ideographs without Japanese kana
     const cjkPattern = /[\u4E00-\u9FFF\u3400-\u4DBF]/g
     const cjkMatches = text.match(cjkPattern)
     const cjkCount = cjkMatches?.length || 0
     const cjkRatio = cjkCount / text.length
-    if (cjkRatio > 0.3 && cjkCount >= 2 && jpCount === 0) return 'zh'
+    if (cjkRatio > 0.3) return 'zh'
 
     // Korean: Hangul syllables and jamo
     const koreanPattern = /[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/g
     const koMatches = text.match(koreanPattern)
     const koCount = koMatches?.length || 0
     const koRatio = koCount / text.length
-    if (koRatio > 0.3 && koCount >= 2) return 'ko'
+    if (koRatio > 0.3) return 'ko'
 
     // Thai
     const thaiPattern = /[\u0E00-\u0E7F]/g
