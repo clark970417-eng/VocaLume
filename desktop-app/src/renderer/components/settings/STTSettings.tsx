@@ -30,10 +30,11 @@ export function STTSettings({
   draftSttEnabled,
   onDraftSttEnabledChange
 }: STTSettingsProps): React.JSX.Element {
-  // Kotoba-Whisper outputs JA only — show when source is JA or auto, on Apple Silicon
-  const showKotobaWhisper = platform === 'darwin' && (sourceLanguage === 'ja' || sourceLanguage === 'auto')
+  const isMac = platform === 'darwin'
+  const showAppleSpeech = isMac && isMacOS26
+  const showKotobaWhisper = isMac && (sourceLanguage === 'ja' || sourceLanguage === 'auto')
 
-  const effectiveEngine = resolveSpeechEngine(sourceLanguage, sttEngine, platform === 'darwin' || platform === 'win32')
+  const effectiveEngine = resolveSpeechEngine(sourceLanguage, sttEngine, isMac || platform === 'win32')
   const usesHaas = effectiveEngine.startsWith('haas-ja-')
   const usesSenseVoice = /^(zh|yue|en|ko)(?:-|$)/i.test(sourceLanguage)
   const automaticEngine = (usesHaas && platform !== 'win32') || usesSenseVoice
@@ -47,21 +48,21 @@ export function STTSettings({
         disabled={disabled || automaticEngine}
         aria-label={t("STT engine")}
       >
-        {(platform === 'darwin' || platform === 'win32') && sourceLanguage === 'ja' && <>
+        {(isMac || platform === 'win32') && sourceLanguage === 'ja' && <>
           <option value="haas-ja-recommended">Haas-ja Q8_0 · {t("Recommended")}</option>
           <option value="haas-ja-fast">Haas-ja Q8_0 · {t("Fastest recognition")}</option>
         </>}
-        {isMacOS26 && (
+        {showAppleSpeech && (
           <option value="apple-speech-transcriber">{t("Apple Speech (Zero Setup, macOS 26+)")}</option>
         )}
         {showKotobaWhisper && (
           <option value="kotoba-whisper">{t("Kotoba-Whisper v2.0 (JA-optimized, Apple Silicon)")}</option>
         )}
         <option value="sensevoice-sherpa">{t("SenseVoice Small (Offline)")}</option>
-        {platform === 'darwin' && (
+        {isMac && (
           <option value="qwen3-asr">{t("Qwen3-ASR 0.6B (Best accuracy, Apple Silicon)")}</option>
         )}
-        {platform === 'darwin' && (
+        {isMac && (
           <option value="mlx-whisper">{t("mlx-whisper (Apple Silicon, recommended)")}</option>
         )}
         <option value="whisper-local">{t("Whisper (whisper.cpp)")}</option>
@@ -95,17 +96,17 @@ export function STTSettings({
           )}
         </div>
       )}
-      {sttEngine === 'kotoba-whisper' && sourceLanguage !== 'ja' && (
+      {showKotobaWhisper && effectiveEngine === 'kotoba-whisper' && sourceLanguage !== 'ja' && (
         <p className="settings-notice">{t("Warning: this model only outputs Japanese. Set source language to JA for best results.")}</p>
       )}
-      {sttEngine === 'qwen3-asr' && (
+      {isMac && effectiveEngine === 'qwen3-asr' && (
         <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Qwen3-ASR 0.6B: JA CER 6.8%, EN WER 1.9% — best combined JA+EN accuracy. Requires")}{' '}
           <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("speech-swift")}</span>
           {' '}(
           <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("brew tap soniqo/speech https://github.com/soniqo/speech-swift && brew install speech")} </span>{t("). Model (~600MB) auto-downloads on first use.")} <div style={{ marginTop: '2px', color: '#f59e0b' }}>{t("Latency: ~2.2s per chunk (65% slower than MLX Whisper ~1.3s). Best for accuracy over speed.")} </div>
         </div>
       )}
-      {sttEngine === 'apple-speech-transcriber' && (
+      {showAppleSpeech && effectiveEngine === 'apple-speech-transcriber' && (
         <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Apple SpeechTranscriber: zero model management, ANE-optimized, 2.2x faster than Whisper Turbo. 40+ languages. Requires")}{' '}
           <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("apple-stt")}</span>
           {' '}{t("CLI (")} <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("cd scripts/apple-stt && swift build -c release && cp .build/release/apple-stt /opt/homebrew/bin/")} </span>
