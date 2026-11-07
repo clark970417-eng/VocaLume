@@ -29,9 +29,13 @@ function sourceFiles(root) {
         files.push({ path: '../extension/' + name, sha256: digest(fs.readFileSync(file)) })
       }
     }
+    for (const name of ['desktop/capture-lease.mjs', 'desktop/capture-lease.d.mts']) {
+      const file = path.join(shared, name)
+      if (fs.existsSync(file)) files.push({ path: '../extension/' + name, sha256: digest(fs.readFileSync(file)) })
+    }
   }
   for (const name of ['package.json', 'package-lock.json', 'electron.vite.config.ts', 'electron-builder.yml', 'tsconfig.json', 'tsconfig.node.json', 'tsconfig.web.json',
-    'scripts/after-pack.js', 'scripts/before-pack.cjs', 'scripts/build-app.cjs', 'scripts/build-provenance.cjs', 'scripts/voice-tone.swift']) {
+    'scripts/after-pack.js', 'scripts/before-pack.cjs', 'scripts/build-app.cjs', 'scripts/build-provenance.cjs', 'scripts/voice-tone.swift', 'scripts/capture-claim.swift']) {
     const file = path.join(root, name)
     if (fs.existsSync(file)) files.push({ path: name, sha256: digest(fs.readFileSync(file)) })
   }
