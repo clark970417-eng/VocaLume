@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   extension:
+    if: github.ref != 'refs/heads/codex/windows-4.6.6-haas'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -65,28 +66,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-15
-            command: npx electron-builder --mac dmg zip --arm64 --publish never --config.mac.identity=-
-            artifact: macOS-Apple-Silicon
-            mac_app: dist/mac-arm64/VocaLume.app
-            files: |
-              desktop-app/dist/*.dmg
-              desktop-app/dist/*-mac.zip
-          - os: macos-15-intel
-            command: npx electron-builder --mac dmg zip --x64 --publish never --config.mac.identity=-
-            artifact: macOS-Intel
-            mac_app: dist/mac/VocaLume.app
-            files: |
-              desktop-app/dist/*.dmg
-              desktop-app/dist/*-mac.zip
           - os: windows-2025
             command: npx electron-builder --win nsis --x64 --publish never
             artifact: Windows
             files: desktop-app/dist/*.exe
-          - os: ubuntu-24.04
-            command: npx electron-builder --linux AppImage --x64 --publish never
-            artifact: Linux
-            files: desktop-app/dist/*.AppImage
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -125,11 +108,11 @@ jobs:
       - name: Build the Intel Mac speech engine
         if: matrix.os == 'macos-15-intel'
         run: node scripts/rebuild-whisper-mac-x64.cjs
-      - run: npm run build
       - name: Prepare bundled Haas-ja Q8_0 for Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/prepare-haas-windows.ps1
+      - run: npm run build
       - name: Build unsigned beta package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
