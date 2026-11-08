@@ -82,6 +82,7 @@ if (fs.existsSync(vadSrc)) {
   fs.mkdirSync(vadDest, { recursive: true })
   const assetsToCopy = [
     'silero_vad_legacy.onnx',
+    ...(process.platform === 'darwin' ? [] : ['silero_vad_v5.onnx']),
     'vad.worklet.bundle.min.js'
   ]
   for (const file of assetsToCopy) {
@@ -101,10 +102,10 @@ if (fs.existsSync(vadSrc)) {
     fs.copyFileSync(source, path.join(vadDest, file))
     console.log(`[fix-whisper-addon] Copied ORT runtime asset: ${file}`)
   }
-  // Clear unused generated variants from older builds. The desktop uses the
-  // Legacy model. The extension packages its own V5 model separately.
+  // Prune the unused V5 model from the Mac payload. Other targets keep
+  // their existing desktop assets; the extension packages V5 separately.
   for (const file of fs.readdirSync(vadDest)) {
-    if (file === 'silero_vad_v5.onnx' || /^ort-wasm-simd-threaded\.(?:jsep|jspi|asyncify)\.(?:wasm|mjs)$/.test(file)) {
+    if ((process.platform === 'darwin' && file === 'silero_vad_v5.onnx') || /^ort-wasm-simd-threaded\.(?:jsep|jspi|asyncify)\.(?:wasm|mjs)$/.test(file)) {
       fs.rmSync(path.join(vadDest, file), { force: true })
     }
   }
