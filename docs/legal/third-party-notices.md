@@ -27,6 +27,10 @@ Python environment. These are evaluation dependencies, not a bundled or enabled
 production recognition path. See the 3.8 test report for the rejected results.
 
 
+## Apple Silicon Japanese speech recognition
+
+The Apple Silicon installer bundles [speech.cpp v0.10.1](https://github.com/nyosegawa/speech.cpp/releases/tag/v0.10.1) under the MIT License and Third Intelligence's [Haas-ja v1.0](https://huggingface.co/third-intelligence/Haas-ja-v1.0), in the [Q8_0 GGUF conversion](https://huggingface.co/sakasegawa/Haas-ja-v1.0-GGUF), under Apache-2.0. Both license texts are included in the app's Haas-ja resources.
+
 ## Optional Windows acoustic models
 
 Speaker labels use the [3D-Speaker CAM++ checkpoint](https://www.modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common) (Apache-2.0) in [Sherpa ONNX's model format](https://github.com/k2-fsa/sherpa-onnx/releases/tag/speaker-recongition-models). Laughter detection uses the [Xiaomi CED-Mini checkpoint](https://huggingface.co/mispeech/ced-mini) (Apache-2.0) from the [Sherpa ONNX int8 conversion](https://huggingface.co/k2-fsa/sherpa-onnx-ced-mini-audio-tagging-2024-04-19/tree/4da6df50dc47b25f91074b5ef7df4c1cc0dd7d4d), with class names from [Google AudioSet](https://research.google.com/audioset/). These assets are downloaded only when the corresponding setting is enabled. The app verifies the SHA-256 digest of each download.
