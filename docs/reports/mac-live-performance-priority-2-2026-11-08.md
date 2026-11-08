@@ -51,7 +51,7 @@
 
 四組均以同一份基準 App 建置實測，使用同一組八段日文。開啟降噪的兩組均確認 DeepFilterNet3 啟動。乾淨音訊無字元錯誤率收益，增加約 98 毫秒的 VAD 確認時間與約 25 個百分點的程序樹 CPU。固定噪音樣本則恢復八段正常分句。VAD 確認時間自乾淨波形達到設定振幅起算，含 VAD 本身的確認時間及事件傳送。四組各 56.426 秒、各一輪，熱狀態均正常。AC 讀值每輪僅兩個不同的更新序號，加上整台電腦背景變動，無法判定功耗差異。
 
-乾淨樣本取自主音檔前八句，前面補兩秒靜音。加噪樣本同一語音加上種子 `20261108` 產生的低通噪音與 103／217 Hz 環境音，語音區間整體訊噪比約 +5 dB。兩份 WAV 的 SHA-256 分別為 `2dfedb1bafbace8cfa4433fe70c21273c8b157d93fcd785c56d541da857af23b` 和 `c671abedf4b92408967779fcdaf64d792f7be532aa37c351463872515ff8dcd8`。本機量測目錄保存 `make-denoise-fixtures.py`、兩個輸入 WAV 和邊界 JSON，以及四組 `denoise-*-*.json`。
+乾淨樣本取自主音檔前八句，前面補兩秒靜音。加噪樣本同一語音加上種子 `20261108` 產生的低通噪音與 103／217 Hz 環境音，語音區間整體訊噪比約 +5 dB。兩份 WAV 的 SHA-256 分別為 `2dfedb1bafbace8cfa4433fe70c21273c8b157d93fcd785c56d541da857af23b` 和 `c671abedf4b92408967779fcdaf64d792f7be532aa37c351463872515ff8dcd8`。
 
 
 最終候選版另跑相同加噪音檔，確認 DeepFilterNet3 初始化並輸出 8／8 組正式字幕，熱狀態正常。與基準降噪版的正規化原文相同 8／8 組。
@@ -70,5 +70,5 @@
 - 測試程式 `desktop-app/scripts/benchmark-mac-live.mjs`。
 - 固定 135 秒 WAV 的 SHA-256 為 `8237a45f8a22e564cc461f50b7b439570f43848164c7b68454a8ae9ba7435216`。原文與音檔邊界見 [第一階段報告](./mac-live-performance-2026-11-08.md)。
 - 修改前桌面主程式 SHA-256 為 `cf1fc3a392baa3e8746c07999076efec3784aaa3c5423d73933c58f172c9885b`，修改後為 `8f933fb1567b7c4fc07c6216a32aabd1d1686cad544d32b9150397789717a6d3`。
-- 本機測試資料與結果在 `/tmp/vocalume-mac-p2.RPYpHVGI/`，以 `before3.json`、`after3.json` 和 `after4.json` 保存正式對照和複測，`final3-denoise-smoke.json` 保存最終降噪連測。
-- 主音檔在 `/tmp/vocalume-mac-bench.nViBBQHq/sustained.wav`，同目錄有 `sustained.json`。重跑正式對照時開啟 `VOCALUME_CAPTION_TIMING=1 JTL_BENCH_PRESSURE=1 JTL_BENCH_TEXT=1`。
+- [第二階段量測資料](data/mac-live-performance-2026-11-08.json)的 `priority2` 收錄接電對照、電池複測、四組降噪對照及最終降噪連測。`fixtures` 提供分段時間及音檔雜湊。
+- 重跑正式對照時開啟 `VOCALUME_CAPTION_TIMING=1 JTL_BENCH_PRESSURE=1 JTL_BENCH_TEXT=1`。

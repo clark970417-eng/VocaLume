@@ -29,17 +29,18 @@ Apple M5、16 GB、macOS 26.4.1、Electron 44.9.3、VocaLume 4.6.6。兩輪各�
 
 ```sh
 cd desktop-app
+node -p 'JSON.stringify(require("../docs/reports/data/mac-live-performance-2026-11-08.json").fixtures.sustained)' > sustained.json
 JTL_BENCH_TEXT=1 node scripts/benchmark-mac-live.mjs BUILD_MAIN sustained.wav sustained.json report.json LABEL
 ```
 
-這次的固定輸入和兩輪量測保存於本機 `/tmp/vocalume-mac-bench.nViBBQHq/`，檔名為 `sustained.wav`、`sustained.json`、`before-sustained.json` 和 `after-sustained.json`。音檔 SHA-256 為 `8237a45f8a22e564cc461f50b7b439570f43848164c7b68454a8ae9ba7435216`。修改前主程式 SHA-256 為 `6209044e942e44b53f14922c87cb577cb4ddab4eaa15a7a6ac375ba45e2f4bcc`，修改後為 `cf1fc3a392baa3e8746c07999076efec3784aaa3c5423d73933c58f172c9885b`。
+公開的[合成語料、分段時間與量測資料](data/mac-live-performance-2026-11-08.json)包含 `fixtures.sustained` 和 `priority1`。以各筆字幕的 `subtitleDomAt` 減去對應的 `speechFileEndsMs`，即可重算延遲。音檔 SHA-256 為 `8237a45f8a22e564cc461f50b7b439570f43848164c7b68454a8ae9ba7435216`。修改前主程式 SHA-256 為 `6209044e942e44b53f14922c87cb577cb4ddab4eaa15a7a6ac375ba45e2f4bcc`，修改後為 `cf1fc3a392baa3e8746c07999076efec3784aaa3c5423d73933c58f172c9885b`。
 
 初版曾在三筆重疊的短測中全部取消桌面文字翻譯。調整為只有正式字幕優先時才中斷背景工作，並在程式內有限度重試後，最終版在上表的較長測試完成了十筆。
 
 <details>
 <summary>固定音檔與逐段時序</summary>
 
-語音由 macOS 的 Kyoko 語音以每分鐘 185 字詞產生，轉為 16 kHz、16 位元單聲道 PCM WAV。各段合成檔依表中順序相接，檔案開頭與每段末尾各有 2000 毫秒靜音。不同版本的系統語音可能產生不同位元內容。十筆文字翻譯分別在第 1、3、5 至 19 段的結束前 2500 毫秒開始。
+語音由 macOS 的 Kyoko 語音以每分鐘 185 字詞產生，轉為 16 kHz、16 位元單聲道 PCM WAV。各段合成檔依表中順序相接，檔案開頭與每段末尾各有 2000 毫秒靜音。不同版本的系統語音可能產生不同位元內容。若重新合成 WAV，請依新檔更新分段時間、長度與 SHA-256，再執行量測。十筆文字翻譯分別在第 1、3、5 至 19 段的結束前 2500 毫秒開始。
 
 | 合成音檔原文 | 片段結束（ms） | 修改前字幕延遲（ms） | 修改後字幕延遲（ms） |
 | --- | ---: | ---: | ---: |
