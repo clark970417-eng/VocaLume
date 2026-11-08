@@ -6,7 +6,7 @@
 
 为想看懂外语直播、跟不同语言的朋友聊天的人制作。语音、阅读和打字可分别选择翻译语言，不只限于日文。
 
-[网站与视频示范](https://vocalume.vercel.app/) · [4.6.4 测试版下载](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.4) · [English](../README.md)
+[网站与视频示范](https://vocalume.vercel.app/) · [4.6.6 测试版下载](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6) · [English](../README.md)
 
 ## 先下载适合电脑的版本
 
@@ -14,13 +14,13 @@
 
 | 你的电脑 | 下载 |
 | --- | --- |
-| Windows x64 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume.Setup.4.6.4.exe) |
-| Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4-arm64.dmg) |
-| Mac · Intel | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4.dmg) |
-| Linux x64 · 实验性 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4.AppImage) |
-| Opera GX / Chrome 扩充功能 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/vocalume-extension.zip) |
+| Windows x64 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume.Setup.4.6.6.exe) |
+| Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6-arm64.dmg) |
+| Mac · Intel | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6.dmg) |
+| Linux x64 · 实验性 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6.AppImage) |
+| Opera GX / Chrome 扩充功能 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/vocalume-extension.zip) |
 
-下方提供 **4.6.4 测试版** App 与扩充功能；请按电脑平台下载。
+上方是 **4.6.6 测试版** 应用和扩展程序，请按电脑平台下载。
 
 不知道 Mac 是哪种？点 ** → 关于这台 Mac**，查看「芯片」或「处理器」。
 
@@ -28,7 +28,7 @@
 
 1. **安装 App、下载模型：** 选择声音来源、听到的语言，以及要翻译成的语言。
 2. **要在网站用，也装扩充功能：** ZIP 解压到固定文件夹，Chrome 打开 `chrome://extensions`；Opera GX 打开 `opera://extensions`，然后打开「开发人员模式」，选「加载未封装扩充功能」。**这个文件夹不能删除。**
-   **Mac 本机网页字幕还需完成[一次性连接 App](user-guide.md#連接-mac-app-與-extension)。** 只下载、安装两个文件还不够；Windows／Linux 目前请用独立 App 进行本机翻译。
+   Mac 本地浏览器字幕需要[连接一次应用](installation.md#connect-the-mac-app)。Windows 的[本地浏览器字幕需要另外下载预览安装包](installation.md#connect-the-windows-app)，公开版扩展程序可用于文本翻译。Linux 可用独立应用或浏览器模式。
 3. **开始看字幕或回复：** 播放视频并开始语音字幕；网站文本翻译可自行打开。回复时先翻译、确认内容，再自行送出。
 
 [完整安装、更新与疑难排解](user-guide.md)
@@ -45,9 +45,9 @@
 
 - **本机模式免费，不需要付费 API。** 首次需下载模型，速度依电脑性能与负载而异；选用外部 API 则依服务商收费。
 - **目前是公开测试版。** 辨识与翻译可能失败或翻错，重要内容请对照原文。
-- **提供 Mac、Windows App；Linux 为实验性。** Mac 本机浏览器字幕支持 Opera GX／Chrome，需要[一次性连接 App](user-guide.md#連接-mac-app-與-extension)。Windows／Linux 可使用独立 App；浏览器模式需要 WebGPU 与网络文本翻译，目前没有同样的本机连接安装流程。
+- **提供 Mac、Windows App；Linux 为实验性。** Windows 本地浏览器字幕的测试范围可参考[实机验收报告](reports/windows-acceptance-2026-11-06.md)。浏览器模式的语音字幕需要 WebGPU 和网络翻译。
 - **安装档尚未签章／公证。** 遇到系统提示请参考使用手册。
-- **中文界面：** 4.6.4 App 与扩充功能提供简体中文、繁体中文与英文界面。网站界面语言与 App、翻译语言是不同设置。
+- **中文界面：** 4.6.6 App 与扩充功能提供简体中文、繁体中文与英文界面。当前源代码还提供日文和韩文界面，需从源代码构建。网站界面与翻译语言分别设置。
 
 ## 一起让它更好用
 
@@ -58,14 +58,14 @@
 1. 打开 [VocaLume GitHub 首页](https://github.com/clark970417-eng/VocaLume)，登录 GitHub；没有帐号可先[免费注册](https://github.com/signup)。**下载不需要帐号。**
 2. 在项目页右上方按 **Star ☆**；变成 **Starred ★** 就代表收藏成功。手机版的位置可能不同。
 3. **想收到新版通知：** 在同一页按 **Watch → Custom → 勾选 Releases → Apply**。若已显示 Watching，可打开该菜单调整通知。
-4. 之后也能直接打开 [最新版本下载页](https://github.com/clark970417-eng/VocaLume/releases/latest)，确认版本、阅读更新内容并下载。
+4. 之后也能直接打开 [版本列表](https://github.com/clark970417-eng/VocaLume/releases)，确认版本、阅读更新内容并下载。
 
 **Star 是收藏，不会自动订阅新版通知，也不会自动更新 App。** 新版通知由 GitHub 处理，实际接收方式依你的帐号通知设置。收到通知后，停止收音并依本页的更新步骤安装。
 
 <details>
 <summary>更多设置、测试记录与授权</summary>
 
-[扩充功能与 API 设置](extension-guide.md) · [测试结果与待验证项目](quality/README.md) · [4.6.4 更新](releases/4.6.4.md) · [开发说明](development.md) · [隐私](legal/privacy.md) · [第三方来源与授权](legal/third-party-notices.md)
+[扩充功能与 API 设置](extension-guide.md) · [测试结果与待验证项目](quality/README.md) · [4.6.6 更新](releases/4.6.6.md) · [开发说明](development.md) · [隐私](legal/privacy.md) · [第三方来源与授权](legal/third-party-notices.md)
 
 自动检查不代表已完成双语人工验收或所有电脑的实机测试。桌面部分衍生自 [LiveTranslate](https://github.com/rioX432/live-translate)，保留原作者 MIT 授权；模型另有各自授权。
 

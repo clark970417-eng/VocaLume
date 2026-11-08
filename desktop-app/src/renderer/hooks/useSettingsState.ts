@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { MacEngineAvailability } from '../../engine-selection'
 import { AudioCaptureStartError, type UseAudioCaptureReturn } from './useAudioCapture'
 import { isNetworkCascadeTranslator } from '../../engine-selection'
 
@@ -143,8 +144,7 @@ export interface SettingsState {
 
   // Platform
   platform: string
-  /** Whether the current system is macOS 26+ (Tahoe) */
-  isMacOS26: boolean
+  macEngines: MacEngineAvailability | null
 
   // Meeting summary
   lastTranscriptPath: string | null
@@ -264,7 +264,7 @@ export function useSettingsState(): SettingsState {
         geminiLiveEnabled: options?.captureAudio === false ? false : engine.geminiLiveEnabled
       })
 
-      const result = await withIpcTimeout(window.api.pipelineStart(config, options?.captureAudio !== false), 120_000, 'pipelineStart')
+      const result = await withIpcTimeout(window.api.pipelineStart({ ...config, mediaFileSession: options?.captureAudio === false }, options?.captureAudio !== false), 120_000, 'pipelineStart')
       if (result.error) {
         session.setStatus(`Error: ${result.error}`)
         session.setIsStarting(false)
@@ -413,7 +413,7 @@ export function useSettingsState(): SettingsState {
     sttEngine: language.sttEngine, setSttEngine: language.setSttEngine,
     whisperVariant: language.whisperVariant, setWhisperVariant: language.setWhisperVariant,
     platform: language.platform,
-    isMacOS26: language.isMacOS26,
+    macEngines: language.macEngines,
     draftSttEnabled: language.draftSttEnabled, setDraftSttEnabled: language.setDraftSttEnabled,
     speakerDiarizationEnabled: language.speakerDiarizationEnabled, setSpeakerDiarizationEnabled: language.setSpeakerDiarizationEnabled,
 

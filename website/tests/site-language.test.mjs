@@ -14,11 +14,12 @@ test('endpoint only returns language and disables shared caching',()=>{
  const response={setHeader:(k,v)=>headers[k]=v,status(code){assert.equal(code,200);return this},json(value){body=value}};
  handler({headers:{'x-vercel-ip-country':'KR'}},response);
  assert.deepEqual(body,{language:'ko'});assert.equal(headers['Cache-Control'],'private, no-store');
+ assert.equal(headers['Access-Control-Allow-Origin'],'*');
 });
 const source=readFileSync(new URL('../dist/language.js',import.meta.url),'utf8');
 async function run({saved,tab=new Map(),country='ko',path='/',current='zh-Hant',search='?test=1',click,fail=false,browser=['en-US'],messages=[]}={}){
  const callbacks={},redirects=[],historyUpdates=[];let stored=saved,requests=0;
- const items=['zh-Hant','zh-Hans','en','ja','ko'].map(lang=>({dataset:{language:lang},addEventListener:(event,cb)=>callbacks[lang]=cb,focus(){}}));
+ const items=['auto','zh-Hant','zh-Hans','en','ja','ko'].map(lang=>({dataset:{language:lang},addEventListener:(event,cb)=>callbacks[lang]=cb,focus(){}}));
  const trigger={addEventListener(){},setAttribute(){},focus(){}};
  const menu={hidden:true,querySelectorAll:()=>items};
  const root={querySelector:selector=>selector==='button'?trigger:menu,addEventListener(){},contains:()=>true};
@@ -45,6 +46,22 @@ test('manual current-language selection wins a pending response',async()=>{
 test('failed or missing geolocation falls back to browser language',async()=>{
  assert.deepEqual((await run({fail:true,browser:['ja-JP']})).redirects,['/ja.html?test=1#demo']);
  assert.deepEqual((await run({country:null,browser:['zh-CN']})).redirects,['/zh-CN.html?test=1#demo']);
+});
+
+test('selecting automatic from a localized page or the extension resolves IP without saving it as manual',async()=>{
+ const options={path:'/ja.html',current:'ja',saved:'ja',country:'ko',browser:['en-US']};
+ for(const selection of [{click:'auto'},{messages:[{data:{type:'VOCALUME_UI_LANGUAGE',preference:'auto',locale:'en',live:true}}]}]){
+  const result=await run({...options,...selection});
+  assert.deepEqual(result.redirects,['/ko.html?test=1#demo']);
+  assert.equal(result.stored,'auto');
+  assert.equal(result.requests,1);
+ }
+});
+
+test('an automatic App link ignores an older extension preference and uses IP on the download guide',async()=>{
+ const result=await run({path:'/download/ja.html',current:'ja',search:'?lang=auto&test=1',country:'zh-Hans',messages:[bridge('en')]});
+ assert.deepEqual(result.redirects,['/download/zh-CN.html?test=1#demo']);
+ assert.equal(result.stored,'auto');
 });
 
 test('app link overrides the saved locale and initial extension update on the same navigation',async()=>{

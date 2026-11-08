@@ -1,12 +1,27 @@
 import { availableParallelism, constants, setPriority } from 'node:os'
 
+function halfAvailableCpus(parallelism: number): number {
+  const capacity = Number.isFinite(parallelism) ? Math.max(1, Math.floor(parallelism)) : 1
+  return Math.max(1, Math.floor(capacity / 2))
+}
+
 /** Leave CPU capacity for capture, Chromium, OBS and other foreground apps.
  * This changes scheduling, not model weights, context or decoding quality. */
 export function windowsInferenceThreads(parallelism = availableParallelism()): { whisper: number; llama: number } {
-  const capacity = Number.isFinite(parallelism) ? Math.max(1, Math.floor(parallelism)) : 1
+  const budget = halfAvailableCpus(parallelism)
   return {
-    whisper: Math.min(4, Math.max(1, Math.floor(capacity / 2))),
-    llama: Math.min(6, Math.max(1, Math.floor(capacity / 2)))
+    whisper: Math.min(4, budget),
+    llama: Math.min(6, budget)
+  }
+}
+
+/** Initial macOS CPU budget for independent speech and translation engines.
+ * Their GPU selection and model options stay independent of the CPU cap. */
+export function macInferenceThreads(parallelism = availableParallelism()): { speech: number; llama: number } {
+  const budget = halfAvailableCpus(parallelism)
+  return {
+    speech: Math.min(2, budget),
+    llama: Math.min(4, budget)
   }
 }
 

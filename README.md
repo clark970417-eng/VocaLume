@@ -6,7 +6,7 @@
 
 **免費在自己的電腦翻譯直播與聊天。** 看雙語字幕、讀懂聊天室，打中文也能翻成日文再回覆。
 
-[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [4.6.4 beta downloads](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.4)
+[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [4.6.6 beta downloads](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6)
 
 [简体中文](docs/README.zh-CN.md)
 
@@ -24,13 +24,13 @@ Click the link for your computer. You do not need the **Source code** files.
 
 Not sure which Mac you have? Open ** → About This Mac** and check the chip or processor.
 
-**4.6.6 beta** installers and extension are available below. [Release notes](docs/releases/4.6.6.md)
+**4.6.6 beta** installers and the extension are linked above. [Release notes](docs/releases/4.6.6.md)
 
 ## Start in three steps
 
 1. **Install the app and download its models.** Choose the audio source, spoken language, and translation language.
 2. **For website features, install the extension too.** Extract the ZIP to a permanent folder. In Chrome, open `chrome://extensions`; in Opera GX, open `opera://extensions`. Then turn on Developer mode and choose **Load unpacked**. Keep that folder.
-   **Local browser captions require a one-time App connection on [Mac](docs/installation.md#connect-the-mac-app) or [Windows](docs/installation.md#connect-the-windows-app).** Linux can use the standalone App or browser-only mode.
+   Local browser captions need a one-time [Mac app connection](docs/installation.md#connect-the-mac-app). On Windows, [local browser captions require the separate preview packages](docs/installation.md#connect-the-windows-app). The public 4.6.6 extension still supports text translation on Windows. Linux can use the standalone app or browser-only mode.
 3. **Start captions or translate a draft.** Play a video and start voice captions, or enable text translation on a supported website. Review translated replies and send them yourself.
 
 [Step-by-step installation & troubleshooting](docs/installation.md) · [中文使用手冊](docs/user-guide.md)
@@ -49,7 +49,7 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 - **This is a public beta.** Recognition and translation can fail or be inaccurate. Check important content against the original.
 - **macOS and Windows desktop apps are available; Linux is experimental.** The Mac browser connection has been tested with Chrome and Opera GX. On Windows, the local connection has been tested with Chrome and Edge. See the [Windows acceptance report](docs/reports/windows-acceptance-2026-11-06.md) for the coverage. Browser-only captions need WebGPU and network translation.
 - **Installers are unsigned previews.** Follow the installation guide if your system displays a warning.
-- **Interface languages:** 4.6.6 app and extension downloads offer English, Traditional Chinese and Simplified Chinese. Website language choices are separate from app and translation languages.
+- **Interface languages:** 4.6.6 app and extension downloads offer English, Traditional Chinese and Simplified Chinese. Japanese and Korean interface options are available when building from the current source. Website and translation languages are separate settings.
 
 ## Help shape the next version
 
@@ -60,7 +60,7 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 1. Open the [GitHub project](https://github.com/clark970417-eng/VocaLume) and sign in, or [create a free account](https://github.com/signup). Downloads do not require an account.
 2. Click **Star ☆** near the top of the repository. **Starred ★** means it is saved. Mobile placement may differ.
 3. To subscribe to new releases, choose **Watch → Custom → Releases → Apply**. If it already says Watching, open that menu to adjust your subscription.
-4. Bookmark the [latest release page](https://github.com/clark970417-eng/VocaLume/releases/latest) to check versions and download updates.
+4. Bookmark the [release list](https://github.com/clark970417-eng/VocaLume/releases) to check versions and download updates.
 
 A Star saves the repository; it does not subscribe you to releases or update the app automatically. GitHub delivers notifications according to your account settings. Stop capture before installing an update.
 
@@ -75,11 +75,11 @@ A Star saves the repository; it does not subscribe you to releases or update the
 | [docs](docs/) | Guides, release notes, quality reports, legal notices |
 | [scripts](scripts/) | Packaging and maintenance |
 
-[Development](docs/development.md) · [Quality results & limitations](docs/quality/README.md) · [4.6.4 changes](docs/releases/4.6.4.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
+[Development](docs/development.md) · [Quality results & limitations](docs/quality/README.md) · [4.6.6 changes](docs/releases/4.6.6.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
 
 Automated checks are not equivalent to bilingual human review or testing on every device. Desktop components derive in part from [LiveTranslate](https://github.com/rioX432/live-translate), retaining its MIT license. Models have separate licenses.
 
-Windows repair work (unreleased): [實機調查與效能報告](docs/reports/windows-validation-2026-11-06.md) · [修補版建置與 extension 連接](docs/windows-repair.md).
+Windows preview builds and testing: [實機調查與效能報告](docs/reports/windows-validation-2026-11-06.md) · [修補版建置與 extension 連接](docs/windows-repair.md).
 
 </details>
 

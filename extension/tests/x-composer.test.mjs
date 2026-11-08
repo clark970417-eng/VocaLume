@@ -30,13 +30,13 @@ test('X composer does not steal a toolbar from another open reply editor',()=>{
 });
 
 test('Tab translates the focused X composer, preserves edits and never posts',async()=>{
- let keydown,finish;const requests=[];
- const box={isConnected:true,textContent:'今天不能待到結束。',addEventListener:(name,fn)=>{if(name==='keydown')keydown=fn;},focus(){},dispatchEvent(){},closest(){return null;}};
+ let keydown,finish,nativeInput;const requests=[];
+ const box={isConnected:true,textContent:'今天不能待到結束。',addEventListener:(name,fn)=>{if(name==='keydown')keydown=fn;if(name==='input')nativeInput=fn;},removeEventListener(){nativeInput=null;},focus(){},closest(){return null;}};
  const host={parentElement:null,querySelectorAll:()=>[box],querySelector:()=>null,insertAdjacentElement(_,controls){controls.isConnected=true;}};box.parentElement={parentElement:host,querySelectorAll:()=>[box],querySelector:()=>null};
- const document={body:{},createRange:()=>({selectNodeContents(){}}),execCommand:(_,__,value)=>{box.textContent=value;return true;},createElement:tag=>({tagName:tag,hidden:false,children:[],classList:{add(){}},setAttribute(){},append(...children){this.children.push(...children);}})};
+ const document={body:{},activeElement:box,createRange:()=>({selectNodeContents(){}}),execCommand:(_,__,value)=>{box.textContent=value;nativeInput?.({isTrusted:true});return true;},createElement:tag=>({tagName:tag,hidden:false,children:[],classList:{add(){}},setAttribute(){},append(...children){this.children.push(...children);}})};
  const window={getSelection:()=>({removeAllRanges(){},addRange(){}})};
  const button=(label,action)=>({textContent:label,disabled:false,hidden:false,setAttribute(){},classList:{add(){}},click:action});
- const context={document,window,button,composers:new WeakMap(),read:box=>box.textContent,websiteTextOptInEnabled:true,textEpoch:0,langLabel:x=>x,languageSettings:{typeSource:'zh',typeTarget:'ja'},direction:()=> 'zh-ja',matchesLanguage:t=>/[\u3400-\u9fff]/.test(t),InputEvent:class{},Event:class{},message:m=>{requests.push(m);return new Promise(resolve=>finish=resolve);}};
+ const context={document,window,button,composers:new WeakMap(),read:box=>box.textContent,websiteTextOptInEnabled:true,textEpoch:0,langLabel:x=>x,languageSettings:{typeSource:'zh',typeTarget:'ja'},direction:()=> 'zh-ja',matchesLanguage:t=>/[\u3400-\u9fff]/.test(t),setTimeout:resolve=>resolve(),message:m=>{requests.push(m);return new Promise(resolve=>finish=resolve);}};
  const add=vm.runInNewContext(localize+source.slice(source.indexOf('  function composerToolbar'),source.indexOf('  function addPost'))+'\naddComposer',context);add(box);
  let prevented=0;
  keydown({key:'Tab',preventDefault(){prevented++;},stopPropagation(){}});
@@ -44,7 +44,12 @@ test('Tab translates the focused X composer, preserves edits and never posts',as
  finish({draft:'今日は最後までいられません。',mode:'本機草稿'});
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(box.textContent,'今日は最後までいられません。');assert.equal(requests.length,1);
+ keydown({key:'Tab',preventDefault(){throw Error('Tab must leave the translated editor');}});
  box.textContent='我改了原文';keydown({key:'Tab',preventDefault(){},stopPropagation(){}});box.textContent='還有新內容';finish({draft:'古い翻訳',mode:'本機草稿'});
+ await new Promise(resolve=>setImmediate(resolve));assert.equal(box.textContent,'還有新內容');
+ keydown({key:'Tab',preventDefault(){},stopPropagation(){}});
+ document.activeElement={};box.contains=()=>false;
+ finish({draft:'別の下書き',mode:'本機草稿'});
  await new Promise(resolve=>setImmediate(resolve));assert.equal(box.textContent,'還有新內容');
  keydown({key:'Tab',isComposing:true,preventDefault(){throw Error('IME must pass through');}});
 });
@@ -65,13 +70,13 @@ test('X capture shortcut reaches only its own mounted editor before competing ha
 test('X Spaces controls stay outside native positioning and are reused on repeated scans',()=>{
  let adds=0, hostWrites=0;
  const make=()=>({isConnected:false,children:[],setAttribute(){},append(...nodes){this.children.push(...nodes);},remove(){this.isConnected=false;}});
- const host={classList:{add(){hostWrites++;},remove(){hostWrites++;}},append(){hostWrites++;}};
+ const host={isConnected:true,classList:{add(){hostWrites++;},remove(){hostWrites++;}},append(){hostWrites++;}};
  const body={append(node){node.isConnected=true;adds++;}};
  const document={body,createElement:make};
- const code=source.slice(source.indexOf('  function installPanel'),source.indexOf('  async function poll'));
+ const code=source.slice(source.indexOf('  function installPanel'),source.indexOf('  function renderSubtitles'));
  // Use the real mounting/synchronization logic with a stable native dialog.
- const api=vm.runInNewContext('let panel,captionBox,listening=false;\n'+localize+code+'\nfindSpaceHost=()=>host; ({syncSpacePanel,getPanel:()=>panel})',{
-  document,host,button:make,window:{JtlCaptionWindow:class{}},poll(){},message(){throw Error('must not start a model');}
+ const api=vm.runInNewContext('let panel,captionBox,listening=false,spaceHost,spaceControl,spacePath,subtitleSignature;\n'+localize+code+'\nfindSpaceHost=()=>({host}); ({syncSpacePanel,getPanel:()=>panel})',{
+  document,host,location:{pathname:'/'},button:make,window:{JtlCaptionWindow:class{}},refreshSubtitles(){},message(){throw Error('must not start a model');}
  });
  api.syncSpacePanel();const original=api.getPanel();
  for(let i=0;i<20;i++)api.syncSpacePanel();
@@ -89,8 +94,8 @@ function pollingFixture() {
  const toggle=tracked(),status=tracked();
  const panel={isConnected:true,querySelector:s=>s==='button'?toggle:status};
  const captionBox={controller:{render(){renders++;}}};
- const api=vm.runInNewContext('let listening=false,subtitleSignature; let panel=initialPanel,captionBox=initialCaption;\n'+localize+source.slice(source.indexOf('  let subtitleRevision='),source.indexOf('  chrome.runtime.onMessage?.addListener'))+'\n({poll,close(){panel.isConnected=false;panel=null;captionBox=null;},replace(value){panel=value;},getListening:()=>listening})',{
-  initialPanel:panel,initialCaption:captionBox,document:{hidden:false},Date,JSON,clearTimeout,setTimeout,
+ const api=vm.runInNewContext('let listening=false,subtitleSignature,subtitleRevision=0,subtitleExpiryTimer; let panel=initialPanel,captionBox=initialCaption;\n'+localize+source.slice(source.indexOf('  function renderSubtitles(data)'),source.indexOf('  const composerSelector'))+'\n({poll:refreshSubtitles,close(){panel.isConnected=false;panel=null;captionBox=null;},replace(value){panel=value;},getListening:()=>listening})',{
+  initialPanel:panel,initialCaption:captionBox,document:{hidden:false},Date,JSON,clearTimeout(){},
   message:()=>new Promise((resolve,fail)=>{reply=resolve;reject=fail;})
  });
  return {api,panel,respond:data=>reply(data),reject:error=>reject(error),counts:()=>({renders,writes})};

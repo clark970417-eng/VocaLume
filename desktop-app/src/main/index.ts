@@ -2,6 +2,7 @@ import { HaasJaEngine } from '../engines/stt/HaasJaEngine'
 import { clearObsCaption, publishObsCaption, shutdownObsCaptions } from './obs-captions'
 import { LiveCaptionRevisions } from './live-caption-revisions'
 import { updatePerformanceState } from './performance-state'
+import { startMacLowPowerMonitor } from './mac-low-power'
 import { bindMemoryPressure } from './memory-pressure'
 import { isUiTest } from './ui-test-mode'
 import { initAutoUpdater } from './auto-updater'
@@ -47,11 +48,13 @@ import {
 } from './store-migrations'
 import { sanitizeErrorMessage, getErrorHint } from './error-utils'
 import { ensureDesktopWindows, registerDisplayHandlers } from './window-manager'
+import { sendOverlayCaption } from './subtitle-delivery'
 import { registerAudioHandlers } from './audio-handlers'
 import { registerIpcHandlers } from './ipc-handlers'
 import { createLogger } from './logger'
 import { registerUpdateHandlers, disposeAutoUpdater } from './auto-updater'
 import { createAppContext } from './app-context'
+import { isMacSpeakerIdentificationAvailable } from './mac-engine-availability'
 import { registerGlobalShortcuts, setLastSubtitleText } from './shortcut-manager'
 import { TTSManager } from './tts-manager'
 import { SherpaDiarizer } from '../engines/diarization/windows-audio-analysis'
@@ -239,8 +242,8 @@ async function initPipeline(): Promise<void> {
     kvCacheQuant: store.get('slmKvCacheQuant'),
     speculativeDecoding: true
   }))
-  // Register the local speaker classifier for each platform (#549).
-  if (process.platform === 'darwin') {
+  // Speaker identification requires the bundled Apple Silicon FluidAudio helper.
+  if (process.platform === 'darwin' && process.arch === 'arm64') {
     ctx.pipeline.registerDiarizer('fluid-audio', () => new FluidAudioDiarizer({
       onProgress: (msg) => ctx.mainWindow?.webContents.send('status-update', msg)
     }))
@@ -251,7 +254,7 @@ async function initPipeline(): Promise<void> {
   }
 
   // Apply diarization setting from store
-  ctx.pipeline.setDiarizationEnabled(!!store.get('speakerDiarizationEnabled'))
+  ctx.pipeline.setDiarizationEnabled((process.platform === 'win32' || isMacSpeakerIdentificationAvailable()) && !!store.get('speakerDiarizationEnabled'))
 
   // Auto-register discovered plugins (#145)
   for (const plugin of discoverPlugins()) {
@@ -283,7 +286,7 @@ async function initPipeline(): Promise<void> {
   ctx.pipeline.on('result', (result: TranslationResult) => {
     liveRevisions.record(result)
     publishObsCaption(result)
-    ctx.subtitleWindow?.webContents.send('translation-result', result)
+    sendOverlayCaption(ctx, 'translation-result', result)
     ctx.mainWindow?.webContents.send('translation-result', result)
     ctx.logger?.log(result)
     // Track last subtitle for clipboard copy shortcut (#551)
@@ -300,9 +303,9 @@ async function initPipeline(): Promise<void> {
   })
 
   // Forward interim (streaming) results to subtitle window
-  const sendOverlayPreview = (channel: string, result: TranslationResult): void => {
+  const sendOverlayPreview = (channel: 'interim-result' | 'draft-result', result: TranslationResult & { translationFailed?: boolean }): void => {
     const overlay = ctx.subtitleWindow
-    if (overlay?.isVisible() && !overlay.isMinimized()) overlay.webContents.send(channel, result)
+    if (overlay?.isVisible() && !overlay.isMinimized()) sendOverlayCaption(ctx, channel, result)
   }
   ctx.pipeline.on('interim-result', (result: TranslationResult) => {
     liveRevisions.provisional(result)
@@ -313,7 +316,7 @@ async function initPipeline(): Promise<void> {
   // This goes to the local overlay only, without entering OBS or the transcript.
   ctx.pipeline.on('translation-failed', (result: TranslationResult) => {
     liveRevisions.provisional(result)
-    ctx.subtitleWindow?.webContents.send('interim-result', { ...result, translationFailed: true })
+    sendOverlayPreview('interim-result', { ...result, translationFailed: true })
   })
 
   // Forward draft results from hybrid translation (#235)
@@ -336,7 +339,7 @@ async function initPipeline(): Promise<void> {
     if (!accepted.visible) return
     const result = accepted.result
     publishObsCaption(result)
-    ctx.subtitleWindow?.webContents.send('translation-result', result)
+    sendOverlayCaption(ctx, 'translation-result', result)
     ctx.mainWindow?.webContents.send('translation-result', result)
     setLastSubtitleText([result.sourceText, result.translatedText].join('\n'))
   })
@@ -379,6 +382,7 @@ initAudioLoopback(process.platform === 'win32' ? {
 if (!app.requestSingleInstanceLock()) app.quit()
 app.whenReady().then(async () => {
   if (process.platform === 'darwin') updatePerformanceState({ thermalState: powerMonitor.getCurrentThermalState() })
+  app.once('will-quit', startMacLowPowerMonitor())
   powerMonitor.on('thermal-state-change', details => updatePerformanceState({ thermalState: details.state }))
   powerMonitor.on('speed-limit-change', (details: { limit: number }) => updatePerformanceState({ speedLimit: details.limit }))
   if (process.argv.includes('--jtl-companion') && !store.get('hasCompletedSetup')) {

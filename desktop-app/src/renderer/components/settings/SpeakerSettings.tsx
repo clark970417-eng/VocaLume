@@ -5,6 +5,7 @@ import { Section } from './Section'
 interface SpeakerSettingsProps {
   speakerDiarizationEnabled: boolean
   onSpeakerDiarizationEnabledChange: (v: boolean) => void
+  available: boolean
   platform: string
   disabled: boolean
 }
@@ -16,10 +17,11 @@ interface SpeakerSettingsProps {
 export function SpeakerSettings({
   speakerDiarizationEnabled,
   onSpeakerDiarizationEnabledChange,
+  available,
   platform,
   disabled
 }: SpeakerSettingsProps): React.JSX.Element | null {
-  if (platform !== 'darwin' && platform !== 'win32') return null
+  if (!available) return null
 
   return (
     <Section label={t("Speaker Diarization")}>

@@ -77,7 +77,7 @@ export function SubtitleSettings({
           {supportsHideOnHover && (
             <label>
               <input type="checkbox" checked={hideOnHover} onChange={event => onHideOnHoverChange(event.target.checked)} />
-              {' '}{t('Hide subtitles on hover')}
+              {' '}{t('Hide subtitles when the pointer is nearby')}
             </label>
           )}
           <div>

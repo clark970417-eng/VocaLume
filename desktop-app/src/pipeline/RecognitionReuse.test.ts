@@ -87,3 +87,25 @@ it('pauses optional previews at critical memory pressure while preserving every 
   expect(f.finals).toHaveLength(3)
  }finally{f.p.reset();spy.mockRestore()}
 })
+
+it('interrupts an in-flight speculative decode when a final contains new speech', async () => {
+ const f=setup(), audio=new Float32Array(16000).fill(.1)
+ const current={segment:'capture:0',speechSeconds:1,speechEndSample:16000}
+ let previewSignal: AbortSignal | undefined
+ f.stt.processAudio.mockImplementationOnce(((_audio: Float32Array, _rate: number, _evidence: unknown, signal: AbortSignal) => {
+  previewSignal=signal
+  return new Promise(resolve=>signal.addEventListener('abort',()=>resolve(null),{once:true}))
+ }) as unknown as () => Promise<STTResult>)
+ try {
+  const preview=f.p.processStreaming(audio,16000,current)
+  f.p.interruptStreamingPreview(current)
+  expect(previewSignal?.aborted).toBe(false)
+  const finalEvidence={...current,speechSeconds:1.1,speechEndSample:17600}
+  f.p.interruptStreamingPreview(finalEvidence)
+  expect(previewSignal?.aborted).toBe(true)
+  expect(await preview).toBeNull()
+  const final=await f.p.finalizeStreaming(new Float32Array(17600).fill(.1),16000,finalEvidence)
+  expect(final?.sourceText).toBe('今日は配信しません。')
+  expect(f.stt.processAudio).toHaveBeenCalledTimes(2)
+ } finally {f.p.reset()}
+})

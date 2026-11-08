@@ -5,6 +5,7 @@ import { KokoroTTSEngine } from '../engines/tts/KokoroTTSEngine'
 import { TtsVoiceUnavailableError, WindowsTTSEngine } from '../engines/tts/WindowsTTSEngine'
 import { createLogger } from './logger'
 import { store } from './store'
+import { performanceState, subscribePerformanceState } from './performance-state'
 
 const log = createLogger('tts-manager')
 const MODEL_IDLE_MS = 30_000
@@ -28,6 +29,12 @@ export class TTSManager {
   private releasing?: Promise<void>
   private idleTimer?: ReturnType<typeof setTimeout>
   private releaseAfterWork = false
+  private pausedForPressure = performanceState().speculativeTranslationPaused
+  private readonly unsubscribePressure = subscribePerformanceState(({ speculativeTranslationPaused }) => {
+    const enteredPressure = speculativeTranslationPaused && !this.pausedForPressure
+    this.pausedForPressure = speculativeTranslationPaused
+    if (enteredPressure && this.enabled) this.stopPlayback()
+  })
 
   constructor(
     private readonly makeEngine: () => SpeechEngine = () => process.platform === 'win32'
@@ -102,7 +109,7 @@ export class TTSManager {
 
   async handleTranslationResult(result: TranslationResult, window: BrowserWindow | null): Promise<void> {
     const text = (result.spokenText ?? result.translatedText).trim()
-    if (!this.enabled || result.isInterim || result.captionRevision || !text || !this.hasOutput(window)) return
+    if (!this.enabled || this.pausedForPressure || result.isInterim || result.captionRevision || !text || !this.hasOutput(window)) return
 
     this.clearIdleTimer()
     this.releaseAfterWork = false
@@ -125,7 +132,7 @@ export class TTSManager {
     while (this.pending) {
       const { text, language, window } = this.pending
       this.pending = undefined
-      if (!this.enabled || !this.hasOutput(window)) continue
+      if (!this.enabled || this.pausedForPressure || !this.hasOutput(window)) continue
       const controller = new AbortController()
       this.active = controller
       try {
@@ -133,7 +140,7 @@ export class TTSManager {
         controller.signal.throwIfAborted()
         if (!this.hasOutput(window)) continue
         const result = await engine.synthesize(text, language, controller.signal)
-        if (controller.signal.aborted || !this.enabled || !result.audio.length) continue
+        if (controller.signal.aborted || !this.enabled || this.pausedForPressure || !result.audio.length) continue
 
         this.playbackFor(window)?.send('tts-audio', {
           audio: result.audio,
@@ -213,6 +220,7 @@ export class TTSManager {
   }
 
   async dispose(): Promise<void> {
+    this.unsubscribePressure()
     this.enabled = false
     this.stopPlayback()
     this.detachPlaybackTarget?.()

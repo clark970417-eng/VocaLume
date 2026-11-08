@@ -28,6 +28,14 @@ for (const entry of entries) {
   assert(!/(?:^|\/)(?:\.test-out|(?:speech-)?benchmark-[^/]*|[^/]*\.gguf)(?:\/|$)/.test(entry), `Test artifact in package: ${entry}`)
   assert(!/^\/out\/.*(?:\.(?:test|spec)\.|\.tsbuildinfo$|\.d\.ts(?:\.map)?$)/.test(entry), 'Development artifact in package: '+entry)
   assert(!/\/node_modules\/@ricky0123\/vad-web(?:\/|$)/.test(entry), `Build-only VAD dependency in package: ${entry}`)
+  assert(!/\/node_modules\/(?:onnxruntime-web|flatbuffers|guid-typescript|platform|protobufjs|long)(?:\/|$)/.test(entry), `Browser-only dependency in Mac package: ${entry}`)
+  assert(!/\/node_modules\/@huggingface\/transformers\/(?:src|types)(?:\/|$)/.test(entry), `Transformers development files in Mac package: ${entry}`)
+  const transformersBuild = entry.match(/\/node_modules\/@huggingface\/transformers\/dist\/(.+)/)
+  if (transformersBuild) assert(['transformers.node.mjs', 'transformers.node.cjs'].includes(transformersBuild[1]), `Unused Transformers build: ${entry}`)
+  assert(!/\/node_modules\/kokoro-js\/(?:types(?:\/|$)|dist\/kokoro\.web\.js$)/.test(entry), `Unused Kokoro file in Mac package: ${entry}`)
+  assert(!entry.endsWith('/node-llama-cpp/llama/gitRelease.bundle'), `llama.cpp source bundle in Mac package: ${entry}`)
+  assert(!/\/node_modules\/naudiodon\/(?:src|scratch|portaudio|binding\.gyp)(?:\/|$)/.test(entry), `Unused PortAudio file in Mac package: ${entry}`)
+  assert(!entry.endsWith('/renderer/vad/silero_vad_v5.onnx'), `Unused desktop VAD model in Mac package: ${entry}`)
   assert(!/^\/out\/renderer\/vad\/ort-wasm-simd-threaded\.(?:jsep|jspi|asyncify)\.(?:wasm|mjs)$/.test(entry), `Unused VAD backend in package: ${entry}`)
   const ort = entry.match(/\/node_modules\/onnxruntime-node\/bin\/napi-v3\/([^/]+)(?:\/([^/]+))?/)
   if (ort) assert(ort[1] === 'darwin' && (!ort[2] || ort[2] === arch), `Foreign ONNX Runtime file in package: ${entry}`)
@@ -45,7 +53,8 @@ const version = JSON.parse(asar.extractFile(archive, 'package.json')).version
 assert.equal(version, JSON.parse(fs.readFileSync('package.json')).version)
 assert.deepEqual(fs.readFileSync(path.join(resources, 'bridge-scripts/mlx-whisper-bridge.py')), fs.readFileSync('resources/mlx-whisper-bridge.py'), 'Recognition bridge mismatch')
 const vadDir = path.join(resources, 'app.asar.unpacked/out/renderer/vad')
-for (const file of ['silero_vad_legacy.onnx', 'silero_vad_v5.onnx', 'vad.worklet.bundle.min.js', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) {
+for (const file of ['silero_vad_legacy.onnx', 'vad.worklet.bundle.min.js', 'ort-wasm-simd-threaded.mjs',
+  'ort-wasm-simd-threaded.wasm', 'deepfilter/v2/models/DeepFilterNet3_onnx.tar.gz', 'deepfilter/v2/pkg/df_bg.wasm']) {
   const asset = path.join(vadDir, file)
   assert(fs.existsSync(asset) && fs.statSync(asset).size > 1024, `Missing packaged VAD asset: ${file}`)
 }
@@ -56,7 +65,10 @@ const addon = path.join(whisperDir, `mac-${arch}/whisper.node`)
 const addonAlias = path.join(whisperDir, `darwin-${arch}/whisper.node`)
 assert.equal(fs.realpathSync(addonAlias), fs.realpathSync(addon), 'Whisper loader alias points to a different binding')
 const ffmpeg = path.join(nodeModules, 'ffmpeg-static/ffmpeg')
-for (const binary of [ortBinding, addon, ffmpeg]) {
+const bridgeBin = path.join(resources, 'bridge-scripts/bin')
+const diarizer = path.join(bridgeBin, 'fluid-audio-bridge')
+assert.equal(fs.existsSync(diarizer), arch === 'arm64', 'FluidAudio must only ship with the Apple Silicon package')
+for (const binary of [ortBinding, addon, ffmpeg, ...(arch === 'arm64' ? [diarizer] : [])]) {
   const architectures = execFileSync('lipo', ['-archs', binary], { encoding: 'utf8' }).trim().split(/\s+/)
   assert(architectures.includes(appArchitectures), `Native architecture mismatch: ${binary} (${architectures.join(', ')})`)
 }
@@ -71,10 +83,25 @@ if (nativeLoadTested) {
   execFileSync(executable, ['-e', `
     const assert = require('node:assert/strict')
     const path = require('node:path')
+    const { pathToFileURL } = require('node:url')
     const modules = path.join(process.argv[1], 'node_modules')
     assert.equal(typeof require(path.join(modules, 'onnxruntime-node')).InferenceSession.create, 'function')
     assert.equal(typeof require(path.join(modules, '@kutalia/whisper-node-addon')).transcribe, 'function')
-  `, archive], {env:{...process.env, ELECTRON_RUN_AS_NODE:'1'}, stdio:'pipe'})
+    if (require('node:fs').existsSync(path.join(modules, 'naudiodon'))) {
+      assert.equal(typeof require(path.join(modules, 'naudiodon')).AudioIO, 'function')
+    }
+    const load = (entry) => import(pathToFileURL(path.join(modules, entry)).href)
+    async function verifyEngines() {
+      const transformers = await load('@huggingface/transformers/dist/transformers.node.mjs')
+      assert.equal(typeof transformers.pipeline, 'function')
+      const kokoro = await load('kokoro-js/dist/kokoro.js')
+      assert.equal(typeof kokoro.KokoroTTS.from_pretrained, 'function')
+      const { getLlama } = await load('node-llama-cpp/dist/index.js')
+      const llama = await getLlama({ gpu: 'auto', build: 'never', skipDownload: true })
+      await llama.dispose()
+    }
+    verifyEngines().catch(error => { console.error(error); process.exitCode = 1 })
+  `, archive], {env:{...process.env, ELECTRON_RUN_AS_NODE:'1'}, stdio:'pipe', timeout: 60_000})
   execFileSync(ffmpeg, ['-version'], {stdio:'pipe'})
 }
 console.log(JSON.stringify({version, arch, entries:entries.length, runtimeMatches:true, sourceMatches:true, rendererAssetsPresent:true, signatureValid:true, portableAddon:true, nativeLoadTested}))

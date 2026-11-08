@@ -60,6 +60,25 @@ it('the saved SimulMT setting also reuses the Japanese complete-sentence prepara
  } finally { f.processor.reset() }
 })
 
+it('does not pretranslate desktop rolling text until there is acoustic evidence of a pause', async () => {
+ const f=fixture()
+ const rolling=audio.subarray(0,16000)
+ const desktopEvidence={...evidence,checkpointOnly:true as const,captureStartSample:0}
+ const activeEvidence={...desktopEvidence,captureEndSample:rolling.length}
+ const pausedEvidence={...desktopEvidence,captureEndSample:audio.length}
+ try {
+  await f.processor.processStreaming(rolling,16000,activeEvidence)
+  await f.processor.processStreaming(rolling,16000,activeEvidence)
+  expect(f.translate).not.toHaveBeenCalled()
+  await f.processor.processStreaming(audio,16000,pausedEvidence)
+  expect(f.translate).toHaveBeenCalledOnce()
+  expect(f.events.every(result=>!result.translatedText)).toBe(true)
+  f.finish('今天不玩遊戲。')
+  expect((await f.processor.finalizeStreaming(audio,16000,pausedEvidence))?.translatedText).toBe('今天不玩遊戲。')
+  expect(f.translateFinal).not.toHaveBeenCalled()
+ } finally { f.processor.reset() }
+})
+
 it('stopping while a failed preparation settles does not launch a fallback translation', async () => {
  const f=fixture()
  try {
@@ -120,7 +139,9 @@ it('hanging clauses and thermal pressure never start optional preparation',async
   f.setSource('魚が逃げて。')
   await f.processor.processStreaming(audio,16000,evidence)
   expect(f.translate).not.toHaveBeenCalled()
-  const policy=vi.spyOn(pressure,'performanceState').mockReturnValue({thermalState:'fair',speedLimit:100,previewFloorMs:0,previewDutyCycle:.65,previewsPaused:false,coolingDown:false,optionalAnalysisAllowed:false})
+  const monitor = new pressure.PerformanceMonitor()
+  monitor.update({ thermalState: 'fair' })
+  const policy = vi.spyOn(pressure, 'performanceState').mockImplementation(() => monitor.snapshot())
   try {
    f.setSource('魚が逃げてしまいました。')
    await f.processor.processStreaming(audio,16000,{...evidence,segment:'1:2'})

@@ -1,5 +1,5 @@
 import { availableParallelism, totalmem } from 'node:os'
-import { resolveSpeechEngine, resolveWindowsJapaneseFallback } from '../../engine-selection'
+import { resolveMacSpeechEngine, resolveSpeechEngine, resolveWindowsJapaneseFallback } from '../../engine-selection'
 import { isHaasAvailable } from '../../engines/stt/HaasJaEngine'
 import { isSenseVoiceModelInstalled } from '../../engines/stt/SenseVoiceSherpaEngine'
 import type { SttEngineType } from '../../engine-selection'
@@ -21,7 +21,9 @@ import type { EngineConfig } from '../../engines/types'
 import { sanitizeErrorMessage } from '../error-utils'
 import { createLogger } from '../logger'
 import { getMdmConfig } from '../mdm-config'
+import { liveWork } from '../live-work'
 import { resetRealtimeAudioDispatcher } from '../realtime-audio'
+import { getMacEngineAvailability } from '../mac-engine-availability'
 import { recordSessionEnd } from '../../logger/UsageAnalytics'
 import type { LiveSessionMetrics } from '../../logger/UsageAnalytics'
 
@@ -52,6 +54,8 @@ export interface PipelineStartConfig extends EngineConfig {
   geminiApiKey?: string
   microsoftApiKey?: string
   microsoftRegion?: string
+  /** File imports own a separate session; they cannot inject audio into live captions. */
+  mediaFileSession?: boolean
   /** OpenAI API key for cloud realtime e2e translation (BYOK, #722) */
   openaiApiKey?: string
   /** Gemini Live API key for the second cloud realtime e2e path (BYOK, #723) */
@@ -117,14 +121,17 @@ async function configurePipeline(ctx: AppContext, config: PipelineStartConfig) {
     try {
       // #519: Apply MDM admin locks — override user-selected engine if locked
       const mdm = getMdmConfig()
+      const macEngines = await getMacEngineAvailability()
       if (mdm.lockedEngine && config.translatorEngineId) {
         log.info(`MDM: Overriding translator engine from ${config.translatorEngineId} to ${mdm.lockedEngine}`)
         config.translatorEngineId = mdm.lockedEngine
+      } else if (macEngines && !macEngines.appleTranslate && config.translatorEngineId === 'apple-translate') {
+        config.translatorEngineId = 'hunyuan-mt-15'
       }
       if (config.sttEngineId && !mdm.lockedSttEngine) {
         const appleSilicon = process.platform === 'darwin' && process.arch === 'arm64'
         const supportsHaas = appleSilicon || (process.platform === 'win32' && process.arch === 'x64')
-        config.sttEngineId = resolveSpeechEngine(
+        config.sttEngineId = macEngines ? resolveMacSpeechEngine(store.get('sourceLanguage'), config.sttEngineId as SttEngineType, macEngines) : resolveSpeechEngine(
           store.get('sourceLanguage'), config.sttEngineId as SttEngineType, supportsHaas,
           appleSilicon ? 'mlx-whisper' : 'whisper-local'
         )
@@ -305,7 +312,7 @@ async function configurePipeline(ctx: AppContext, config: PipelineStartConfig) {
       ctx.pipeline!.setDraftSttEnabled(store.get('draftSttEnabled'))
 
       // Configure speaker diarization (#549)
-      ctx.pipeline!.setDiarizationEnabled(store.get('speakerDiarizationEnabled'))
+      ctx.pipeline!.setDiarizationEnabled((macEngines?.speakerIdentification ?? true) && store.get('speakerDiarizationEnabled'))
 
 
       try {
@@ -349,7 +356,7 @@ async function configurePipeline(ctx: AppContext, config: PipelineStartConfig) {
       ctx.logger.startSession(sessionLabel)
 
       // #62: persist session BEFORE start to avoid crash window
-      store.set('activeSession', { config, startedAt: Date.now() })
+      store.set('activeSession', config.mediaFileSession ? null : { config, startedAt: Date.now() })
 
       ctx.pipeline.start()
 
@@ -371,13 +378,20 @@ async function configurePipeline(ctx: AppContext, config: PipelineStartConfig) {
 
 /** Register pipeline control IPC handlers */
 export function registerPipelineIpc(ctx: AppContext): void {
-  ipcMain.handle('pipeline-start', async (_event, config: PipelineStartConfig, captureAudio = true) => {
+  const work = liveWork(ctx)
+  ipcMain.handle('pipeline-start', async (_event, config: PipelineStartConfig, captureAudio = true) => work.run('final', async () => {
     if (ctx.extensionConnected) return { error: 'Caption session is controlled by the browser extension.' }
-    return startPipeline(ctx, config, captureAudio === false ? 'file' : 'app')
-  })
+    const isFile = captureAudio === false || config.mediaFileSession === true
+    if (isFile && ctx.pipeline?.active) return { error: 'Stop the current translation session before importing a media file.' }
+    if (!isFile && work.mediaSession) return { error: 'Stop the media translation before starting live captions.' }
+    const started = await startPipeline(ctx, config, isFile ? 'file' : 'app')
+    if ('success' in started && isFile) work.beginMediaSession()
+    return started
+  }))
 
-  ipcMain.handle('pipeline-stop', async () => {
+  ipcMain.handle('pipeline-stop', async () => work.run('final', async () => {
     if (ctx.extensionConnected) return { error: 'Stop the browser caption session from the extension.' }
+    work.endMediaSession()
     // #116: log session usage
     const activeSession = store.get('activeSession')
     if (activeSession) {
@@ -413,7 +427,7 @@ export function registerPipelineIpc(ctx: AppContext): void {
     // #54: clear session on clean stop
     store.set('activeSession', null)
     return { logPath }
-  })
+  }))
 
   ipcMain.handle('get-session-start-time', () => {
     return ctx.pipeline?.sessionStartTime ?? null

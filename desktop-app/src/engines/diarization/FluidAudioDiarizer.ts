@@ -144,7 +144,7 @@ export class FluidAudioDiarizer extends SubprocessBridge implements SpeakerDiari
 }
 
 /** Find the fluid-audio-bridge binary in well-known paths */
-function findFluidAudioBinary(): string | null {
+export function findFluidAudioBinary(): string | null {
   for (const p of fluidAudioPaths()) {
     if (existsSync(p)) return p
   }

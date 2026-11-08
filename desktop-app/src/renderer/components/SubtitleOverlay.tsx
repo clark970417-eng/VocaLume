@@ -1,5 +1,5 @@
 import { t, useUiLanguage } from '../ui-language'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 interface AccessibilityConfig {
   highContrast: boolean
@@ -95,7 +95,7 @@ function confidenceToUnderline(score: number): string {
  * If tokenConfidences is provided, each whitespace-delimited token gets individual styling.
  * Otherwise, uses the sentence-level confidence for uniform styling.
  */
-function ConfidenceText({
+const ConfidenceText = React.memo(function ConfidenceText({
   text,
   confidence,
   tokenConfidences,
@@ -110,6 +110,7 @@ function ConfidenceText({
   highContrast: boolean
   style?: React.CSSProperties
 }): React.JSX.Element {
+  useUiLanguage()
   // If no confidence data, render plain text
   if (confidence === undefined && !tokenConfidences?.length) {
     return <span style={{ color, ...style }}>{text}</span>
@@ -188,7 +189,7 @@ function ConfidenceText({
       {text}
     </span>
   )
-}
+})
 
 interface ResultData {
   sourceText: string
@@ -220,6 +221,8 @@ function SubtitleOverlay(): React.JSX.Element {
   const [isDragMode, setIsDragMode] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [hoverHidden, setHoverHidden] = useState(false)
+  const windows = /Windows/i.test(navigator.userAgent)
+  const mac = /Macintosh/i.test(navigator.userAgent)
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
   const [editSaving, setEditSaving] = useState(false)
@@ -230,11 +233,11 @@ function SubtitleOverlay(): React.JSX.Element {
 
   const a11y = config.accessibility
 
-  const resetSilenceTimer = useCallback(() => {
+  const resetSilenceTimer = useCallback((at = Date.now()) => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     silenceTimerRef.current = setTimeout(() => {
       if (!dragRef.current) setVisible(false)
-    }, SILENCE_TIMEOUT_MS)
+    }, Math.max(0, SILENCE_TIMEOUT_MS - Math.max(0, Date.now() - at)))
   }, [])
 
   const handleResult = useCallback((data: unknown) => {
@@ -257,7 +260,10 @@ function SubtitleOverlay(): React.JSX.Element {
 
     // Update confidence data for visualization (#581)
     setConfidence(result.confidence)
-    setTokenConfidences(result.tokenConfidences)
+    setTokenConfidences(previous => {
+      const next = result.tokenConfidences
+      return previous?.length === next?.length && previous?.every((score, index) => score === next?.[index]) ? previous : next
+    })
 
     // Each final owns its label. A translation revision keeps that cue's speaker.
     if (result.speakerLabel !== undefined || (!result.isInterim && !result.captionRevision)) {
@@ -347,7 +353,9 @@ function SubtitleOverlay(): React.JSX.Element {
         setEditValue('')
       }
     })
-    const unsubHover = window.api.onSubtitleHoverHidden?.(setHoverHidden)
+    const unsubHover = windows
+      ? window.api.onSubtitleHoverHidden?.(setHoverHidden)
+      : window.api.onSubtitlePointerNear?.(setHoverHidden)
     let active = true
     void window.api.getSubtitleInteractionMode?.().then(mode => {
       if (active) { setIsDragMode(mode === 'drag'); setIsEditMode(mode === 'edit') }
@@ -360,21 +368,26 @@ function SubtitleOverlay(): React.JSX.Element {
       unsubEdit?.()
       unsubHover?.()
     }
-  }, [])
+  }, [windows])
 
   // Subscribe to all result types — unified handler
   useEffect(() => {
     const unsubResult = window.api.onTranslationResult(handleResult)
     const unsubInterim = window.api.onInterimResult(handleResult)
     const unsubDraft = window.api.onDraftResult(handleResult)
+    const unsubActivity = window.api.onSubtitleActivity?.(at => {
+      setVisible(true)
+      resetSilenceTimer(at)
+    })
 
     return () => {
       unsubResult?.()
       unsubInterim?.()
       unsubDraft?.()
+      unsubActivity?.()
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     }
-  }, [handleResult])
+  }, [handleResult, resetSilenceTimer])
 
   // Edit mode: click translated text to start editing (#590)
   const handleTranslationClick = useCallback(() => {
@@ -424,19 +437,21 @@ function SubtitleOverlay(): React.JSX.Element {
   const effectiveFontSize = a11y.highContrast ? Math.max(config.fontSize + 4, 34) : config.fontSize
   const translatedFontSize = Math.max(effectiveFontSize - 2, 16)
   const hasContent = confirmedText || interimText
-  const captionVisible = visible && !!hasContent
+  const captionVisible = visible && Boolean(hasContent)
   const captionHoverHidden = config.hideOnHover && hoverHidden && !isDragMode && !isEditMode
-  useEffect(() => {
+  const macHoverActive = mac && config.hideOnHover && captionVisible && !isDragMode && !isEditMode
+
+  useLayoutEffect(() => {
     const caption = captionRef.current
-    if (!caption || !captionVisible) {
-      window.api.setSubtitleCaptionArea?.(null, config.hideOnHover)
-      window.api.setSubtitleCaptionHover?.(false)
+    if (mac && config.hideOnHover) window.api.setSubtitleCaptionHover?.(false)
+    if (!caption || !captionVisible || !(windows || macHoverActive)) {
+      if (windows) window.api.setSubtitleCaptionArea?.(null, config.hideOnHover)
       return
     }
-    if (!navigator.userAgent.includes('Windows')) return
     const updateArea = (): void => {
       const { x, y, width, height } = caption.getBoundingClientRect()
-      window.api.setSubtitleCaptionArea({ x, y, width, height }, config.hideOnHover)
+      if (windows) window.api.setSubtitleCaptionArea({ x, y, width, height }, config.hideOnHover)
+      else window.api.setSubtitleHoverRegion(width && height ? { x, y, width, height } : null)
     }
     updateArea()
     const observer = new ResizeObserver(updateArea)
@@ -445,8 +460,9 @@ function SubtitleOverlay(): React.JSX.Element {
     return () => {
       observer.disconnect()
       window.removeEventListener('resize', updateArea)
+      if (macHoverActive) window.api.setSubtitleHoverRegion(null)
     }
-  }, [captionVisible, config.position, config.hideOnHover])
+  }, [captionVisible, config.position, config.hideOnHover, mac, macHoverActive, windows])
 
   const effectiveSourceColor = a11y.highContrast ? '#ffffff' : config.sourceTextColor
   const effectiveTranslatedColor = a11y.highContrast ? '#ffff00' : config.translatedTextColor
@@ -458,6 +474,7 @@ function SubtitleOverlay(): React.JSX.Element {
   const staticAppearance = a11y.reducedMotion || config.lowPowerRendering
   const fadeOutTransition = staticAppearance ? 'none' : `opacity ${FADE_OUT_MS}ms ease-out`
   const fadeInTransition = staticAppearance ? 'none' : 'opacity 0.15s ease-out'
+  const backdrop = captionVisible && !captionHoverHidden && !a11y.highContrast && !config.lowPowerRendering ? 'blur(8px)' : 'none'
 
   // WCAG 1.4.12 spacing
   const spacingStyle: React.CSSProperties = {
@@ -540,17 +557,21 @@ function SubtitleOverlay(): React.JSX.Element {
       <div
         ref={captionRef}
         {...dragHandlers}
-        onPointerEnter={() => window.api.setSubtitleCaptionHover?.(true)}
-        onPointerLeave={() => window.api.setSubtitleCaptionHover?.(false)}
+        onPointerEnter={() => {
+          if (mac && !config.hideOnHover) window.api.setSubtitleCaptionHover?.(true)
+        }}
+        onPointerLeave={() => {
+          if (mac) window.api.setSubtitleCaptionHover?.(false)
+        }}
         style={{
           background: `rgba(0, 0, 0, ${effectiveBgOpacity / 100})`,
           borderRadius: a11y.highContrast ? '0' : '0.625rem',
           padding: '0.625rem 1.25rem',
-          backdropFilter: a11y.highContrast || config.lowPowerRendering ? 'none' : 'blur(8px)',
-          WebkitBackdropFilter: a11y.highContrast || config.lowPowerRendering ? 'none' : 'blur(8px)',
+          backdropFilter: backdrop,
+          WebkitBackdropFilter: backdrop,
           opacity: captionVisible ? 1 : 0,
           visibility: captionHoverHidden ? 'hidden' : 'visible',
-          transition: visible ? fadeInTransition : fadeOutTransition,
+          transition: captionHoverHidden ? 'none' : visible ? fadeInTransition : fadeOutTransition,
           pointerEvents: captionVisible && !captionHoverHidden ? 'auto' : 'none',
           cursor: isEditMode ? 'auto' : 'move',
           touchAction: isEditMode ? 'auto' : 'none',

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f7f9">
+  <meta name="description" content="在手機上翻譯聊天訊息與回覆草稿。">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="referrer" content="no-referrer">
+  <title>VocaLume · 手機文字翻譯</title>
+  <link rel="manifest" href="/mobile/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/mobile/apple-touch-icon.png">
+  <link rel="icon" href="/mobile/icon-192.png">
+  <link rel="stylesheet" href="/mobile/mobile.css">
+  <script type="module" src="/mobile/install.js"></script>
+  <script type="module" src="/mobile/app.js"></script>
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <a class="brand" href="/"><img src="/assets/vocalume.png" alt="" width="38" height="38"><strong>VocaLume</strong></a>
+      <select id="ui-language" aria-label="介面語言" data-label="interfaceLanguage">
+        <option value="auto" data-copy="automatic">自動（依 IP 地區）</option>
+        <option value="zh-Hant" lang="zh-Hant">繁體中文</option>
+        <option value="zh-Hans" lang="zh-Hans">简体中文</option>
+        <option value="en" lang="en">English</option>
+        <option value="ja" lang="ja">日本語</option>
+        <option value="ko" lang="ko">한국어</option>
+      </select>
+    </header>
+    <section class="intro" aria-labelledby="title">
+      <span class="badge" data-copy="beta">手機版・公開測試</span>
+      <h1 id="title" data-copy="title">聊天文字翻譯</h1>
+      <p data-copy="intro">貼上收到的訊息，或輸入想回的話。確認譯文後，複製回聊天 App 送出。</p>
+    </section>
+    <form id="translator" class="card">
+      <div class="languages">
+        <label for="source-language"><span data-copy="sourceLanguage">原文語言</span><select id="source-language"></select></label>
+        <button type="button" id="swap-languages" class="swap" aria-label="交換語言" data-label="swap">⇄</button>
+        <label for="target-language"><span data-copy="targetLanguage">翻譯成</span><select id="target-language"></select></label>
+      </div>
+      <div class="editor">
+        <div class="editor-heading">
+          <label for="source-text" data-copy="original">原始訊息</label>
+          <div class="actions">
+            <button type="button" id="paste-message" class="quiet" data-copy="paste">貼上</button>
+            <button type="button" id="clear-message" class="quiet" data-copy="clear">清除</button>
+          </div>
+        </div>
+        <textarea id="source-text" rows="3" dir="auto" autocomplete="off" data-placeholder="originalHint" placeholder="貼上或輸入訊息"></textarea>
+      </div>
+      <div class="online">
+        <label><input type="checkbox" id="allow-network"> <span data-copy="allowOnline">允許線上翻譯</span></label>
+        <p><span data-copy="onlineDetails">使用線上翻譯時，訊息會送到 MyMemory（Translated）。服務可能保留訊息，請勿貼上私密內容。</span>
+          <a href="https://mymemory.translated.net/terms-and-conditions" target="_blank" rel="noreferrer" data-copy="privacy">服務隱私說明</a>
+        </p>
+      </div>
+      <button id="translate-button" type="submit" class="primary" data-copy="translate" disabled>翻譯</button>
+      <div id="translation-status" role="status" aria-live="polite"></div>
+      <div class="editor result">
+        <div class="editor-heading">
+          <label for="translation-result" data-copy="result">譯文</label>
+          <button type="button" id="copy-translation" class="quiet" data-copy="copy" disabled>複製譯文</button>
+        </div>
+        <textarea id="translation-result" rows="3" dir="auto" autocomplete="off" data-placeholder="resultHint" placeholder="譯文會出現在這裡" readonly></textarea>
+      </div>
+    </form>
+    <details id="install-help" class="install" data-install-help>
+      <summary data-copy="install">加到手機主畫面</summary>
+      <p><strong>iPhone · Safari</strong><span data-copy="installIos">從「分享」選擇「加入主畫面」，開啟「以網頁 App 開啟」（如有此選項），再按「加入」。</span></p>
+      <p><strong>Android · Chrome</strong><span data-copy="installAndroid">開啟 ⋮ 選單，選擇「安裝應用程式」或「加到主畫面」。</span></p>
+      <button type="button" class="quiet" data-install-app data-copy="installButton" hidden>安裝 VocaLume</button>
+    </details>
+  </main>
+</body>
+</html>

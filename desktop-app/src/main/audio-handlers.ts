@@ -4,10 +4,11 @@ import { createLogger } from './logger'
 import { SAMPLE_RATE } from './constants'
 import { MIN_AUDIO_CHUNK_SAMPLES, SILENCE_THRESHOLD } from './audio-constants'
 import { getRealtimeAudioDispatcher } from './realtime-audio'
-import type { AppContext } from './app-context'
-import { FinalCaptionQueue } from '../pipeline/FinalCaptionQueue'
+import { liveWork } from './live-work'
 import { speechEvidenceFor } from '../engines/stt/transcript-guard'
 import type { SpeechEvidence } from '../engines/types'
+import type { AppContext } from './app-context'
+import { FinalCaptionQueue } from '../pipeline/FinalCaptionQueue'
 import { performanceState } from './performance-state'
 
 const log = createLogger('audio')
@@ -15,6 +16,7 @@ const MAX_PENDING_DESKTOP_FINALS = 16
 const MAX_PENDING_DESKTOP_SAMPLES = 64 * SAMPLE_RATE
 const MAX_PENDING_CLOUD_TRANSLATIONS = 4
 const VAD_CONFIRMED_PEAK_FLOOR = SILENCE_THRESHOLD / 20
+const logTiming = process.env.VOCALUME_CAPTION_TIMING === '1' ? log.info : log.debug
 
 interface DesktopFinalState {
   pipeline: NonNullable<AppContext['pipeline']>
@@ -68,14 +70,15 @@ function toValidAudioChunk(audioData: unknown): Float32Array | null {
   return chunk
 }
 
-function captureEvidence(value: unknown, chunk: Float32Array): SpeechEvidence | undefined {
+function captureEvidence(value: unknown, chunk: Float32Array, checkpointOnly = false): SpeechEvidence | undefined {
   if (!value || typeof value !== 'object') return undefined
   const window = value as Partial<Record<keyof SpeechEvidence, unknown>>
   const evidence = speechEvidenceFor(window.speechSeconds, chunk.length / SAMPLE_RATE, window)
   if (evidence?.speechEndSample !== undefined && evidence.speechSeconds * SAMPLE_RATE > evidence.speechEndSample + 1e-6) {
     return undefined
   }
-  return evidence
+  return checkpointOnly && evidence?.captureStartSample !== undefined && evidence.captureEndSample !== undefined
+    ? { ...evidence, checkpointOnly: true } : evidence
 }
 
 /**
@@ -92,14 +95,17 @@ function toRealtimeChunk(audioData: unknown): Float32Array | null {
   return null
 }
 
+
 /** Register audio processing IPC handlers */
 export function registerAudioHandlers(ctx: AppContext): void {
   // IPC-level concurrency flags — drop duplicate requests before they reach
   // the pipeline to prevent concurrent native addon calls (#363)
+  const work = liveWork(ctx)
   let processingAudio = false
   let processingStreaming = false
+  let finalizedCue = 0
   let currentFinals: DesktopFinalState | undefined
-  const desktopAudioPipeline = () => ctx.pipelineStarting || ctx.pipelineInputOwner === 'file' ? null : ctx.pipeline
+  const desktopAudioPipeline = () => ctx.pipelineStarting || ctx.pipelineInputOwner === 'file' || work.mediaSession || ctx.extensionConnected ? null : ctx.pipeline
   const finalsFor = (pipeline: NonNullable<AppContext['pipeline']>): DesktopFinalState => {
     const generation = pipeline.audioSessionGeneration
     if (!currentFinals || currentFinals.pipeline !== pipeline || currentFinals.generation !== generation) {
@@ -130,9 +136,12 @@ export function registerAudioHandlers(ctx: AppContext): void {
     processingAudio = true
     const t0 = performance.now()
     try {
-      const result = await pipeline.process(chunk, SAMPLE_RATE)
+      const epoch = pipeline.sessionStartTime
+      const result = await work.run('final', async () =>
+        ctx.pipeline === pipeline && pipeline.running && pipeline.sessionStartTime === epoch && !ctx.extensionConnected && !work.mediaSession
+          ? pipeline.process(chunk, SAMPLE_RATE) : null)
       const elapsed = (performance.now() - t0).toFixed(0)
-      if (result) log.info(`process-audio: ${elapsed}ms, ${(chunk.length / SAMPLE_RATE).toFixed(1)}s audio`)
+      if (result) logTiming(`process-audio: ${elapsed}ms, ${(chunk.length / SAMPLE_RATE).toFixed(1)}s audio`)
       return result
     } catch (err) {
       log.error('Pipeline error:', err)
@@ -145,7 +154,7 @@ export function registerAudioHandlers(ctx: AppContext): void {
   })
 
   // Process streaming audio (rolling buffer during speech).
-  const processDesktopPreview = async (audioData: unknown, evidenceData: unknown) => {
+  const processDesktopPreview = async (audioData: unknown, evidenceData: unknown, checkpointOnly = false) => {
     const pipeline = desktopAudioPipeline()
     if (!pipeline?.running) return null
     // Drop if another streaming call is in-flight — the next interval
@@ -159,9 +168,15 @@ export function registerAudioHandlers(ctx: AppContext): void {
     processingStreaming = true
     const t0 = performance.now()
     try {
-      const result = await pipeline.processStreaming(chunk, SAMPLE_RATE, captureEvidence(evidenceData, chunk))
+      const epoch = pipeline.sessionStartTime
+      const cue = finalizedCue
+      const evidence = captureEvidence(evidenceData, chunk, checkpointOnly)
+      const result = await work.run('preview', async () =>
+        cue === finalizedCue && ctx.pipeline === pipeline && pipeline.running &&
+        pipeline.sessionStartTime === epoch && !ctx.extensionConnected && !work.mediaSession
+          ? pipeline.processStreaming(chunk, SAMPLE_RATE, evidence) : null)
       const elapsed = (performance.now() - t0).toFixed(0)
-      if (result) log.info(`streaming: ${elapsed}ms, ${(chunk.length / SAMPLE_RATE).toFixed(1)}s audio`)
+      if (result) logTiming(`streaming: ${elapsed}ms, ${(chunk.length / SAMPLE_RATE).toFixed(1)}s audio`)
       return result
     } catch (err) {
       log.error('Streaming pipeline error:', err)
@@ -176,7 +191,7 @@ export function registerAudioHandlers(ctx: AppContext): void {
   ipcMain.handle('process-audio-preview', async (_event, audioData: unknown, evidenceData: unknown) => {
     const delay = previewDelay()
     if (delay > 0) return delay
-    await processDesktopPreview(audioData, evidenceData)
+    await processDesktopPreview(audioData, evidenceData, process.platform === 'darwin')
     return previewDelay()
   })
 
@@ -219,12 +234,14 @@ export function registerAudioHandlers(ctx: AppContext): void {
       return null
     }
 
+    finalizedCue++
     const t0 = performance.now()
     finals.pcmSamples += chunk.length
     try {
       const isCurrent = (): boolean => desktopAudioPipeline() === pipeline && pipeline.running &&
         pipeline.audioSessionGeneration === finals.generation
-      const accepted = await finals.queue.enqueue(async () => {
+      pipeline.interruptStreamingPreview?.(evidence)
+      const accepted = await finals.queue.enqueue(() => work.run('final', async () => {
         if (!isCurrent()) return null
         if (!pipeline.canOverlapFinalTranslation) {
           return { completion: Promise.resolve(await pipeline.finalizeStreaming(chunk, SAMPLE_RATE, evidence)) }
@@ -235,14 +252,14 @@ export function registerAudioHandlers(ctx: AppContext): void {
         if (!prepared) return null
         // Release recognition while the remote translator works. The pipeline
         // owns final publication order and checks its generation again.
-        const completion: Promise<unknown> = prepared.completion.catch(() => undefined)
+        const completion: Promise<unknown> = work.trackFinal(prepared.completion).catch(() => undefined)
         finals.cloudCompletions.add(completion)
         void completion.then(() => finals.cloudCompletions.delete(completion))
         return prepared
-      }, () => { finals.pcmSamples -= chunk.length })
+      }), () => { finals.pcmSamples -= chunk.length })
       const result = accepted ? await accepted.completion : null
       const elapsed = (performance.now() - t0).toFixed(0)
-      if (result) log.info(`finalize: ${elapsed}ms, ${(chunk.length / SAMPLE_RATE).toFixed(1)}s audio`)
+      if (result) logTiming(`finalize: ${elapsed}ms, ${(chunk.length / SAMPLE_RATE).toFixed(1)}s audio`)
       return result
     } catch (err) {
       log.error('Finalize streaming error:', err)

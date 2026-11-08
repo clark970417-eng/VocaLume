@@ -6,9 +6,9 @@ const { dirname, join, posix } = require('node:path');
 const { spawn } = require('node:child_process');
 const { readFileSync } = require('node:fs');
 
-function endpoint(directory, platform = 'win32') {
-  if (platform === 'darwin') return posix.join(directory, 'desktop.sock');
-  return '\\\\.\\pipe\\japanese-live-caption-' + createHash('sha256').update(directory).digest('hex').slice(0, 20);
+function endpoint(directory, platform = 'win32', languageOnly = false) {
+  if (platform === 'darwin') return posix.join(directory, languageOnly ? 'ui.sock' : 'desktop.sock');
+  return '\\\\.\\pipe\\japanese-live-caption-' + createHash('sha256').update(directory).digest('hex').slice(0, 20) + (languageOnly ? '-ui-language' : '');
 }
 function decoder(onMessage, limit = 2000000) {
   let buffer = Buffer.alloc(0);
@@ -25,9 +25,11 @@ function decoder(onMessage, limit = 2000000) {
 }
 async function main() {
   const mac = process.platform === 'darwin';
-  const executable = mac ? process.execPath : JSON.parse(readFileSync(join(__dirname, 'windows-app.json'), 'utf8')).executable;
+  const languageOnly = process.argv.includes('--ui-language');
+  const executable = languageOnly ? undefined : mac ? process.execPath : JSON.parse(readFileSync(join(__dirname, 'windows-app.json'), 'utf8')).executable;
   const support = mac ? __dirname : join(homedir(), 'Library/Application Support/JapaneseLiveCaption');
-  const address = endpoint(support, process.platform);
+  const address = endpoint(support, process.platform, languageOnly);
+  const responseLimit = languageOnly ? 8192 : 1048576;
   const claimAddress = address + '-capture';
   const connect = () => new Promise((resolve, reject) => {
     const socket = createConnection(address);
@@ -47,7 +49,7 @@ async function main() {
     close();
   };
   const writeFrame = body => {
-    if (body.length > 1048576) return fail(new Error('Native response exceeds browser limit'));
+    if (body.length > responseLimit) return fail(new Error('Native response exceeds browser limit'));
     const header = Buffer.alloc(4); header.writeUInt32LE(body.length);
     if (!process.stdout.write(Buffer.concat([header, body]))) socket?.pause();
   };
@@ -66,7 +68,7 @@ async function main() {
         writeFrame(Buffer.from(pending.slice(0, end)));
         pending = pending.slice(end + 1);
       }
-      if (Buffer.byteLength(pending) > 1048576) fail(new Error('Oversized desktop response'));
+      if (Buffer.byteLength(pending) > responseLimit) fail(new Error('Oversized desktop response'));
     });
     socket.on('error', fail);
     socket.on('close', close);
@@ -114,6 +116,13 @@ async function main() {
   async function handle(message) {
     if (closed) return;
     const { id, op, subscription } = message;
+    if (languageOnly) {
+      if (op !== 'watch-ui-language' && op !== 'set-ui-language') throw new Error('Unsupported language operation');
+      const connection = await appConnection(false);
+      if (!connection) throw new Error('VocaLume language connection is unavailable');
+      if (!connection.write(JSON.stringify(message) + '\n')) process.stdin.pause();
+      return;
+    }
     if (op === 'browser-claim') {
       if (typeof subscription !== 'string' || !/^[a-z0-9_-]{1,64}$/iu.test(subscription)) throw new Error('Invalid live caption subscription');
       if (claim) {
@@ -145,7 +154,9 @@ async function main() {
   }
 
   let queued = Promise.resolve();
-  const decode = decoder(message => { queued = queued.then(() => handle(message)).catch(fail); });
+  if (languageOnly && !await appConnection(false)) throw new Error('VocaLume language connection is unavailable');
+
+  const decode = decoder(message => { queued = queued.then(() => handle(message)).catch(fail); }, languageOnly ? 8192 : 2000000);
   process.stdin.on('data', chunk => { try { decode(chunk); } catch (error) { fail(error); } });
   process.stdin.on('end', close);
   process.stdin.on('error', fail);

@@ -13,9 +13,9 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-/* A viewport-relative width makes Chromium's auto-sized popup collapse to 200px. */
-body { width: 400px; margin: 0; }
-main { display: flex; flex-direction: column; height: 580px; min-height: 0; }
+/* Keep the preferred toolbar popup width, but fit narrower host viewports. */
+body { width: 400px; max-width: 100%; margin: 0; }
+main { display: flex; flex-direction: column; height: 580px; max-height: 100vh; min-height: 0; }
 .app-header, .task-tabs, footer { flex-shrink: 0; }
 .app-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 15px 18px 13px; }
 .app-header img { flex-shrink: 0; }
@@ -54,6 +54,7 @@ label { display: block; min-width: 0; color: var(--text); }
 .task-panel > label + label { margin-top: 12px; }
 select[aria-invalid="true"] { border-color: #ffabb9; }
 select, input[type=password], input[type=text], input[type=url] { display: block; width: 100%; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); color: var(--text); margin-top: 6px; }
+select, select option { font-size: 14px; }
 .language-pair label:first-child select { border-color: #83b9ff70; background: #83b9ff12; }
 .language-pair label:last-child select { border-color: #8ce4d470; background: #8ce4d412; }
 .swap { width: 30px; padding: 0; font-size: 22px; font-weight: 400; color: var(--muted); background: transparent; min-height: 40px; }
@@ -78,7 +79,7 @@ select, input[type=password], input[type=text], input[type=url] { display: block
 .secondary:hover:not(:disabled) { border-color: var(--blue); }
 .full-width { width: 100%; margin-top: 14px; }
 details { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 8px; }
-summary { padding: 7px 0; color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600; }
+summary { padding: 7px 0; color: var(--text); cursor: pointer; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
 summary::marker { color: var(--muted); font-size: 10px; }
 details > label { margin-top: 12px; }
 
@@ -104,7 +105,13 @@ footer[data-state=error] .save-dot { background: #ffbac6; }
 button:disabled, select:disabled, input:disabled { opacity: .5; cursor: default; }
 :is(a, button, summary, select, input, [tabindex]):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-@media (max-width: 340px) { .workspace { padding: 14px; } .app-header { padding-inline: 14px; } .task-tabs { margin-inline: 10px; } .language-pair { gap: 3px; grid-template-columns: minmax(0,1fr) 26px minmax(0,1fr); } }
+@media (max-width: 340px) {
+  .workspace { padding: 14px; }
+  .app-header { grid-template-columns: auto minmax(0, 1fr); padding-inline: 14px; }
+  .app-header .interface-language { grid-column: 1 / -1; grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+  .task-tabs { margin-inline: 10px; }
+  .language-pair { gap: 3px; grid-template-columns: minmax(0,1fr) 30px minmax(0,1fr); }
+}
 @media (prefers-reduced-motion: reduce) { *, *::after { transition: none !important; scroll-behavior: auto !important; } }
 
 #apiFields > label { margin-top: 12px; }
@@ -112,4 +119,4 @@ button:disabled, select:disabled, input:disabled { opacity: .5; cursor: default;
 .api-actions { margin-top: 14px; }
 /* Keep the interface language one click away, independent of translation pairs. */
 .interface-language { display: grid; gap: 3px; font-size: 12px; }
-.interface-language select { width: auto; max-width: 156px; min-height: 32px; padding: 4px 8px; margin: 0; font-size: 12px; }
+.interface-language select { width: auto; max-width: 156px; min-height: 32px; padding: 4px 8px; margin: 0; }

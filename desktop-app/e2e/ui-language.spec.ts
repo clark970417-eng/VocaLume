@@ -15,6 +15,9 @@ test('desktop interface language switch persists and preserves unsaved translati
     env: { ...process.env, JTL_UI_PROFILE: mkdtempSync(resolve(tmpdir(), 'vocalume-language-')), ELECTRON_DISABLE_GPU: '1', SKIP_ONBOARDING: '1' } })
   try {
     const page = await settingsPage(app)
+    const findSubtitle = () => app.windows().find(window => window.url().endsWith('#/subtitle'))
+    await expect.poll(() => Boolean(findSubtitle())).toBe(true)
+    const subtitle = findSubtitle()!
     await page.getByRole('heading', { name: 'VocaLume', exact: true }).waitFor()
     await page.locator('.interface-language select').selectOption('en')
     await page.getByLabel('Source language', { exact: true }).selectOption('ko')
@@ -42,6 +45,8 @@ test('desktop interface language switch persists and preserves unsaved translati
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(window => !window.webContents.getURL().endsWith('#/subtitle'))?.setSize(480, 640))
     await page.getByLabel('Interface language', { exact: true }).selectOption('ja')
     await expect(page.locator('html')).toHaveAttribute('lang', 'ja')
+    await expect(subtitle.locator('html')).toHaveAttribute('lang', 'ja')
+    await expect(subtitle.getByRole('region')).toHaveAttribute('aria-label', '字幕')
     await expect(page.getByRole('tab', { name: 'ライブ翻訳', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: '翻訳を開始', exact: true })).toBeVisible()
     await expect(page.getByLabel('原文の言語', { exact: true })).toHaveValue('ko')
@@ -52,6 +57,8 @@ test('desktop interface language switch persists and preserves unsaved translati
     await chooseFile
     await page.getByLabel('表示言語', { exact: true }).selectOption('ko')
     await expect(page.locator('html')).toHaveAttribute('lang', 'ko')
+    await expect(subtitle.locator('html')).toHaveAttribute('lang', 'ko')
+    await expect(subtitle.getByRole('region')).toHaveAttribute('aria-label', '자막')
     await expect(page.getByRole('button', { name: '폴더 감시 및 자동 번역', exact: true })).toBeVisible()
     await page.getByRole('tab', { name: '고급 설정', exact: true }).click()
     await page.getByText('도움말 및 업데이트', { exact: true }).click()
@@ -94,7 +101,11 @@ test('extension switches live UI and caption preview while keeping typed API val
           set: async (values: Record<string, unknown>) => { const changes = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, { newValue: v }]))
             Object.assign(state, values); sessionStorage.setItem('testPrefs', JSON.stringify(state)); listeners.forEach(fn => fn(changes, 'local')) } },
           onChanged: { addListener: (fn: typeof listeners[number]) => listeners.push(fn) } },
-        runtime: { getManifest: () => ({ version: 'test' }), sendMessage: (_message: unknown, reply: (value: unknown) => void) => reply({ ok: true, text: { running: false } }) },
+        runtime: { getManifest: () => ({ version: 'test' }), sendMessage: (message: { type: string }, reply?: (value: unknown) => void) => {
+          const result = message.type === 'ui-language-choose' ? undefined : { ok: true, text: { running: false } }
+          if (reply) return reply(result)
+          return Promise.resolve(result)
+        } },
         tabs: { query: async () => [{ id: 1, url: 'https://www.youtube.com/watch?v=test' }] },
         permissions: { contains: async () => false, request: async () => false }
       } })
@@ -140,5 +151,29 @@ test('extension switches live UI and caption preview while keeping typed API val
     await page.reload()
     await expect(page.locator('#uiLanguage')).toHaveValue('zh-TW')
     await expect(page.getByRole('tab', { name: '字幕與設定', exact: true })).toBeVisible()
+    await page.locator('#tab-text').click()
+    const writingSummary = page.locator('#writingOptions > summary')
+    const writingOptions = page.locator('#writingOptions')
+    for (const width of [200, 240, 320, 400]) {
+      await page.setViewportSize({ width, height: 460 })
+      for (const locale of ['zh-TW', 'zh-CN', 'en', 'ja', 'ko']) {
+        await page.locator('#uiLanguage').selectOption(locale)
+        await expect(writingSummary).toBeVisible()
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+        expect(await page.locator('footer').evaluate(footer => footer.getBoundingClientRect().bottom)).toBeLessThanOrEqual(460)
+        const textFits = await writingSummary.evaluate(summary => {
+          const text = document.createRange()
+          text.selectNodeContents(summary)
+          const { left, right } = summary.getBoundingClientRect()
+          return [...text.getClientRects()].every(rect => rect.left >= left - 1 && rect.right <= right + 1)
+        })
+        expect(textFits).toBe(true)
+      }
+    }
+    await writingSummary.focus()
+    await page.keyboard.press('Enter')
+    await expect(writingOptions).toHaveAttribute('open', '')
+    await page.keyboard.press('Space')
+    await expect(writingOptions).not.toHaveAttribute('open', '')
   } finally { await browser.close() }
 })

@@ -174,7 +174,8 @@ it('emits Japanese before translation, rejects invalid audio, and continues afte
     socket.write(JSON.stringify({id:0,op:'init'})+'\n')
     await vi.waitFor(()=>expect(messages).toHaveLength(1))
     messages.length=0
-    socket.write(JSON.stringify({ id: 1, op: 'decode', audio: Buffer.from(new Float32Array([.1]).buffer).toString('base64') }) + '\n')
+    const samples = new Float32Array([.1, -.25, .875])
+    socket.write(JSON.stringify({ id: 1, op: 'decode', audio: Buffer.from(samples.buffer).toString('base64') }) + '\n')
     await vi.waitFor(() => expect(messages).toHaveLength(2))
     expect(messages[0]).toMatchObject({ id: 1, event: 'source', text: '魚' })
     expect(messages[1]).toMatchObject({ id: 1, ok: true, result: { translated: '魚' } })
@@ -184,6 +185,7 @@ it('emits Japanese before translation, rejects invalid audio, and continues afte
     expect(messages[2]).toMatchObject({ id: 2, ok: false })
     expect(messages[3]).toMatchObject({ id: 3, ok: true, result: { text: 'こんにちは' } })
     expect(pipeline.process).toHaveBeenCalledTimes(1)
+    expect(pipeline.process).toHaveBeenCalledWith(samples, 16000)
     const audio=Buffer.from(new Float32Array([.1]).buffer).toString('base64')
     socket.write(JSON.stringify({id:4,op:'decode',segment:'first',final:false,audio})+'\n')
     await vi.waitFor(()=>expect(messages).toHaveLength(6))

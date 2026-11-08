@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { macInferenceThreads } from '../inference-resources'
 vi.mock('../model-downloader', () => ({ isModelDownloaded: () => true, getModelPath: () => 'test.bin' }))
 vi.mock('@kutalia/whisper-node-addon', () => { throw new Error('Missing native DLL') })
 vi.mock('./whisper-worker-client', () => ({WhisperWorkerClient: class {
@@ -25,6 +26,10 @@ it('keeps recognized speech in its source language instead of English', async ()
   expect(transcribe).toHaveBeenCalledWith(expect.objectContaining({ translate: false, language: 'auto' }))
   if (process.platform === 'win32') {
     expect(transcribe).toHaveBeenCalledWith(expect.objectContaining({n_threads:expect.any(Number)}))
+  } else if (process.platform === 'darwin' && process.arch === 'arm64') {
+    expect(transcribe).toHaveBeenCalledWith(expect.objectContaining({ n_threads: macInferenceThreads().speech }))
+  } else {
+    expect(transcribe).not.toHaveBeenCalledWith(expect.objectContaining({ n_threads: expect.anything() }))
   }
   expect(result?.language).toBe('ja')
 })

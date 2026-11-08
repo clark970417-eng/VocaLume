@@ -4,8 +4,12 @@ import { UI_JA } from './ui-messages-ja.mjs';
 import { UI_KO } from './ui-messages-ko.mjs';
 import { UI_DESKTOP_JA } from './ui-messages-desktop-ja.mjs';
 import { UI_DESKTOP_KO } from './ui-messages-desktop-ko.mjs';
+import { WEBSITE_ORIGIN } from './website-language.mjs';
 
 export const UI_LANGUAGE_KEY = 'vocalume.uiLanguage';
+export const UI_LANGUAGE_CHANGED_AT_KEY = 'vocalume.uiLanguageChangedAt';
+export const UI_REGION_LOCALE_KEY = 'vocalume.uiRegionLocale';
+const regionalLocales = {'zh-Hant': 'zh-TW', 'zh-Hans': 'zh-CN', en: 'en', ja: 'ja', ko: 'ko'};
 const localizations = {
   en: UI_EN,
   'zh-TW': UI_ZH_TW,
@@ -14,6 +18,19 @@ const localizations = {
   ko: {...UI_DESKTOP_KO, ...UI_KO}
 };
 export const uiLanguagePreference = value => typeof value === 'string' && Object.hasOwn(localizations, value) ? value : 'auto';
+
+export async function lookupRegionalUiLanguage({fetch: request = globalThis.fetch} = {}) {
+  try {
+    const response = await request(`${WEBSITE_ORIGIN}/api/site-language`, {
+      signal: AbortSignal.timeout(1500), credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer'
+    });
+    if (!response.ok) return null;
+    const {language} = await response.json();
+    return typeof language === 'string' && Object.hasOwn(regionalLocales, language) ? regionalLocales[language] : null;
+  } catch {
+    return null;
+  }
+}
 export const resolveUiLanguage = (preference, languages = []) => {
   if (uiLanguagePreference(preference) !== 'auto') return preference;
   const supported = languages.find(language => /^(?:zh|en|ja|ko)(?:-|$)/i.test(language));

@@ -6,6 +6,6 @@ export function websiteLocale(locale) {
 
 export function localizedWebsiteUrl(locale) {
   const url = new URL(WEBSITE_ORIGIN);
-  url.searchParams.set('lang', websiteLocale(locale));
+  url.searchParams.set('lang', locale === 'auto' ? 'auto' : websiteLocale(locale));
   return url.href;
 }

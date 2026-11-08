@@ -5,14 +5,19 @@
   window.__jtlSocial = true;
 
   const host = location.hostname.toLowerCase();
-  const site = host.endsWith('bilibili.com') ? 'bilibili'
-    : host.endsWith('tiktok.com') ? 'tiktok'
-    : host.endsWith('twitch.tv') ? 'twitch'
-    : host.endsWith('facebook.com') ? 'facebook'
-    : host.endsWith('instagram.com') ? 'instagram'
-    : (host === 'discord.com' || host.endsWith('.discord.com') || host === 'discordapp.com' || host.endsWith('.discordapp.com')) ? 'discord'
+  const isDomain = domain => host === domain || host.endsWith(`.${domain}`);
+  const site = isDomain('bilibili.com') ? 'bilibili'
+    : isDomain('tiktok.com') ? 'tiktok'
+    : isDomain('twitch.tv') ? 'twitch'
+    : isDomain('facebook.com') ? 'facebook'
+    : isDomain('instagram.com') ? 'instagram'
+    : isDomain('discord.com') || isDomain('discordapp.com') ? 'discord'
     : 'generic';
   const dedicatedSite = site !== 'generic';
+  const editableSelector = 'textarea, input:not([type]), input[type="text"], [contenteditable="true"], [contenteditable="plaintext-only"], [contenteditable=""]';
+  const draftPurpose = /comment|message|chat|reply|post|留言|評論|评论|訊息|消息|私訊|私信|聊天|回覆|回复|發佈|发布|弹幕|彈幕|コメント|メッセージ|返信|チャット|投稿|댓글|메시지|답글|채팅|게시/iu;
+  const excludedPurpose = /search|搜尋|搜索|検索|검색|e-?mail|電子郵件|电子邮件|メールアドレス|이메일|password|密碼|密码|パスワード|비밀번호|電話|电话|phone|url|網址|网址|login|登入|登录|ログイン|로그인/iu;
+  const chatContainer = '[role="log"], [data-testid*="composer" i], [data-testid*="chat-input" i], [data-testid*="message-input" i]';
 
   const configs = {
     discord: {
@@ -30,14 +35,16 @@
         '.comment-container .text', 'bili-comment-renderer [class*="content"]'
       ],
       composer: [
+        '#chat-control-panel-vm textarea', 'chat-control-panel textarea',
+        '.chat-input-ctnr textarea', '.chat-input-ctnr input[type="text"]',
+        '.chat-input-ctnr [contenteditable="true"]', 'textarea.chat-input', 'input.chat-input',
         '.chat-input textarea', '.chat-input input', '.chat-input[contenteditable="true"]', '.chat-input [contenteditable="true"]',
         'textarea[placeholder*="弹幕"]', 'input[placeholder*="弹幕"]', '[contenteditable="true"][data-placeholder*="弹幕"]',
         '[contenteditable="true"][aria-label*="弹幕"]',
         '.reply-box textarea', '.reply-box [contenteditable="true"]',
         '.comment-box textarea', '.comment-box [contenteditable="true"]',
         '.comment-send textarea', '.bili-comment [contenteditable="true"]',
-        'textarea:not([disabled])', '[role="textbox"]',
-        '[contenteditable]:not([contenteditable="false"])'
+        'textarea[placeholder*="评论"]'
       ]
     },
 
@@ -48,7 +55,8 @@
         '[data-a-target="chat-input"] textarea',
         '[data-a-target="chat-input"] [contenteditable="true"]',
         '.chat-input [data-slate-editor="true"]',
-        'textarea[data-a-target="chat-input"]',
+        'textarea[data-a-target="chat-input"]', '[data-a-target="chat-input"] input',
+        'input[data-a-target="chat-input"]',
         '[contenteditable="true"][data-a-target="chat-input"]'
       ]
     },
@@ -69,8 +77,7 @@
         '[contenteditable="true"][data-placeholder*="comment" i]',
         '[contenteditable="true"][aria-label*="comment" i]',
         '[contenteditable="true"][data-placeholder*="chat" i]',
-        'textarea:not([disabled])', '[role="textbox"]',
-        '[contenteditable]:not([contenteditable="false"])'
+        '[contenteditable="true"][aria-label*="chat" i]'
       ]
     },
     facebook: {
@@ -81,7 +88,7 @@
         '[aria-label*="評論"] [dir="auto"]', '[data-ad-preview="message"]'
       ],
       composer: [
-        '[contenteditable="true"][role="textbox"]',
+        '[contenteditable="true"][role="textbox"][data-lexical-editor="true"]',
         '[contenteditable="true"][aria-label*="comment" i]', '[contenteditable="true"][aria-label*="留言"]',
         'textarea[placeholder*="comment" i]', 'textarea[placeholder*="留言"]'
       ]
@@ -119,6 +126,7 @@
     }
   };
   const config = configs[site];
+  const composerSelectors = [...config.composer, editableSelector];
   let translated = new WeakMap();
   const lineOwners = new WeakMap();
   const composers = new WeakMap();
@@ -128,7 +136,6 @@
   let composerLayoutObserver;
   let composerPosition;
   let contextInvalid = false;
-  let subtitleExpiry;
   let pageObserver;
   const contextRecoveryMessage = '擴充功能已重新載入。請先保留未送出的留言，再重新整理此頁恢復翻譯。';
   const cache = new Map();
@@ -143,11 +150,13 @@
   let currentSiteEnabled = dedicatedSite;
   let epoch = 0;
   let subtitleRevision = 0;
+  let subtitleExpiryTimer;
   let lastSubtitleSignature = '';
   let captionBox;
   let streamerChatMode = false;
   let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
   const pageUi = globalThis.VocaLumePageLanguage;
+  const domChanges = globalThis.VocaLumeDomChanges;
   const uiText = value => pageUi?.text(value) ?? value;
   function setUi(element, value, property = 'textContent') {
     if (pageUi) { pageUi.bind(element, value, property); return; }
@@ -190,10 +199,13 @@
     if (!contextInvalid && !/extension context invalidated/i.test(description)) return new Error(description);
     if (!contextInvalid) {
       contextInvalid = true;
-      clearTimeout(subtitleExpiry);
+      clearTimeout(subtitleExpiryTimer);
       pageObserver?.disconnect?.();
       composerLayoutObserver?.disconnect();
-      if (captionBox) captionBox.hidden = true;
+      if (captionBox) {
+        captionBox.controller.render([]);
+        captionBox.hidden = true;
+      }
       const button = activeControls?.children[0], status = activeControls?.children[1];
       if (button) { button.disabled = true; setUi(button, contextRecoveryMessage, 'title'); }
       if (status) setUi(status, contextRecoveryMessage);
@@ -389,13 +401,17 @@
     })];
     // Slate/Lexical own the document model. Ask them to replace the selected
     // range; changing textContent only changes the pixels, not what is sent.
+    let data;
+    if (typeof DataTransfer === 'function') {
+      data = new DataTransfer();
+      data.setData('text/plain', text);
+    }
     const before = new InputEvent('beforeinput', {bubbles: true, composed: true, cancelable: true,
-      inputType: 'insertReplacementText', data: text, targetRanges});
+      inputType: 'insertReplacementText', data: text, dataTransfer: data, targetRanges});
     box.dispatchEvent(before);
     if (before.defaultPrevented) return settle();
     if (editableText(box) !== source || !box.isConnected) return false;
-    if (typeof DataTransfer === 'function' && typeof ClipboardEvent === 'function') {
-      const data = new DataTransfer(); data.setData('text/plain', text);
+    if (data && typeof ClipboardEvent === 'function') {
       const paste = new ClipboardEvent('paste', {bubbles: true, composed: true, cancelable: true, clipboardData: data});
       box.dispatchEvent(paste);
       if (paste.defaultPrevented) return settle();
@@ -403,10 +419,14 @@
     }
     const managed = site === 'discord' || site === 'twitch' || box.matches?.('[data-slate-editor], [data-lexical-editor]') || box.querySelector?.('[data-contents]');
     if (managed) return false;
-    const inserted = doc.execCommand?.('insertText', false, text);
-    if (!inserted) return false;
-    box.dispatchEvent(new InputEvent('input', {bubbles: true, composed: true, inputType: 'insertText', data: text}));
-    return settle();
+    let notified = false;
+    const observeNativeInput = event => { if (event.isTrusted) notified = true; };
+    box.addEventListener('input', observeNativeInput, true);
+    try {
+      return Boolean(doc.execCommand?.('insertText', false, text) && notified) && settle();
+    } finally {
+      box.removeEventListener('input', observeNativeInput, true);
+    }
   }
 
   function composerHost(box) {
@@ -431,14 +451,25 @@
     if (!Number.isFinite(rect.top)) return;
     const size = controls.getBoundingClientRect?.() || {width: 280, height: 36};
     const margin = 8, width = window.innerWidth, height = window.innerHeight;
+    const left = Math.max(margin, Math.min(rect.left, width - size.width - margin));
     const above = rect.top - size.height - margin;
-    const below = rect.bottom + margin;
+    let below = rect.bottom + margin;
+    if (above < margin) {
+      const scope = box.closest('form') || composerHost(box);
+      const sendButtons = scope?.querySelectorAll('button:not([type]), button[type="submit"], input[type="submit"], [data-e2e*="send"], [data-a-target*="send"]') || [];
+      for (const send of sendButtons) {
+        const bounds = send.getBoundingClientRect();
+        if (bounds.height > 0 && bounds.right > left && bounds.left < left + size.width && bounds.bottom > rect.bottom) {
+          below = Math.max(below, bounds.bottom + margin);
+        }
+      }
+    }
     // Never dock over the native composer or its bottom-right Send button.
     const top = above >= margin ? above : below + size.height <= height - margin ? below : null;
     // Keep its measured dimensions while hidden, avoiding ResizeObserver loops.
     controls.style.visibility = top === null || rect.bottom < 0 || rect.top > height ? 'hidden' : 'visible';
     if (top === null) return;
-    controls.style.left = `${Math.max(margin, Math.min(rect.left, width - size.width - margin))}px`;
+    controls.style.left = `${left}px`;
     controls.style.top = `${top}px`;
   }
 
@@ -457,16 +488,19 @@
   }
 
   function isUsableComposer(box) {
-    if (!box?.isConnected || box.readOnly || box.matches?.('[disabled],[aria-disabled="true"]') ||
+    if (!box?.isConnected || !box.matches?.(editableSelector) || box.readOnly || box.matches?.(':disabled,[aria-disabled="true"]') ||
         box.closest?.('.jtl-social-controls,.jtl-social-translation')) return false;
-    if (site === 'generic') {
-      const purpose = clean([
-        box.getAttribute?.('type'), box.getAttribute?.('name'), box.getAttribute?.('role'),
-        box.getAttribute?.('aria-label'), box.getAttribute?.('placeholder')
-      ].join(' ')).toLowerCase();
-      if (/search|搜尋|搜索|email|e-mail|password|密碼|電話|phone|url|網址|login|登入/.test(purpose)) return false;
-      if (!/comment|message|chat|reply|post|留言|評論|訊息|聊天|回覆|發佈|textbox/.test(purpose)) return false;
-    }
+    const purposeAttributes = ['name', 'aria-label', 'placeholder', 'data-placeholder', 'data-testid'];
+    const labelledBy = (box.getAttribute?.('aria-labelledby') || '').split(/\s+/).filter(Boolean);
+    const root = box.getRootNode?.();
+    const purpose = clean([
+      ...purposeAttributes.map(name => box.getAttribute?.(name)),
+      ...labelledBy.map(id => root?.getElementById?.(id)?.textContent),
+      ...Array.from(box.labels || [], label => label.textContent)
+    ].join(' '));
+    if (excludedPurpose.test(purpose)) return false;
+    const dedicated = site !== 'generic' && config.composer.some(selector => box.matches?.(selector));
+    if (!dedicated && !draftPurpose.test(purpose) && !box.closest?.(chatContainer)) return false;
     const rect = box.getBoundingClientRect?.();
     return !rect || (rect.width > 0 && rect.height > 0);
   }
@@ -543,6 +577,15 @@
     preview.readOnly = true;
     preview.hidden = true;
     setUi(preview, '翻譯草稿', 'aria-label');
+    let draftRevision = 0, appliedDraft, appliedDirection;
+    const alreadyTranslated = source => source === appliedDraft && direction('type') === appliedDirection;
+    controls.noteDraftEdit = () => {
+      draftRevision++;
+      if (button.disabled) return;
+      appliedDraft = undefined;
+      preview.hidden = true;
+      setUi(status, '');
+    };
     controls.addEventListener('keydown', event => event.stopPropagation());
     button.addEventListener('click', async event => {
       event.preventDefault();
@@ -551,19 +594,27 @@
       if (composing.has(box)) { setUi(status, '請先完成輸入法選字。'); return; }
       const source = editableText(box);
       const currentEpoch = epoch;
-      if (!source || !matchesLanguage(source,languageSettings.typeSource)) { setUi(status, '請先輸入留言。'); return; }
+      const requestedRevision = draftRevision;
+      if (!source) { setUi(status, '請先輸入留言。'); return; }
+      if (alreadyTranslated(source)) return;
       button.disabled = true;
+      preview.hidden = true;
+      preview.value = '';
       setUi(status, '翻譯中…');
       try {
         const result = await message({type: 'make-draft', text: source, direction: direction('type')});
         if (!enabled || currentEpoch !== epoch || !box.isConnected || !controls.isConnected) return;
-        if (editableText(box) !== source) { setUi(status, '原文已修改，請重新翻譯'); return; }
+        if (draftRevision !== requestedRevision || editableText(box) !== source) {
+          setUi(status, '原文已修改，請重新翻譯');
+          return;
+        }
         if (composing.has(box)) { setUi(status, '請先完成輸入法選字。'); return; }
         if (!result?.draft?.trim()) throw new Error('沒有收到翻譯草稿');
         preview.value = result.draft;
         preview.hidden = false;
         const inserted = await replaceEditable(box, result.draft);
         if (!enabled || currentEpoch !== epoch || !box.isConnected || !controls.isConnected) return;
+        if (inserted) { appliedDraft = editableText(box); appliedDirection = direction('type'); }
         preview.hidden = inserted;
         setUi(status, inserted ? '已放入譯文，確認後自行送出' : '留言框未接受譯文；請複製下方草稿後貼入。');
       } catch (error) {
@@ -573,11 +624,13 @@
       }
     });
     controls.append(button, status, preview);
-    box.addEventListener('keydown',event=>{
-      if(!enabled||!controls.isConnected||event.key!=='Tab'||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||composing.has(box)||!matchesLanguage(editableText(box),languageSettings.typeSource))return;
+    controls.translateWithTab = event => {
+      if (!enabled || !controls.isConnected || event.isComposing || composing.has(box)) return;
+      const source = editableText(box), lang = languageSettings.typeSource;
+      if (!source || alreadyTranslated(source) || (!matchesLanguage(source, lang) && !(lang === 'ja' && hasChinese(source)))) return;
       event.preventDefault();event.stopPropagation();event.stopImmediatePropagation?.();
       if(!button.disabled)button.click();
-    },true);
+    };
     composers.set(box, controls);
     activeComposer = box;
     activeControls = controls;
@@ -588,14 +641,13 @@
     }
   }
 
+  function composerFromEvent(event) {
+    return event.composedPath?.().find(node => node.matches?.(editableSelector));
+  }
+
   function focusedComposer(event) {
-    const box = event.composedPath?.().find(node => node instanceof HTMLElement && (
-      node.matches?.('textarea, input[type="text"], input:not([type])') ||
-      node.isContentEditable || node.getAttribute?.('role') === 'textbox'
-    ));
-    const supported = box && config.composer.some(selector => box.matches?.(selector));
-    if (supported && isUsableComposer(box)) installComposer(box, true);
-    scan();
+    const box = composerFromEvent(event);
+    if (isUsableComposer(box)) installComposer(box, true);
   }
 
   function installCaptionBox() {
@@ -605,14 +657,16 @@
     captionBox.className = 'jtl-caption-window';
     captionBox.hidden = true;
     captionBox.controller = new window.JtlCaptionWindow(captionBox, `${site}CaptionRect`);
+    lastSubtitleSignature = '';
     document.body.append(captionBox);
   }
 
   function renderSubtitles(data) {
+    clearTimeout(subtitleExpiryTimer);
     if (document.hidden) return;
-    clearTimeout(subtitleExpiry);
     const item = data.running ? data.items?.at(-1) : null;
-    const fresh = item && !item.expired && Date.now() / 1000 < (item.expiresAt ?? item.updatedAt + 3);
+    const expiresIn = ((item?.expiresAt ?? item?.updatedAt + 3) * 1000) - Date.now();
+    const fresh = item && !item.expired && expiresIn > 0;
     const rows = data.running ? (item?.recordingRows || (fresh ? [item] : [])) : [];
     if(rows.length)installCaptionBox();
     if(!captionBox)return;
@@ -622,15 +676,10 @@
       captionBox.controller.render(rows);
     }
     captionBox.hidden = !rows.length;
-    if(fresh&&!item.recordingRows){
-      const expires=(item.expiresAt??item.updatedAt+3)*1000;
-      subtitleExpiry=setTimeout(()=>{
-        if(Date.now()>=expires&&lastSubtitleSignature===signature)renderSubtitles({running:true,items:[]});
-      },Math.max(0,expires-Date.now())+5);
-    }
+    if (fresh && !item.recordingRows) subtitleExpiryTimer = setTimeout(() => renderSubtitles({running: true}), expiresIn + 5);
   }
 
-  async function pollSubtitles() {
+  async function refreshSubtitles() {
     if (contextInvalid || document.hidden || window.top !== window) return;
     const revision = ++subtitleRevision;
     try {
@@ -641,37 +690,35 @@
     catch (_) { /* The popup reports actionable capture/desktop errors. */ }
   }
 
-  const domWork=globalThis.VocaLumeDomWork;
-  const query=(selector,roots)=>domWork?.query(document,selector,roots)??[...document.querySelectorAll(selector)];
-  const regionSelector='[role="log"], [aria-live="polite"], [aria-live="assertive"]';
-  function scan(roots) {
+  const semanticRegions = '[role="log"], [aria-live="polite"], [aria-live="assertive"]';
+  function scan(scope) {
     if (contextInvalid || document.hidden) return;
     if (activeControls) positionComposerControls(activeComposer, activeControls);
     if (!enabled) return;
-    if (window.top === window) config.title.forEach(selector => query(selector,roots).forEach(node => translateNode(node, true, 1_000_000_000 + ++translationOrder)));
+    if (window.top === window) config.title.forEach(selector => domChanges.select(scope, selector).forEach(node => translateNode(node, true, 1_000_000_000 + ++translationOrder)));
     // Both sites restore large virtualized chat histories. Keep model work
     // bounded and always let the newest visible messages enter the queue first.
     // Hashed classes change frequently on both sites. ARIA live regions are a
     // stable semantic contract, so scan their smallest Japanese leaves as a
     // fallback when product-specific selectors no longer match.
-    const regions = (site === 'discord' || (site === 'twitch' && streamerChatMode)) ? []
-      : roots ? new Set([...query(regionSelector,roots),...roots.filter(root=>root.closest?.(regionSelector))]) : query(regionSelector);
-    const semanticMessages = [...regions]
-      .flatMap(region => [...(roots&&region.matches?.('span,p,div')?[region]:[]),...region.querySelectorAll('span,p,div')])
+    const semanticMessages = (site === 'discord' || (site === 'twitch' && streamerChatMode)) ? [] : (scope
+      ? domChanges.select(scope, `:is(${semanticRegions}) :is(span,p,div)`)
+      : [...document.querySelectorAll(semanticRegions)].flatMap(region => [...region.querySelectorAll('span,p,div')]))
       .filter(element => {
         const text = clean(element.innerText || element.textContent);
         return text && matchesReadLanguage(text) && ![...element.children].some(child => matchesReadLanguage(clean(child.innerText || child.textContent)));
       });
     const messages = [...new Set([
-      ...(site === 'twitch' && streamerChatMode ? config.text.slice(0, 2) : config.text).flatMap(selector => query(selector,roots)),
+      ...(site === 'twitch' && streamerChatMode ? config.text.slice(0, 2) : config.text).flatMap(selector => domChanges.select(scope, selector)),
       ...semanticMessages
     ])].slice(-20);
     const batch = ++translationOrder * 1000;
     for (let index = messages.length - 1; index >= 0; index--) translateNode(messages[index], false, batch + index);
     if (!isUsableComposer(activeComposer) || !activeControls?.isConnected) {
+      const composerScope = activeComposer && !activeComposer.isConnected ? undefined : scope;
       let candidate;
-      for (const selector of config.composer) {
-        candidate = query(selector,roots).find(isUsableComposer);
+      for (const selector of composerSelectors) {
+        candidate = domChanges.select(composerScope, selector).find(isUsableComposer);
         if (candidate) break;
       }
       if (candidate) installComposer(candidate);
@@ -702,12 +749,13 @@
       renderSubtitles({running: payload.running??Boolean(payload.item), items: [payload.item]});
     }
   });
-  chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess','streamerChatMode']).then(settings => {
+  chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess','streamerChatMode','captionsHidden']).then(settings => {
     streamerChatMode = settings.streamerChatMode === true;
     languageSettings={...languageSettings,...(settings.languageSettings||{})};
     globalTextEnabled=settings.websiteTextOptInEnabled === true;
     currentSiteEnabled=dedicatedSite || settings.genericSiteAccess?.[host] === true;
     applyTextAccess();
+    if (settings.captionsHidden === false) void refreshSubtitles();
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.websiteTextOptInEnabled) {globalTextEnabled=changes.websiteTextOptInEnabled.newValue === true;applyTextAccess();}
@@ -731,35 +779,33 @@
       scan();
     }
   });
-  let scheduled = false;
-  if(domWork){
-    pageObserver=domWork.observe(document,[...config.title,...config.text,...config.composer,regionSelector].join(','),scan,
-      {enabled:()=>enabled&&!contextInvalid});
-  }else{
-    pageObserver=new MutationObserver(()=>{
-      if(contextInvalid||scheduled)return;
-      scheduled=true;setTimeout(()=>{scheduled=false;scan();},250);
-    });
-    pageObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['contenteditable']});
-  }
+  pageObserver = domChanges.observe(scan, {
+    active: () => enabled && !contextInvalid && !document.hidden,
+    attributeFilter: ['contenteditable', 'disabled', 'aria-disabled', 'data-testid', 'data-a-target', 'data-test-selector', 'data-e2e', 'role', 'aria-live']
+  });
   document.addEventListener('focusin', focusedComposer, true);
+  document.addEventListener('input', event => {
+    if (activeComposer === composerFromEvent(event)) activeControls?.noteDraftEdit();
+  }, true);
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Tab' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return;
+    if (activeComposer === composerFromEvent(event)) activeControls?.translateWithTab(event);
+  }, true);
   document.addEventListener('visibilitychange', () => {
     subtitleRevision++;
     if (document.hidden || contextInvalid) return;
-    void pollSubtitles();
+    void refreshSubtitles();
     scan();
   });
   document.addEventListener('compositionstart', event => {
-    const box = event.target?.closest?.('textarea,input,[contenteditable="true"]');
+    const box = composerFromEvent(event);
     if (box) composing.add(box);
   }, true);
   document.addEventListener('compositionend', event => {
-    const box = event.target?.closest?.('textarea,input,[contenteditable="true"]');
+    const box = composerFromEvent(event);
     if (box) composing.delete(box);
   }, true);
   const reposition = () => { if (activeControls) positionComposerControls(activeComposer, activeControls); };
   window.addEventListener?.('resize', reposition, {passive: true});
   document.addEventListener('scroll', reposition, {capture: true, passive: true});
-  scan();
-  if (window.top === window) void pollSubtitles();
 })();

@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { getHunyuanMT15Variants, getLFM2Variants, isGGUFDownloaded, getGGUFDir } from '../model-downloader'
-import type { WorkerInitOptions } from '../../main/worker-pool'
+import type { WorkerInitOptions, WorkerPool } from '../../main/worker-pool'
 import { LlamaWorkerTranslator } from './LlamaWorkerTranslator'
 import type { GGUFVariantConfig } from './LlamaWorkerTranslator'
 
@@ -26,6 +26,7 @@ export class HunyuanMT15Translator extends LlamaWorkerTranslator {
     variant?: string
     kvCacheQuant?: boolean
     speculativeDecoding?: boolean
+    pool?: WorkerPool
   }) {
     super(options)
     this.speculativeDecoding = options?.speculativeDecoding ?? false

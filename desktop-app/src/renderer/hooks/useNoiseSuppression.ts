@@ -83,12 +83,8 @@ export function useNoiseSuppression(): UseNoiseSuppressionReturn {
 
     try {
       const { DeepFilterNet3Core } = await import('deepfilternet3-noise-filter')
-      // DeepFilterNet3 requires 48 kHz
-      const audioTrack = stream.getAudioTracks()[0]
-      const trackSettings = audioTrack.getSettings()
-      const sampleRate = trackSettings.sampleRate || 48000
-
-      const ctx = new AudioContext({ sampleRate })
+      // Normalize the device audio to the model's required sample rate.
+      const ctx = new AudioContext({ sampleRate: 48000 })
       audioCtxRef.current = ctx
 
       const core = new DeepFilterNet3Core({
@@ -98,8 +94,8 @@ export function useNoiseSuppression(): UseNoiseSuppressionReturn {
           cdnUrl: window.location.protocol === 'file:' ? 'vad-asset://host/deepfilter' : '/vad/deepfilter'
         }
       })
-      await core.initialize()
       coreRef.current = core
+      await core.initialize()
 
       const node = await core.createAudioWorkletNode(ctx)
       workletNodeRef.current = node

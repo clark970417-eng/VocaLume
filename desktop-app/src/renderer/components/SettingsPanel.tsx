@@ -1,5 +1,6 @@
 import { GlossarySettings } from './settings/GlossarySettings'
 import { FileTranslationSettings } from './settings/FileTranslationSettings'
+import { TextTranslation } from './settings/TextTranslation'
 import { useFileTranslation } from '../hooks/useFileTranslation'
 import { ObsCaptionSettings } from './settings/ObsCaptionSettings'
 import { t } from '../ui-language'
@@ -11,6 +12,7 @@ import { Onboarding } from './Onboarding'
 import { InterfaceLanguage } from './InterfaceLanguage'
 import { useUiLanguage } from '../ui-language'
 import { SpeechToneSettings } from './settings/SpeechToneSettings'
+import { resolveMacSpeechEngine } from '../../engine-selection'
 import {
   AudioSettings,
   LanguageSettings,
@@ -103,7 +105,7 @@ function SettingsPanel(): React.JSX.Element {
       </header>
       <SettingsNavigation selected={selectedTab} onSelect={selectTab} />
       <main className="settings-content" ref={contentRef}>
-        {disabled && <div className="settings-notice">{t("Translation is active. Stop to change languages or models; subtitle appearance can be adjusted now.")}</div>}
+        {disabled && selectedTab !== 'text' && <div className="settings-notice">{t("Translation is active. Stop to change languages or models; subtitle appearance can be adjusted now.")}</div>}
         {s.crashedSession && !s.isRunning && <CrashRecoveryBanner isStarting={s.isStarting} onResume={s.handleResume} onDismiss={s.handleDismissResume} />}
       <ModelDownloadProgress
         onSwitchToLocal={(engine) => {
@@ -179,7 +181,7 @@ function SettingsPanel(): React.JSX.Element {
             onPositionChange={(v) => { s.setSubtitlePosition(v); s.pushSubtitleSettings({ position: v }) }}
             lowPowerRendering={s.lowPowerRendering}
             onLowPowerRenderingChange={(v) => { s.setLowPowerRendering(v); s.pushSubtitleSettings({ lowPowerRendering: v }) }}
-            supportsHideOnHover={s.platform === 'win32'}
+            supportsHideOnHover={s.platform === 'win32' || s.platform === 'darwin'}
             hideOnHover={s.hideOnHover}
             onHideOnHoverChange={(v) => { s.setHideOnHover(v); s.pushSubtitleSettings({ hideOnHover: v }) }}
             showConfidenceIndicator={s.showConfidenceIndicator}
@@ -215,7 +217,7 @@ function SettingsPanel(): React.JSX.Element {
           {visited.models && <>
             <h2>{t("Models & translation quality")}</h2>
       <ConfigSummary
-        sttEngine={s.sttEngine}
+        sttEngine={s.macEngines ? resolveMacSpeechEngine(s.sourceLanguage, s.sttEngine, s.macEngines) : s.sttEngine}
         whisperVariant={s.whisperVariant}
         engineMode={s.engineMode}
         sourceLanguage={s.sourceLanguage}
@@ -229,7 +231,7 @@ function SettingsPanel(): React.JSX.Element {
             whisperVariant={s.whisperVariant}
             onWhisperVariantChange={s.setWhisperVariant}
             platform={s.platform}
-            isMacOS26={s.isMacOS26}
+            macEngines={s.macEngines}
             disabled={disabled}
             sourceLanguage={s.sourceLanguage}
             draftSttEnabled={s.draftSttEnabled}
@@ -239,7 +241,7 @@ function SettingsPanel(): React.JSX.Element {
           <TranslatorSettings
             engineMode={s.engineMode}
             onEngineModeChange={s.setEngineMode}
-            platform={s.platform}
+            appleTranslateAvailable={Boolean(s.macEngines?.appleTranslate)}
             disabled={disabled}
             gpuInfo={s.gpuInfo}
             slmKvCacheQuant={s.slmKvCacheQuant}
@@ -292,6 +294,7 @@ function SettingsPanel(): React.JSX.Element {
           <SpeakerSettings
             speakerDiarizationEnabled={s.speakerDiarizationEnabled}
             onSpeakerDiarizationEnabledChange={s.setSpeakerDiarizationEnabled}
+            available={s.platform === 'win32' || Boolean(s.macEngines?.speakerIdentification)}
             platform={s.platform}
             disabled={disabled}
           />
@@ -334,8 +337,11 @@ function SettingsPanel(): React.JSX.Element {
             <details className="settings-disclosure"><summary>{t("Organization & privacy")}</summary><EnterpriseSettings disabled={disabled} /></details>
           </>}
         </section>
+        <section id="settings-panel-text" role="tabpanel" aria-labelledby="settings-tab-text" tabIndex={0} hidden={selectedTab !== 'text'}>
+          {visited.text && <TextTranslation />}
+        </section>
       </main>
-      <footer className="settings-footer">
+      <footer className="settings-footer" hidden={selectedTab === 'text' && !disabled}>
         <div className="settings-footer-actions">
           <div>
             <button type="button" className="settings-save" onClick={s.handleSaveSettings} disabled={s.isStarting}>{t("Save settings")}</button>

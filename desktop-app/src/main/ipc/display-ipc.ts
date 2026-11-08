@@ -3,6 +3,7 @@ import type { AppContext } from '../app-context'
 import { store } from '../store'
 import { getSavedSubtitleBounds, getSubtitleBounds, raiseSubtitleWindow } from '../window-manager'
 import { createLogger } from '../logger'
+import { isSubtitleHoverRegion, setSubtitleHoverRegion } from '../subtitle-hover'
 
 const log = createLogger('ipc:display')
 
@@ -138,6 +139,14 @@ export function resetSubtitlePosition(ctx: AppContext): void {
 
 /** Register display and subtitle window IPC handlers */
 export function registerDisplayIpc(ctx: AppContext): void {
+  ipcMain.on('subtitle-hover-region', (event, region: unknown) => {
+    const window = ctx.subtitleWindow
+    if (window && event.sender === window.webContents &&
+        (region === null || isSubtitleHoverRegion(region))) {
+      setSubtitleHoverRegion(window, region)
+    }
+  })
+
   ipcMain.handle('get-displays', () => {
     const primary = screen.getPrimaryDisplay()
     return screen.getAllDisplays().map((d, i) => ({

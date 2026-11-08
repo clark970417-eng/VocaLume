@@ -4,7 +4,6 @@ const { randomUUID } = require('node:crypto');
 const { dirname, join, resolve } = require('node:path');
 const { homedir } = require('node:os');
 
-const hostName = 'org.jtl.companion';
 const validOrigin = /^chrome-extension:\/\/[a-p]{32}\/$/;
 const defaultExecutable = 'VocaLume.app/Contents/MacOS/VocaLume';
 const quote = value => "'" + value.replace(/'/g, "'\\''") + "'";
@@ -40,20 +39,28 @@ function installMac({ extensionId, app = process.execPath, home = homedir() }) {
     'if [ ! -x "$executable" ]; then executable="$HOME/Applications/' + defaultExecutable + '"; fi',
     'if [ ! -x "$executable" ]; then executable="/Applications/' + defaultExecutable + '"; fi',
     'if [ ! -x "$executable" ]; then echo "Open the installed VocaLume App, then reload the extension." >&2; exit 1; fi',
+    'if [ "$1" = --ui-language ]; then exec /usr/bin/env ELECTRON_RUN_AS_NODE=1 "$executable" "$support/native-host.cjs" --ui-language; fi',
     'exec /usr/bin/env ELECTRON_RUN_AS_NODE=1 "$executable" "$support/native-host.cjs"',
     ''
   ].join('\n'), 0o700);
+  const languageLauncher = join(support, 'launch-native-language');
+  writeConfig(languageLauncher, '#!/bin/sh\nexec ' + quote(launcher) + ' --ui-language\n', 0o700);
   const origin = `chrome-extension://${extensionId}/`;
   for (const browser of browsers) {
     const folder = join(applicationSupport, browser, 'NativeMessagingHosts');
-    const file = join(folder, hostName + '.json');
     mkdirSync(folder, { recursive: true });
-    let previous;
-    try { previous = JSON.parse(readFileSync(file, 'utf8')).allowed_origins; }
-    catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
-    const allowedOrigins = new Set([origin, ...(Array.isArray(previous) ? previous.filter(value => typeof value === 'string' && validOrigin.test(value)) : [])]);
-    const manifest = { name: hostName, description: 'VocaLume local desktop connection', path: launcher, type: 'stdio', allowed_origins: [...allowedOrigins].sort() };
-    writeConfig(file, JSON.stringify(manifest, null, 2) + '\n');
+    for (const [name, description, path] of [
+      ['org.jtl.companion', 'VocaLume local desktop connection', launcher],
+      ['org.jtl.ui_language', 'VocaLume interface language', languageLauncher]
+    ]) {
+      const file = join(folder, name + '.json');
+      let previous;
+      try { previous = JSON.parse(readFileSync(file, 'utf8')).allowed_origins; }
+      catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
+      const allowedOrigins = new Set([origin, ...(Array.isArray(previous) ? previous.filter(value => typeof value === 'string' && validOrigin.test(value)) : [])]);
+      const manifest = { name, description, path, type: 'stdio', allowed_origins: [...allowedOrigins].sort() };
+      writeConfig(file, JSON.stringify(manifest, null, 2) + '\n');
+    }
   }
   return launcher;
 }

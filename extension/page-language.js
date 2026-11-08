@@ -1,5 +1,6 @@
 (() => {
   const key = 'vocalume.uiLanguage';
+  const regionKey = 'vocalume.uiRegionLocale';
   const locales = ['zh-TW', 'zh-CN', 'en', 'ja', 'ko'];
   const messages = {
     '翻譯中…': ['翻译中…', 'Translating…', '翻訳中…', '번역 중…'],
@@ -17,6 +18,7 @@
     '已放入譯文，確認後自行送出': ['已插入译文，请确认后发送', 'Translation inserted. Review it before sending.', '翻訳を挿入しました。確認してから送信してください。', '번역을 넣었습니다. 확인한 뒤 보내세요.'],
     '留言框未接受譯文；請複製下方草稿後貼入。': ['留言框未接受译文，请复制下方草稿后粘贴。', 'Copy the draft below and paste it into the reply field.', '下の下書きをコピーして返信欄に貼り付けてください。', '아래 초안을 복사해 답장 입력란에 붙여 넣으세요.'],
     '請複製上方草稿後貼入留言框。': ['请复制上方草稿后粘贴到留言框。', 'Copy the draft above and paste it into the reply field.', '上の下書きをコピーして返信欄に貼り付けてください。', '위 초안을 복사해 답장 입력란에 붙여 넣으세요.'],
+    '網站未接受這次修改。請複製上方譯文，手動貼上再送出。': ['网站未接受这次修改。请复制上方译文，手动粘贴后再发送。', 'The site did not accept the edit. Copy the translation above and paste it before sending.', 'サイトに変更が反映されませんでした。上の翻訳をコピーし、貼り付けてから送信してください。', '사이트에 수정이 반영되지 않았습니다. 위 번역을 복사해 붙여 넣은 뒤 전송하세요.'],
     '可以修改草稿，再放入留言框。': ['可以修改草稿，再放入留言框。', 'Edit the draft before inserting it.', '下書きを編集してから返信欄に挿入できます。', '초안을 수정한 뒤 답장 입력란에 넣을 수 있습니다.'],
     '翻譯失敗，請再試一次。': ['翻译失败，请重试。', 'Translation failed. Try again.', '翻訳に失敗しました。再試行してください。', '번역에 실패했습니다. 다시 시도하세요.'],
     '擴充功能已重新載入。請先保留未送出的留言，再重新整理此頁恢復翻譯。': ['扩展程序已重新加载。请先保存未发送的留言，再刷新此页。', 'The extension reloaded. Save your draft, then refresh this page.', '拡張機能が再読み込みされました。下書きを保存し、ページを更新してください。', '확장 프로그램이 다시 로드되었습니다. 초안을 보관한 뒤 페이지를 새로고침하세요.'],
@@ -42,6 +44,7 @@
 
   function resolve(preference) {
     if (locales.includes(preference)) return preference;
+    if (locales.includes(region?.locale)) return region.locale;
     for (const language of navigator.languages?.length ? navigator.languages : [navigator.language]) {
       if (/^zh(?:-|$)/i.test(language)) return /^zh-(?:CN|SG|Hans)(?:-|$)/i.test(language) ? 'zh-CN' : 'zh-TW';
       const base = String(language).toLowerCase().split('-')[0];
@@ -51,7 +54,8 @@
   }
 
   const bound = new WeakMap();
-  let preference, revision = 0;
+  const changed = new Set();
+  let preference, region;
   const locale = () => resolve(preference);
   const text = value => messages[value]?.[locales.indexOf(locale()) - 1] ?? value;
   function label(code, zh) {
@@ -85,14 +89,29 @@
       for (const [property, {read}] of bound.get(element) ?? []) render(element, property, read);
     }
   }
+  function refreshRegion() {
+    if (!locales.includes(preference) && window.top === window) {
+      chrome.runtime?.sendMessage({type: 'ui-language-region'}).catch(() => {});
+    }
+  }
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local' || !Object.hasOwn(changes, key)) return;
-    revision++;
-    preference = changes[key].newValue;
+    if (area !== 'local' || (!changes[key] && !changes[regionKey])) return;
+    if (changes[key]) {
+      changed.add(key);
+      preference = changes[key].newValue;
+      refreshRegion();
+    }
+    if (changes[regionKey]) {
+      changed.add(regionKey);
+      region = changes[regionKey].newValue;
+    }
     refresh();
   });
-  chrome.storage.local.get(key).then(settings => {
-    if (!revision) { preference = settings[key]; refresh(); }
+  chrome.storage.local.get([key, regionKey]).then(settings => {
+    if (!changed.has(key)) preference = settings[key];
+    if (!changed.has(regionKey)) region = settings[regionKey];
+    refresh();
+    refreshRegion();
   }).catch(() => {});
   window.addEventListener('languagechange', refresh);
   globalThis.VocaLumePageLanguage = {text, label, bind};

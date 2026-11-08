@@ -7,6 +7,15 @@ vi.mock('../../ui-language', () => ({ t: (message: string) => message }))
 
 type Settings = Parameters<typeof STTSettings>[0]
 
+const availableMacEngines = {
+  appleSilicon: true,
+  haasJa: false,
+  qwenAsr: false,
+  appleSpeech: true,
+  appleTranslate: false,
+  speakerIdentification: true
+}
+
 function renderSettings(overrides: Partial<Settings>): string {
   return renderToStaticMarkup(createElement(STTSettings, {
     sttEngine: 'whisper-local',
@@ -14,7 +23,7 @@ function renderSettings(overrides: Partial<Settings>): string {
     whisperVariant: 'base',
     onWhisperVariantChange: vi.fn(),
     platform: '',
-    isMacOS26: false,
+    macEngines: null,
     disabled: false,
     sourceLanguage: 'auto',
     draftSttEnabled: false,
@@ -25,7 +34,7 @@ function renderSettings(overrides: Partial<Settings>): string {
 
 it.each(['', 'win32'])('hides Apple-only options and stale engine instructions on %j', (platform) => {
   for (const sttEngine of ['apple-speech-transcriber', 'mlx-whisper', 'kotoba-whisper', 'qwen3-asr'] as const) {
-    const html = renderSettings({ platform, sttEngine, isMacOS26: true })
+    const html = renderSettings({ platform, sttEngine })
     expect(html).not.toMatch(/Apple Speech|mlx-whisper|Kotoba-Whisper|Qwen3-ASR|speech-swift|apple-stt/)
     expect(html).toContain('Whisper (whisper.cpp)')
     expect(html).toContain('Fast interim results (Moonshine Tiny JA)')
@@ -33,7 +42,7 @@ it.each(['', 'win32'])('hides Apple-only options and stale engine instructions o
 })
 
 it('retains macOS speech settings and the Windows Japanese recognition options', () => {
-  const mac = renderSettings({ platform: 'darwin', sttEngine: 'apple-speech-transcriber', isMacOS26: true })
+  const mac = renderSettings({ platform: 'darwin', sttEngine: 'apple-speech-transcriber', macEngines: availableMacEngines })
   expect(mac).toContain('Apple Speech (Zero Setup, macOS 26+)')
   expect(mac).toContain('Apple SpeechTranscriber: zero model management')
   const windows = renderSettings({ platform: 'win32', sourceLanguage: 'ja' })

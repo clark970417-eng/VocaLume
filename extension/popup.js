@@ -15,10 +15,10 @@ const languageOptions = [
 const languageLabel = value => languageOptions.find(([code]) => code === value)?.[1] || value;
 const languageDefaults = {readSource: 'ja', readTarget: 'zh', typeSource: 'zh', typeTarget: 'ja', speechSource: 'ja', speechTarget: 'zh', syncTextLanguages: true};
 const languageIds = Object.keys(languageDefaults);
-const defaults = {japaneseColor: '#ffffff', chineseColor: '#ffffff', fontSize: 22, showOutline: true, outlineColor: '#000000', outlineWidth: 1, captionOpacity: 100, backgroundColor: '#000000', backgroundOpacity: 60, position: 6, holdSeconds: 3, captionMode: 'realtime', speechToneMode: 'off', hideOnHover: false};
+const defaults = {japaneseColor: '#ffffff', chineseColor: '#ffffff', fontSize: 22, showOutline: true, outlineColor: '#000000', outlineWidth: 1, captionOpacity: 100, backgroundColor: '#000000', backgroundOpacity: 60, position: 6, hideOnHover: false, holdSeconds: 3, captionMode: 'realtime', speechToneMode: 'off'};
 const controls = Object.keys(defaults);
 const appearanceControls = ['japaneseColor', 'chineseColor', 'fontSize', 'showOutline', 'outlineColor', 'outlineWidth', 'captionOpacity', 'backgroundColor', 'backgroundOpacity', 'position', 'hideOnHover'];
-const booleanControls = ['showOutline', 'hideOnHover'];
+const checkControls = new Set(['showOutline', 'hideOnHover']);
 const numericControls = ['fontSize', 'outlineWidth', 'position', 'holdSeconds', 'backgroundOpacity', 'captionOpacity'];
 const dedicatedHosts = ['youtube.com', 'x.com', 'twitter.com', 'bilibili.com', 'tiktok.com', 'twitch.tv', 'facebook.com', 'instagram.com', 'discord.com', 'discordapp.com'];
 const isDedicatedHost = host => dedicatedHosts.some(domain => host === domain || host.endsWith('.' + domain));
@@ -177,7 +177,7 @@ listen('#currentSiteTranslation', 'change', async () => {
 });
 
 function subtitleValues() {
-  return Object.fromEntries(controls.map(id => [id, booleanControls.includes(id) ? $('#' + id).checked : numericControls.includes(id) ? Number($('#' + id).value) : $('#' + id).value]));
+  return Object.fromEntries(controls.map(id => [id, checkControls.has(id) ? $('#' + id).checked : numericControls.includes(id) ? Number($('#' + id).value) : $('#' + id).value]));
 }
 function paintLabels() {
   const value = subtitleValues();
@@ -203,7 +203,7 @@ async function saveSettings() {
 for (const id of controls) listen('#' + id, 'input', saveSettings);
 listen('#reset', 'click', async () => {
   for (const id of appearanceControls) {
-    if (booleanControls.includes(id)) $('#' + id).checked = defaults[id];
+    if (checkControls.has(id)) $('#' + id).checked = defaults[id];
     else $('#' + id).value = defaults[id];
   }
   await saveSettings();
@@ -392,7 +392,7 @@ async function initialize() {
   }
   const subtitles = {...defaults, ...subtitleSettings};
   for (const id of controls) {
-    if (booleanControls.includes(id)) $('#' + id).checked = subtitles[id] === true;
+    if (checkControls.has(id)) $('#' + id).checked = subtitles[id] === true;
     else $('#' + id).value = subtitles[id];
   }
   paintLabels();

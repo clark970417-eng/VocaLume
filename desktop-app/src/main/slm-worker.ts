@@ -27,11 +27,33 @@ import { formatGlossaryPrompt, selectApplicableGlossary } from '../engines/trans
 import { buildJaZhFidelityGuidance, finishJaZhTranslation } from '../engines/translator/ja-zh-fidelity'
 import { applyTaiwanLivestreamTerminology, normalizeTaiwanChinese } from '../../../extension/taiwan-chinese.mjs'
 import { finishZhJaTranslation } from '../engines/translator/zh-ja-fidelity'
-import { createLogger } from './logger'
+import { createLogger, getLogLevel } from './logger'
 import { resetTranslationHistory, translationContextForModel } from './translation-session'
-import { lowerInferencePriority, windowsInferenceThreads, windowsVramPadding } from '../engines/inference-resources'
+import { lowerInferencePriority, macInferenceThreads, windowsInferenceThreads, windowsVramPadding } from '../engines/inference-resources'
 
 const log = createLogger('slm-worker')
+const inferenceStats = new Map<string, { count: number; total: number; inference: number; max: number }>()
+
+function flushInferenceTiming(): void {
+  if (inferenceStats.size === 0) return
+  const summary = [...inferenceStats].map(([kind, { count, total, inference, max }]) =>
+    `${kind} n=${count} avg=${Math.round(total / count)}ms inference=${Math.round(inference / count)}ms max=${Math.round(max)}ms`)
+  log.info('Inference timing:', summary.join(' | '))
+  inferenceStats.clear()
+}
+
+function recordInferenceTiming(kind: string, total: number, inference: number): void {
+  let stats = inferenceStats.get(kind)
+  if (!stats) {
+    stats = { count: 0, total: 0, inference: 0, max: 0 }
+    inferenceStats.set(kind, stats)
+  }
+  stats.count++
+  stats.total += total
+  stats.inference += inference
+  stats.max = Math.max(stats.max, total)
+  if (stats.count >= 50) flushInferenceTiming()
+}
 
 type ModelType = 'translategemma' | 'hunyuan-mt' | 'hunyuan-mt-15' | 'hunyuan-mt-2' | 'lfm2' | 'plamo'
 
@@ -143,17 +165,21 @@ async function handleInit(
   const windows = process.platform === 'win32'
   // The native loader can fail on Windows model paths through a junction.
   const resolvedModelPath = windows ? await realpath(modelPath) : modelPath
-  const threads = windowsInferenceThreads().llama
+  const threads = windows ? windowsInferenceThreads().llama :
+    process.platform === 'darwin' ? macInferenceThreads().llama : undefined
   if (windows) log.info(`Windows inference budget: ${threads} CPU threads; background priority=${lowerInferencePriority()}`)
+  if (process.platform === 'darwin') log.info(`macOS inference budget: ${threads} CPU threads`)
   log.info('Getting llama instance...')
-  const windowsOptions = windows ? {
-    maxThreads: threads, vramPadding: windowsVramPadding, build: 'never' as const, skipDownload: true
-  } : {}
-
-  const contextOptions: Record<string, unknown> = {
-    contextSize: TRANSLATION_CONTEXT_SIZE,
-    ...(windows ? { threads } : {})
+  const options = {
+    ...(threads !== undefined ? { maxThreads: threads } : {}),
+    ...(windows ? { vramPadding: windowsVramPadding, build: 'never' as const, skipDownload: true } : {})
   }
+
+  const baseContextOptions = {
+    contextSize: TRANSLATION_CONTEXT_SIZE,
+    ...(threads !== undefined ? { threads } : {})
+  }
+  const contextOptions: Record<string, unknown> = { ...baseContextOptions }
   if (kvCacheQuant) {
     // Quantized V-cache requires flash attention; retain the fallback below.
     contextOptions.flashAttention = true
@@ -161,7 +187,7 @@ async function handleInit(
     contextOptions.experimentalKvCacheValueType = 'Q8_0'
   }
   async function loadContext(gpu: 'auto' | false) {
-    let backend = llama = await getLlama({ gpu, ...windowsOptions })
+    let backend = llama = await getLlama({ gpu, ...options })
     if (windows && backend.gpu === 'vulkan') {
       const devices = await backend.getGpuDeviceNames()
       // Legacy Intel integrated GPUs can report shared VRAM that the Vulkan
@@ -169,7 +195,7 @@ async function handleInit(
       if (devices.length > 0 && devices.every(device => /Intel.*(?:UHD|HD) Graphics/i.test(device))) {
         log.info('Using CPU inference for legacy Intel integrated graphics')
         await backend.dispose()
-        backend = llama = await getLlama({ gpu: false, ...windowsOptions })
+        backend = llama = await getLlama({ gpu: false, ...options })
       }
     }
     log.info('Loading model:', resolvedModelPath)
@@ -180,7 +206,7 @@ async function handleInit(
     } catch (error) {
       if (!kvCacheQuant) throw error
       log.warn('Retrying without KV cache quantization:', error)
-      context = await loaded.createContext({ contextSize: TRANSLATION_CONTEXT_SIZE, ...(windows ? { threads } : {}) })
+      context = await loaded.createContext(baseContextOptions)
     }
     return backend
   }
@@ -201,7 +227,8 @@ async function handleInit(
   if (draftModelPath) {
     try {
       draftModel = await backend.loadModel({ modelPath: windows ? await realpath(draftModelPath) : draftModelPath })
-      const draftContextOptions: Record<string, unknown> = windows ? { contextSize: TRANSLATION_CONTEXT_SIZE, threads } : {}
+      const draftContextOptions: Record<string, unknown> = windows ? { ...baseContextOptions } :
+        threads !== undefined ? { threads } : {}
       if (kvCacheQuant) {
         draftContextOptions.flashAttention = true
         draftContextOptions.experimentalKvCacheKeyType = 'Q8_0'
@@ -472,7 +499,7 @@ async function runInference(
     if (speculativeEnabled && prefixCacheSequence?.tokenPredictions) {
       const stats = prefixCacheSequence.tokenPredictions
       const label = previousOutput !== undefined ? 'Incremental speculative' : 'Speculative'
-      log.info(`${label} stats — validated: ${stats.validated}, refuted: ${stats.refuted}`)
+      log.debug(`${label} stats — validated: ${stats.validated}, refuted: ${stats.refuted}`)
     }
 
     return { response: response.trim(), inferenceMs, contextMs }
@@ -518,7 +545,7 @@ async function handleTranslate(
   }
 
   try {
-    const memBefore = process.memoryUsage()
+    const memBefore = getLogLevel() === 'debug' ? process.memoryUsage() : undefined
     const t0 = performance.now()
     const prompt = buildTranslationPrompt(text, from, to, translateContext)
     const promptMs = performance.now() - t0
@@ -527,16 +554,10 @@ async function handleTranslate(
     const inference = await runInference(prompt, undefined, systemPrompt, text.length)
     const { inferenceMs, contextMs } = inference
     const response = finishTranslationResult(text, from, to, inference.response)
-    const memAfter = process.memoryUsage()
     const totalMs = performance.now() - t0
 
-    log.info(
-      `Profile: total=${totalMs.toFixed(0)}ms prompt=${promptMs.toFixed(0)}ms ` +
-      `ctx=${contextMs.toFixed(0)}ms inference=${inferenceMs.toFixed(0)}ms ` +
-      `inputLen=${text.length} outputLen=${response.length} ` +
-      `rss=${(memAfter.rss / 1048576).toFixed(0)}MB ` +
-      `heapDelta=${((memAfter.heapUsed - memBefore.heapUsed) / 1048576).toFixed(1)}MB`
-    )
+    recordInferenceTiming('translate', totalMs, inferenceMs)
+    if (memBefore) logDetailedProfile('Profile', totalMs, promptMs, contextMs, inferenceMs, text.length, response.length, memBefore)
 
     process.parentPort!.postMessage({
       type: 'result',
@@ -550,6 +571,18 @@ async function handleTranslate(
       message: err instanceof Error ? err.message : String(err)
     })
   }
+}
+
+function logDetailedProfile(label: string, totalMs: number, promptMs: number, contextMs: number,
+  inferenceMs: number, inputLen: number, outputLen: number, memBefore: NodeJS.MemoryUsage): void {
+  const memAfter = process.memoryUsage()
+  log.debug(
+      `${label}: total=${totalMs.toFixed(0)}ms prompt=${promptMs.toFixed(0)}ms ` +
+      `ctx=${contextMs.toFixed(0)}ms inference=${inferenceMs.toFixed(0)}ms ` +
+      `inputLen=${inputLen} outputLen=${outputLen} ` +
+      `rss=${(memAfter.rss / 1048576).toFixed(0)}MB ` +
+      `heapDelta=${((memAfter.heapUsed - memBefore.heapUsed) / 1048576).toFixed(1)}MB`
+  )
 }
 
 async function handleTranslateIncremental(
@@ -570,7 +603,7 @@ async function handleTranslateIncremental(
   }
 
   try {
-    const memBefore = process.memoryUsage()
+    const memBefore = getLogLevel() === 'debug' ? process.memoryUsage() : undefined
     const t0 = performance.now()
     const prompt = buildTranslationPrompt(text, from, to, translateContext)
     const promptMs = performance.now() - t0
@@ -578,16 +611,10 @@ async function handleTranslateIncremental(
     const inference = await runInference(prompt, previousOutput, systemPrompt, text.length)
     const { inferenceMs, contextMs } = inference
     const response = finishTranslationResult(text, from, to, inference.response)
-    const memAfter = process.memoryUsage()
     const totalMs = performance.now() - t0
 
-    log.info(
-      `Profile(incr): total=${totalMs.toFixed(0)}ms prompt=${promptMs.toFixed(0)}ms ` +
-      `ctx=${contextMs.toFixed(0)}ms inference=${inferenceMs.toFixed(0)}ms ` +
-      `inputLen=${text.length} outputLen=${response.length} ` +
-      `rss=${(memAfter.rss / 1048576).toFixed(0)}MB ` +
-      `heapDelta=${((memAfter.heapUsed - memBefore.heapUsed) / 1048576).toFixed(1)}MB`
-    )
+    recordInferenceTiming('incremental', totalMs, inferenceMs)
+    if (memBefore) logDetailedProfile('Profile(incr)', totalMs, promptMs, contextMs, inferenceMs, text.length, response.length, memBefore)
 
     process.parentPort!.postMessage({
       type: 'result',
@@ -631,7 +658,7 @@ async function handleTranslateSSBD(
   }
 
   try {
-    const memBefore = process.memoryUsage()
+    const memBefore = getLogLevel() === 'debug' ? process.memoryUsage() : undefined
     const t0 = performance.now()
     const prompt = buildTranslationPrompt(text, from, to, translateContext)
     const promptMs = performance.now() - t0
@@ -640,7 +667,8 @@ async function handleTranslateSSBD(
     // The persistent prefix cache may own the only available sequence. Avoid
     // throwing on every streaming update when speculative decoding is unavailable.
     if (context.sequencesLeft === 0) {
-      const { response } = await runInference(prompt, undefined, systemPrompt, text.length)
+      const { response, inferenceMs, contextMs } = await runInference(prompt, undefined, systemPrompt, text.length)
+      logSSBDProfile(performance.now() - t0, promptMs, contextMs, inferenceMs, text.length, response.length, 0, 0, memBefore)
       process.parentPort!.postMessage({ type: 'result', id, text: finishTranslationResult(text, from, to, response) })
       return
     }
@@ -652,7 +680,7 @@ async function handleTranslateSSBD(
       // No tokens to speculate with, fall back to regular translation
       const { response, inferenceMs, contextMs } = await runInference(prompt, undefined, systemPrompt, text.length)
       const totalMs = performance.now() - t0
-      logSSBDProfile(totalMs, promptMs, 0, inferenceMs, text.length, response.length, 0, 0, memBefore)
+      logSSBDProfile(totalMs, promptMs, contextMs, inferenceMs, text.length, response.length, 0, 0, memBefore)
       process.parentPort!.postMessage({ type: 'result', id, text: finishTranslationResult(text, from, to, response) })
       return
     }
@@ -688,7 +716,6 @@ async function handleTranslateSSBD(
       const validated = stats?.validated ?? 0
       const refuted = stats?.refuted ?? 0
 
-      const memAfter = process.memoryUsage()
       const totalMs = performance.now() - t0
 
       logSSBDProfile(totalMs, promptMs, 0, inferenceMs, text.length, response.trim().length, validated, refuted, memBefore)
@@ -735,13 +762,15 @@ function logSSBDProfile(
   outputLen: number,
   validated: number,
   refuted: number,
-  memBefore: NodeJS.MemoryUsage
+  memBefore?: NodeJS.MemoryUsage
 ): void {
+  recordInferenceTiming('ssbd', totalMs, inferenceMs)
+  if (!memBefore) return
   const memAfter = process.memoryUsage()
   const acceptRate = validated + refuted > 0
     ? ((validated / (validated + refuted)) * 100).toFixed(0)
     : 'N/A'
-  log.info(
+  log.debug(
     `Profile(ssbd): total=${totalMs.toFixed(0)}ms prompt=${promptMs.toFixed(0)}ms ` +
     `ctx=${contextMs.toFixed(0)}ms inference=${inferenceMs.toFixed(0)}ms ` +
     `inputLen=${inputLen} outputLen=${outputLen} ` +
@@ -881,7 +910,7 @@ async function handleTranslateSimulMt(
         contextSequence: simulMtSequence,
         systemPrompt
       })
-      log.info(`SimulMT session created for ${langPair}`)
+      log.debug(`SimulMT session created for ${langPair}`)
     }
 
     const contextSection = buildContextPrompt(text, translationContextForModel(translateContext, activeModelType))
@@ -897,7 +926,8 @@ async function handleTranslateSimulMt(
     const totalMs = performance.now() - t0
 
     const label = isRevision ? 'SimulMT(rev)' : 'SimulMT(incr)'
-    log.info(
+    recordInferenceTiming(label, totalMs, inferenceMs)
+    log.debug(
       `${label}: total=${totalMs.toFixed(0)}ms inference=${inferenceMs.toFixed(0)}ms ` +
       `inputLen=${text.length} outputLen=${response.length}`
     )
@@ -930,7 +960,7 @@ function handleSimulMtReset(): void {
     simulMtSession.dispose?.()
     simulMtSession = null
     simulMtSequence = null
-    log.info('SimulMT session reset')
+    log.debug('SimulMT session reset')
   }
 }
 
@@ -1022,7 +1052,8 @@ async function handleGERCorrect(
     const { response, inferenceMs } = await runInference(prompt)
     const totalMs = performance.now() - t0
 
-    log.info(
+    recordInferenceTiming('GER', totalMs, inferenceMs)
+    log.debug(
       `GER: total=${totalMs.toFixed(0)}ms inference=${inferenceMs.toFixed(0)}ms ` +
       `inputLen=${text.length} outputLen=${response.length}`
     )
@@ -1043,6 +1074,7 @@ async function handleGERCorrect(
 
 async function handleDispose(): Promise<void> {
   try {
+    flushInferenceTiming()
     // Clean up prefix cache session
     if (prefixCacheSession) {
       prefixCacheSequence?.dispose?.()

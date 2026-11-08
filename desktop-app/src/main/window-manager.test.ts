@@ -1,9 +1,9 @@
 import { EventEmitter } from 'events'
 import { beforeEach, expect, it, vi } from 'vitest'
-const state = vi.hoisted(() => ({ options: [] as Array<Record<string, unknown>> }))
+const state = vi.hoisted(() => ({ options: [] as Array<Record<string, unknown>>, obs: false, obsOnly: false }))
 vi.mock('electron', () => ({
   BrowserWindow: class extends EventEmitter {
-    webContents = new EventEmitter()
+    webContents = { send: vi.fn() }
     show = vi.fn(); focus = vi.fn(); hide = vi.fn()
     isDestroyed = () => false
     isFocused = vi.fn(() => false)
@@ -12,16 +12,18 @@ vi.mock('electron', () => ({
     moveTop = vi.fn()
     loadURL = vi.fn(); loadFile = vi.fn(); setIgnoreMouseEvents = vi.fn(); setAlwaysOnTop = vi.fn()
     close() { this.emit('closed') }
+    destroy() { this.close() }
     constructor(options: Record<string, unknown>) { super(); state.options.push(options) }
   },
   screen: { getAllDisplays: () => [{ id: 1, bounds: { x: 0, y: 0, width: 1000, height: 800 } }], getPrimaryDisplay: () => ({ id: 1 }) }
 }))
 vi.mock('@electron-toolkit/utils', () => ({ is: { dev: false } }))
 vi.mock('./ui-test-mode', () => ({ isUiTest: false }))
-vi.mock('./store', () => ({ store: { get: () => undefined } }))
-import { ensureDesktopWindows, getSubtitleBounds, raiseSubtitleWindow } from './window-manager'
+vi.mock('./store', () => ({ store: { get: (key: string) => key === 'obsHideDesktopOverlay' ? state.obsOnly : undefined } }))
+vi.mock('./obs-captions', () => ({ obsCaptionStatus: () => ({ mode: state.obs ? 'bilingual' : 'off' }) }))
+import { ensureDesktopWindows, getSubtitleBounds, raiseSubtitleWindow, syncDesktopSubtitleWindow } from './window-manager'
 import { createAppContext } from './app-context'
-beforeEach(() => { state.options.length = 0; vi.clearAllMocks() })
+beforeEach(() => { state.options.length = 0; state.obs = false; state.obsOnly = false; vi.clearAllMocks() })
 
 it('clamps saved caption positions above the taskbar and within a moved monitor', () => {
   const display = { bounds: { x: 0, y: 0, width: 1536, height: 864 }, workArea: { x: 0, y: 0, width: 1536, height: 824 }, scaleFactor: 1.25 } as Electron.Display
@@ -67,4 +69,25 @@ it.skipIf(process.platform !== 'win32')('keeps focused controls clickable when a
   vi.mocked(controls.isAlwaysOnTop).mockReturnValue(true)
   controls.emit('blur')
   expect(controls.setAlwaysOnTop).toHaveBeenLastCalledWith(false)
+})
+
+it('releases the desktop overlay during OBS-only output and restores it when OBS stops', () => {
+  const ctx = createAppContext()
+  state.obs = true
+  state.obsOnly = true
+  ensureDesktopWindows(ctx)
+  expect(state.options).toHaveLength(1)
+  expect(ctx.subtitleWindow).toBeNull()
+
+  state.obs = false
+  syncDesktopSubtitleWindow(ctx)
+  expect(ctx.subtitleWindow).not.toBeNull()
+  state.obs = true
+  syncDesktopSubtitleWindow(ctx)
+  expect(ctx.subtitleWindow).toBeNull()
+  expect(ctx.mainWindow).not.toBeNull()
+
+  state.obsOnly = false
+  syncDesktopSubtitleWindow(ctx)
+  expect(ctx.subtitleWindow).not.toBeNull()
 })

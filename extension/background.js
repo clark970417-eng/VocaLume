@@ -1,6 +1,10 @@
 import {selectedApi,apiProfile,apiCacheScope,requestApi,RetryableTranslationError,retryTranslationRequest,translationHttpError} from './cloud-api.mjs';
 import {RecordingQueue} from './recording-queue.mjs';
 import {NativeClient} from './native-client.mjs';
+import {UI_LANGUAGE_KEY,UI_REGION_LOCALE_KEY,lookupRegionalUiLanguage,uiLanguagePreference} from './ui-language.mjs';
+import {createUiLanguageSync} from './ui-language-sync.mjs';
+import {WEBSITE_ORIGIN} from './website-language.mjs';
+let uiLanguageSync;
 let desktopClient;
 let nativeRequests=0,nativeIdleTimer=null,offscreenIdleTimer=null,offscreenClosing=null;
 const desktop={request:async(...args)=>{
@@ -15,6 +19,7 @@ let engineMode='browser';
 let captureRole=null, coordinatedCapture=false, sharedTimestamp=0;
 const sharedRevisions=new Map();
 let pendingSharedEvents=[];
+let desktopPerformance;
 import {ResultGate} from './stream-core.mjs';
 import {CueCursor} from './cue-cursor.mjs';
 import {NativeCueTimeline} from './youtube-cue.mjs';
@@ -338,6 +343,12 @@ async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),
 const translationCache=new Map();
 function desktopEvent(event){
  if(event.event==='shared-caption'||event.event==='shared-ended'){sharedEvent(event);return;}
+ if(event.event==='performance'){
+  if(captureRole!=='desktop'&&captureRole!=='negotiating'||typeof event.result?.previewsPaused!=='boolean')return;
+  desktopPerformance=event.result;
+  if(running)chrome.runtime.sendMessage({type:'offscreen-performance',session:gate.session,performance:desktopPerformance}).catch(()=>{});
+  return;
+ }
  if(!['caption','source'].includes(event.event))return;
  const meta=desktopSegments.get(event.segment);if(!meta||((meta.session!==gate.session||!running)&&meta.mode!=='record'))return;
  if(meta.session===gate.session && nativeCues.covers(meta.createdAt,meta.audioEndAt)){
@@ -622,7 +633,7 @@ async function browserCaptureClaim(fields){
 }
 async function startCapture(tabId){
  if(!Number.isInteger(tabId))throw new Error('請先選擇影片分頁');
- await stopCapture();const prefs=(await settings()).subtitleSettings;setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record'){await initRecording();recording.beginSession(gate.session);}captureTabId=tabId;diagnostics={};deliverySamples={};lastError='';
+ await stopCapture();const prefs=(await settings()).subtitleSettings;setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record'){await initRecording();recording.beginSession(gate.session);}captureTabId=tabId;diagnostics={};deliverySamples={};desktopPerformance=undefined;lastError='';
  const configured=await settings(),langs={...languageDefaults,...(configured.languageSettings||{})};speechFrom=langs.speechSource;speechTo=langs.speechTarget;parseDirection(pair(speechFrom,speechTo));engineMode=configured.speechMode==='desktop'?'desktop':'browser';
  try{
  captureRole='negotiating';
@@ -631,6 +642,7 @@ async function startCapture(tabId){
  if(engineMode==='desktop'){
   modelStatus='正在載入桌面模型，首次可能需要下載…';
   selected=await negotiateCapture('init',{...fields,speechToneMode:['off','natural','ww','笑','草'].includes(prefs?.speechToneMode)?prefs.speechToneMode:'off'},600000);
+  desktopPerformance=selected?.performance??desktopPerformance;
  }else selected=await browserCaptureClaim(fields);
  if(selected?.role==='incompatible'){
   throw new Error(selected.reason==='audio-source'?'桌面 App 正在使用其他音訊來源。請在 App 選系統音訊，或先停止桌面字幕。':'桌面 App 的字幕語言和 Chrome 設定不同。請選相同語言，或先停止桌面字幕。');
@@ -652,9 +664,10 @@ async function startCapture(tabId){
  running=true;modelStatus='正在擷取分頁聲音';
  pushSubtitle(null);
  const reply=await chrome.runtime.sendMessage({type:'offscreen-start',streamId,mode:engineMode,sourceLanguage:speechFrom,
-  speechProfile:configured.browserSpeechProfile==='small-fp16'?'small-fp16':'default',recording:captionMode==='record',session:gate.session});
+  speechProfile:configured.browserSpeechProfile==='small-fp16'?'small-fp16':'default',recording:captionMode==='record',session:gate.session,performance:desktopPerformance});
  if(!reply?.ok){running=false;throw new Error(reply?.error||'無法擷取分頁聲音');}
  await chrome.storage.local.set({captionsHidden:false});
+ pushSubtitle(captionMode==='record'?recordingItem():(items.at(-1)??null));
  return{running};
  }catch(error){
   await stopCapture().catch(()=>{});captureTabId=null;
@@ -663,7 +676,35 @@ async function startCapture(tabId){
  }
 }
 chrome.tabs.onRemoved.addListener(id=>{if(id===captureTabId)stopCapture();});
+let regionLookup;
+function refreshUiRegion(){
+ if(regionLookup)return regionLookup;
+ regionLookup=(async()=>{
+  const saved=await chrome.storage.local.get([UI_LANGUAGE_KEY,UI_REGION_LOCALE_KEY]);
+  if(uiLanguagePreference(saved[UI_LANGUAGE_KEY])!=='auto')return null;
+  const cached=saved[UI_REGION_LOCALE_KEY];
+  if(cached?.expiresAt>Date.now())return cached.locale;
+  const locale=await lookupRegionalUiLanguage();
+  await chrome.storage.local.set({[UI_REGION_LOCALE_KEY]:{locale,expiresAt:Date.now()+(locale?300000:60000)}});
+  return locale;
+ })().finally(()=>{regionLookup=undefined;});
+ return regionLookup;
+}
 chrome.runtime.onMessage.addListener((m,s,send)=>{
+ if(m.type==='ui-language-sync'||m.type==='ui-language-choose'){
+  const popup=s.url===chrome.runtime.getURL('popup.html');
+  const website=s.frameId===0&&s.url?.startsWith(`${WEBSITE_ORIGIN}/`);
+  if(s.id!==chrome.runtime.id||(!popup&&!website))return;
+  uiLanguageSync ??= createUiLanguageSync(chrome);
+  if(m.type==='ui-language-sync'){uiLanguageSync.connect();send({ok:true});return;}
+  uiLanguageSync.choose(m.preference,website?m.changedAt:undefined)
+   .then(choice=>send({ok:true,choice}),()=>send({ok:false}));
+  return true;
+ }
+ if(m.type==='ui-language-region'){
+  if(s.id!==chrome.runtime.id)return;
+  refreshUiRegion().then(locale=>send({ok:true,locale}),()=>send({ok:false}));return true;
+ }
  if(m.type==='desktop-settings' && s.url===chrome.runtime.getURL('popup.html')){
   desktop.request('settings',{},30000).then(text=>send({ok:true,text}),e=>send({ok:false,error:e.message}));return true;
  }

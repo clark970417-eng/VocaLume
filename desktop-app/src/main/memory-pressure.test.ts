@@ -54,3 +54,42 @@ it('polls only while audio is active, never overlaps checks, and ignores stale r
   expect(pipeline.listenerCount('state-change')).toBe(0)
  }finally{cleanup();vi.useRealTimers()}
 })
+
+it('uses notifications after the initial probe and restores polling if the watcher exits', async () => {
+  vi.useFakeTimers()
+  const pipeline = new EventEmitter()
+  const update = vi.fn()
+  const stop = vi.fn()
+  let event!: (state: 'warning' | 'critical' | 'nominal') => void
+  let unavailable!: () => void
+  let initial!: (value: 'nominal') => void
+  const read = vi.fn(async () => 'nominal' as const)
+    .mockImplementationOnce(() => new Promise(resolve => { initial = resolve }))
+  const cleanup = bindMemoryPressure(pipeline, update, read, (notify, failed) => {
+    event = notify
+    unavailable = failed
+    return stop
+  })
+  try {
+    pipeline.emit('state-change', 'initializing')
+    event('warning')
+    initial('nominal')
+    await vi.advanceTimersByTimeAsync(20_000)
+    expect(update).toHaveBeenLastCalledWith('warning')
+    expect(read).toHaveBeenCalledTimes(1)
+    event('nominal')
+    expect(update).toHaveBeenLastCalledWith('nominal')
+    unavailable()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(read).toHaveBeenCalledTimes(3)
+    pipeline.emit('state-change', 'idle')
+    event('critical')
+    expect(update).toHaveBeenLastCalledWith('unknown')
+    pipeline.emit('state-change', 'running')
+    cleanup()
+    expect(stop).toHaveBeenCalledOnce()
+  } finally {
+    cleanup()
+    vi.useRealTimers()
+  }
+})

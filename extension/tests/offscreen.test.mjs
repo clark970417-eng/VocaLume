@@ -30,6 +30,45 @@ test('real controller forwards partial before final and rejects partial after se
  await call({type:'offscreen-stop'});
 });
 
+test('live desktop pressure updates suppress only rolling decodes and survive an older reply',async()=>{
+ let listener,capture;const workers=[];
+ class Worker{constructor(url){this.url=url;this.posts=[];workers.push(this);}postMessage(m){this.posts.push(m);}terminate(){}}
+ class AudioContext{constructor(){this.sampleRate=48000;this.audioWorklet={addModule:async()=>{}};}resume(){}createMediaStreamSource(){return {connect(){},disconnect(){}};}close(){return Promise.resolve();}}
+ class AudioWorkletNode{constructor(){this.port={};capture=this;}connect(){}disconnect(){}}
+ const track={stop(){}};
+ const chrome={runtime:{id:'test',sendMessage:async()=>({ok:true}),onMessage:{addListener:f=>listener=f}}};
+ const src=fs.readFileSync(new URL('../offscreen.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ let now=0;
+ vm.runInNewContext(src,{chrome,Worker,DesktopWorker:class extends Worker{constructor(){super('speech-desktop');}},AudioContext,AudioWorkletNode,navigator:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[track],getAudioTracks:()=>[track]})}},SpeechResultFilter,cleanText,Agreement,DecodeQueue,Measurements,PreviewBudget,Date,performance:{now:()=>now},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){}});
+ const call=m=>new Promise(r=>listener(m,{},r));
+ const critical={previewsPaused:true,previewFloorMs:2500,previewDutyCycle:.25};
+ const nominal={previewsPaused:false,previewFloorMs:0,previewDutyCycle:.85};
+ await call({type:'offscreen-start',session:'one',streamId:'test',mode:'desktop',performance:critical});
+ const [vad,asr]=workers;
+ await asr.onmessage({data:{type:'ready',model:'test'}});
+ vad.onmessage({data:{type:'ready'}});
+ capture.port.onmessage({data:new Float32Array(2048)});
+ assert.equal(vad.posts.at(-1).allowPreview,false,'pressure is enforced before the worker allocates PCM');
+ vad.onmessage({data:{type:'processed',epoch:1,probability:.9,vadMs:1}});
+ const job=(id,final)=>({id,utteranceId:id,final,epoch:1,audio:new Float32Array(16000),audioEndAt:Date.now(),speechAt:Date.now()-1000,voicedSeconds:1,sampleCount:16000});
+ const submit=(id,final)=>vad.onmessage({data:{type:'segment',job:job(id,final)}});
+ const push=(session,performance)=>listener({type:'offscreen-performance',session,performance},{id:'test'},()=>{});
+ const decoded=()=>asr.posts.filter(m=>m.type==='decode').map(m=>m.id);
+ push('previous',nominal);
+ submit(1,false);assert.deepEqual(decoded(),[]);
+ submit(2,true);assert.deepEqual(decoded(),[2]);
+ push('one',nominal);
+ capture.port.onmessage({data:new Float32Array(2048)});
+ assert.equal(vad.posts.at(-1).allowPreview,false,'do not snapshot while a final is in flight');
+ vad.onmessage({data:{type:'processed',epoch:1,probability:.9,vadMs:1}});
+ now=50;
+ await asr.onmessage({data:{type:'result',id:2,text:'次の文です',performance:critical}});
+ capture.port.onmessage({data:new Float32Array(2048)});
+ assert.equal(vad.posts.at(-1).allowPreview,true);
+ submit(3,false);assert.deepEqual(decoded(),[2,3]);
+ await call({type:'offscreen-stop'});
+});
+
 for(const mode of ['browser','desktop']) test(`recording retries retained audio across decoder recovery (${mode})`,async()=>{
  let listener,capture;const workers=[],messages=[],timers=[];
  class Worker{constructor(url){this.url=url;workers.push(this);}postMessage(m){this.sent=m;}terminate(){}}

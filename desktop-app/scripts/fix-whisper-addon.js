@@ -82,7 +82,6 @@ if (fs.existsSync(vadSrc)) {
   fs.mkdirSync(vadDest, { recursive: true })
   const assetsToCopy = [
     'silero_vad_legacy.onnx',
-    'silero_vad_v5.onnx',
     'vad.worklet.bundle.min.js'
   ]
   for (const file of assetsToCopy) {
@@ -102,10 +101,10 @@ if (fs.existsSync(vadSrc)) {
     fs.copyFileSync(source, path.join(vadDest, file))
     console.log(`[fix-whisper-addon] Copied ORT runtime asset: ${file}`)
   }
-  // Clear generated variants left behind by older builds, preserving the VAD
-  // models, worklet, and bundled DeepFilterNet3 assets.
+  // Clear unused generated variants from older builds. The desktop uses the
+  // Legacy model. The extension packages its own V5 model separately.
   for (const file of fs.readdirSync(vadDest)) {
-    if (/^ort-wasm-simd-threaded\.(?:jsep|jspi|asyncify)\.(?:wasm|mjs)$/.test(file)) {
+    if (file === 'silero_vad_v5.onnx' || /^ort-wasm-simd-threaded\.(?:jsep|jspi|asyncify)\.(?:wasm|mjs)$/.test(file)) {
       fs.rmSync(path.join(vadDest, file), { force: true })
     }
   }

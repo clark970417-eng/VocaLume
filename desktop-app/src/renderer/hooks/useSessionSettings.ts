@@ -132,9 +132,16 @@ export function useSessionSettings(): SessionSettingsState {
   // Send typed audio directly through IPC. MessagePort cannot cross the
   // isolated preload bridge as a callable object.
   useEffect(() => {
-    const unsubscribeStreaming = audio.onStreamingChunk((buffer, evidence) => window.api.processAudioPreview(buffer, evidence))
+    let pendingFinals = 0
+    const unsubscribeStreaming = audio.onStreamingChunk(
+      (buffer, evidence) => window.api.processAudioPreview(buffer, evidence),
+      () => pendingFinals === 0
+    )
     const unsubscribeFinal = audio.onSpeechSegmentEnd((buffer, evidence) => {
+      pendingFinals++
       void window.api.finalizeStreaming(buffer, evidence)
+        .catch(error => console.warn('[capture] Final audio delivery failed:', error))
+        .finally(() => { pendingFinals-- })
     })
     // #721: realtime cloud e2e — continuous 100ms chunks + VAD turn-boundary hints
     const unsubscribeRealtime = audio.onRealtimeChunk((chunk) => {

@@ -5,7 +5,9 @@ function panel(){
  const styles={};
  const make=()=>({className:'',classList:{add(){}},style:{setProperty(k,v){styles[k]=v;}},dataset:{},
   children:[],textContent:'',append(...kids){this.children.push(...kids);},
-  replaceChildren(...kids){this.children=[...kids];}});
+  replaceChildren(...kids){this.children=[...kids];},
+  removeChild(kid){this.children.splice(this.children.indexOf(kid),1);},
+  insertBefore(kid,before){if(this.children.includes(kid))this.removeChild(kid);this.children.splice(before?this.children.indexOf(before):this.children.length,0,kid);}});
  const root={...make(),parentElement:{getBoundingClientRect:()=>({left:0,top:0,width:1000,height:600})},
   getBoundingClientRect:()=>({left:0,top:0,width:500,height:300}),
   addEventListener(){},removeEventListener(){},setPointerCapture(){}};
@@ -24,12 +26,30 @@ test('four-entry mode keeps the newest four, oldest at the top, Japanese above C
  t.panel.render([row(1),row(2),row(3),row(4)]);
  const lines=t.root.children[0];
  assert.equal(lines.children.length,4);
+ const retained=lines.children.slice(1);
  const texts=lines.children.map(pair=>pair.children.map(line=>line.children[0]?.textContent));
  assert.deepEqual(texts,[['日本語1','中文1'],['日本語2','中文2'],['日本語3','中文3'],['日本語4','中文4']]);
  // A fifth utterance drops the oldest and the rest move up.
  t.panel.render([row(1),row(2),row(3),row(4),row(5)]);
  const after=t.root.children[0].children.map(pair=>pair.children[0].children[0]?.textContent);
  assert.deepEqual(after,['日本語2','日本語3','日本語4','日本語5']);
+ for(const [i,node] of retained.entries())assert.equal(lines.children[i],node);
+});
+
+test('updates the changed line in place and leaves unchanged text and status alone',()=>{
+ const t=panel(), rows=[row(1),{original:'次の文',translated:'',pending:true}];
+ t.panel.render(rows);
+ const lines=t.root.children[0], [first,second]=lines.children;
+ const [source,translation,status]=second.children;
+ t.panel.render(rows.map(entry=>({...entry,timestamp:123})));
+ assert.equal(second.children[2],status);
+ t.panel.render([rows[0],{...rows[1],translated:'下一句',pending:false}]);
+ assert.equal(lines.children[0],first);
+ assert.equal(lines.children[1],second);
+ assert.equal(second.children[0],source);
+ assert.equal(second.children[1],translation);
+ assert.equal(translation.children[0].textContent,'下一句');
+ assert.equal(second.children.length,2);
 });
 
 test('single-caption mode renders one pair with the same style tokens',async()=>{

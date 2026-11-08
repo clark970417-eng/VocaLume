@@ -11,8 +11,10 @@ exports.default = async function afterPack(context) {
   if (platform === 'mac') {
     const helperDir = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents/Resources/bridge-scripts/bin')
     fs.mkdirSync(helperDir, { recursive: true })
+    const arm64 = context.arch === 3
+    if (!arm64) fs.rmSync(path.join(helperDir, 'fluid-audio-bridge'), { force: true })
     // Build for the package architecture, including Intel packages on Apple Silicon.
-    const target = `${context.arch === 3 ? 'arm64' : 'x86_64'}-apple-macos12.0`
+    const target = `${arm64 ? 'arm64' : 'x86_64'}-apple-macos12.0`
     for (const [source, name] of [['voice-tone.swift', 'voice-tone-helper'], ['capture-claim.swift', 'capture-claim-helper']]) {
       execFileSync('/usr/bin/xcrun', ['swiftc', '-O', '-target', target,
         path.join(__dirname, source), '-o', path.join(helperDir, name)], { stdio: 'inherit' })

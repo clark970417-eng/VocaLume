@@ -18,6 +18,7 @@ root = Path(__file__).resolve().parent.parent
 support = Path.home() / "Library/Application Support/JapaneseLiveCaption"
 support.mkdir(parents=True, exist_ok=True)
 launcher = support / "launch"
+language_launcher = support / "launch-language"
 for name in ["host.py", "relay.py", "translation_support.py", "LIVE_TRANSLATE_LICENSE"]:
     shutil.copy2(root / "desktop" / name, support / name)
 # sys.executable preserves the virtual environment interpreter path.
@@ -27,27 +28,34 @@ if args.app:
 launcher.write_text("#!/bin/sh\nexec " + shlex.quote(sys.executable) + " "
                     + shlex.quote(str(support / ("relay.py" if args.app else "host.py"))) + "\n")
 launcher.chmod(0o700)
-manifest = {"name": "org.jtl.companion", "description": "Local MLX caption inference",
-            "path": str(launcher), "type": "stdio",
-            "allowed_origins": [f"chrome-extension://{args.extension_id}/"]}
+language_launcher.write_text("#!/bin/sh\nexec " + shlex.quote(sys.executable) + " "
+                             + shlex.quote(str(support / "relay.py")) + " --ui-language\n")
+language_launcher.chmod(0o700)
+
+def valid_origins(target):
+    try:
+        origins = json.loads(target.read_text()).get("allowed_origins", [])
+        if isinstance(origins, list):
+            return {origin for origin in origins if isinstance(origin, str)
+                    and re.fullmatch(r"chrome-extension://[a-p]{32}/", origin)}
+    except (OSError, ValueError, AttributeError):
+        pass
+    return set()
+
 for browser in ["Google/Chrome", "com.operasoftware.OperaGX"]:
     folder = Path.home() / "Library/Application Support" / browser / "NativeMessagingHosts"
     folder.mkdir(parents=True, exist_ok=True)
-    target = folder / "org.jtl.companion.json"
     # Chrome and Opera assign different IDs to the same unpacked extension.
     # Preserve valid origins registered by the other browser instead of making
     # the latest installation silently revoke an already working browser.
-    try:
-        previous = json.loads(target.read_text())
-        origins = previous.get("allowed_origins", [])
-        if isinstance(origins, list):
-            manifest["allowed_origins"] = sorted(set(
-                manifest["allowed_origins"] + [origin for origin in origins
-                                               if isinstance(origin, str)
-                                               and re.fullmatch(r"chrome-extension://[a-p]{32}/", origin)]
-            ))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        pass
-    target.write_text(json.dumps(manifest, indent=2) + "\n")
-    os.chmod(target, 0o600)
-    print(target)
+    origins = valid_origins(folder / "org.jtl.companion.json") | {f"chrome-extension://{args.extension_id}/"}
+    for name, description, script in (
+        ("org.jtl.companion", "Local MLX caption inference", launcher),
+        ("org.jtl.ui_language", "VocaLume interface language", language_launcher),
+    ):
+        target = folder / f"{name}.json"
+        manifest = {"name": name, "description": description, "path": str(script), "type": "stdio",
+                    "allowed_origins": sorted(origins | valid_origins(target))}
+        target.write_text(json.dumps(manifest, indent=2) + "\n")
+        os.chmod(target, 0o600)
+        print(target)

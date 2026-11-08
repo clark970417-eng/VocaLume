@@ -59,7 +59,7 @@ function decode(s,job){
   s.previewsSkipped++;const next=s.queue.takeFresh(Date.now(),s.epoch);if(next)decode(s,next);else finishDrain(s);return;
  }
  if(!s.recording&&!s.desktop&&Date.now()-job.audioEndAt>4000){s.expired++;return;}
- s.busy=job;s.started=performance.now();s.metrics.add('queueMs',Date.now()-job.audioEndAt);
+ s.busy=job;s.started=performance.now();s.decodePerformanceRevision=s.performanceRevision;s.metrics.add('queueMs',Date.now()-job.audioEndAt);
  s.timeout=setTimeout(()=>restartWorker(s,'辨識逾時'),s.desktop?60000:15000);
  const audio=job.audio.slice();s.worker.postMessage({type:'decode',id:job.id,audio,segment:s.epoch+':'+job.id,utterance:s.epoch+':'+job.utteranceId,final:job.final,speechSeconds:job.speechSeconds,speechEndSample:job.lastSpeechSample-job.startSample,captureStartSample:job.startSample,captureEndSample:job.endSample,continuationExpected:job.final&&!job.utteranceEnd,speechAt:job.speechAt,audioEndAt:job.audioEndAt},[audio.buffer]);
 }
@@ -67,7 +67,10 @@ function drainVad(s){
  if(s.vadBusy||!s.vadReady)return;
  const audio=s.vadQueue.shift();if(!audio){flushVad(s);return;}
  s.vadBusy=true;s.vadTimeout=setTimeout(()=>{if(active===s){send(s,'speech-error',{error:'人聲偵測無回應，請重新開始'});stop();}},5000);
- s.vad.postMessage({type:'audio',audio,epoch:s.epoch,interval:s.previewBudget.intervalMs(s.performance)/1000},[audio.buffer]);
+ // Gate before the VAD worker copies and transfers a rolling PCM window.
+ // VAD still sees every frame and emits final windows independently.
+ const allowPreview=!s.stopping&&s.ready&&!(s.recording&&!s.desktop)&&!s.busy&&!s.queue.jobs.length&&s.previewBudget.remainingMs(performance.now(),s.performance)===0;
+ s.vad.postMessage({type:'audio',audio,epoch:s.epoch,interval:s.previewBudget.intervalMs(s.performance)/1000,allowPreview},[audio.buffer]);
 }
 function sample(s,data){
  if(active!==s||s.inputFlushed)return;
@@ -121,7 +124,8 @@ function initializeWorker(s){
   if(data.type!=='result')return;
   clearTimeout(s.timeout);s.decodeMs=performance.now()-s.started;s.cadenceMs=.75*(s.cadenceMs||s.decodeMs)+.25*s.decodeMs;s.metrics.add('decodeMs',s.decodeMs);
   s.previewBudget.complete(s.decodeMs,performance.now());
-  if(data.performance)s.performance=data.performance;
+  // Reconcile with decode replies, except when a pushed update arrived in the meantime.
+  if(data.performance&&s.decodePerformanceRevision===s.performanceRevision)s.performance=data.performance;
   const job=s.busy;
   if(job)s.previewBudget.observeSource(data.text||'',job.final);
   if(job&&data.text)s.vad?.postMessage({type:'transcript',epoch:s.epoch,id:job.id,utteranceId:job.utteranceId,sampleCount:job.sampleCount,text:data.text});
@@ -162,6 +166,8 @@ async function start(m){
  try{
   s.desktop=m.mode==='desktop';s.sourceLanguage=m.sourceLanguage;
   s.profile=!s.desktop&&m.speechProfile==='small-fp16'?'small-fp16':'default';
+  s.performanceRevision=0;
+  if(s.desktop)s.performance=m.performance;
   s.stream=await navigator.mediaDevices.getUserMedia({audio:{mandatory:{chromeMediaSource:'tab',chromeMediaSourceId:m.streamId}},video:false});
   if(active!==s){s.stream.getTracks().forEach(t=>t.stop());return;}
   s.context=new AudioContext();await s.context.resume();s.source=s.context.createMediaStreamSource(s.stream);s.source.connect(s.context.destination);
@@ -174,6 +180,12 @@ async function start(m){
  }catch(error){send(s,'speech-error',{error:error.message});stop();throw error;}
 }
 chrome.runtime.onMessage.addListener((m,s,reply)=>{
+ if(m.type==='offscreen-performance'){
+  if(s.id===chrome.runtime.id&&active?.desktop&&m.session===active.session){
+   active.performance=m.performance;active.performanceRevision++;
+  }
+  return;
+ }
  if(m.type==='offscreen-native-coverage'){
   if(active&&m.session===active.session&&Number.isFinite(m.start)&&Number.isFinite(m.end)&&m.start<=m.end){
    active.nativeCoverage={start:m.start,end:m.end};
