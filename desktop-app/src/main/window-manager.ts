@@ -45,9 +45,10 @@ function prioritizeWindowsControls(ctx: AppContext): void {
 }
 
 /** Keep the overlay above playback, and keep its own focused controls reachable. */
-export function raiseSubtitleWindow(ctx: AppContext): void {
+export function raiseSubtitleWindow(ctx: AppContext, prioritizeSubtitle = false): void {
   ctx.subtitleWindow?.setAlwaysOnTop(true, 'screen-saver')
-  prioritizeWindowsControls(ctx)
+  if (prioritizeSubtitle && process.platform === 'win32') ctx.subtitleWindow?.moveTop()
+  else prioritizeWindowsControls(ctx)
 }
 
 export function createMainWindow(ctx: AppContext, show = true): void {

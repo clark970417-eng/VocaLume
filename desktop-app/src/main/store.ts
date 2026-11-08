@@ -29,6 +29,7 @@ export interface SubtitleSettings {
   backgroundOpacity: number
   position: 'top' | 'bottom'
   lowPowerRendering?: boolean
+  hideOnHover?: boolean
   accessibility: AccessibilitySettings
 }
 
@@ -205,6 +206,7 @@ export const store = new Store<AppSettings>({
       backgroundOpacity: 78,
       position: 'bottom',
       lowPowerRendering: process.platform === 'win32',
+      hideOnHover: false,
       accessibility: {
         highContrast: false,
         dyslexiaFont: false,
