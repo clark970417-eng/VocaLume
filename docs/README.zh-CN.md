@@ -6,7 +6,7 @@
 
 为想看懂外语直播、跟不同语言的朋友聊天的人制作。语音、阅读和打字可分别选择翻译语言，不只限于日文。
 
-[网站与视频示范](https://vocalume.vercel.app/) · [4.6.7 测试版下载](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7) · [English](../README.md)
+[网站与视频示范](https://vocalume.vercel.app/) · [4.6.6 测试版下载](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6) · [English](../README.md)
 
 ## 先下载适合电脑的版本
 
@@ -14,14 +14,14 @@
 
 | 你的电脑 | 下载 |
 | --- | --- |
-| Windows x64 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/VocaLume.Setup.4.6.7.exe) |
-| Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/VocaLume-4.6.7-arm64.dmg) |
-| Mac · Intel | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/VocaLume-4.6.7.dmg) |
-| Linux x64 · 实验性 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/VocaLume-4.6.7.AppImage) |
-| Windows 扩展程序（Chrome / Edge） | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/vocalume-extension-windows.zip) |
-| 通用扩展程序（Chrome / Edge / Opera GX） | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/vocalume-extension.zip) |
+| Windows x64 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume.Setup.4.6.6.exe) |
+| Mac · Apple Silicon (M1–M5) | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6-arm64.dmg) |
+| Mac · Intel | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6.dmg) |
+| Linux x64 · 实验性 | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6.AppImage) |
+| Windows 扩展程序（Chrome / Edge） | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/vocalume-extension-windows.zip) |
+| 通用扩展程序（Chrome / Edge / Opera GX） | [点这里下载](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/vocalume-extension.zip) |
 
-上方是 **4.6.7 测试版** 应用和扩展程序，请按电脑平台下载。
+上方是 **4.6.6 测试版** 应用和扩展程序，请按电脑平台下载。
 
 不知道 Mac 是哪种？点 ** → 关于这台 Mac**，查看「芯片」或「处理器」。
 
@@ -67,7 +67,7 @@
 <details>
 <summary>更多设置、测试记录与授权</summary>
 
-[扩充功能与 API 设置](extension-guide.md) · [测试结果与待验证项目](quality/README.md) · [4.6.7 更新](releases/4.6.7.md) · [开发说明](development.md) · [隐私](legal/privacy.md) · [第三方来源与授权](legal/third-party-notices.md)
+[扩充功能与 API 设置](extension-guide.md) · [测试结果与待验证项目](quality/README.md) · [4.6.6 更新](releases/4.6.6.md) · [开发说明](development.md) · [隐私](legal/privacy.md) · [第三方来源与授权](legal/third-party-notices.md)
 
 自动检查不代表已完成双语人工验收或所有电脑的实机测试。桌面部分衍生自 [LiveTranslate](https://github.com/rioX432/live-translate)，保留原作者 MIT 授权；模型另有各自授权。
 

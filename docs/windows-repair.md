@@ -1,6 +1,6 @@
 # Windows 本機連接與驗收
 
-請從 [VocaLume 4.6.7 測試版](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7) 下載 Windows x64 的 `VocaLume.Setup.4.6.7.exe` 與 `vocalume-extension-windows.zip`。通用版 `vocalume-extension.zip` 也附有 Windows 本機連接工具。
+請從 [VocaLume 4.6.6 測試版](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6) 下載 Windows x64 的 `VocaLume.Setup.4.6.6.exe` 與 `vocalume-extension-windows.zip`。通用版 `vocalume-extension.zip` 也附有 Windows 本機連接工具。
 
 完整調查、測試數據、限制及 Mac Codex 接手事項：[Windows 4.6.6 實機驗收報告](reports/windows-acceptance-2026-11-06.md)。
 
