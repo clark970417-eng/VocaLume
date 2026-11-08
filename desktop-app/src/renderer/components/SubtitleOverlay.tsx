@@ -228,7 +228,8 @@ function SubtitleOverlay(): React.JSX.Element {
   const mac = /Macintosh/i.test(navigator.userAgent)
   const [completedCaptions, setCompletedCaptions] = useState<ResultData[]>([])
   const latestCaption = useRef<number | undefined>(undefined)
-  const recordMode = windows && config.captionMode === 'record'
+  const supportsCaptionModes = windows || mac
+  const recordMode = supportsCaptionModes && config.captionMode === 'record'
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
   const [editSaving, setEditSaving] = useState(false)
@@ -249,7 +250,7 @@ function SubtitleOverlay(): React.JSX.Element {
   const handleResult = useCallback((data: unknown) => {
     const result = data as ResultData
     if (!result.sourceText?.trim()) return
-    if (windows) {
+    if (supportsCaptionModes) {
       if (result.isInterim || !result.translatedText?.trim()) return
       if (result.captionRevision) {
         setCompletedCaptions(previous => previous.map(caption =>
@@ -294,7 +295,7 @@ function SubtitleOverlay(): React.JSX.Element {
 
     setVisible(true)
     resetSilenceTimer()
-  }, [resetSilenceTimer, windows])
+  }, [resetSilenceTimer, supportsCaptionModes])
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
     if (isEditMode || event.button !== 0 || !event.isPrimary || dragRef.current) return
@@ -391,24 +392,38 @@ function SubtitleOverlay(): React.JSX.Element {
     }
   }, [windows])
 
-  // Subscribe to all result types — unified handler
+  // Subscribe to the result types used by the current platform
   useEffect(() => {
     const unsubResult = window.api.onTranslationResult(handleResult)
-    const unsubInterim = windows ? undefined : window.api.onInterimResult(handleResult)
-    const unsubDraft = windows ? undefined : window.api.onDraftResult(handleResult)
-    const unsubActivity = windows ? undefined : window.api.onSubtitleActivity?.(at => {
+    const unsubInterim = supportsCaptionModes ? undefined : window.api.onInterimResult(handleResult)
+    const unsubDraft = supportsCaptionModes ? undefined : window.api.onDraftResult(handleResult)
+    const unsubActivity = supportsCaptionModes ? undefined : window.api.onSubtitleActivity?.(at => {
       setVisible(true)
       resetSilenceTimer(at)
     })
+    const unsubClear = mac ? window.api.onSubtitleClear(() => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+      silenceTimerRef.current = null
+      latestCaption.current = undefined
+      setCompletedCaptions([])
+      setConfirmedText('')
+      setInterimText('')
+      setTranslatedText('')
+      setSpeakerLabel(null)
+      setVisible(false)
+      setIsEditing(false)
+      setEditValue('')
+    }) : undefined
 
     return () => {
       unsubResult?.()
       unsubInterim?.()
       unsubDraft?.()
       unsubActivity?.()
+      unsubClear?.()
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     }
-  }, [handleResult, resetSilenceTimer, windows])
+  }, [handleResult, mac, resetSilenceTimer, supportsCaptionModes])
 
   // Edit mode: click translated text to start editing (#590)
   const handleTranslationClick = useCallback(() => {
@@ -432,8 +447,8 @@ function SubtitleOverlay(): React.JSX.Element {
         originalTranslation: translatedText,
         correctedTranslation: trimmed
       })
-      if (!windows || latestCaption.current === captionTimestamp) setTranslatedText(trimmed)
-      if (windows) {
+      if (!supportsCaptionModes || latestCaption.current === captionTimestamp) setTranslatedText(trimmed)
+      if (supportsCaptionModes) {
         setCompletedCaptions(previous => previous.map(caption =>
           caption.timestamp === captionTimestamp ? { ...caption, translatedText: trimmed } : caption
         ))
@@ -443,7 +458,7 @@ function SubtitleOverlay(): React.JSX.Element {
       setIsEditing(false)
       setEditValue('')
     }
-  }, [editValue, translatedText, confirmedText, editSaving, windows])
+  }, [editValue, translatedText, confirmedText, editSaving, supportsCaptionModes])
 
   const handleEditCancel = useCallback(() => {
     setIsEditing(false)
@@ -580,7 +595,7 @@ function SubtitleOverlay(): React.JSX.Element {
         </div>
       )}
 
-      {/* Single subtitle slot */}
+      {/* Caption overlay */}
       <div
         ref={captionRef}
         {...dragHandlers}

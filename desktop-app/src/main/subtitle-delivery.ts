@@ -5,11 +5,21 @@ import type { AppContext } from './app-context'
 type Channel = 'translation-result' | 'interim-result' | 'draft-result'
 const deliveries = new WeakMap<BrowserWindow, { key: string; activity: number; timer?: ReturnType<typeof setTimeout> }>()
 
+export function clearOverlayCaptions(ctx: AppContext): void {
+  const window = ctx.subtitleWindow
+  if (!window || window.isDestroyed()) return
+  clearTimeout(deliveries.get(window)?.timer)
+  deliveries.delete(window)
+  window.webContents.send('subtitle-clear')
+}
+
 export function sendOverlayCaption(ctx: AppContext, channel: Channel, result: TranslationResult & { translationFailed?: boolean }): void {
   const window = ctx.subtitleWindow
   if (!window || window.isDestroyed() || ctx.extensionConnected || !result.sourceText?.trim()) return
+  // A repeated phrase is a new group when it has its own completed cue.
+  const distinguishCompletedCues = (process.platform === 'win32' || process.platform === 'darwin') && channel === 'translation-result'
   const key = JSON.stringify([
-    channel, process.platform === 'win32' && channel === 'translation-result' ? result.timestamp : null,
+    channel, distinguishCompletedCues ? result.timestamp : null,
     result.confirmedText ?? result.sourceText, result.interimText ?? '',
     result.translatedText, result.translationFailed, result.confidence,
     result.tokenConfidences, result.speakerLabel, result.speakerIndex

@@ -27,6 +27,7 @@ export interface ElectronAPI {
   onTranslationResult: (callback: (data: unknown) => void) => (() => void)
   onInterimResult: (callback: (data: unknown) => void) => (() => void)
   onSubtitleActivity: (callback: (at: number) => void) => (() => void)
+  onSubtitleClear: (callback: () => void) => (() => void)
   onDraftResult: (callback: (data: unknown) => void) => (() => void)
   onStatusUpdate: (callback: (message: string) => void) => (() => void)
   getSessionStartTime: () => Promise<number | null>

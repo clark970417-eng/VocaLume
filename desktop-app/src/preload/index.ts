@@ -63,6 +63,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('subtitle-activity', handler)
     return () => ipcRenderer.off('subtitle-activity', handler)
   },
+  onSubtitleClear: (callback: () => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('subtitle-clear', handler)
+    return () => ipcRenderer.off('subtitle-clear', handler)
+  },
   // Draft result from hybrid translation (#235)
   onDraftResult: (callback: (data: unknown) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data)
