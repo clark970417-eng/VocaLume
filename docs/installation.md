@@ -1,23 +1,23 @@
 # Install and use VocaLume
 
-[Download 4.6.6 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6) · [Home](../README.md) · [完整中文手冊](user-guide.md)
+[Download 4.6.7 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7) · [Home](../README.md) · [完整中文手冊](user-guide.md)
 
-[Chinese installation video (~2 minutes)](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-Chrome-Setup-Guide-Final-ZH.mp4). Recorded with 4.6.0; some 4.6.2 screens differ. Complete the written native App connection, model download and first-capture steps below; they are not demonstrated fully in the video.
+[Chinese installation video (~2 minutes)](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-Chrome-Setup-Guide-Final-ZH.mp4). The video uses the 4.6.0 interface. Follow the written steps below for the current App connection, model download and first capture.
 
 ## Desktop App
 
 Choose the installer for your computer from the release's **Assets** list. The automatically generated “Source code” ZIP is for development, not an App installer.
 
-- **Mac:** choose `arm64.dmg` for Apple M-series or the other DMG for Intel. Drag VocaLume into Applications and launch it there. This beta is unsigned; verify the download, then review its prompt in System Settings → Privacy & Security if macOS blocks the first launch. Do not disable system-wide security checks.
-- **Windows x64:** run `VocaLume.Setup.4.6.6.exe`. SmartScreen may identify this unsigned preview as an unrecognized App. Check the repository and checksum before deciding whether to continue.
-- **Linux x64:** the AppImage is experimental. Give the file permission to execute, then launch it. Audio support varies by desktop environment.
+- **Mac:** choose `VocaLume-4.6.7-arm64.dmg` for Apple M-series or `VocaLume-4.6.7.dmg` for Intel. Drag VocaLume into Applications and launch it there. This beta is unsigned; verify the download, then review its prompt in System Settings → Privacy & Security if macOS blocks the first launch. Do not disable system-wide security checks.
+- **Windows x64:** run `VocaLume.Setup.4.6.7.exe`. SmartScreen may identify this unsigned preview as an unrecognized App. Check the repository and checksum before deciding whether to continue.
+- **Linux x64:** `VocaLume-4.6.7.AppImage` is experimental. Give the file permission to execute, then launch it. Audio support varies by desktop environment.
 
-Complete **Quick Start** and wait for the model download. Reserve several GB for models. Quality upgrades and cloud services are optional. In **Translate**, choose the audio source and languages, then press **Start**. Stop capture before changing models. Allow microphone or system-audio permission only when using that source.
+Complete **Quick Start** and wait for the model download. Reserve several GB for models. Quality upgrades and cloud services are optional. In **Live translation**, choose the audio source and languages, then press **Start**. Stop capture before changing models. Allow microphone or system-audio permission only when using that source.
 
 ## Browser extension
 
-1. Extract `vocalume-extension.zip` into a permanent folder, such as Documents/VocaLume Extension.
-2. Open `chrome://extensions` in Chrome or `opera://extensions` in Opera GX.
+1. Download `vocalume-extension-windows.zip` for Windows Chrome or Edge, or the universal `vocalume-extension.zip` for Chrome, Edge or Opera GX. Both ZIPs include Windows connection tools. Extract one ZIP into a permanent folder, such as Documents/VocaLume Extension.
+2. Open `chrome://extensions` in Chrome, `edge://extensions` in Edge or `opera://extensions` in Opera GX.
 3. Enable **Developer mode**, click **Load unpacked**, and select the folder containing `manifest.json`.
 4. Pin VocaLume to the toolbar and refresh the video or website.
 
@@ -25,15 +25,15 @@ Keep the extracted folder: it is the installed extension. Do not delete it after
 
 ## Connect the Mac App
 
-Local browser captions require a one-time registration with the matching App and extension.
+Local browser captions require a one-time registration. Use the matching Mac App and universal extension ZIP.
 
 1. Install VocaLume in Applications and open it once.
 2. Copy VocaLume's 32-character ID from Chrome, Edge or Opera GX's extension page.
 3. Open Terminal in the extracted extension folder and replace `YOUR_EXTENSION_ID` with the copied ID.
 
-```sh
-ELECTRON_RUN_AS_NODE=1 '/Applications/VocaLume.app/Contents/MacOS/VocaLume' desktop/install-mac.cjs YOUR_EXTENSION_ID
-```
+   ```sh
+   ELECTRON_RUN_AS_NODE=1 '/Applications/VocaLume.app/Contents/MacOS/VocaLume' desktop/install-mac.cjs YOUR_EXTENSION_ID
+   ```
 
 4. Reload the extension and the video page. In VocaLume's speech tab, select the desktop engine and start captions.
 
@@ -41,7 +41,21 @@ The connection uses the App's bundled runtime. If your earlier download only con
 
 ## Connect the Windows App
 
-For local browser captions on Windows, use the matching `desktop-Windows` and `browser-extension` packages from [GitHub Actions](https://github.com/clark970417-eng/VocaLume/actions/runs/42227646353). The public 4.6.6 Release ZIP omits the Windows connection installer. Follow the [Windows connection steps](windows-repair.md#在-windows-連接-extension-與本機-app) with your extension ID, then choose desktop mode. Chrome and Edge passed the local bridge check described in the [Windows acceptance report](reports/windows-acceptance-2026-11-06.md).
+Use the matching Windows x64 App and extension ZIP from the release.
+
+1. Install and open VocaLume.
+2. Copy VocaLume's 32-character ID from the browser's extension page.
+3. Open PowerShell in the extracted extension folder. Replace `YOUR_EXTENSION_ID` with the copied ID and run:
+
+   ```powershell
+   & ./desktop/install-windows.ps1 -ExtensionId YOUR_EXTENSION_ID
+   ```
+
+4. Reload the extension and your video tab. In VocaLume's speech tab, select the desktop engine and start captions.
+
+The script uses the App's bundled runtime. If the App is installed in a different location, pass its executable path with `-App`. See the [Windows setup guide](windows-repair.md#在-windows-連接-extension-與本機-app) for the full command and verified browser coverage.
+
+## Linux
 
 On Linux, use the standalone App or browser-only mode. Browser mode requires WebGPU, an initial recognition-model download and network text translation.
 
@@ -53,7 +67,7 @@ For posts and chats, open **文字翻譯** (Text translation) and enable website
 
 Discord and Twitch keep their own editor state. VocaLume updates that state through the editor's input flow; if a site rejects insertion, a selectable translated draft remains below the controls. Copy that draft and paste it into the original composer. Finish any IME character selection before translating. Failed page/chat translations have a **↻ 再試一次** (Retry) button.
 
-Subtitle appearance is under **字幕與設定** (Captions & settings). Desktop appearance is configured separately in the App's **Subtitles** tab. The text outline and caption background are separate controls.
+Subtitle appearance is under **字幕與設定** (Captions & settings). Desktop appearance is configured separately in the App’s **Subtitles & OBS** tab. The text outline and caption background are separate controls.
 
 ## Optional Gemini and other APIs
 
@@ -65,7 +79,7 @@ An explicitly selected API applies to website text, reply drafts and browser-mod
 
 ## Updating
 
-Stop capture and quit the App, then install the new version in the same location. Replace the extension files in the same permanent directory, reload it in the extension manager, and refresh already-open websites. Keep the same extension ID and downloaded models. If the ID changes, register the Mac connection again.
+Stop capture and quit the App, then install the new version in the same location. Replace the extension files in the same permanent directory, reload it in the extension manager, and refresh already-open websites. Keep the same extension ID and downloaded models. Run the matching connection command again when updating an older native companion or if the extension ID changes.
 
 Unsigned preview updates open the GitHub download page rather than silently replacing the App. For rollback, install an older App and matching extension from Releases; see [rollback instructions](releases/README.md#roll-back).
 
@@ -84,4 +98,4 @@ Report the App/extension versions, computer, browser, languages and reproduction
 
 ## Verify downloads
 
-Compare your file's SHA-256 with `SHA256SUMS.txt` from the release. On macOS use `shasum -a 256 <file>`; in Windows PowerShell use `Get-FileHash <file> -Algorithm SHA256`. The `release-manifest.json` identifies the source commit and build. Checksums do not replace developer signing.
+Compare your file's SHA-256 with `SHA256SUMS.txt` from the release. Use `shasum -a 256 <file>` on macOS, `sha256sum <file>` on Linux or `Get-FileHash <file> -Algorithm SHA256` in Windows PowerShell. The `release-manifest.json` identifies the source commit and build. Checksums do not replace developer signing.

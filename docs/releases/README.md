@@ -1,6 +1,6 @@
 # Release and rollback guide
 
-The latest public preview is **beta-v4.4.5**. Major supported platforms translate automatically; other websites are opt-in per hostname so ordinary chats and documents remain untouched. See [CHANGELOG.md](../../CHANGELOG.md) for the complete user-facing summary.
+The latest public preview is [4.6.7 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7). See the [4.6.7 release notes](4.6.7.md), [installation guide](../installation.md) and [changelog](../../CHANGELOG.md).
 
 VocaLume uses two release channels:
 
@@ -11,15 +11,15 @@ Every published release must pass extension and desktop tests before its files a
 
 - `SHA256SUMS.txt` for download verification.
 - `release-manifest.json` with the source commit, build time, workflow, channel, and signing state.
-- Generated release notes from the commits since the previous release.
+- Release notes explaining what changed and which files to download.
 
 ## Roll back
 
 1. Stop translation and quit the desktop app.
 2. Open the repository's **Releases** page and select the last version that worked.
-3. Download the installer for the current operating system.
+3. Download the installer for your operating system and the matching extension if you use it.
 4. Compare the file's SHA-256 value with that release's `SHA256SUMS.txt`.
-5. Install the older version over the current installation. User settings and downloaded models are retained.
+5. Install the older version in the same location. Replace the extension files in the same folder, reload the extension and refresh open pages. This keeps user settings and downloaded models.
 6. In **App Updates**, select **Stable** to stop receiving Beta builds.
 
 If the app cannot open, reinstalling does not delete user data. Uninstallers are configured to retain app data by default.
@@ -28,7 +28,7 @@ If the app cannot open, reinstalling does not delete user data. Uninstallers are
 
 1. Update the version and changelog.
 2. Run extension tests, desktop type checking, tests, and production build.
-3. Publish a Beta first and complete the live-service checklist in `BETA-TESTING.md`.
+3. Publish a Beta first and complete the live-service checklist in the [beta testing guide](../beta-testing.md).
 4. Promote with a stable `vX.Y.Z` tag only after unresolved blocking issues are closed.
 5. Verify every expected asset, `SHA256SUMS.txt`, and `release-manifest.json` on the release page.
 

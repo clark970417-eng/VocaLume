@@ -4,31 +4,31 @@
 
 [▶ 觀看中文安裝影片（約 2 分鐘）](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.2/VocaLume-Chrome-Setup-Guide-Final-ZH.mp4)
 
-影片以 4.6.0 的介面示範下載、解壓與載入 Extension；4.6.4 部分畫面不同。Mac 的一次性 App 連接、模型下載與首次收音，請接著完成本頁文字步驟。
+影片以 4.6.0 的介面示範下載、解壓與載入擴充功能。新版的 App 連接、模型下載與首次收音請依下方步驟操作。
 
 ## 安裝
 
-只從 [VocaLume 4.6.4 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.4) 的 **Assets** 下載。`Source code` 是開發用原始碼，不是 App 安裝檔。第一次使用需要網路下載所選模型，請預留數 GB 空間。
+只從 [VocaLume 4.6.7 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7) 的 **Assets** 下載。`Source code` 是開發用原始碼，不是 App 安裝檔。第一次使用需要網路下載所選模型，請預留數 GB 空間。
 
 ### Mac
 
-1. 「關於這台 Mac」顯示 Apple M 系列，選 `VocaLume-4.6.4-arm64.dmg`；顯示 Intel，選 `VocaLume-4.6.4.dmg`。
+1. 「關於這台 Mac」顯示 Apple M 系列，選 `VocaLume-4.6.7-arm64.dmg`；顯示 Intel，選 `VocaLume-4.6.7.dmg`。
 2. 打開 DMG，將 **VocaLume** 拖進「應用程式」，再從那裡開啟。
 3. 目前尚未取得 Developer ID 簽章與公證。如果系統阻擋，先確認下載來源，再到「系統設定 → 隱私權與安全性」查看該 App 的開啟提示。不要關閉整台電腦的安全檢查。
 4. 依 Quick Start 完成模型下載。品質升級與雲端服務可以稍後設定。
 
 ### Windows
 
-執行 `VocaLume.Setup.4.6.4.exe`，完成安裝與 Quick Start。這是 x64 預覽版，尚未簽章；SmartScreen 可能顯示「無法辨識的應用程式」。僅在核對本 Repo 的下載與校驗值後決定是否繼續。此版本的 Windows 安裝與編譯有 CI 檢查，實體 Windows 電腦的長時間收音與品質仍待驗證。
+執行 `VocaLume.Setup.4.6.7.exe`，完成安裝與 Quick Start。這是 x64 預覽版，尚未簽章；SmartScreen 可能顯示「無法辨識的應用程式」。僅在核對本 Repo 的下載與校驗值後決定是否繼續。此版本的 Windows 安裝與編譯有 CI 檢查，實體 Windows 電腦的長時間收音與品質仍待驗證。
 
 ### Linux
 
-`VocaLume-4.6.4.AppImage` 為 x64 實驗性版本。賦予檔案執行權限後開啟；不同桌面環境的收音能力仍需個別確認。
+`VocaLume-4.6.7.AppImage` 為 x64 實驗性版本。賦予檔案執行權限後開啟；不同桌面環境的收音能力仍需個別確認。
 
 ### 瀏覽器 Extension
 
-1. 下載 `vocalume-extension.zip`，解壓到固定位置，例如「文件/VocaLume Extension」。
-2. Chrome 開啟 `chrome://extensions`；Opera GX 開啟 `opera://extensions`。
+1. Windows 的 Chrome 或 Edge 可下載 `vocalume-extension-windows.zip`。Chrome、Edge 或 Opera GX 也可下載通用的 `vocalume-extension.zip`。選一個 ZIP 解壓到固定位置，例如「文件/VocaLume Extension」。
+2. Chrome 開啟 `chrome://extensions`，Edge 開啟 `edge://extensions`，Opera GX 開啟 `opera://extensions`。
 3. 開啟「開發人員模式」→「載入未封裝擴充功能」，選擇含 `manifest.json` 的資料夾。
 4. 將 VocaLume 固定到工具列，重新整理要翻譯的網頁。
 
@@ -36,23 +36,39 @@
 
 ## 連接 Mac App 與 Extension
 
-本機瀏覽器字幕需要註冊一次。先安裝相同版本的 App 與擴充功能，並開啟 App。這個註冊程式支援 Chrome、Edge 與 Opera GX。
+本機瀏覽器字幕需要註冊一次。先安裝相同版本的 Mac App 與通用擴充功能，再開啟 App。這個註冊程式支援 Chrome、Edge 與 Opera GX。
 
 1. 在瀏覽器擴充功能頁複製 VocaLume 的 32 字元 **ID**。
 2. 開啟終端機，切換到解壓後的擴充功能資料夾。
 3. 將下方的 `你的擴充功能ID` 換成剛複製的值，再執行指令。
 
-```sh
-ELECTRON_RUN_AS_NODE=1 '/Applications/VocaLume.app/Contents/MacOS/VocaLume' desktop/install-mac.cjs 你的擴充功能ID
-```
+   ```sh
+   ELECTRON_RUN_AS_NODE=1 '/Applications/VocaLume.app/Contents/MacOS/VocaLume' desktop/install-mac.cjs 你的擴充功能ID
+   ```
 
 4. 重新載入擴充功能與影片頁，到「語音字幕 → 翻譯方式」選「桌面程式」。
 
-新版註冊程式使用 App 內附的執行環境。從舊版 Python 連線升級時，請用新版指令重新註冊。若下載的是較舊版本，請依該版本的 [Python 註冊步驟](installation.md#connect-the-mac-app) 安裝。Windows 使用[專用註冊步驟](windows-repair.md#在-windows-連接-extension-與本機-app)。Linux 可使用獨立 App，或在擴充功能選「瀏覽器」模式。瀏覽器模式需要 WebGPU 和網路文字翻譯。
+新版註冊程式使用 App 內附的執行環境。從舊版 Python 連線升級時，請用新版指令重新註冊。若下載的是較舊版本，請依該版本的 [Python 註冊步驟](installation.md#connect-the-mac-app) 安裝。
+
+## 連接 Windows App 與 Extension
+
+1. 安裝並開啟同一版本的 Windows App，再載入擴充功能。
+2. 複製瀏覽器擴充功能頁上的 VocaLume 32 字元 **ID**。
+3. 在解壓後的擴充功能資料夾開啟 PowerShell。將 `YOUR_EXTENSION_ID` 換成剛複製的值，再執行指令。
+
+   ```powershell
+   & ./desktop/install-windows.ps1 -ExtensionId YOUR_EXTENSION_ID
+   ```
+
+4. 重新載入擴充功能與影片頁，到「語音字幕 → 翻譯方式」選「桌面程式」。
+
+若 App 不在預設位置，請參考 [Windows 安裝與疑難排解](windows-repair.md#在-windows-連接-extension-與本機-app) 的完整指令。
+
+Linux 可使用獨立 App，或在擴充功能選「瀏覽器」模式。瀏覽器模式需要 WebGPU 和網路文字翻譯。
 
 ## 第一次使用
 
-4.6.4 的 App 與 Extension 首頁都有「**介面語言**」，可選「繁體中文」「简体中文」「English」或「跟隨系統」，並自動記住選擇。這只改變按鈕與說明，不會改變翻譯方向、字幕內容或 API 設定。此設定已包含在 4.6.4 安裝檔中。
+「**介面語言**」可選繁體中文、簡體中文、English、日本語、한국어，或依 IP 地區自動選擇。無法取得地區時，會依系統或瀏覽器偏好選擇。Windows 或 Mac 的 App 與擴充功能連接後可同步此設定。擴充功能在官網啟用時，官網也可同步。語音和文字的翻譯語言可另外設定。
 
 ### 聽影片、直播
 
@@ -62,7 +78,7 @@ ELECTRON_RUN_AS_NODE=1 '/Applications/VocaLume.app/Contents/MacOS/VocaLume' desk
 4. 原文先出現，譯文完成後補上。單組會保留目前句子直到譯文顯示；四組依序保留不同句子。
 5. 按「停止收音」結束。停止鍵在收音時持續顯示，切換設定頁也找得到。
 
-不用 Extension 時，App 的「**翻譯 / Translate**」頁可選麥克風、系統聲音或檔案，設定語言後按「**開始 / Start**」。系統只會在使用相應聲音來源時要求權限。不要同時用兩處收同一段聲音，以免重複耗用模型資源。
+不用 Extension 時，App 的「**即時翻譯**」頁可選麥克風或系統聲音，設定語言後按「**開始 / Start**」。系統只會在使用相應聲音來源時要求權限。不要同時用兩處收同一段聲音，以免重複耗用模型資源。
 
 ### 讀貼文、聊天室
 
@@ -80,9 +96,10 @@ ELECTRON_RUN_AS_NODE=1 '/Applications/VocaLume.app/Contents/MacOS/VocaLume' desk
 | 語音語言、單組／四組 | Extension → 語音字幕 |
 | 字體、顏色、描邊、背景 | Extension → 字幕與設定 |
 | Gemini / OpenAI / Claude 等 API | Extension → 字幕與設定 → 網路翻譯服務 |
-| 本機辨識／翻譯模型、詞彙 | App → Models |
-| 桌面字幕外觀 | App → Subtitles |
-| 記錄、支援與其他進階項目 | App → More |
+| 本機辨識／翻譯模型、詞彙 | App → 模型 |
+| 桌面字幕外觀、OBS 輸出 | App → 字幕與 OBS |
+| 影音匯入、資料夾監看與字幕編輯 | App → 檔案翻譯 |
+| 支援與其他進階項目 | App → 進階設定 |
 
 文字描邊與字幕背景是不同設定。關閉描邊不會刪掉背景。App 與 Extension 的字幕外觀分開調整。
 
@@ -99,7 +116,7 @@ Gemini 使用官方 `generateContent` API；程式已包含請求與回應處理
 1. 停止收音，結束 App。
 2. 安裝新版 App 到原位置；不必刪掉模型或設定。
 3. 將新 Extension ZIP 解壓到**同一個擴充功能資料夾**，覆蓋程式檔，再到擴充功能頁重新載入。
-4. 重新整理原本開著的網頁。若 ID 改變，重新執行 Mac 連接步驟。
+4. 重新整理原本開著的網頁。若從舊版連接工具升級或擴充功能 ID 改變，請重新執行相應平台的連接步驟。
 
 預覽版透過 GitHub 下載更新，不會靜默替換未簽章 App。發生問題可從 Releases 下載上一版的 App 與 Extension，一起回復；詳見[更新與回復](releases/README.md#roll-back)。
 
@@ -108,7 +125,7 @@ Gemini 使用官方 `generateContent` API；程式已包含請求與回應處理
 | 現象 | 先檢查 |
 | --- | --- |
 | 一直顯示「翻譯中」 | 停止收音，確認 App 模型已就緒／API 設定正確，重新整理網頁再開始；不要連續重複按開始。 |
-| `Native host has exited` / `host is forbidden` | App 是否仍在「應用程式」？Extension ID 是否變了？重新執行連接步驟。 |
+| `Native host has exited` / `host is forbidden` | 確認 App 安裝位置與擴充功能 ID。若有變更，重新執行相應平台的連接步驟。 |
 | 有日文但沒有中文 | 查看翻譯引擎是否載入、API 是否回報錯誤；字幕記錄可重試失敗翻譯。 |
 | 沒有聲音或字幕 | 確認播放中的分頁、聲音來源與系統權限；桌面模式與瀏覽器模式需各自正確設定。 |
 | 電腦發熱、延遲變長 | 先用較小模型，關閉額外品質校正與不需要的聲音分析，避免同時執行遊戲或兩套模型。 |

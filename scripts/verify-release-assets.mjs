@@ -9,26 +9,58 @@ const [directory, tag, commit, workflow] = process.argv.slice(2);
 const version = JSON.parse(readFileSync('extension/manifest.json')).version;
 if (!directory || tag !== `beta-v${version}` || !/^[0-9a-f]{40}$/.test(commit || '') || !/^https:\/\/github\.com\/clark970417-eng\/VocaLume\/actions\/runs\/\d+$/.test(workflow || '')) throw new Error('Expected asset directory, matching beta tag, commit SHA and repository Actions URL');
 const root = resolve(directory);
+const universalExtension = 'vocalume-extension.zip';
+const windowsExtension = 'vocalume-extension-windows.zip';
 const names = [`VocaLume-${version}-arm64.dmg`, `VocaLume-${version}.dmg`,
   `VocaLume-${version}-arm64-mac.zip`, `VocaLume-${version}-mac.zip`,
-  `VocaLume.Setup.${version}.exe`, `VocaLume-${version}.AppImage`, 'vocalume-extension.zip'];
+  `VocaLume.Setup.${version}.exe`, `VocaLume-${version}.AppImage`, universalExtension, windowsExtension];
 for (const name of names) if (statSync(join(root, name)).size < 1000) throw new Error(`Missing or empty package: ${name}`);
-const extension = join(root, 'vocalume-extension.zip');
+const commonInstallerFiles = [
+  'cloud-api.mjs', 'ui-language-sync.mjs', 'ui-language.mjs', 'ui-messages.mjs',
+  'ui-messages-zh-cn.mjs', 'ui-messages-ja.mjs', 'ui-messages-ko.mjs',
+  'ui-messages-desktop-ja.mjs', 'ui-messages-desktop-ko.mjs', 'website-language.mjs',
+  'website-language-content.js', 'page-language.js', 'popup-locale.mjs',
+  'desktop/install-windows.ps1', 'desktop/windows-host.cjs', 'desktop/LIVE_TRANSLATE_LICENSE',
+  'INSTALL.md', 'PRIVACY.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE',
+];
+const macInstallerFiles = [
+  'desktop/install.py', 'desktop/relay.py', 'desktop/host.py', 'desktop/translation_support.py',
+  'desktop/install-mac.cjs', 'desktop/capture-lease.mjs', 'desktop/requirements.txt',
+];
 const python = process.env.VOCALUME_TEST_PYTHON || process.env.VOCALUME_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 // Python's standard ZIP reader works on all release runners, including Windows
 // installations without the external zip/unzip command-line tools.
-const archive = JSON.parse(execFileSync(python, ['-I','-c',
-  'import json,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); print(json.dumps({"manifest":json.loads(z.read("manifest.json")),"entries":z.namelist()}))', extension], {encoding:'utf8'}));
-const manifest = archive.manifest;
-if (manifest.version !== version || !manifest.name.includes('VocaLume')) throw new Error('Wrong extension manifest');
-const entries = new Set(archive.entries);
-for (const script of manifest.content_scripts ?? []) {
-  for (const file of [...(script.js ?? []), ...(script.css ?? [])]) {
-    if (!entries.has(file)) throw new Error(`Extension content script dependency missing: ${file}`);
+for (const name of [universalExtension, windowsExtension]) {
+  const archive = JSON.parse(execFileSync(python, ['-I', '-c', `
+import json, sys
+from zipfile import ZipFile
+with ZipFile(sys.argv[1]) as archive:
+    damaged = archive.testzip()
+    if damaged is not None:
+        raise ValueError(f"Damaged ZIP entry: {damaged}")
+    print(json.dumps({"manifest": json.loads(archive.read("manifest.json")), "entries": archive.namelist()}))
+`, join(root, name)], {encoding: 'utf8'}));
+  const { manifest } = archive;
+  if (manifest.version !== version || !manifest.name?.includes('VocaLume')) {
+    throw new Error(`Wrong extension manifest in ${name}`);
   }
-}
-for (const required of ['cloud-api.mjs','ui-language-sync.mjs','ui-language.mjs','ui-messages.mjs','ui-messages-zh-cn.mjs','ui-messages-ja.mjs','ui-messages-ko.mjs','ui-messages-desktop-ja.mjs','ui-messages-desktop-ko.mjs','website-language.mjs','website-language-content.js','page-language.js','popup-locale.mjs','desktop/install.py','desktop/relay.py','desktop/host.py','desktop/translation_support.py','desktop/install-windows.ps1','desktop/windows-host.cjs','desktop/install-mac.cjs','desktop/capture-lease.mjs','desktop/LIVE_TRANSLATE_LICENSE','INSTALL.md','THIRD_PARTY_NOTICES.md','LICENSE']) {
-  if (!entries.has(required)) throw new Error(`Extension installer dependency missing: ${required}`);
+  const entries = new Set(archive.entries);
+  for (const script of manifest.content_scripts ?? []) {
+    for (const file of [...(script.js ?? []), ...(script.css ?? [])]) {
+      if (!entries.has(file)) throw new Error(`Extension content script dependency missing in ${name}: ${file}`);
+    }
+  }
+  for (const file of commonInstallerFiles) {
+    if (!entries.has(file)) throw new Error(`Extension installer dependency missing in ${name}: ${file}`);
+  }
+  for (const file of macInstallerFiles) {
+    if (name === universalExtension && !entries.has(file)) {
+      throw new Error(`Extension installer dependency missing in ${name}: ${file}`);
+    }
+    if (name === windowsExtension && entries.has(file)) {
+      throw new Error(`Unexpected macOS installer dependency in ${name}: ${file}`);
+    }
+  }
 }
 const provenance = {tag, commit, builtAt:new Date().toISOString(), workflow, signed:false, channel:'beta', version,
   assets:names, browserBridgeInstallers:['macOS','Windows'], physicalBrowserBridgeScope:'See platform-specific acceptance reports'};
