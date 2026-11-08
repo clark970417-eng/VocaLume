@@ -24,6 +24,7 @@ interface SubtitleConfig {
   backgroundOpacity: number
   position: 'top' | 'bottom'
   lowPowerRendering: boolean
+  captionMode: 'realtime' | 'record'
   hideOnHover: boolean
   accessibility: AccessibilityConfig
   showConfidenceIndicator: boolean
@@ -36,6 +37,7 @@ const DEFAULT_CONFIG: SubtitleConfig = {
   backgroundOpacity: 78,
   position: 'bottom',
   lowPowerRendering: /Windows/i.test(navigator.userAgent),
+  captionMode: 'realtime',
   hideOnHover: false,
   accessibility: DEFAULT_ACCESSIBILITY,
   showConfidenceIndicator: true
@@ -191,6 +193,7 @@ function ConfidenceText({
 }
 
 interface ResultData {
+  timestamp: number
   sourceText: string
   translatedText: string
   translationFailed?: boolean
@@ -220,6 +223,10 @@ function SubtitleOverlay(): React.JSX.Element {
   const [isDragMode, setIsDragMode] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
   const [hoverHidden, setHoverHidden] = useState(false)
+  const windows = /Windows/i.test(navigator.userAgent)
+  const [completedCaptions, setCompletedCaptions] = useState<ResultData[]>([])
+  const latestCaption = useRef<number | undefined>(undefined)
+  const recordMode = windows && config.captionMode === 'record'
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
   const [editSaving, setEditSaving] = useState(false)
@@ -234,12 +241,27 @@ function SubtitleOverlay(): React.JSX.Element {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     silenceTimerRef.current = setTimeout(() => {
       if (!dragRef.current) setVisible(false)
-    }, SILENCE_TIMEOUT_MS)
-  }, [])
+    }, windows ? 3000 : SILENCE_TIMEOUT_MS)
+  }, [windows])
 
   const handleResult = useCallback((data: unknown) => {
     const result = data as ResultData
     if (!result.sourceText?.trim()) return
+    if (windows) {
+      if (result.isInterim || !result.translatedText?.trim()) return
+      if (result.captionRevision) {
+        setCompletedCaptions(previous => previous.map(caption =>
+          caption.timestamp === result.timestamp ? { ...caption, ...result } : caption
+        ))
+        if (latestCaption.current !== result.timestamp) return
+      } else {
+        latestCaption.current = result.timestamp
+        setCompletedCaptions(previous => [
+          ...previous.filter(caption => caption.timestamp !== result.timestamp).slice(-3),
+          result
+        ])
+      }
+    }
 
     // If confirmed/interim split is available, use it for stable display
     if (result.confirmedText !== undefined) {
@@ -267,7 +289,7 @@ function SubtitleOverlay(): React.JSX.Element {
 
     setVisible(true)
     resetSilenceTimer()
-  }, [resetSilenceTimer])
+  }, [resetSilenceTimer, windows])
 
   const startDrag = (event: React.PointerEvent<HTMLDivElement>): void => {
     if (isEditMode || event.button !== 0 || !event.isPrimary || dragRef.current) return
@@ -365,8 +387,8 @@ function SubtitleOverlay(): React.JSX.Element {
   // Subscribe to all result types — unified handler
   useEffect(() => {
     const unsubResult = window.api.onTranslationResult(handleResult)
-    const unsubInterim = window.api.onInterimResult(handleResult)
-    const unsubDraft = window.api.onDraftResult(handleResult)
+    const unsubInterim = windows ? undefined : window.api.onInterimResult(handleResult)
+    const unsubDraft = windows ? undefined : window.api.onDraftResult(handleResult)
 
     return () => {
       unsubResult?.()
@@ -374,7 +396,7 @@ function SubtitleOverlay(): React.JSX.Element {
       unsubDraft?.()
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     }
-  }, [handleResult])
+  }, [handleResult, resetSilenceTimer, windows])
 
   // Edit mode: click translated text to start editing (#590)
   const handleTranslationClick = useCallback(() => {
@@ -390,6 +412,7 @@ function SubtitleOverlay(): React.JSX.Element {
     const trimmed = editValue.trim()
     if (!trimmed || trimmed === translatedText || editSaving) return
 
+    const captionTimestamp = latestCaption.current
     setEditSaving(true)
     try {
       await window.api.saveCorrection?.({
@@ -397,13 +420,18 @@ function SubtitleOverlay(): React.JSX.Element {
         originalTranslation: translatedText,
         correctedTranslation: trimmed
       })
-      setTranslatedText(trimmed)
+      if (!windows || latestCaption.current === captionTimestamp) setTranslatedText(trimmed)
+      if (windows) {
+        setCompletedCaptions(previous => previous.map(caption =>
+          caption.timestamp === captionTimestamp ? { ...caption, translatedText: trimmed } : caption
+        ))
+      }
     } finally {
       setEditSaving(false)
       setIsEditing(false)
       setEditValue('')
     }
-  }, [editValue, translatedText, confirmedText, editSaving])
+  }, [editValue, translatedText, confirmedText, editSaving, windows])
 
   const handleEditCancel = useCallback(() => {
     setIsEditing(false)
@@ -424,7 +452,7 @@ function SubtitleOverlay(): React.JSX.Element {
   const effectiveFontSize = a11y.highContrast ? Math.max(config.fontSize + 4, 34) : config.fontSize
   const translatedFontSize = Math.max(effectiveFontSize - 2, 16)
   const hasContent = confirmedText || interimText
-  const captionVisible = visible && !!hasContent
+  const captionVisible = (visible || recordMode) && Boolean(hasContent)
   const captionHoverHidden = config.hideOnHover && hoverHidden && !isDragMode && !isEditMode
   useEffect(() => {
     const caption = captionRef.current
@@ -554,9 +582,23 @@ function SubtitleOverlay(): React.JSX.Element {
           pointerEvents: captionVisible && !captionHoverHidden ? 'auto' : 'none',
           cursor: isEditMode ? 'auto' : 'move',
           touchAction: isEditMode ? 'auto' : 'none',
-          textAlign: 'center'
+          textAlign: 'center',
+          maxHeight: recordMode ? '100%' : undefined,
+          overflow: recordMode ? 'auto' : undefined,
+          boxSizing: 'border-box'
         }}
       >
+        {recordMode && completedCaptions.slice(0, -1).map(caption => (
+          <div key={caption.timestamp} style={{ marginBottom: '0.5rem', wordBreak: 'break-word', ...spacingStyle }}>
+            <div style={{ color: effectiveSourceColor, fontSize: effectiveFontSize, fontWeight: 600 }}>
+              {caption.speakerLabel && <strong>{caption.speakerLabel}{' '}</strong>}
+              {caption.sourceText}
+            </div>
+            <div style={{ color: effectiveTranslatedColor, fontSize: translatedFontSize, fontWeight: 600 }}>
+              {caption.translatedText}
+            </div>
+          </div>
+        ))}
         {/* Speaker label from diarization (#549) */}
         {speakerLabel && (
           <div
