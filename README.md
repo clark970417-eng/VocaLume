@@ -6,7 +6,7 @@
 
 **免費在自己的電腦翻譯直播與聊天。** 看雙語字幕、讀懂聊天室，打中文也能翻成日文再回覆。
 
-[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [4.6.7 beta downloads](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7)
+[Website & video demos](https://vocalume.vercel.app/) · [繁體中文說明](docs/README.zh-TW.md) · [4.6.6 beta downloads](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6)
 
 [简体中文](docs/README.zh-CN.md)
 
@@ -16,16 +16,16 @@ Choose one app for your computer. To use live captions in the browser, download 
 
 | Your computer | Installer |
 | --- | --- |
-| Windows x64 | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/VocaLume.Setup.4.6.7.exe) |
-| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/VocaLume-4.6.7-arm64.dmg) |
-| Mac · Intel | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/VocaLume-4.6.7.dmg) |
-| Linux x64 · experimental | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/VocaLume-4.6.7.AppImage) |
-| Extension · Windows (Chrome / Edge) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/vocalume-extension-windows.zip) |
-| Extension · universal (Chrome / Edge / Opera GX) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/vocalume-extension.zip) |
+| Windows x64 | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume.Setup.4.6.6.exe) |
+| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6-arm64.dmg) |
+| Mac · Intel | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6.dmg) |
+| Linux x64 · experimental | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6.AppImage) |
+| Extension · Windows (Chrome / Edge) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/vocalume-extension-windows.zip) |
+| Extension · universal (Chrome / Edge / Opera GX) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/vocalume-extension.zip) |
 
 Not sure which Mac you have? Open ** → About This Mac** and check the chip or processor.
 
-[4.6.7 release notes](docs/releases/4.6.7.md)
+[4.6.6 release notes](docs/releases/4.6.6.md)
 
 ## Start in three steps
 
@@ -77,7 +77,7 @@ A Star saves the repository; it does not subscribe you to releases or update the
 | [docs](docs/) | Guides, release notes, quality reports, legal notices |
 | [scripts](scripts/) | Packaging and maintenance |
 
-[Development](docs/development.md) · [Quality results & limitations](docs/quality/README.md) · [4.6.7 changes](docs/releases/4.6.7.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
+[Development](docs/development.md) · [Quality results & limitations](docs/quality/README.md) · [4.6.6 changes](docs/releases/4.6.6.md) · [Privacy](docs/legal/privacy.md) · [Third-party notices](docs/legal/third-party-notices.md)
 
 Automated checks are not equivalent to bilingual human review or testing on every device. Desktop components derive in part from [LiveTranslate](https://github.com/rioX432/live-translate), retaining its MIT license. Models have separate licenses.
 

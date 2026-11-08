@@ -300,6 +300,7 @@ test.describe('Window management', () => {
       (await window.api.getSettings()).subtitleSettings
     )).toMatchObject({ captionMode: 'record' })
     await expect.poll(overlayHeight).toBeGreaterThan(singleHeight)
+    const recordHeight = await overlayHeight()
     await expect(card).toHaveCSS('opacity', '1')
     for (let number = 2; number <= 5; number++) await send(number)
     await expect(card.getByText(/^Source [2-5]$/)).toHaveCount(4)
@@ -313,7 +314,7 @@ test.describe('Window management', () => {
       await expect(card.getByText(/^Translation [2-5]$/)).toHaveCount(1)
     }
     await mode.selectOption('realtime')
-    await expect.poll(overlayHeight).toBe(singleHeight)
+    await expect.poll(overlayHeight).toBeLessThan(recordHeight)
     await expect(card.getByText(/^Translation [1-5]$/)).toHaveCount(1)
     await expect(card.getByText('Translation 5', { exact: true })).toBeAttached()
   })

@@ -1,6 +1,6 @@
 # Release and rollback guide
 
-The latest public preview is [4.6.7 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7). See the [4.6.7 release notes](4.6.7.md), [installation guide](../installation.md) and [changelog](../../CHANGELOG.md).
+The latest public preview is [4.6.6 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6). See the [4.6.6 release notes](4.6.6.md), [installation guide](../installation.md) and [changelog](../../CHANGELOG.md).
 
 VocaLume uses two release channels:
 

@@ -1,6 +1,6 @@
 /** Validate a complete unsigned beta asset set, then generate provenance/checksums.
  * Run from the checked-out repository. No credentials or machine paths are saved. */
-import {readFileSync, writeFileSync, statSync, createReadStream} from 'node:fs';
+import {readFileSync, writeFileSync, statSync, existsSync, createReadStream} from 'node:fs';
 import {join, resolve} from 'node:path';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
@@ -62,6 +62,8 @@ with ZipFile(sys.argv[1]) as archive:
     }
   }
 }
+const lab = `vocalume-dual-live-lab-mac-${version}`;
+if (existsSync(join(root, lab + '.zip'))) names.push(lab + '.zip', lab + '.sha256');
 const provenance = {tag, commit, builtAt:new Date().toISOString(), workflow, signed:false, channel:'beta', version,
   assets:names, browserBridgeInstallers:['macOS','Windows'], physicalBrowserBridgeScope:'See platform-specific acceptance reports'};
 writeFileSync(join(root, 'release-manifest.json'), JSON.stringify(provenance, null, 2) + '\n');

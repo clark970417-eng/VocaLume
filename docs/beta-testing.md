@@ -4,7 +4,7 @@ This preview is intended for people who agree to test unfinished software and re
 
 ## Download and install
 
-Download the installer for your computer from [4.6.7 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7). For browser features, use `vocalume-extension-windows.zip` on Windows Chrome or Edge, or use the universal `vocalume-extension.zip`. New users can follow the [English quick start](../README.md) or [完整中文使用手冊](user-guide.md).
+Download the installer for your computer from [4.6.6 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6). For browser features, use `vocalume-extension-windows.zip` on Windows Chrome or Edge, or use the universal `vocalume-extension.zip`. New users can follow the [English quick start](../README.md) or [完整中文使用手冊](user-guide.md).
 
 ### Verify the download
 

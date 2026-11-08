@@ -8,6 +8,9 @@ import { SerialTaskQueue } from './serial-task-queue'
 
 type Mode = 'off' | 'translation' | 'bilingual'
 type Transport = 'file' | 'push'
+type Caption = { sourceText: string; translatedText: string; timestamp?: number; captionRevision?: number; isInterim?: boolean }
+let recordMode = (process.platform === 'win32' || process.platform === 'darwin') && store.get('subtitleSettings')?.captionMode === 'record'
+let captions: Caption[] = []
 const savedMode = store.get('obsCaptionMode')
 let mode: Mode = savedMode === 'translation' || savedMode === 'bilingual' ? savedMode : 'off'
 const pushAvailable = process.platform === 'win32'
@@ -100,6 +103,7 @@ export function obsCaptionStatus() {
 }
 
 export function clearObsCaption(): Promise<void> {
+  captions = []
   if (mode === 'off') return fileDrain ?? Promise.resolve()
   if (transport === 'push' && !pushedCaption && !pushDrain) return Promise.resolve()
   return write('')
@@ -119,6 +123,7 @@ export function configureObsCaptions(value: unknown) {
     changingTransport = true
     try {
       mode = value
+      captions = []
       if (transport === 'file' && (wasEnabled || mode !== 'off')) await writeFileCaption('', undefined, true)
       if (transport === 'push' && wasEnabled && (pushedCaption || pushDrain)) await write('')
       if (error && transport === 'file') mode = 'off'
@@ -192,11 +197,27 @@ function wrapObsText(text: string): string {
   }).join('\n')
 }
 
-export function publishObsCaption(result: { sourceText: string; translatedText: string; isInterim?: boolean }): void {
-  const translation = result.translatedText?.trim()
-  if (mode === 'off' || changingTransport || result.isInterim || !translation) return
-  const text = mode === 'bilingual'
-    ? [result.sourceText.trim(), translation].filter(Boolean).join('\n')
-    : translation
+function writeCompletedCaptions(): void {
+  if (mode === 'off' || changingTransport || !captions.length) return
+  const selected = recordMode ? captions : captions.slice(-1)
+  const text = selected.map(({ sourceText, translatedText }) =>
+    mode === 'bilingual' ? [sourceText.trim(), translatedText.trim()].filter(Boolean).join('\n') : translatedText.trim()
+  ).join('\n')
   void write(text, process.env.VOCALUME_CAPTION_TIMING === '1' ? performance.now() : undefined)
+}
+
+export function setObsCaptionRecordMode(value: boolean): void {
+  if (recordMode === value) return
+  recordMode = value
+  writeCompletedCaptions()
+}
+
+export function publishObsCaption(result: Caption): void {
+  if (mode === 'off' || changingTransport || result.isInterim || !result.translatedText?.trim()) return
+  if (result.captionRevision) {
+    captions = captions.map(caption => caption.timestamp === result.timestamp ? result : caption)
+  } else {
+    captions = [...captions.slice(-3), result]
+  }
+  writeCompletedCaptions()
 }

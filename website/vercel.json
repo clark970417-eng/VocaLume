@@ -7,12 +7,12 @@
   "redirects": [
     {
       "source": "/download/SHA256SUMS.txt",
-      "destination": "https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.7/SHA256SUMS.txt",
+      "destination": "https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/SHA256SUMS.txt",
       "permanent": false
     },
     {
       "source": "/download",
-      "destination": "https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7",
+      "destination": "https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6",
       "permanent": false
     }
   ]
