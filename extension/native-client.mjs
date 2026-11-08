@@ -17,6 +17,7 @@ export class NativeClient {
    if(this.port!==port)return;
    const error=this.runtime.lastError?.message||'Desktop companion disconnected';
    this.port=null;this.rejectAll(error);
+   this.onDisconnect?.(error);
   });
  }
  rejectAll(error){for(const job of this.pending.values()){clearTimeout(job.timer);job.reject(new Error(error));}this.pending.clear();}

@@ -104,7 +104,6 @@ export function GlossarySettings({
   return (
     <>
       <Section label={t("Personal Glossary")}>
-        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px' }}>{t("Define fixed translations for specific terms (e.g. proper nouns).")} </div>
         <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
           <button onClick={() => handleImport('personal')} disabled={disabled} style={glossaryButtonStyle}>{t("Import JSON/CSV")} </button>
           {glossaryTerms.length > 0 && (
@@ -189,7 +188,7 @@ export function GlossarySettings({
             ))}
           </div>
         )}
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <div className="settings-glossary-fields">
           <input
             type="text"
             value={newGlossarySource}

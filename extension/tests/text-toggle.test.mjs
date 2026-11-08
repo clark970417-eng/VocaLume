@@ -8,7 +8,7 @@ for (const saved of [{}, {websiteTextEnabled:true}, {websiteTextOptInEnabled:fal
  const title={textContent:'今日は楽しかったです',isConnected:true,closest(){return this;},parentElement:{querySelector(){return lines.find(x=>!x.removed);}},insertAdjacentElement(_,line){lines.push(line);}};
  const document={documentElement:{},querySelector:s=>s.includes('ytd-watch-metadata')?title:null,querySelectorAll:s=>s.includes('.jtl-title')?lines.filter(x=>!x.removed):[],createElement:()=>({remove(){this.removed=true;}}),addEventListener(){}};
  const window={};window.top=window;
- const chrome={storage:{local:{get:()=>Promise.resolve(saved)},onChanged:{addListener:f=>change=f}},runtime:{onMessage:{addListener(){}},sendMessage:(m,cb)=>{messages.push(m);reply=cb;}}};
+ const chrome={storage:{local:{get:()=>Promise.resolve(saved)},onChanged:{addListener:f=>change=f}},runtime:{onMessage:{addListener(){}},sendMessage:(m,cb)=>{if(m.type==='subtitles'){cb({ok:true,text:{running:false,items:[]}});return;}messages.push(m);reply=cb;}}};
  const src=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8'));
  vm.runInNewContext(src,{chrome,window,document,MutationObserver:class{observe(){}},setInterval(){},setTimeout(){},clearTimeout(){},console});
  await Promise.resolve();assert.equal(messages.length,0);

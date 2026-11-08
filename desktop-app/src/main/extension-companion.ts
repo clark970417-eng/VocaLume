@@ -2,7 +2,7 @@ import { performanceState } from './performance-state'
 import { isSpeechToneMode } from '../pipeline/SpeechTone'
 /** Private local adapter for the existing browser UI; uses the production pipeline. */
 import { createServer, type Server, type Socket } from 'net'
-import { mkdirSync, chmodSync, existsSync, unlinkSync, writeFileSync } from 'fs'
+import { mkdirSync, chmodSync, existsSync, unlinkSync, writeFileSync, renameSync } from 'fs'
 import { homedir } from 'os'
 import { join, posix } from 'path'
 import { createHash } from 'crypto'
@@ -17,12 +17,15 @@ import { HunyuanMT15Translator } from '../engines/translator/HunyuanMT15Translat
 import { translateWrittenDraft } from './draft-fidelity'
 import { selectDraftTerminology } from './draft-glossary'
 import { CompanionScheduler } from './companion-scheduler'
+import { claimLiveCapture } from './live-capture-claim'
+import { resolveBridgeScript } from '../engines/SubprocessBridge'
 import { speechEvidenceFor } from '../engines/stt/transcript-guard'
 import type { SpeechEvidence } from '../engines/types'
 
 /** How long a new browser connection waits for the current one to close before
  * it is treated as a second client and refused. */
 const OWNER_RELEASE_GRACE_MS = 2000
+const TRANSLATOR_IDLE_MS = 45_000
 
 /** Windows requires a named pipe; Unix systems use a protected domain socket. */
 export function companionEndpoint(directory: string, platform = process.platform): string {
@@ -35,15 +38,27 @@ export function companionEndpoint(directory: string, platform = process.platform
   return `\\\\.\\pipe\\japanese-live-caption-${id}`
 }
 
-export async function startExtensionCompanion(ctx: AppContext, directory?: string): Promise<Server> {
+export async function startExtensionCompanion(
+  ctx: AppContext, directory?: string, translatorIdleMs = TRANSLATOR_IDLE_MS
+): Promise<Server> {
   const dir = directory || join(homedir(), 'Library/Application Support/JapaneseLiveCaption')
   mkdirSync(dir, { recursive: true, mode: 0o700 })
   if (process.platform !== 'win32') chmodSync(dir, 0o700)
   // Refresh the native launch path after installation, rename or upgrade.
   if (process.platform === 'darwin' && process.execPath.includes('.app/Contents/MacOS/')) {
     writeFileSync(join(dir, 'app.json'), JSON.stringify({ executable: process.execPath }), { mode: 0o600 })
+    if (existsSync(join(dir, 'native-host.cjs'))) {
+      const pointer = join(dir, 'app-executable')
+      const temporary = pointer + '.' + process.pid
+      writeFileSync(temporary, process.execPath + '\n', { mode: 0o600 })
+      renameSync(temporary, pointer)
+    }
   }
   const path = companionEndpoint(dir)
+  if (process.platform === 'win32' ||
+      (process.platform === 'darwin' && existsSync(resolveBridgeScript('bin/capture-claim-helper')))) {
+    ctx.liveCaptureClaimPath = path + '-capture'
+  }
   if (process.platform !== 'win32' && existsSync(path)) unlinkSync(path)
   let owned = false
   /** The previous connection's teardown. A client reconnecting after the old
@@ -71,11 +86,17 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
     owned = true
     const previousTeardown = teardown
     let ownsSession = false
+    let ownerSubscription: string | undefined
+    let sharedSubscription: string | undefined
+    let browserCapture: { subscription: string; release: () => void } | undefined
     socket.setEncoding('utf8')
     let buffer = '', pending = 0, closed = false
     const queue = new CompanionScheduler()
     let translator: HunyuanMT2Translator | HunyuanMT15Translator | undefined
     let translatorMode: string | undefined
+    let textRequests = 0
+    let textRequestEpoch = 0
+    let translatorIdleTimer: ReturnType<typeof setTimeout> | undefined
     const send = (value: unknown): void => { if (!closed) socket.write(JSON.stringify(value) + '\n') }
     type LocalMode = 'offline-hymt2' | 'offline-hymt15'
     const modeOf = (value: unknown): LocalMode => value === 'offline-hymt2' ? 'offline-hymt2' : 'offline-hymt15'
@@ -92,6 +113,29 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
       translator = undefined; translatorMode = undefined
       try { await stale?.dispose() } catch { /* its worker is already gone */ }
     }
+    const clearTranslatorTimer = (): void => {
+      if (translatorIdleTimer) clearTimeout(translatorIdleTimer)
+      translatorIdleTimer = undefined
+    }
+    const beginTextRequest = (): void => {
+      clearTranslatorTimer()
+      textRequests++
+      textRequestEpoch++
+    }
+    const finishTextRequest = (): void => {
+      textRequests--
+      if (closed || textRequests || !translator) return
+      const epoch = textRequestEpoch
+      translatorIdleTimer = setTimeout(() => {
+        translatorIdleTimer = undefined
+        // A later draft may have entered the queue while disposal was waiting.
+        // This releases only the socket's translator reference, not the live model.
+        void queue.run(false, async () => {
+          if (!closed && textRequests === 0 && epoch === textRequestEpoch) await discardTranslator()
+        }).catch(() => {})
+      }, translatorIdleMs)
+      translatorIdleTimer.unref?.()
+    }
     /** Terminology is chosen from the whole comment, so a clause retranslated
      * during repair keeps the meaning the full sentence established. */
     const draftWith = (engine: HunyuanMT2Translator | HunyuanMT15Translator, comment: string, writingStyle?: 'general' | 'viewer' | 'polite') => {
@@ -99,21 +143,27 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
       return (text: string, signal?: AbortSignal): Promise<string> =>
         engine.translate(text, 'zh', 'ja', { signal, previousSegments: [], glossary, writingStyle })
     }
+    const writtenDraft = async (engine: HunyuanMT2Translator | HunyuanMT15Translator, text: string,
+      style: 'general' | 'viewer' | 'polite' | undefined, signal: AbortSignal, japaneseSource: boolean) =>
+      japaneseSource
+        ? { text: await engine.translate(text, 'ja', 'zh', { signal, previousSegments: [], writingStyle: style }) }
+        : await translateWrittenDraft(text, draftWith(engine, text, style), signal)
     /** Answer a draft request later, on the caption model, behind any audio work
      * already queued. Scheduled as its own task: awaiting it from inside the
      * current task would deadlock the serial scheduler. */
-    const deferDraft = (id: number | undefined, text: string, mode: LocalMode, writingStyle?: 'general' | 'viewer' | 'polite'): void => {
+    const deferDraft = (id: number | undefined, text: string, mode: LocalMode, writingStyle?: 'general' | 'viewer' | 'polite', japaneseSource = false): void => {
       pending++
+      beginTextRequest()
       void queue.run(false, async fallbackPreempt => {
         try {
           if (closed) return
           const small = await translatorFor(mode)
           await small.initialize()
-          const draft = await translateWrittenDraft(text, draftWith(small, text, writingStyle), fallbackPreempt)
-          send({ id, ok: true, result: { ...draft, fallbackModel: true } })
+          const draft = await writtenDraft(small, text, writingStyle, fallbackPreempt, japaneseSource)
+          send({ id, ok: true, result: { ...draft, fallbackModel: true, ...(japaneseSource && { quality: 'fast' }) } })
         } catch (error) {
           send({ id, ok: false, error: error instanceof Error ? error.message : String(error) })
-        } finally { pending-- }
+        } finally { pending--; finishTextRequest() }
       }).catch(() => { socket.destroy() })
     }
     let current: { segment?: string; id?: number } = {}
@@ -162,33 +212,65 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
     }
     const correction = (r: TranslationResult): void => {
       const segment = revisions.get(r.timestamp)
-      if (segment) send({ event: 'caption', segment, result: { text: r.sourceText, translated: r.translatedText, correction: true, timestamp: r.timestamp } })
+      if (segment) send({ event: 'caption', segment, result: { text: r.sourceText, translated: r.translatedText, correction: true, timestamp: r.timestamp, revision: r.captionRevision ?? 1 } })
+      sharedCaption(r, true)
+    }
+    const sharedCaption = (r: TranslationResult, revised = false): void => {
+      if (!sharedSubscription || !ctx.pipeline?.active || ownsSession ||
+          ctx.pipelineInputOwner === 'file' || r.isInterim || !r.translatedText.trim()) return
+      send({ event: 'shared-caption', subscription: sharedSubscription, result: {
+        text: r.sourceText, translated: r.translatedText, sourceLanguage: r.sourceLanguage, targetLanguage: r.targetLanguage,
+        timestamp: r.timestamp, revision: r.captionRevision ?? (revised ? 1 : 0), correction: revised
+      } })
+    }
+    const sharedFinal = (r: TranslationResult): void => sharedCaption(r)
+    const sharedState = (state: string): void => {
+      if (state !== 'idle' || !sharedSubscription || ctx.pipelineStarting || ctx.pipeline?.sessionStartTime !== null) return
+      send({ event: 'shared-ended', subscription: sharedSubscription })
+      sharedSubscription = undefined
+    }
+    const stopOwnedCapture = async (): Promise<void> => {
+      const pipeline = ctx.pipeline
+      if (ownsSession && pipeline && lastAudio) {
+        const result = await pipeline.finalizeStreaming(lastAudio, 16000, lastEvidence)
+        if (result) caption(result)
+      }
+      lastAudio = null; lastEvidence = undefined
+      if (ownsSession) { await drainFinals(); await pipeline?.stop(); ctx.logger?.endSession(); ctx.logger = null }
+      ownsSession = false; ownerSubscription = undefined; ctx.extensionConnected = false
+      current = {}; revisions.clear(); lastShown.clear()
     }
     ctx.pipeline?.on('interim-result', caption)
     ctx.pipeline?.on('draft-stt-result', caption)
     ctx.pipeline?.on('ger-corrected', correction)
+    ctx.pipeline?.on('result', sharedFinal)
+    ctx.pipeline?.on('state-change', sharedState)
     socket.on('data', chunk => {
       buffer += chunk.toString()
       if (buffer.length > 2_000_000) { socket.destroy(); return }
       for (;;) {
         const newline = buffer.indexOf('\n'); if (newline < 0) break
         const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1)
-        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; speechEndSample?: unknown; captureStartSample?: unknown; captureEndSample?: unknown; continuationExpected?: unknown; sourceLanguage?: string; targetLanguage?: string; speechToneMode?: unknown }
+        let m: { id?: number; op?: string; subscription?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; speechEndSample?: unknown; captureStartSample?: unknown; captureEndSample?: unknown; continuationExpected?: unknown; sourceLanguage?: string; targetLanguage?: string; speechToneMode?: unknown }
         try { m = JSON.parse(line) } catch { send({ ok: false, error: 'Invalid request' }); continue }
         if (!m || typeof m !== 'object') { send({ ok: false, error: 'Invalid request' }); continue }
-        const audioPriority = ['decode', 'init', 'stop'].includes(m.op || '')
+        const audioPriority = ['decode', 'init', 'stop', 'browser-claim', 'release-capture'].includes(m.op || '')
         // Reserve capacity for audio/control; excess page text must not disconnect capture.
         if (pending >= (audioPriority ? 16 : 12)) {
           send({ id: m.id, ok: false, error: 'Desktop queue is full; please retry' }); continue
         }
         pending++
+        if (m.op === 'translate') beginTextRequest()
         void queue.run(audioPriority, async preempt => {
           let deferred = false
+          const alreadyOwned = ownsSession
           try {
             await previousTeardown
             if (closed) return
             const pipeline = ctx.pipeline
             if (!pipeline) throw new Error('Desktop pipeline not ready')
+            const subscription = typeof m.subscription === 'string' && /^[a-z0-9_-]{1,64}$/iu.test(m.subscription)
+              ? m.subscription : undefined
             let result: unknown
             if (m.op === 'status') {
               // Read-only health information: do not create a renderer just to
@@ -199,11 +281,41 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
               else { ctx.mainWindow?.show(); ctx.mainWindow?.focus() }
               result = { opened: true }
             } else if (m.op === 'stop') {
-              if (ownsSession && lastAudio) { const result = await pipeline.finalizeStreaming(lastAudio, 16000, lastEvidence); if (result) caption(result) }
-              lastAudio = null; lastEvidence = undefined
-              if (ownsSession) { await drainFinals(); await pipeline.stop(); ctx.logger?.endSession(); ctx.logger = null }
-              ownsSession = false; ctx.extensionConnected = false; current = {}; revisions.clear(); lastShown.clear()
+              await stopOwnedCapture()
               result = { stopped: true }
+            } else if (m.op === 'release-capture') {
+              if (subscription && ownerSubscription === subscription) await stopOwnedCapture()
+              if (subscription && sharedSubscription === subscription) sharedSubscription = undefined
+              if (subscription && browserCapture?.subscription === subscription) {
+                browserCapture.release()
+                browserCapture = undefined
+              }
+              result = { stopped: true }
+            } else if (m.op === 'browser-claim' || (m.op === 'init' && subscription &&
+              (ctx.pipelineStarting || (pipeline.active && !ownsSession)))) {
+              if (!subscription) throw new Error('Invalid live caption subscription')
+              if (ctx.pipelineStarting) {
+                result = { role: 'starting' }
+              } else if (pipeline.active && !ownsSession && ctx.pipelineInputOwner !== 'file') {
+                const sourceLanguage = store.get('sourceLanguage'), targetLanguage = store.get('targetLanguage')
+                const audioSource = store.get('audioSource')
+                if (audioSource !== 'system' || sourceLanguage !== m.sourceLanguage || targetLanguage !== m.targetLanguage) {
+                  result = { role: 'incompatible', reason: audioSource !== 'system' ? 'audio-source' : 'language',
+                    audioSource, sourceLanguage, targetLanguage }
+                } else {
+                  sharedSubscription = subscription
+                  result = { role: 'shared', subscription, sourceLanguage, targetLanguage }
+                }
+              } else if (m.op === 'init' || ownsSession || (browserCapture && browserCapture.subscription !== subscription)) {
+                result = { role: 'busy' }
+              } else if (browserCapture || !ctx.liveCaptureClaimPath) {
+                result = { role: 'browser', coordinated: !!browserCapture }
+              } else {
+                const release = await claimLiveCapture(ctx.liveCaptureClaimPath)
+                if (closed) { release?.(); return }
+                if (release) browserCapture = { subscription, release }
+                result = { role: release ? 'browser' : ctx.pipelineStarting ? 'starting' : 'busy', coordinated: !!release }
+              }
             } else if (m.op === 'init') {
               if (pipeline.active && !ownsSession) throw new Error('Stop desktop audio capture before starting browser capture.')
               if (m.speechToneMode !== undefined) {
@@ -224,7 +336,7 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                 store.set('sttEngine', 'whisper-local')
               }
               ownsSession = true; ctx.extensionConnected = true
-              ctx.subtitleWindow?.hide()
+              if (subscription) ownerSubscription = subscription
               if (!pipeline.active) {
                 const keys = { apiKey: store.get('googleApiKey'), deeplApiKey: store.get('deeplApiKey'),
                   geminiApiKey: store.get('geminiApiKey'), microsoftApiKey: store.get('microsoftApiKey'),
@@ -232,10 +344,10 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                 const mode = resolveEngineMode(store.get('translationEngine') as EngineMode, keys, null, process.platform)
                 const selectedStt = store.get('sttEngine') as SttEngineType
                 const config = buildEngineConfig(mode, selectedStt, keys) as unknown as PipelineStartConfig
-                const started = await startPipeline(ctx, config)
+                const started = await startPipeline(ctx, config, 'extension')
                 if ('error' in started) throw new Error(started.error)
               }
-              result = { model: `${pipeline.currentConfig?.sttEngineId} + ${pipeline.currentConfig?.translatorEngineId}`, dtype: 'native' }
+              result = { role: 'desktop', model: `${pipeline.currentConfig?.sttEngineId} + ${pipeline.currentConfig?.translatorEngineId}`, dtype: 'native' }
             } else if (m.op === 'decode') {
               if (!ownsSession || !pipeline.running || typeof m.audio !== 'string') throw new Error('Start desktop mode first')
               const bytes = Buffer.from(m.audio, 'base64')
@@ -273,63 +385,78 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
               // one model to load another, and measuring that swap against live
               // audio put caption round trips above 20 s.
               const writingStyle = m.writingStyle === 'viewer' || m.writingStyle === 'polite' ? m.writingStyle : 'general'
-              const isDraft = from === 'zh' && to === 'ja'
+              const japaneseQualityDraft = from === 'ja' && to === 'zh' && m.quality === 'quality'
+              const isDraft = (from === 'zh' && to === 'ja') || japaneseQualityDraft
               const captionMode = modeOf(store.get('translationEngine'))
+              const captureBusy = pipeline.running || pipeline.active
               // Fast drafts reuse the caption model, avoiding a cold 7B load.
               // Clients without the new option keep their saved model preference.
-              const requestedMode = isDraft && m.quality !== 'fast' && !pipeline.running ? modeOf(store.get('draftTranslationEngine')) : captionMode
+              const requestedMode = isDraft && m.quality !== 'fast' && !captureBusy ? modeOf(store.get('draftTranslationEngine')) : captionMode
               // A draft on a model the captions do not use will occupy the shared
               // worker with a load that captions would otherwise have to wait for.
               const displacesCaptions = isDraft && requestedMode !== captionMode
               if (displacesCaptions && !preempt.aborted) {
                 const large = await translatorFor(requestedMode)
+                const signal = japaneseQualityDraft ? AbortSignal.any([preempt, AbortSignal.timeout(4_700)]) : preempt
                 const interrupt = (): void => { large.interrupt?.('Live captions started during a large-model draft') }
-                preempt.addEventListener('abort', interrupt, { once: true })
+                signal.addEventListener('abort', interrupt, { once: true })
                 try {
                   // Captions may have arrived while the previous text model was
                   // being released, before this listener existed.
-                  if (preempt.aborted) interrupt()
+                  if (signal.aborted) interrupt()
                   await large.initialize()
-                  result = await translateWrittenDraft(m.text, draftWith(large, m.text, writingStyle), preempt)
+                  signal.throwIfAborted()
+                  const draft = await writtenDraft(large, m.text, writingStyle, signal, japaneseQualityDraft)
+                  result = { ...draft, ...(japaneseQualityDraft && { quality: 'quality' }) }
                 } catch (error) {
                   if (!preempt.aborted) throw error
                   // The large model produced nothing before captions needed the
                   // hardware. Finish this draft on the caption model after them.
-                  deferDraft(m.id, m.text, captionMode, writingStyle)
+                  deferDraft(m.id, m.text, captionMode, writingStyle, japaneseQualityDraft)
                   deferred = true
                 } finally {
-                  preempt.removeEventListener('abort', interrupt)
+                  signal.removeEventListener('abort', interrupt)
                   // An interrupted engine points at a worker that no longer exists.
-                  if (preempt.aborted) await discardTranslator()
+                  if (signal.aborted) await discardTranslator()
                 }
               } else {
                 const active = await translatorFor(isDraft ? (displacesCaptions ? captionMode : requestedMode) : requestedMode)
                 await active.initialize()
-                result = isDraft
-                  ? await translateWrittenDraft(m.text, draftWith(active, m.text, writingStyle), preempt)
-                  : { text: await active.translate(m.text, from, to) }
+                if (isDraft) {
+                  const draft = await writtenDraft(active, m.text, writingStyle, preempt, japaneseQualityDraft)
+                  result = { ...draft, ...(japaneseQualityDraft && { quality: captureBusy || preempt.aborted ? 'fast' : 'quality' }) }
+                } else result = { text: await active.translate(m.text, from, to) }
               }
             } else throw new Error('Unsupported operation')
             if (!deferred) send({ id: m.id, ok: true, result: m.op === 'decode' ? { ...(result as object), performance: performanceState() } : result })
           } catch (error) {
-            if (m.op === 'init' && ownsSession) { ownsSession = false; ctx.extensionConnected = false }
+            if (m.op === 'init' && !alreadyOwned && ownsSession) { ownsSession = false; ownerSubscription = undefined; ctx.extensionConnected = false }
             send({ id: m.id, ok: false, error: error instanceof Error ? error.message : String(error) })
           }
-          finally { pending-- }
+          finally {
+            pending--
+            if (m.op === 'translate') finishTextRequest()
+          }
         }).catch(() => { socket.destroy() })
       }
     })
     socket.on('error', () => socket.destroy())
     socket.on('close', () => {
       closed = true
+      clearTranslatorTimer()
+      browserCapture?.release()
+      browserCapture = undefined
+      sharedSubscription = undefined
       // Nobody is waiting for the active page-text work, and a reconnecting
       // client's captions wait for this queue to drain.
       queue.preemptActive(new Error('Browser disconnected'))
       ctx.pipeline?.off('draft-stt-result', caption)
       ctx.pipeline?.off('interim-result', caption); ctx.pipeline?.off('ger-corrected', correction)
+      ctx.pipeline?.off('result', sharedFinal)
+      ctx.pipeline?.off('state-change', sharedState)
       // The socket is gone, so another client may connect now; its work waits for this.
       owned = false
-      teardown = queue.idle().then(async () => { try { if (ownsSession) { await ctx.pipeline?.stop(); ctx.logger?.endSession(); ctx.logger = null }; await drainFinals(); await translator?.dispose() } finally { ctx.extensionConnected = false } }).catch(() => {})
+      teardown = queue.idle().then(async () => { try { if (ownsSession) { await ctx.pipeline?.stop(); ctx.logger?.endSession(); ctx.logger = null }; await drainFinals(); await discardTranslator() } finally { ctx.extensionConnected = false } }).catch(() => {})
       waiting.shift()?.()
     })
   }

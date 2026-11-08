@@ -25,46 +25,38 @@ export function useLanguageSettings(): LanguageSettingsState {
   const [targetLanguage, setTargetLanguage] = useState<Language>('en')
   const [sttEngine, setSttEngine] = useState<SttEngineType>('whisper-local')
   const [whisperVariant, setWhisperVariant] = useState<WhisperVariantType>('kotoba-v2.0')
-  const [platform, setPlatform] = useState<string>('darwin')
+  const [platform, setPlatform] = useState('')
   const [isMacOS26, setIsMacOS26] = useState(false)
   const [draftSttEnabled, setDraftSttEnabled] = useState(false)
   const [speakerDiarizationEnabled, setSpeakerDiarizationEnabled] = useState(false)
 
   // Load language/STT settings on mount
   useEffect(() => {
-    window.api.getSettings().then((s) => {
-      if (s.sttEngine) setSttEngine(str(s.sttEngine, 'mlx-whisper') as SttEngineType)
+    const savedSettings = window.api.getSettings()
+    savedSettings.then((s) => {
       if (s.whisperVariant) setWhisperVariant(str(s.whisperVariant, 'kotoba-v2.0') as WhisperVariantType)
       if (s.sourceLanguage) setSourceLanguage(str(s.sourceLanguage, 'auto') as SourceLanguage)
       if (s.targetLanguage) setTargetLanguage(str(s.targetLanguage, 'en') as Language)
       if (s.draftSttEnabled !== undefined) setDraftSttEnabled(!!s.draftSttEnabled)
       if (s.speakerDiarizationEnabled !== undefined) setSpeakerDiarizationEnabled(!!s.speakerDiarizationEnabled)
-    })
+    }).catch((e) => console.warn('[settings] Failed to load language settings:', e))
 
     // Set platform-aware STT default and detect macOS version
-    Promise.all([
-      window.api.getPlatform(),
-      window.api.getMacOSVersion()
-    ]).then(([p, macVer]) => {
+    window.api.getPlatform().then(async (p) => {
       setPlatform(p)
+      const macVer = p === 'darwin' ? await window.api.getMacOSVersion().catch(() => null) : null
       // macOS 26+ (Tahoe) enables Apple SpeechTranscriber as primary STT (#548)
       const isTahoe = macVer !== null && parseInt(macVer.split('.')[0], 10) >= 26
       setIsMacOS26(isTahoe)
-      window.api.getSettings().then((s) => {
-        if (p !== 'darwin' && ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber'].includes(String(s.sttEngine))) {
-          setSttEngine('whisper-local')
-          setWhisperVariant('base')
-        } else if (!s.sttEngine) {
-          if (isTahoe) {
-            // Default to Apple SpeechTranscriber on macOS 26+ — zero setup required
-            setSttEngine('apple-speech-transcriber')
-          } else if (p === 'darwin') {
-            setSttEngine('mlx-whisper')
-          } else {
-            setSttEngine('whisper-local')
-          }
-        }
-      })
+      const storedEngine = str((await savedSettings).sttEngine, '')
+      if (p !== 'darwin' && ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber', 'qwen3-asr'].includes(storedEngine)) {
+        setSttEngine('whisper-local')
+        setWhisperVariant('base')
+      } else if (storedEngine) {
+        setSttEngine(storedEngine as SttEngineType)
+      } else if (p === 'darwin') {
+        setSttEngine(isTahoe ? 'apple-speech-transcriber' : 'mlx-whisper')
+      }
     }).catch((e) => console.warn('[settings] Failed to load platform/settings:', e))
   }, [])
 

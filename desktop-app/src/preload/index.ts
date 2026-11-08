@@ -1,26 +1,40 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import type { SpeechEvidence, TTSPlaybackData } from '../engines/types'
+import type { MediaFileCue } from '../media-transcript'
+
+let ttsPlaybackListeners = 0
 
 contextBridge.exposeInMainWorld('api', {
   // Pipeline control
-  pipelineStart: (config: unknown) => ipcRenderer.invoke('pipeline-start', config),
+  pipelineStart: (config: unknown, captureAudio?: boolean) => ipcRenderer.invoke('pipeline-start', config, captureAudio),
   pipelineStop: () => ipcRenderer.invoke('pipeline-stop'),
   processAudio: (audioData: number[]) => ipcRenderer.invoke('process-audio', audioData),
-  processAudioStreaming: (audioData: number[] | Float32Array) => ipcRenderer.invoke('process-audio-streaming', audioData),
-  finalizeStreaming: (audioData: number[] | Float32Array) => ipcRenderer.invoke('finalize-streaming', audioData),
+  processAudioStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) =>
+    ipcRenderer.invoke('process-audio-streaming', audioData, evidence),
+  getAudioPreviewDelay: (): Promise<number> => ipcRenderer.invoke('get-audio-preview-delay'),
+  processAudioPreview: (audioData: Float32Array, evidence: SpeechEvidence): Promise<number> =>
+    ipcRenderer.invoke('process-audio-preview', audioData, evidence),
+  finalizeStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) =>
+    ipcRenderer.invoke('finalize-streaming', audioData, evidence),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   decodeMediaFile: (path: string) => ipcRenderer.invoke('decode-media-file', path),
   exportFileTranscript: (contents: string) => ipcRenderer.invoke('export-file-transcript', contents),
   chooseMediaFolder: () => ipcRenderer.invoke('choose-media-folder'),
   scanMediaFolder: () => ipcRenderer.invoke('scan-media-folder'),
-  processMediaFile: (path: string, jobId: string) => ipcRenderer.invoke('process-media-file', path, jobId),
+  processMediaFile: (path: string, jobId: string, review = false) => ipcRenderer.invoke('process-media-file', path, jobId, review),
   cancelMediaFile: (jobId: string) => ipcRenderer.invoke('cancel-media-file', jobId),
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: { jobId: string; processedSeconds: number }): void => callback(data)
     ipcRenderer.on('media-file-progress', handler)
     return () => ipcRenderer.off('media-file-progress', handler)
   },
+  onMediaFileCue: (callback: (cue: MediaFileCue) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, cue: MediaFileCue): void => callback(cue)
+    ipcRenderer.on('media-file-cue', handler)
+    return () => ipcRenderer.off('media-file-cue', handler)
+  },
   // Cloud realtime e2e streaming (#721)
-  pushRealtimeAudio: (audioData: number[]) => ipcRenderer.invoke('push-realtime-audio', audioData),
+  pushRealtimeAudio: (audioData: Float32Array | number[]) => ipcRenderer.invoke('push-realtime-audio', audioData),
   speechBoundary: (boundary: 'start' | 'end') => ipcRenderer.invoke('speech-boundary', boundary),
 
   // Translation results
@@ -156,9 +170,23 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('save-correction', correction),
   getCorrectionHistory: () => ipcRenderer.invoke('get-correction-history'),
   clearCorrectionHistory: () => ipcRenderer.invoke('clear-correction-history'),
-  moveSubtitleByDelta: (dx: number, dy: number) =>
-    ipcRenderer.send('move-subtitle-by-delta', dx, dy),
-  saveSubtitlePosition: () => ipcRenderer.invoke('save-subtitle-position'),
+  getSubtitleInteractionMode: () => ipcRenderer.invoke('get-subtitle-interaction-mode'),
+  setSubtitleCaptionArea: (area: Electron.Rectangle | null, hideOnHover: boolean) =>
+    ipcRenderer.send('set-subtitle-caption-area', area, hideOnHover),
+  setSubtitleCaptionHover: (hovered: boolean) =>
+    ipcRenderer.send('set-subtitle-caption-hover', hovered),
+  onSubtitleHoverHidden: (callback: (hidden: boolean) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, hidden: boolean): void => callback(hidden)
+    ipcRenderer.on('subtitle-hover-hidden', handler)
+    return () => ipcRenderer.off('subtitle-hover-hidden', handler)
+  },
+  subtitlePointerDrag: (phase: 'start' | 'move' | 'end', x: number, y: number) =>
+    ipcRenderer.send('subtitle-pointer-drag', phase, x, y),
+  onSubtitleDisplayChanged: (callback: (displayId: number) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, id: number): void => callback(id)
+    ipcRenderer.on('subtitle-display-changed', handler)
+    return () => ipcRenderer.off('subtitle-display-changed', handler)
+  },
   resetSubtitlePosition: () => ipcRenderer.invoke('reset-subtitle-position'),
   onDragModeChanged: (callback: (enabled: boolean) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled)
@@ -172,10 +200,28 @@ contextBridge.exposeInMainWorld('api', {
   ttsSetVolume: (volume: number) => ipcRenderer.invoke('tts-set-volume', volume),
   ttsSetOutputDevice: (deviceId: string) => ipcRenderer.invoke('tts-set-output-device', deviceId),
   ttsGetSettings: () => ipcRenderer.invoke('tts-get-settings'),
-  onTtsAudio: (callback: (data: { audio: number[]; sampleRate: number; volume: number; outputDevice: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: { audio: number[]; sampleRate: number; volume: number; outputDevice: string }): void => callback(data)
+  ttsGetVoices: () => ipcRenderer.invoke('tts-get-voices'),
+  onTtsError: (callback: (message: string) => void) => {
+    const handler = (_event: unknown, message: string): void => callback(message)
+    ipcRenderer.on('tts-error', handler)
+    return () => { ipcRenderer.off('tts-error', handler) }
+  },
+  onTtsAudio: (callback: (data: TTSPlaybackData) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: TTSPlaybackData): void => callback(data)
     ipcRenderer.on('tts-audio', handler)
-    return () => ipcRenderer.off('tts-audio', handler)
+    if (++ttsPlaybackListeners === 1) ipcRenderer.send('tts-playback-listener', true)
+    let subscribed = true
+    return () => {
+      if (!subscribed) return
+      subscribed = false
+      ipcRenderer.off('tts-audio', handler)
+      if (--ttsPlaybackListeners === 0) ipcRenderer.send('tts-playback-listener', false)
+    }
+  },
+  onTtsStop: (callback: () => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('tts-stop', handler)
+    return () => ipcRenderer.off('tts-stop', handler)
   },
 
   // Virtual Mic (#515)
@@ -234,6 +280,8 @@ contextBridge.exposeInMainWorld('api', {
   updateGetStatus: () => ipcRenderer.invoke('update-get-status'),
   obsCaptionStatus: () => ipcRenderer.invoke('obs-caption-status'),
   configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ipcRenderer.invoke('configure-obs-captions', mode),
+  configureObsCaptionTransport: (transport: 'file' | 'push', source: string) =>
+    ipcRenderer.invoke('configure-obs-caption-transport', transport, source),
   exportDiagnostics: () => ipcRenderer.invoke('export-diagnostics'),
   openSupportUrl: (url: string) => ipcRenderer.invoke('open-support-url', url),
   onUpdateStatus: (callback: (status: { state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }) => void) => {

@@ -34,17 +34,15 @@
   .nav { top: 8px; margin: 8px 10px 0; padding: 10px 11px 5px; border-radius: 18px; gap: 6px; background: #fffffff5; -webkit-backdrop-filter: blur(16px); }
   .nav .brand { font-size: 17px; gap: 7px; }
   .nav .brand img { width: 29px; height: 29px; }
-  .nav .brand small { font-size: 9px; letter-spacing: 0; line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nav .brand > span { min-width: 0; }
   .nav .nav-github { padding: 0 9px; font-size: 12px; border-radius: 11px; white-space: nowrap; }
   .nav .language-trigger { min-height: 44px; font-size: 12px; padding: 7px 8px; gap: 5px; }
-  .language-options { width: min(230px, calc(100vw - 40px)); }
+  .language-options { width: min(230px, calc(100vw - 112px)); }
   .language-options button { min-height: 48px; font-size: 14px; }
   .hero { padding: 40px 0 42px; gap: 24px; }
   .hero h1, html[lang=en] .hero h1 { font-size: clamp(30px, 8.2vw, 39px); line-height: 1.5; letter-spacing: -.8px; }
   .lead { font-size: 15px; line-height: 1.95; }
   .eyebrow { font-size: 11px; letter-spacing: 1.3px; margin-bottom: 18px; }
-  .small-note { font-size: 12px; line-height: 1.8; color: var(--muted); }
   .hero .actions .button { width: 100%; min-height: 52px; font-size: 15px; border-radius: 14px; }
   .hero-art { margin: 8px 4px 22px; padding: 50px 0 38px; }
   .conversation-preview { transform: none; border-radius: 16px; }

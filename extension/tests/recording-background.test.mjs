@@ -1,11 +1,13 @@
+import {NativeCueTimeline} from '../youtube-cue.mjs';
 import * as cloudApi from '../cloud-api.mjs';
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import fs from 'node:fs';
 import {RecordingQueue} from '../recording-queue.mjs';import {ResultGate} from '../stream-core.mjs';import {CueCursor} from '../cue-cursor.mjs';import * as policy from '../translation-policy.mjs';
 test('record mode receives following speech while translation waits and retains work after capture stops',async()=>{
  let hidden,listener,session,saved=[];const requests=[];
  const chrome={storage:{local:{get:async()=>({subtitleSettings:{captionMode:'record'},recordedCaptions:[]}),set:async v=>{saved=v.recordedCaptions||saved;if("captionsHidden" in v)hidden=v.captionsHidden;}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start'){session=m.session;assert.equal(m.recording,true);}return{ok:true};}}};
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,chrome,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch:()=>new Promise(resolve=>requests.push(()=>resolve({ok:true,json:async()=>[[['中文譯文']]]})))});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,chrome,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch:()=>new Promise(resolve=>requests.push(()=>resolve({ok:true,json:async()=>[[['中文譯文']]]})))});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));const flush=()=>new Promise(r=>setTimeout(r,0));await call({type:'subtitle-control',action:'start',tabId:7});
  assert.equal(hidden,false);
  for(let id=1;id<=6;id++)listener({type:'speech-result',session,id,final:true,text:'テスト'+id},{url:'chrome-extension://test/offscreen.html'},()=>{});
@@ -19,7 +21,7 @@ test('stop keeps the capture session valid until offscreen drain acknowledges',a
  let listener,session,release;let draining=false;const saved=[];
  const chrome={storage:{local:{get:async()=>({subtitleSettings:{captionMode:'record'},recordedCaptions:[]}),set:async v=>{if(v.recordedCaptions){saved.splice(0,saved.length,...v.recordedCaptions);}}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start')session=m.session;if(m.type==='offscreen-stop'&&m.drain){draining=true;await new Promise(r=>release=r);}return{ok:true};}}};
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,chrome,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch:async()=>({ok:true,json:async()=>[[['譯文']]]})});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,chrome,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,...policy,URLSearchParams,AbortSignal,AbortController,Date,fetch:async()=>({ok:true,json:async()=>[[['譯文']]]})});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));const flush=()=>new Promise(r=>setTimeout(r,0));
  await call({type:'subtitle-control',action:'start',tabId:7});
  const stopping=call({type:'subtitle-control',action:'stop'});await flush();assert.equal(draining,true);

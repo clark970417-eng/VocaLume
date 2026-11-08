@@ -1,11 +1,12 @@
+import { FinalCaptionQueue } from './FinalCaptionQueue'
 import { performanceState } from '../main/performance-state'
-import { PreviewBudget } from '../../../extension/preview-budget.mjs'
 import { completeSentence } from '../../../extension/sentence-boundary.mjs'
 import { RecognitionCheckpoint } from './RecognitionCheckpoint'
-import { RecognitionBoundary } from './RecognitionBoundary'
+import { StreamingRecognition } from './StreamingRecognition'
 import { recoverFinalTranslation } from './FinalTranslationRecovery'
 import { recognitionVocabulary, boundedRecognitionVocabulary } from '../engines/stt/recognition-vocabulary'
 import { JapaneseCaptionContext } from './JapaneseCaptionContext'
+import { addJapaneseCaptionBoundaries } from '../engines/translator/japanese-caption-boundaries'
 import { SpeechToneAnalyzer } from './SpeechToneAnalyzer'
 import { applySpeechTone, laughterMarker, type SpeechToneMode } from './SpeechTone'
 import type { EventEmitter } from 'events'
@@ -30,6 +31,8 @@ const MAX_STREAMING_LOCK_RESOLVERS = 50
 const STREAMING_LOCK_TIMEOUT_MS = 10_000
 /** Debounce delay before translating interim text (ms) */
 const TRANSLATE_DEBOUNCE_MS = 250
+const canReadSourceReference = (translator?: TranslatorEngine | null): boolean =>
+  !!translator && ['deepl-translate', 'gemini-translate', 'rotation-controller'].includes(translator.id)
 
 export interface PreparedStreamingFinal {
   sourceText: string
@@ -45,7 +48,8 @@ export interface StreamingDeps {
   getGlossary(): GlossaryEntry[]
   getCachedTranslation?(text: string, from: Language, to: Language): string | undefined
   canReuseInterimTranslation?(): boolean
-  translateFinal?(text: string, from: Language, to: Language, recognitionConfidence?: number, sourceContext?: string): Promise<string>
+  previewMinIntervalMs?: number
+  translateFinal?(text: string, from: Language, to: Language, recognitionConfidence?: number, sourceContext?: string, signal?: AbortSignal): Promise<string>
   getSimulMtConfig(): { enabled: boolean; waitK: number }
   resolveTargetLanguage(detectedLang: Language): Language
   /** Notify that processing count changed */
@@ -70,9 +74,8 @@ export interface StreamingDeps {
  * Extracted from TranslationPipeline to isolate streaming-specific logic.
  */
 export class StreamingProcessor {
-  private readonly previewBudget = new PreviewBudget()
   private readonly recognitionCheckpoint = new RecognitionCheckpoint()
-  private readonly recognitionBoundary = new RecognitionBoundary()
+  private readonly recognition = new StreamingRecognition(() => this.deps.getSourceLanguage?.() || 'auto')
   private recognitionSource = ''
   private recognitionContextRevision = 0
   private readonly japaneseContext = new JapaneseCaptionContext()
@@ -83,10 +86,12 @@ export class StreamingProcessor {
   }
   private readonly preparations = new Set<AbortController>()
   private preparedThisCue = false
-  private finalTail: Promise<unknown> = Promise.resolve()
+  private readonly finalQueue = new FinalCaptionQueue()
+  private readonly finalRequests = new Set<AbortController>()
+  private independentFinals = 0
   private finalGeneration = 0
   private lastFinalTimestamp = 0
-  private pendingFinals = 0
+  private lastPreviewStartedAt = -Infinity
   private streamingLock = false
   private streamingLockResolvers: Array<() => void> = []
 
@@ -211,6 +216,8 @@ export class StreamingProcessor {
   resetSourceContext(): void {
     // Invalidate settings-bound work without releasing a busy recognition lock.
     this.finalGeneration++
+    this.lastPreviewStartedAt = -Infinity
+    for (const request of this.finalRequests) request.abort()
     this.interimAbort.abort()
     this.interimAbort = new AbortController()
     for (const controller of this.preparations) controller.abort()
@@ -236,13 +243,16 @@ export class StreamingProcessor {
     this.translationDirectionRevision++
     this.simulMtResetPending = false
     this.recognitionCheckpoint.clear()
-    this.recognitionBoundary.clear()
+    this.recognition.boundary.clear()
+    this.recognition.clearPreviews()
   }
 
   private beginTone(audio: Float32Array, sampleRate: number) {
     const mode = this.deps.getSpeechToneMode?.() || 'off'
     const state = { mode, confidence: 0 }
-    if (mode !== 'off' && performanceState().previewDutyCycle >= .85) {
+    if (mode === 'off') return state
+    const policy = performanceState()
+    if (process.platform === 'win32' ? policy.optionalAnalysisAllowed : policy.previewDutyCycle >= .85) {
       const work = this.deps.detectLaughter
         ? this.deps.detectLaughter(audio, sampleRate) : this.toneAnalyzer.analyze(audio, sampleRate)
       // A late classification never delays or rewrites a delivered caption.
@@ -264,7 +274,9 @@ export class StreamingProcessor {
   }
 
   private resetUtterance(): void {
-    this.previewBudget.resetSource()
+    this.lastPreviewStartedAt = -Infinity
+    this.recognition.clearPreviews()
+    this.recognition.budget.resetSource()
     this.recognitionCheckpoint.clear()
     this.recognitionSource = ''
     this.preparation?.controller.abort()
@@ -305,7 +317,7 @@ export class StreamingProcessor {
 
   /** Resume only the latest ready revision when the worker finishes. No polling. */
   private drainPendingTranslation(): void {
-    if (this.pendingFinals || this.clauseTranslationInFlight || this.debouncedTranslationInFlight) return
+    if (this.finalQueue.pending || this.clauseTranslationInFlight || this.debouncedTranslationInFlight) return
     const pending = this.pendingTranslation
     this.pendingTranslation = null
     pending?.()
@@ -320,20 +332,29 @@ export class StreamingProcessor {
     return JSON.stringify([stt.id, language, vocabulary, this.recognitionContextRevision])
   }
 
-  private async recognize(stt: STTEngine, audio: Float32Array, sampleRate: number, evidence?: SpeechEvidence, final = false) {
-    const started = performance.now()
-    try {
-      const boundary = final && this.recognitionBoundary.prepare(audio, sampleRate, evidence, this.deps.getSourceLanguage?.() || 'auto')
-      const result = await stt.processAudio(boundary ? boundary.audio : audio, sampleRate, boundary ? boundary.evidence : evidence)
-      return result && boundary ? { ...result, text: boundary.restore(result.text) } : result
-    }
-    finally { this.previewBudget.complete(performance.now() - started, performance.now()) }
-  }
-
   private currentSpeaker(): DiarizationResult | null {
     // Paused speaker analysis must not present a previous speaker as current.
     if (performanceState().previewDutyCycle < 0.85) this.lastDiarizationResult = null
     return this.lastDiarizationResult
+  }
+
+  private beginFinalSpeaker(audio: Float32Array, sampleRate: number): (() => DiarizationResult | null) | undefined {
+    const diarizer = this.deps.getDiarizer?.()
+    if (!diarizer?.finalOnly) return undefined
+    let speaker: DiarizationResult | null = null
+    if (performanceState().optionalAnalysisAllowed) {
+      void diarizer.processAudio(audio, sampleRate).then(result => { speaker = result }).catch(() => {})
+    }
+    return () => this.deps.getDiarizer?.() === diarizer ? speaker : null
+  }
+
+  /** Advisory only. The final path never takes a preview admission hint. */
+  previewDelayMs(): number {
+    if (this.streamingLock || this.finalQueue.pending) return 250
+    const now = performance.now()
+    const wait = Math.max(this.recognition.budget.remainingMs(now, performanceState()),
+      this.lastPreviewStartedAt + (this.deps.previewMinIntervalMs ?? 0) - now)
+    return Number.isFinite(wait) ? Math.min(5000, Math.ceil(wait)) : 1500
   }
 
   async processStreaming(
@@ -343,6 +364,7 @@ export class StreamingProcessor {
   ): Promise<TranslationResult | null> {
     const sttEngine = this.deps.getSTTEngine()
     if (!sttEngine) return null
+    this.deps.getGER?.()?.preempt()
     // Drop chunk if another streaming call is in-flight — acceptable because
     // the rolling buffer re-sends accumulated audio on the next interval (#103)
     if (this.streamingLock) return null
@@ -351,7 +373,8 @@ export class StreamingProcessor {
     const checkpoint = this.recognitionCheckpoint.reuse(audioBuffer, sampleRate, evidence, recognitionKey)
     // A complete sentence waiting for translation has priority over another
     // speculative decode of the rolling buffer. Accepted finals are retained.
-    if (this.pendingFinals || (!checkpoint && this.previewBudget.remainingMs(performance.now(), performanceState()) > 0)) return null
+    if (this.finalQueue.pending || (!checkpoint && this.previewDelayMs() > 0)) return null
+    if (!checkpoint) this.lastPreviewStartedAt = performance.now()
 
     this.deps.incrementProcessing()
     const revision = ++this.recognitionRevision
@@ -369,12 +392,12 @@ export class StreamingProcessor {
 
       // Fire diarization in parallel with STT (#549)
       const diarizer = pressure.previewDutyCycle < 0.85 ? null : this.deps.getDiarizer?.()
-      if (diarizer && !checkpoint) {
+      if (diarizer && !diarizer.finalOnly && !checkpoint) {
         this.runDiarization(diarizer, audioBuffer, sampleRate)
       }
 
       const t0 = performance.now()
-      const sttResult = checkpoint || await this.recognize(sttEngine, audioBuffer, sampleRate, evidence)
+      const sttResult = checkpoint || await this.recognition.process(sttEngine, audioBuffer, sampleRate, evidence)
       if (!this.isCurrentGeneration(gen, utterance, contextRevision)) return null
       const sttMs = (performance.now() - t0).toFixed(0)
       if (!sttResult || !sttResult.text.trim()) {
@@ -389,7 +412,7 @@ export class StreamingProcessor {
         this.recognitionSource = sttResult.language === 'ja' ? sttResult.text.slice(-120) : ''
       }
       this.primaryRevision = revision
-      this.previewBudget.observeSource(sttResult.text)
+      this.recognition.budget.observeSource(sttResult.text)
       log.info(`STT: ${sttMs}ms → "${sttResult.text}" [${sttResult.language}]`)
 
       const agreement = this.deps.agreement.update(sttResult.text)
@@ -462,7 +485,7 @@ export class StreamingProcessor {
             this.translateDebounceTimer = null
             if (!this.isCurrentTranslationDirection(translationDirectionRevision)) return
             if (!this.isCurrentGeneration(gen, utterance, contextRevision)) return
-            if (this.pendingFinals || this.clauseTranslationInFlight || this.debouncedTranslationInFlight) {
+            if (this.finalQueue.pending || this.clauseTranslationInFlight || this.debouncedTranslationInFlight) {
               this.pendingTranslation = translateWhenIdle
               return
             }
@@ -566,6 +589,7 @@ export class StreamingProcessor {
 
   /** Recognize now, then translate accepted sentences in order without holding STT. */
   async prepareFinalStreaming(audioChunk: Float32Array, sampleRate: number, evidence?: SpeechEvidence): Promise<PreparedStreamingFinal | null> {
+    this.deps.getGER?.()?.preempt()
     // Persistent SimulMT sessions share mutable KV state; retain their serial boundary.
     if (this.deps.getSimulMtConfig().enabled && this.deps.getTranslator()?.translateSimulMt) {
       const result = await this.finalizeStreamingSerial(audioChunk, sampleRate, evidence)
@@ -580,6 +604,7 @@ export class StreamingProcessor {
     this.streamingLock = true
     this.deps.incrementProcessing()
     const gen = this.deps.getGeneration?.()
+    const finalStartedAt = performance.now()
     const contextRevision = this.recognitionContextRevision
     const finalGeneration = this.finalGeneration
     this.interimAbort.abort()
@@ -589,10 +614,11 @@ export class StreamingProcessor {
     if (this.translateDebounceTimer) { clearTimeout(this.translateDebounceTimer); this.translateDebounceTimer = null }
     let handedOff = false
     const tone = this.beginTone(audioChunk, sampleRate)
+    const finalSpeaker = this.beginFinalSpeaker(audioChunk, sampleRate)
     try {
       const recognitionKey = this.recognitionKey(stt)
       let sttResult = this.recognitionCheckpoint.reuse(audioChunk, sampleRate, evidence, recognitionKey) ||
-        await this.recognize(stt, audioChunk, sampleRate, evidence, true)
+        await this.recognition.process(stt, audioChunk, sampleRate, evidence, true)
       const nonverbal = !sttResult?.text.trim()
       if (!sttResult?.text.trim()) sttResult = this.toneOnly(tone)
       if (!this.isCurrentGeneration(gen, utterance, contextRevision) || finalGeneration !== this.finalGeneration) return null
@@ -601,18 +627,20 @@ export class StreamingProcessor {
         this.resetUtterance()
         return null
       }
-      const recognizedText = this.deps.agreement.finalize(sttResult.text).confirmedText
-      this.recognitionBoundary.remember(audioChunk, sampleRate, evidence, recognizedText, sttResult.language)
+      const agreedText = this.deps.agreement.finalize(sttResult.text).confirmedText
       const targetLanguage = this.deps.resolveTargetLanguage(sttResult.language)
+      const recognizedText = sttResult.language === 'ja' && targetLanguage === 'zh' ? addJapaneseCaptionBoundaries(agreedText) : agreedText
+      this.recognition.boundary.remember(audioChunk, sampleRate, evidence, recognizedText, sttResult.language)
       this.updateTranslationDirection(sttResult.language, targetLanguage)
       const sameLanguage = sttResult.language === targetLanguage
-      const sourceText = nonverbal ? recognizedText : this.japaneseContext.resolve(recognizedText,
-        sttResult.language, targetLanguage, evidence, this.currentSpeaker()?.speakerIndex)
-      const sourceContext = !nonverbal && sourceText===recognizedText ? this.japaneseContext.referenceFor(recognizedText,
-        sttResult.language,targetLanguage,evidence,this.currentSpeaker()?.speakerIndex) : undefined
-      if (nonverbal) this.japaneseContext.reset()
-      else this.japaneseContext.remember(recognizedText, sttResult.language, targetLanguage, evidence, this.currentSpeaker()?.speakerIndex)
       const translator = this.deps.getTranslator()
+      const speaker = finalSpeaker ? finalSpeaker() : this.currentSpeaker()
+      const sourceText = nonverbal ? recognizedText : this.japaneseContext.resolve(recognizedText,
+        sttResult.language, targetLanguage, evidence, speaker?.speakerIndex)
+      const sourceContext = !nonverbal && sourceText===recognizedText ? this.japaneseContext.referenceFor(recognizedText,
+        sttResult.language,targetLanguage,evidence,speaker?.speakerIndex,canReadSourceReference(translator)) : undefined
+      if (nonverbal) this.japaneseContext.reset()
+      else this.japaneseContext.remember(recognizedText, sttResult.language, targetLanguage, evidence, speaker?.speakerIndex)
       const glossary = this.deps.getGlossary().map(entry => ({ ...entry }))
       const preparation = this.preparation
       const prepared = !sameLanguage && !sourceContext && preparation && preparation.text === sourceText && preparation.from === sttResult.language &&
@@ -622,46 +650,78 @@ export class StreamingProcessor {
       // A matching candidate becomes an accepted final. Resetting the next cue
       // must not cancel it; session reset still cancels every live preparation.
       if (prepared) this.preparation = undefined
-      const speaker = this.currentSpeaker()
       const reused = !sameLanguage && !sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === sourceText
-        ? this.lastTranslatedConfirmed : ''
+        ? this.lastTranslatedConfirmed.trim() : ''
       const valid = (): boolean => contextRevision === this.recognitionContextRevision && finalGeneration === this.finalGeneration &&
         (gen === undefined || gen === this.deps.getGeneration?.())
+      const sourceReadyAt = performance.now()
       this.deps.emitter.emit('source-result', sourceText)
       this.resetUtterance()
-      this.pendingFinals++
       handedOff = true
-      const completion = this.finalTail.then(async (): Promise<TranslationResult | null> => {
+      const network = translator?.isOffline === false
+      const independent = network && sttResult.language === 'ja' && targetLanguage === 'zh' && !sourceContext &&
+        ['google-public-translate', 'google-translate', 'microsoft-translate', 'gemini-translate', 'deepl-translate'].includes(translator.id) &&
+        this.deps.canReuseInterimTranslation?.() !== false
+      const request = network ? new AbortController() : undefined
+      if (request) this.finalRequests.add(request)
+      const translate = (): Promise<string> => {
+        const signal = request && (independent
+          ? AbortSignal.any([request.signal, AbortSignal.timeout(8000)])
+          : request.signal)
+        signal?.throwIfAborted()
+        if (this.deps.translateFinal) return this.deps.translateFinal(
+          sourceText, sttResult.language, targetLanguage, sttResult.confidence, sourceContext, signal)
+        return recoverFinalTranslation(() => translator!.translate(sourceText, sttResult.language, targetLanguage, {
+          ...this.deps.contextBuffer.forCaption(sttResult.language, targetLanguage, glossary.length ? glossary : undefined, sourceContext),
+          signal
+        }), () => valid() && !signal?.aborted)
+      }
+      // Only context-independent cloud calls can start before publication of
+      // the previous cue. Reused previews and local inference stay serial.
+      const eager = independent && !prepared && !reused && !nonverbal && this.independentFinals < 2 &&
+        this.finalQueue.pending === this.independentFinals
+      if (eager) this.independentFinals++
+      const pretranslated = eager
+        ? Promise.resolve().then(translate).then(value => ({ ok: true as const, value }), error => ({ ok: false as const, error }))
+        : undefined
+      const completion = this.finalQueue.enqueue(async (): Promise<TranslationResult | null> => {
         if (!valid()) return null
+        const translationStartedAt = performance.now()
         try {
           const candidate = sameLanguage ? '' : reused || (prepared ? await prepared : '')
           if (!valid()) return null
-          const translatedText = nonverbal ? '' : sameLanguage ? sourceText : candidate || (translator ? this.deps.translateFinal
-            ? await this.deps.translateFinal(sourceText, sttResult.language, targetLanguage, sttResult.confidence, sourceContext)
-            : await translator.translate(sourceText, sttResult.language, targetLanguage,
-              { ...this.deps.contextBuffer.getContext(glossary.length ? glossary : undefined), ...(sourceContext && {sourceContext}) }) : '')
+          const ready = pretranslated ? await pretranslated : undefined
+          if (ready && !ready.ok) throw ready.error
+          const translatedText = nonverbal ? '' : sameLanguage ? sourceText : candidate || (translator
+            ? ready?.value ?? await translate() : '')
           if (!valid()) return null
           if (!nonverbal) this.deps.contextBuffer.add(sourceText, translatedText)
+          const publishedSpeaker = finalSpeaker ? finalSpeaker() : speaker
           const result: TranslationResult = {
             sourceText, translatedText: this.decorateTone(sourceText, translatedText, targetLanguage, tone), sourceLanguage: sttResult.language, targetLanguage,
             spokenText: translatedText,
             timestamp: this.lastFinalTimestamp = Math.max(Date.now(), this.lastFinalTimestamp + 1), isInterim: false, confidence: sttResult.confidence,
-            ...(speaker && { speakerLabel: speaker.speakerLabel, speakerIndex: speaker.speakerIndex })
+            ...(publishedSpeaker && { speakerLabel: publishedSpeaker.speakerLabel, speakerIndex: publishedSpeaker.speakerIndex })
+          }
+          if (process.env.VOCALUME_CAPTION_TIMING === '1') {
+            log.info(`Caption timing: final audio to source ${Math.round(sourceReadyAt - finalStartedAt)}ms, queue ${Math.round(translationStartedAt - sourceReadyAt)}ms, translation ${Math.round(performance.now() - translationStartedAt)}ms`)
           }
           this.deps.emitter.emit('result', result)
-          if (!nonverbal) this.deps.getGER?.()?.maybeCorrect(sourceText, sttResult.confidence, sttResult.language,
+          if (!nonverbal && this.finalQueue.pending <= 1 && performanceState().previewDutyCycle >= .85) this.deps.getGER?.()?.maybeCorrect(sourceText, sttResult.confidence, sttResult.language,
             targetLanguage, result.timestamp, translatedText || undefined)
           return result
         } catch (error) {
-          if (valid()) this.deps.emitter.emit('error', error instanceof Error ? error : new Error(String(error)))
+          if (valid()) {
+            this.publishTranslationFailure(sourceText, sttResult.language, targetLanguage, error)
+          }
           return null
         }
-      }).finally(() => {
-        this.pendingFinals--
+      }, () => {
+        if (request) this.finalRequests.delete(request)
+        if (eager) this.independentFinals--
         this.deps.decrementProcessing()
         this.drainPendingTranslation()
       })
-      this.finalTail = completion.catch(() => null)
       return { sourceText, completion }
     } catch (error) {
       if (contextRevision === this.recognitionContextRevision && finalGeneration === this.finalGeneration) {
@@ -679,8 +739,17 @@ export class StreamingProcessor {
   }
 
   async finalizeStreaming(audioChunk: Float32Array, sampleRate: number, evidence?: SpeechEvidence): Promise<TranslationResult | null> {
+    this.deps.getGER?.()?.preempt()
     const prepared = await this.prepareFinalStreaming(audioChunk, sampleRate, evidence)
     return prepared ? prepared.completion : null
+  }
+
+  private publishTranslationFailure(sourceText: string, sourceLanguage: Language, targetLanguage: Language, error: unknown): void {
+    this.deps.emitter.emit('translation-failed', {
+      sourceText, translatedText: '', sourceLanguage, targetLanguage, timestamp: Date.now()
+    } satisfies TranslationResult)
+    const message = error instanceof Error ? error.message : String(error)
+    this.deps.emitter.emit('error', new Error(`Translation failed: ${message}`, { cause: error }))
   }
 
   private prepareSentence(text: string, confirmed: string, from: Language, to: Language, acousticPause: boolean): void {
@@ -689,7 +758,7 @@ export class StreamingProcessor {
       this.preparation = undefined
     }
     const translator = this.deps.getTranslator()
-    if (this.preparedThisCue || this.pendingFinals || !translator || from === to ||
+    if (this.preparedThisCue || this.finalQueue.pending || !translator || from === to ||
         !['hunyuan-mt-15', 'hunyuan-mt-2'].includes(translator.id) ||
         this.deps.canReuseInterimTranslation?.() === false || performanceState().previewDutyCycle < .85 ||
         (text !== confirmed && !acousticPause) || text.length < 6 || !completeSentence(text, from)) return
@@ -731,10 +800,13 @@ export class StreamingProcessor {
     if (this.translateDebounceTimer) { clearTimeout(this.translateDebounceTimer); this.translateDebounceTimer = null }
 
     const tone = this.beginTone(audioChunk, sampleRate)
+    const finalSpeaker = this.beginFinalSpeaker(audioChunk, sampleRate)
+    let sourceForFailure: { text: string; from: Language; to: Language } | undefined
     try {
+      const finalStartedAt = performance.now()
       const recognitionKey = this.recognitionKey(sttEngine)
       let sttResult = this.recognitionCheckpoint.reuse(audioChunk, sampleRate, evidence, recognitionKey) ||
-        await this.recognize(sttEngine, audioChunk, sampleRate, evidence, true)
+        await this.recognition.process(sttEngine, audioChunk, sampleRate, evidence, true)
       const nonverbal = !sttResult?.text.trim()
       if (!sttResult?.text.trim()) sttResult = this.toneOnly(tone)
       if (!this.isCurrentGeneration(gen, utterance, contextRevision)) return null
@@ -748,21 +820,26 @@ export class StreamingProcessor {
       const targetLang = this.deps.resolveTargetLanguage(sttResult.language)
       this.updateTranslationDirection(sttResult.language, targetLang)
       const sameLanguage = sttResult.language === targetLang
-      const recognizedText = agreement.confirmedText
-      this.recognitionBoundary.remember(audioChunk, sampleRate, evidence, recognizedText, sttResult.language)
-      const sourceContext = !nonverbal ? this.japaneseContext.referenceFor(recognizedText,
-        sttResult.language,targetLang,evidence,this.currentSpeaker()?.speakerIndex) : undefined
+      const recognizedText = sttResult.language === 'ja' && targetLang === 'zh'
+        ? addJapaneseCaptionBoundaries(agreement.confirmedText) : agreement.confirmedText
+      this.recognition.boundary.remember(audioChunk, sampleRate, evidence, recognizedText, sttResult.language)
+      const translator = this.deps.getTranslator()
+      const speakerAtRecognition = finalSpeaker ? finalSpeaker() : this.currentSpeaker()
+      let sourceContext: string | undefined
       if (nonverbal) this.japaneseContext.reset()
       else {
         agreement.confirmedText = this.japaneseContext.resolve(recognizedText,
-          sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)
-        this.japaneseContext.remember(recognizedText, sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)
+          sttResult.language, targetLang, evidence, speakerAtRecognition?.speakerIndex)
+        if (agreement.confirmedText === recognizedText) sourceContext = this.japaneseContext.referenceFor(recognizedText,
+          sttResult.language,targetLang,evidence,speakerAtRecognition?.speakerIndex,canReadSourceReference(translator))
+        this.japaneseContext.remember(recognizedText, sttResult.language, targetLang, evidence, speakerAtRecognition?.speakerIndex)
       }
+      const sourceReadyAt = performance.now()
+      sourceForFailure = { text: agreement.confirmedText, from: sttResult.language, to: targetLang }
       this.deps.emitter.emit('source-result', agreement.confirmedText)
 
       const glossaryEntries = this.deps.getGlossary()
       const glossary = glossaryEntries.length > 0 ? glossaryEntries : undefined
-      const translator = this.deps.getTranslator()
 
       const simulMtConfig = this.deps.getSimulMtConfig()
       const useSimulMt = simulMtConfig.enabled && translator?.translateSimulMt &&
@@ -775,10 +852,10 @@ export class StreamingProcessor {
       if (!nonverbal && sameLanguage) {
         // Preserve target-language speech exactly instead of running a model.
         translatedText = agreement.confirmedText
-      } else if (!nonverbal && useSimulMt && translator && agreement.confirmedText.trim()) {
+      } else if (!nonverbal && !sourceContext && useSimulMt && translator && agreement.confirmedText.trim()) {
         // SimulMT revision: retranslate the full clause for accuracy (#550)
         let usedRevision = true
-        const context = { ...this.deps.contextBuffer.getContext(glossary), ...(sourceContext && {sourceContext}) }
+        const context = this.deps.contextBuffer.forCaption(sttResult.language, targetLang, glossary)
         translatedText = await recoverFinalTranslation(() => translator.translateSimulMt!(
           agreement.confirmedText,
           this.simulMtPreviousOutput,
@@ -807,13 +884,13 @@ export class StreamingProcessor {
         if (!matches) { preparation?.controller.abort(); this.preparation = undefined }
         const candidate = matches ? await preparation.completion : ''
         if (!this.isCurrentGeneration(gen, utterance, contextRevision)) return null
-        translatedText = candidate || ((!sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === agreement.confirmedText && this.lastTranslatedConfirmed)
+        translatedText = candidate || ((!sourceContext && this.deps.canReuseInterimTranslation?.() !== false && this.lastTranslatedSource === agreement.confirmedText && this.lastTranslatedConfirmed.trim())
           ? this.lastTranslatedConfirmed
           : this.deps.translateFinal ? await this.deps.translateFinal(agreement.confirmedText, sttResult.language, targetLang, sttResult.confidence, sourceContext) : await translator.translate(
           agreement.confirmedText,
           sttResult.language,
           targetLang,
-          { ...this.deps.contextBuffer.getContext(glossary), ...(sourceContext && {sourceContext}) }
+          this.deps.contextBuffer.forCaption(sttResult.language, targetLang, glossary, sourceContext)
         ))
         if (!this.isCurrentGeneration(gen, utterance, contextRevision)) return null
         this.deps.contextBuffer.add(agreement.confirmedText, translatedText)
@@ -829,7 +906,7 @@ export class StreamingProcessor {
       this.clauseTranslationInFlight = false
       this.debouncedTranslationInFlight = false
 
-      const speaker = this.currentSpeaker()
+      const speaker = finalSpeaker ? finalSpeaker() : this.currentSpeaker()
       const result: TranslationResult = {
         sourceText: agreement.confirmedText,
         translatedText: this.decorateTone(agreement.confirmedText, translatedText, targetLang, tone),
@@ -846,6 +923,9 @@ export class StreamingProcessor {
         })
       }
 
+      if (process.env.VOCALUME_CAPTION_TIMING === '1') {
+        log.info(`Caption timing: final audio to source ${Math.round(sourceReadyAt - finalStartedAt)}ms, source to translation ${Math.round(performance.now() - sourceReadyAt)}ms`)
+      }
       this.deps.emitter.emit('result', result)
 
       // Fire-and-forget GER correction on finalized result (async, non-blocking)
@@ -867,7 +947,8 @@ export class StreamingProcessor {
       if (this.isCurrentGeneration(gen, utterance, contextRevision)) {
         this.deps.agreement.reset()
         this.resetUtterance()
-        this.deps.emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
+        if (sourceForFailure) this.publishTranslationFailure(sourceForFailure.text, sourceForFailure.from, sourceForFailure.to, err)
+        else this.deps.emitter.emit('error', err instanceof Error ? err : new Error(String(err)))
       }
       return null
     } finally {
@@ -1064,7 +1145,7 @@ export class StreamingProcessor {
         !this.isCurrentTranslationDirection(translationDirectionRevision)) return
 
     // Skip if already translating a clause or nothing new to translate
-    if (this.pendingFinals || this.clauseTranslationInFlight || this.debouncedTranslationInFlight) return
+    if (this.finalQueue.pending || this.clauseTranslationInFlight || this.debouncedTranslationInFlight) return
     if (confirmedText === this.clauseTranslatedPrefix) return
 
     // Detect clause boundary in confirmed text

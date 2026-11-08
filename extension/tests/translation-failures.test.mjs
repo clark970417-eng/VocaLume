@@ -1,4 +1,6 @@
+import {NativeCueTimeline} from '../youtube-cue.mjs';
 import * as cloudApi from '../cloud-api.mjs';
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -16,7 +18,7 @@ function setup(languageSettings={}, translateResult=fields=>fields.text.includes
   close(){}
  }
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloudApi,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch:async()=>{throw Error('offline');}});
+ vm.runInNewContext(source,{...cloudApi,...taiwanChinese,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch:async()=>{throw Error('offline');}});
  return {requests,call:message=>new Promise(resolve=>listener(message,{},resolve))};
 }
 
@@ -24,7 +26,7 @@ test('emoji, numbers and a URL on separate chat lines cannot fail an otherwise v
  const t=setup();
  const result=await t.call({type:'translate',text:'今日は楽しかったです。\n🎉🎉\n7/14\nhttps://example.invalid/live/123',direction:'ja-zh'});
  assert.equal(result.ok,true,result.error);
- assert.equal(result.text,'今天很開心。🎉🎉7/14https://example.invalid/live/123');
+ assert.equal(result.text,'今天很開心。\n🎉🎉\n7/14\nhttps://example.invalid/live/123');
  assert.deepEqual(t.requests.filter(r=>r.op==='translate').map(r=>r.text),['今日は楽しかったです。']);
 });
 
@@ -43,7 +45,7 @@ test('all other targets use their requested pair and preserve multi-line literal
  assert.equal((await t.call({type:'subtitle-control',action:'start',tabId:7})).ok,true);
  for(const [to,expected] of Object.entries(outputs)){
   const direction=`ja-${to}`,result=await t.call({type:'translate',text:'明日は配信を休みます。\n🎉\n٧/١٤\nhttps://example.invalid/live',direction});
-  assert.equal(result.ok,true,result.error);assert.equal(result.text,expected+'🎉٧/١٤https://example.invalid/live',direction);
+  assert.equal(result.ok,true,result.error);assert.equal(result.text,expected+'\n🎉\n٧/١٤\nhttps://example.invalid/live',direction);
   assert.equal(t.requests.filter(r=>r.op==='translate'&&r.direction===direction).length,1);
  }
  await t.call({type:'subtitle-control',action:'stop'});
@@ -54,7 +56,33 @@ test('invalid non-Japanese output is not cached as success and a later retry can
   let value=bad;const t=setup({},()=>value);
   const message={type:'translate',direction,text:direction.startsWith('ko')?'내일은 방송을 쉬겠습니다.':'明日は配信を休みます。'};
   const failed=await t.call(message);assert.equal(failed.ok,false,direction);
+  assert.equal(t.requests.filter(r=>r.op==='translate').length,2,'one bounded retry for invalid output');
   value=good;const recovered=await t.call(message);assert.equal(recovered.ok,true,recovered.error);assert.equal(recovered.text,good);
-  assert.equal(t.requests.filter(r=>r.op==='translate').length,2,'invalid response is not memoized');
+  assert.equal(t.requests.filter(r=>r.op==='translate').length,3,'invalid response is not memoized');
  }
+});
+
+test('a local wrong-language response automatically recovers without another click',async()=>{
+ let attempts=0;
+ const t=setup({},()=>++attempts===1?'English instead of Korean':'내일은 방송을 쉬겠습니다.');
+ const message={type:'translate',direction:'ja-ko',text:'明日は配信を休みます。'};
+ const results=await Promise.all([t.call(message),t.call(message)]);
+ assert(results.every(result=>result.ok&&result.text==='내일은 방송을 쉬겠습니다.'));
+ assert.equal(attempts,2,'concurrent callers share both attempts');
+ assert.equal((await t.call(message)).text,'내일은 방송을 쉬겠습니다.');
+ assert.equal(attempts,2,'only the valid result is cached');
+});
+
+test('a native validation error recovers while a terminal native error does not replay',async()=>{
+ const message={type:'translate',direction:'ja-ko',text:'明日は配信を休みます。'};
+ let attempts=0;
+ const recover=setup({},()=>{
+  if(++attempts===1)throw new Error('翻譯服務未回傳目標語言');
+  return '내일은 방송을 쉬겠습니다.';
+ });
+ assert.equal((await recover.call(message)).text,'내일은 방송을 쉬겠습니다.');
+ assert.equal(attempts,2);
+ const unavailable=setup({},()=>{throw new Error('Desktop companion disconnected');});
+ assert.equal((await unavailable.call(message)).ok,false);
+ assert.equal(unavailable.requests.filter(r=>r.op==='translate').length,1);
 });

@@ -16,21 +16,21 @@ Click the link for your computer. You do not need the **Source code** files.
 
 | Your computer | Installer |
 | --- | --- |
-| Windows x64 | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume.Setup.4.6.4.exe) |
-| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4-arm64.dmg) |
-| Mac · Intel | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4.dmg) |
-| Linux x64 · experimental | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/VocaLume-4.6.4.AppImage) |
-| Opera GX / Chrome extension | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.4/vocalume-extension.zip) |
+| Windows x64 | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume.Setup.4.6.6.exe) |
+| Mac · Apple Silicon (M1–M5) | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6-arm64.dmg) |
+| Mac · Intel | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6.dmg) |
+| Linux x64 · experimental | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/VocaLume-4.6.6.AppImage) |
+| Opera GX / Chrome extension | [Download](https://github.com/clark970417-eng/VocaLume/releases/download/beta-v4.6.6/vocalume-extension.zip) |
 
 Not sure which Mac you have? Open ** → About This Mac** and check the chip or processor.
 
-**4.6.4 beta** installers and extension are available below. [Release notes](docs/releases/4.6.4.md)
+**4.6.6 beta** installers and extension are available below. [Release notes](docs/releases/4.6.6.md)
 
 ## Start in three steps
 
 1. **Install the app and download its models.** Choose the audio source, spoken language, and translation language.
 2. **For website features, install the extension too.** Extract the ZIP to a permanent folder. In Chrome, open `chrome://extensions`; in Opera GX, open `opera://extensions`. Then turn on Developer mode and choose **Load unpacked**. Keep that folder.
-   **Mac local browser captions also require [one-time App connection](docs/installation.md#connect-the-mac-app).** Installing the two downloads alone does not complete setup. Windows/Linux currently use the standalone App for local translation.
+   **Local browser captions require a one-time App connection on [Mac](docs/installation.md#connect-the-mac-app) or [Windows](docs/installation.md#connect-the-windows-app).** Linux can use the standalone App or browser-only mode.
 3. **Start captions or translate a draft.** Play a video and start voice captions, or enable text translation on a supported website. Review translated replies and send them yourself.
 
 [Step-by-step installation & troubleshooting](docs/installation.md) · [中文使用手冊](docs/user-guide.md)
@@ -47,9 +47,9 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 
 - **Local mode is free and needs no paid API.** Models download on first use. Speed depends on your computer and its workload; optional external APIs have their own charges.
 - **This is a public beta.** Recognition and translation can fail or be inaccurate. Check important content against the original.
-- **macOS and Windows desktop apps are available; Linux is experimental.** The local browser connection currently supports macOS Opera GX / Chrome and requires [one-time setup](docs/installation.md#connect-the-mac-app). Windows/Linux can use the standalone app. Browser-only captions need WebGPU and network translation; an equivalent native connection installer is not included yet.
+- **macOS and Windows desktop apps are available; Linux is experimental.** The Mac browser connection has been tested with Chrome and Opera GX. On Windows, the local connection has been tested with Chrome and Edge. See the [Windows acceptance report](docs/reports/windows-acceptance-2026-11-06.md) for the coverage. Browser-only captions need WebGPU and network translation.
 - **Installers are unsigned previews.** Follow the installation guide if your system displays a warning.
-- **Interface languages:** 4.6.4 app and extension downloads offer English, Traditional Chinese and Simplified Chinese. Website language choices are separate from app and translation languages.
+- **Interface languages:** 4.6.6 app and extension downloads offer English, Traditional Chinese and Simplified Chinese. Website language choices are separate from app and translation languages.
 
 ## Help shape the next version
 

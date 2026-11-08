@@ -4,6 +4,7 @@ import type { UseAudioCaptureReturn } from './useAudioCapture'
 import type { UseNoiseSuppressionReturn } from './useNoiseSuppression'
 import { useNoiseSuppression } from './useNoiseSuppression'
 import { useAudioCapture } from './useAudioCapture'
+import { TtsPlayback } from './TtsPlayback'
 
 export interface SessionSettingsState {
   status: string
@@ -36,6 +37,22 @@ export interface SessionSettingsState {
 }
 
 export function useSessionSettings(): SessionSettingsState {
+  // Playback belongs to the desktop session, including when its settings tab
+  // has never been opened. Creating an AudioContext still waits for audio.
+  useEffect(() => {
+    const playback = new TtsPlayback()
+    const stop = window.api.onTtsStop(() => { void playback.stop() })
+    const audio = window.api.onTtsAudio(data => { void playback.play(data) })
+    const devicesChanged = (): void => { void playback.handleDeviceChange() }
+    navigator.mediaDevices?.addEventListener?.('devicechange', devicesChanged)
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.('devicechange', devicesChanged)
+      audio()
+      stop()
+      void playback.stop()
+    }
+  }, [])
+
   const [status, setStatus] = useState('Ready')
   const [isRunning, setIsRunning] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
@@ -95,6 +112,7 @@ export function useSessionSettings(): SessionSettingsState {
       if (s.audioSource && ['microphone', 'system', 'both'].includes(s.audioSource as string)) {
         audio.setAudioSource(s.audioSource as 'microphone' | 'system' | 'both')
       }
+      if (typeof s.systemLoopbackDeviceId === 'string') audio.setSystemLoopbackDeviceId(s.systemLoopbackDeviceId)
     })
 
     // Check for crashed session
@@ -114,15 +132,13 @@ export function useSessionSettings(): SessionSettingsState {
   // Send typed audio directly through IPC. MessagePort cannot cross the
   // isolated preload bridge as a callable object.
   useEffect(() => {
-    const unsubscribeStreaming = audio.onStreamingChunk((buffer) => {
-      void window.api.processAudioStreaming(buffer)
-    })
-    const unsubscribeFinal = audio.onSpeechSegmentEnd((buffer) => {
-      void window.api.finalizeStreaming(buffer)
+    const unsubscribeStreaming = audio.onStreamingChunk((buffer, evidence) => window.api.processAudioPreview(buffer, evidence))
+    const unsubscribeFinal = audio.onSpeechSegmentEnd((buffer, evidence) => {
+      void window.api.finalizeStreaming(buffer, evidence)
     })
     // #721: realtime cloud e2e — continuous 100ms chunks + VAD turn-boundary hints
     const unsubscribeRealtime = audio.onRealtimeChunk((chunk) => {
-      void window.api.pushRealtimeAudio(Array.from(chunk))
+      void window.api.pushRealtimeAudio(chunk)
     })
     const unsubscribeBoundary = audio.onSpeechBoundary((boundary) => {
       window.api.speechBoundary(boundary)
@@ -143,6 +159,16 @@ export function useSessionSettings(): SessionSettingsState {
     })
     return () => unsubscribe?.()
   }, [])
+
+  useEffect(() => {
+    if (!isRunning) return
+    const readyStatus = audio.isCapturing ? 'Listening...' : 'Ready to process audio file...'
+    return window.api.onTranslationResult?.(value => {
+      const result = value as { translatedText?: string } | null
+      if (!result?.translatedText?.trim()) return
+      setStatus(previous => previous.startsWith('Error: Translation failed:') ? readyStatus : previous)
+    })
+  }, [isRunning, audio.isCapturing])
 
   // Cleanup session timer on unmount
   useEffect(() => {

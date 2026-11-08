@@ -229,7 +229,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
         <StepCard
           number={3}
           title={t("Cloud Boost (Optional)")}
-          subtitle={`Azure Translator free tier — ${AZURE_FREE_TIER_CHARS}`}
+          subtitle={t("Azure Translator free tier — {0}", [AZURE_FREE_TIER_CHARS])}
           description="You're already translating offline. Adding a free Azure F0 key adds optional cloud-quality fallback for harder phrases. You can do this later in Translator Settings."
         >
           <ol style={instructionListStyle}>
@@ -287,13 +287,13 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
 
 function StepIndicator({ current }: { current: OnboardingStep }): React.JSX.Element {
   const steps: { id: OnboardingStep; label: string }[] = [
-    { id: 'quick-start', label: '1. Quick Start' },
-    { id: 'quality-upgrade', label: '2. Quality' },
-    { id: 'cloud-boost', label: '3. Cloud (Optional)' }
+    { id: 'quick-start', label: 'Quick Start' },
+    { id: 'quality-upgrade', label: 'Quality Upgrade' },
+    { id: 'cloud-boost', label: 'Cloud Boost (Optional)' }
   ]
   return (
     <nav aria-label={t("Onboarding progress")} style={indicatorWrapStyle}>
-      {steps.map((s) => {
+      {steps.map((s, index) => {
         const active = s.id === current
         return (
           <span
@@ -306,7 +306,7 @@ function StepIndicator({ current }: { current: OnboardingStep }): React.JSX.Elem
             }}
             aria-current={active ? 'step' : undefined}
           >
-            {t(s.label)}
+            {index + 1}. {t(s.label)}
           </span>
         )
       })}

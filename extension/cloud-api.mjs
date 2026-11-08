@@ -58,7 +58,11 @@ export function apiSettingsUpdate(saved, form) {
 }
 export function apiCacheScope(saved) {
   const profile = apiProfile(saved);
-  return JSON.stringify([profile.id, profile.model, profile.baseUrl, saved.cloudTranslation?.revision || 0]);
+  const fallbacks = profile.id === 'auto' ? ['nvidia', 'openrouter'].map(id => {
+    const candidate = apiProfile(saved, id);
+    return [candidate.id, candidate.model, candidate.baseUrl, Boolean(candidate.apiKey)];
+  }) : [];
+  return JSON.stringify([profile.id, profile.model, profile.baseUrl, saved.cloudTranslation?.revision || 0, fallbacks]);
 }
 export function apiRequest(profile, messages) {
   const p = validateApiProfile(profile);
@@ -84,9 +88,13 @@ export function apiRequest(profile, messages) {
   return {url, headers, body, origin: p.origin, format: p.format};
 }
 export function apiResponse(data, format) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new RetryableTranslationError('API 回應格式不正確');
+  }
   let text;
   if (format === 'gemini') {
     const candidate = data.candidates?.[0];
+    if (!candidate && !data.promptFeedback?.blockReason) throw new RetryableTranslationError('API 沒有回傳翻譯文字');
     if (candidate?.finishReason !== 'STOP') throw new Error('API 未完成翻譯，請檢查模型或重試');
     text = candidate.content?.parts?.filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('');
   } else if (format === 'anthropic') {
@@ -94,29 +102,81 @@ export function apiResponse(data, format) {
     text = data.content?.filter(p => p.type === 'text').map(p => p.text).join('');
   } else {
     const choice = data.choices?.[0];
+    if (!choice) throw new RetryableTranslationError('API 沒有回傳翻譯文字');
     if (choice?.finish_reason !== 'stop') throw new Error('API 未完成翻譯，請檢查模型或重試');
     text = choice.message?.content;
   }
-  if (typeof text !== 'string' || !text.trim()) throw new Error('API 沒有回傳翻譯文字');
+  if (typeof text !== 'string' || !text.trim()) throw new RetryableTranslationError('API 沒有回傳翻譯文字');
   return text.trim();
 }
-export async function requestApi(profile, messages, signal, {fetchImpl = globalThis.fetch, permissions = globalThis.chrome?.permissions} = {}) {
+
+export class RetryableTranslationError extends Error {
+  constructor(message, retryDelay = 200) {
+    super(message);
+    this.retryDelay = retryDelay;
+  }
+}
+
+export function translationHttpError(response, message) {
+  const status = response.status;
+  if (![408, 425, 429].includes(status) && !(status >= 500 && status < 600)) return new Error(message);
+  const after = response.headers?.get?.('Retry-After');
+  const milliseconds = after ? (/^\d+$/.test(after) ? Number(after) * 1000 : Date.parse(after) - Date.now()) : NaN;
+  if (milliseconds > 1500) return new Error(message);
+  return new RetryableTranslationError(message, Number.isFinite(milliseconds) ? Math.max(200, milliseconds) : status === 429 ? 400 : 200);
+}
+
+export async function retryTranslationRequest(run, signal) {
+  signal.throwIfAborted();
+  try {
+    return await run();
+  } catch (error) {
+    if (!(error instanceof RetryableTranslationError) || signal.aborted) throw error;
+    await new Promise(resolve => {
+      const finish = () => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', finish);
+        resolve();
+      };
+      const timer = setTimeout(finish, error.retryDelay);
+      signal.addEventListener('abort', finish, {once: true});
+    });
+    signal.throwIfAborted();
+    return run();
+  }
+}
+
+export async function requestApi(profile, messages, signal, {fetchImpl = globalThis.fetch, permissions = globalThis.chrome?.permissions, validate = value => value} = {}) {
   const request = apiRequest(profile, messages);
   if (permissions && !await permissions.contains({origins: [request.origin]})) throw new Error('請在 API 設定按儲存，允許連線到這個服務');
   const deadline = signal ? AbortSignal.any([signal, AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000);
-  let response;
   try {
-    response = await fetchImpl(request.url, {method: 'POST', headers: request.headers, body: JSON.stringify(request.body), signal: deadline, redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer'});
-    if (!response.ok) {
-      const guidance = response.status === 401 || response.status === 403 ? '請檢查 API Key 和使用權限' : response.status === 429 ? '額度或速率限制，請稍後重試' : response.status === 400 || response.status === 404 ? '請檢查模型名稱與 API 網址' : '服務暫時無法使用';
-      throw new Error(`${profile.label} API ${response.status}：${guidance}`);
-    }
-    const data = await response.json().catch(() => { throw new Error('API 回應格式不正確'); });
-    return apiResponse(data, request.format);
+    return await retryTranslationRequest(async () => {
+      let response;
+      try {
+        response = await fetchImpl(request.url, {method: 'POST', headers: request.headers, body: JSON.stringify(request.body), signal: deadline, redirect: 'manual', credentials: 'omit', referrerPolicy: 'no-referrer'});
+      } catch {
+        // Fetch errors can include server URLs or credential-containing diagnostics.
+        throw new RetryableTranslationError('無法連線到 API；請確認網址、連線權限與網路');
+      }
+      // Never follow a redirect, including the opaque response in browsers.
+      if (response.type === 'opaqueredirect' || (response.status >= 300 && response.status < 400)) {
+        throw new Error('無法連線到 API；請確認 API 網址');
+      }
+      if (!response.ok) {
+        const guidance = response.status === 401 || response.status === 403 ? '請檢查 API Key 和使用權限' : response.status === 429 ? '額度或速率限制，請稍後重試' : response.status === 400 || response.status === 404 ? '請檢查模型名稱與 API 網址' : '服務暫時無法使用';
+        throw translationHttpError(response, `${profile.label} API ${response.status}：${guidance}`);
+      }
+      const data = await response.json().catch(() => { throw new RetryableTranslationError('API 回應格式不正確'); });
+      const output = apiResponse(data, request.format);
+      try {
+        return validate(output);
+      } catch (error) {
+        throw new RetryableTranslationError(error.message);
+      }
+    }, deadline);
   } catch (error) {
     if (deadline.aborted) throw new Error(signal?.aborted ? 'API 翻譯已取消' : 'API 翻譯逾時，請稍後重試或選擇較快的模型');
-    if (response) throw error;
-    // Fetch errors may include server URLs or credential-containing diagnostics.
-    throw new Error('無法連線到 API；請確認網址、連線權限與網路');
+    throw error;
   }
 }

@@ -55,6 +55,14 @@ describe('ApiRotationController', () => {
     expect(engine1.translate).toHaveBeenCalled()
   })
 
+  it('rejects a negation inversion and accepts the next compatible verified provider', async () => {
+    vi.mocked(engine1.translate).mockResolvedValue('今天會直播。')
+    vi.mocked(engine2.translate).mockResolvedValue('今天不會直播。')
+    await controller.initialize()
+    expect(await controller.translate('今日は配信しません。', 'ja', 'zh')).toBe('今天不會直播。')
+    expect(engine2.translate).toHaveBeenCalledTimes(1)
+  })
+
   it('falls back to second provider when first exceeds quota', async () => {
     // Exhaust provider-a quota
     const month = new Date()
@@ -80,6 +88,16 @@ describe('ApiRotationController', () => {
 
     const result = await controller.translate('hello', 'en', 'ja')
     expect(result).toBe('result-b')
+  })
+
+  it('uses the next provider when the first returns a blank translation', async () => {
+    vi.mocked(engine1.translate).mockResolvedValue('  ')
+    await controller.initialize()
+
+    expect(await controller.translate('hello', 'en', 'ja')).toBe('result-b')
+    expect(engine1.translate).toHaveBeenCalledOnce()
+    expect(engine2.translate).toHaveBeenCalledOnce()
+    expect(persistence.store['provider-b']?.charCount).toBe(5)
   })
 
   it('throws when all providers fail', async () => {

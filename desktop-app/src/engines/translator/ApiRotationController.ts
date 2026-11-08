@@ -1,5 +1,6 @@
 import type { TranslatorEngine, Language, TranslateContext } from '../types'
 import { createLogger } from '../../main/logger'
+import { validateTranslation, TranslationValidationError } from '../../../../extension/translation-policy.mjs'
 
 const log = createLogger('rotation')
 
@@ -111,10 +112,11 @@ export class ApiRotationController implements TranslatorEngine {
     const errors: string[] = []
 
     for (const provider of this.providers) {
+      context?.signal?.throwIfAborted()
       const providerId = provider.engine.id
 
       // Skip providers that failed to initialize (#219)
-      if (!this.initializedProviders.has(providerId)) continue
+      if (!this.initializedProviders.has(providerId) || provider.engine.supportsDirection?.(from, to) === false) continue
 
       const record = this.getQuotaRecord(providerId, currentMonth)
 
@@ -153,20 +155,27 @@ export class ApiRotationController implements TranslatorEngine {
 
       try {
         const result = await provider.engine.translate(text, from, to, context)
+        if (typeof result !== 'string' || !result.trim()) throw new Error('Translation service returned no text')
 
         // Track usage after successful translation
         record.charCount += charCount
         this.quota[providerId] = record
         this.persistence.save(this.quota)
+        context?.signal?.throwIfAborted()
+        const verified = from === 'ja' && to === 'zh' ? validateTranslation(result, 'ja-zh', text, context?.glossary) : result
 
         // Reset failure count on success (#40)
         this.failureCount.set(providerId, 0)
 
-        return result
+        return verified
       } catch (err) {
+        context?.signal?.throwIfAborted()
         const message = err instanceof Error ? err.message : String(err)
         errors.push(`${providerId}: ${message}`)
         log.error(`${providerId} failed:`, message)
+        // A semantic failure can be specific to this sentence. Do not turn
+        // that into a service-wide outage, but never display it as a success.
+        if (err instanceof TranslationValidationError) continue
 
         // #703: classify into quota / rate-limit / generic transient failure
         const isQuotaError =
@@ -201,14 +210,18 @@ export class ApiRotationController implements TranslatorEngine {
     }
 
     // #703: fall back to local engine when all cloud providers are exhausted
-    if (this.fallbackEngine) {
+    context?.signal?.throwIfAborted()
+    if (this.fallbackEngine && this.fallbackEngine.supportsDirection?.(from, to) !== false) {
       this.onStatusUpdate?.('All cloud providers exhausted, using local fallback')
       log.info(`Falling back to ${this.fallbackEngine.id}. Errors: ${errors.join('; ')}`)
       if (!this.fallbackInitialized) {
         await this.fallbackEngine.initialize()
         this.fallbackInitialized = true
       }
-      return await this.fallbackEngine.translate(text, from, to, context)
+      context?.signal?.throwIfAborted()
+      const result = await this.fallbackEngine.translate(text, from, to, context)
+      context?.signal?.throwIfAborted()
+      return from === 'ja' && to === 'zh' ? validateTranslation(result, 'ja-zh', text, context?.glossary) : result
     }
 
     this.onStatusUpdate?.('Translation quota exhausted — all providers used up')

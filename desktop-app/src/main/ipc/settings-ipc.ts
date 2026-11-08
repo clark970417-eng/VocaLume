@@ -1,13 +1,15 @@
-import { configureObsCaptions, obsCaptionStatus } from '../obs-captions'
+import { configureObsCaptions, configureObsCaptionTransport, obsCaptionStatus } from '../obs-captions'
 import { app, ipcMain, dialog, shell } from 'electron'
 import { arch, platform, release, totalmem } from 'os'
 import { readFile, writeFile } from 'fs/promises'
 import { store } from '../store'
-import type { AppSettings, SubtitleSettings, CorrectionEntry } from '../store'
+import type { SubtitleSettings, CorrectionEntry } from '../store'
 import { validateSubtitleSettings } from '../ipc-validators'
 import type { AppContext } from '../app-context'
 import { createLogger } from '../logger'
+import { resetSubtitlePosition } from './display-ipc'
 import { isSpeechToneMode } from '../../pipeline/SpeechTone'
+import { localizedWebsiteUrl } from '../../../../extension/website-language.mjs'
 import {
   parseGlossary,
   detectGlossaryFormat,
@@ -22,11 +24,14 @@ const _log = createLogger('ipc:settings')
 export function registerSettingsIpc(ctx: AppContext): void {
   ipcMain.handle('obs-caption-status', () => obsCaptionStatus())
   ipcMain.handle('configure-obs-captions', (_event, mode: unknown) => configureObsCaptions(mode))
+  ipcMain.handle('configure-obs-caption-transport', (_event, transport: unknown, source: unknown) =>
+    configureObsCaptionTransport(transport, source))
   const supportUrls = new Set([
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=translation-quality.yml',
     'https://github.com/clark970417-eng/VocaLume/blob/main/docs/legal/privacy.md',
-    'https://github.com/clark970417-eng/VocaLume/releases'
+    'https://github.com/clark970417-eng/VocaLume/releases',
+    ...['en', 'zh-TW', 'zh-CN', 'ja', 'ko'].map(localizedWebsiteUrl)
   ])
 
   ipcMain.handle('open-support-url', async (_event, url: unknown) => {
@@ -65,57 +70,60 @@ export function registerSettingsIpc(ctx: AppContext): void {
   })
 
   ipcMain.handle('get-settings', () => {
+    const snapshot = store.store
     return {
-      speechToneMode: store.get('speechToneMode'),
-      translationEngine: store.get('translationEngine'),
-      googleApiKey: store.get('googleApiKey'),
-      deeplApiKey: store.get('deeplApiKey'),
-      geminiApiKey: store.get('geminiApiKey'),
-      microsoftApiKey: store.get('microsoftApiKey'),
-      microsoftRegion: store.get('microsoftRegion'),
-      openaiApiKey: store.get('openaiApiKey'),
-      cloudRealtimeEnabled: store.get('cloudRealtimeEnabled'),
-      geminiLiveApiKey: store.get('geminiLiveApiKey'),
-      geminiLiveEnabled: store.get('geminiLiveEnabled'),
-      sttEngine: store.get('sttEngine'),
-      selectedMicrophone: store.get('selectedMicrophone'),
-      selectedDisplay: store.get('selectedDisplay'),
-      subtitleSettings: store.get('subtitleSettings'),
-      slmKvCacheQuant: store.get('slmKvCacheQuant'),
-      slmModelSize: store.get('slmModelSize'),
-      slmSpeculativeDecoding: store.get('slmSpeculativeDecoding'),
-      glossaryTerms: store.get('glossaryTerms') || [],
-      orgGlossaryTerms: store.get('orgGlossaryTerms') || [],
-      gerEnabled: store.get('gerEnabled'),
-      adaptiveRoutingEnabled: store.get('adaptiveRoutingEnabled'),
-      adaptiveRoutingShortThreshold: store.get('adaptiveRoutingShortThreshold'),
-      adaptiveRoutingLongThreshold: store.get('adaptiveRoutingLongThreshold'),
-      adaptiveRoutingQualityEngine: store.get('adaptiveRoutingQualityEngine'),
-      noiseSuppressionEnabled: store.get('noiseSuppressionEnabled'),
-      streamingIntervalMs: store.get('streamingIntervalMs'),
-      simulMtEnabled: store.get('simulMtEnabled'),
-      simulMtWaitK: store.get('simulMtWaitK'),
-      whisperVariant: store.get('whisperVariant'),
-      moonshineVariant: store.get('moonshineVariant'),
-      sherpaOnnxModel: store.get('sherpaOnnxModel'),
-      sourceLanguage: store.get('sourceLanguage'),
-      targetLanguage: store.get('targetLanguage'),
-      wsAudioPort: store.get('wsAudioPort'),
-      ttsEnabled: store.get('ttsEnabled'),
-      ttsVoice: store.get('ttsVoice'),
-      ttsOutputDevice: store.get('ttsOutputDevice'),
-      ttsVolume: store.get('ttsVolume'),
-      hasCompletedSetup: store.get('hasCompletedSetup'),
-      draftSttEnabled: store.get('draftSttEnabled'),
-      speakerDiarizationEnabled: store.get('speakerDiarizationEnabled'),
-      telemetryConsent: store.get('telemetryConsent'),
-      telemetryConsentShown: store.get('telemetryConsentShown'),
-      showConfidenceIndicator: store.get('showConfidenceIndicator'),
-      isFirstRun: store.get('isFirstRun'),
-      onboardingModelStatus: store.get('onboardingModelStatus'),
-      onboardingDownloadProgress: store.get('onboardingDownloadProgress'),
-      preferredLocalEngine: store.get('preferredLocalEngine'),
-      updateChannel: store.get('updateChannel')
+      speechToneMode: snapshot.speechToneMode,
+      translationEngine: snapshot.translationEngine,
+      googleApiKey: snapshot.googleApiKey,
+      deeplApiKey: snapshot.deeplApiKey,
+      geminiApiKey: snapshot.geminiApiKey,
+      microsoftApiKey: snapshot.microsoftApiKey,
+      microsoftRegion: snapshot.microsoftRegion,
+      openaiApiKey: snapshot.openaiApiKey,
+      cloudRealtimeEnabled: snapshot.cloudRealtimeEnabled,
+      geminiLiveApiKey: snapshot.geminiLiveApiKey,
+      geminiLiveEnabled: snapshot.geminiLiveEnabled,
+      sttEngine: snapshot.sttEngine,
+      audioSource: snapshot.audioSource,
+      systemLoopbackDeviceId: snapshot.systemLoopbackDeviceId,
+      selectedMicrophone: snapshot.selectedMicrophone,
+      selectedDisplay: snapshot.selectedDisplay,
+      subtitleSettings: snapshot.subtitleSettings,
+      slmKvCacheQuant: snapshot.slmKvCacheQuant,
+      slmModelSize: snapshot.slmModelSize,
+      slmSpeculativeDecoding: snapshot.slmSpeculativeDecoding,
+      glossaryTerms: snapshot.glossaryTerms || [],
+      orgGlossaryTerms: snapshot.orgGlossaryTerms || [],
+      gerEnabled: snapshot.gerEnabled,
+      adaptiveRoutingEnabled: snapshot.adaptiveRoutingEnabled,
+      adaptiveRoutingShortThreshold: snapshot.adaptiveRoutingShortThreshold,
+      adaptiveRoutingLongThreshold: snapshot.adaptiveRoutingLongThreshold,
+      adaptiveRoutingQualityEngine: snapshot.adaptiveRoutingQualityEngine,
+      noiseSuppressionEnabled: snapshot.noiseSuppressionEnabled,
+      streamingIntervalMs: snapshot.streamingIntervalMs,
+      simulMtEnabled: snapshot.simulMtEnabled,
+      simulMtWaitK: snapshot.simulMtWaitK,
+      whisperVariant: snapshot.whisperVariant,
+      moonshineVariant: snapshot.moonshineVariant,
+      sherpaOnnxModel: snapshot.sherpaOnnxModel,
+      sourceLanguage: snapshot.sourceLanguage,
+      targetLanguage: snapshot.targetLanguage,
+      wsAudioPort: snapshot.wsAudioPort,
+      ttsEnabled: snapshot.ttsEnabled,
+      ttsVoice: snapshot.ttsVoice,
+      ttsOutputDevice: snapshot.ttsOutputDevice,
+      ttsVolume: snapshot.ttsVolume,
+      hasCompletedSetup: snapshot.hasCompletedSetup,
+      draftSttEnabled: snapshot.draftSttEnabled,
+      speakerDiarizationEnabled: snapshot.speakerDiarizationEnabled,
+      telemetryConsent: snapshot.telemetryConsent,
+      telemetryConsentShown: snapshot.telemetryConsentShown,
+      showConfidenceIndicator: snapshot.showConfidenceIndicator,
+      isFirstRun: snapshot.isFirstRun,
+      onboardingModelStatus: snapshot.onboardingModelStatus,
+      onboardingDownloadProgress: snapshot.onboardingDownloadProgress,
+      preferredLocalEngine: snapshot.preferredLocalEngine,
+      updateChannel: snapshot.updateChannel
     }
   })
 
@@ -125,15 +133,21 @@ export function registerSettingsIpc(ctx: AppContext): void {
       throw new Error(`Invalid subtitle settings: ${validationError}`)
     }
     const validated = settings as unknown as SubtitleSettings
+    const previousAnchor = store.get('subtitleSettings')?.position
     store.set('subtitleSettings', validated)
     ctx.subtitleWindow?.webContents.send('subtitle-settings-changed', validated)
+    if (validated.position !== previousAnchor) resetSubtitlePosition(ctx)
   })
 
   ipcMain.handle('save-settings', (_event, settings: Record<string, unknown>) => {
     if ('speechToneMode' in settings && !isSpeechToneMode(settings.speechToneMode)) throw new Error('Invalid speech tone setting')
-    for (const [key, value] of Object.entries(settings)) {
-      store.set(key as keyof AppSettings, value as never)
+    if ('systemLoopbackDeviceId' in settings &&
+      (typeof settings.systemLoopbackDeviceId !== 'string' || settings.systemLoopbackDeviceId.length > 512)) {
+      throw new Error('Invalid system audio input')
     }
+    // Conf decrypts and writes the complete store on every set. Commit the
+    // renderer's settings together before starting the translation pipeline.
+    store.set(settings as Parameters<typeof store.set>[0])
     if ('speechToneMode' in settings) ctx.pipeline?.setSpeechToneMode(settings.speechToneMode)
   })
 

@@ -14,6 +14,43 @@ export function getSubtitleHeight(display: Electron.Display): number {
   return Math.round(baseHeight * Math.min(scaleFactor, 2))
 }
 
+/** Keep the entire overlay above taskbars and inside the selected monitor. */
+export function getSubtitleBounds(
+  display: Electron.Display, saved?: { x: number; y: number }, anchor = 'bottom'
+): Electron.Rectangle {
+  const area = display.workArea ?? display.bounds
+  const height = Math.min(getSubtitleHeight(display), area.height)
+  const width = Math.min(area.width, Math.max(540, Math.round(area.width * 0.84)))
+  const maxX = area.x + area.width - width
+  const maxY = area.y + area.height - height
+  const x = saved && Number.isFinite(saved.x) ? saved.x : area.x + Math.round((area.width - width) / 2)
+  const y = saved && Number.isFinite(saved.y) ? saved.y : anchor === 'top' ? area.y : maxY
+  return {
+    x: Math.round(Math.max(area.x, Math.min(x, maxX))),
+    y: Math.round(Math.max(area.y, Math.min(y, maxY))),
+    width,
+    height
+  }
+}
+
+export function getSavedSubtitleBounds(display: Electron.Display): Electron.Rectangle {
+  return getSubtitleBounds(display, store.get('subtitlePositions')?.[String(display.id)], store.get('subtitleSettings')?.position)
+}
+
+function prioritizeWindowsControls(ctx: AppContext): void {
+  const controls = ctx.mainWindow
+  if (process.platform !== 'win32' || !controls?.isFocused() || !ctx.subtitleWindow?.isVisible()) return
+  if (!controls.isAlwaysOnTop()) controls.setAlwaysOnTop(true, 'screen-saver')
+  controls.moveTop()
+}
+
+/** Keep the overlay above playback, and keep its own focused controls reachable. */
+export function raiseSubtitleWindow(ctx: AppContext, prioritizeSubtitle = false): void {
+  ctx.subtitleWindow?.setAlwaysOnTop(true, 'screen-saver')
+  if (prioritizeSubtitle && process.platform === 'win32') ctx.subtitleWindow?.moveTop()
+  else prioritizeWindowsControls(ctx)
+}
+
 export function createMainWindow(ctx: AppContext, show = true): void {
   ctx.mainWindow = new BrowserWindow({
     show: show && !isUiTest,
@@ -35,6 +72,13 @@ export function createMainWindow(ctx: AppContext, show = true): void {
     ctx.mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
+  const controls = ctx.mainWindow
+  if (process.platform === 'win32') {
+    controls.on('focus', () => prioritizeWindowsControls(ctx))
+    controls.on('blur', () => {
+      if (controls.isAlwaysOnTop()) controls.setAlwaysOnTop(false)
+    })
+  }
   ctx.mainWindow.on('closed', () => {
     ctx.mainWindow = null
     ctx.subtitleWindow?.close()
@@ -49,33 +93,30 @@ export function createSubtitleWindow(ctx: AppContext, show = true): void {
   const externalDisplay = displays.find((d) => d.id !== primaryId)
   const targetDisplay = savedDisplay || externalDisplay || displays[0]
 
-  const subtitleHeight = getSubtitleHeight(targetDisplay)
-
-  // Restore saved position for this display if available (#509)
-  const savedPositions = (store.get('subtitlePositions' as never) as Record<string, { x: number; y: number }> | undefined) || {}
-  const savedPos = savedPositions[String(targetDisplay.id)]
-  const initialX = savedPos?.x ?? targetDisplay.bounds.x
-  const initialY = savedPos?.y ?? (targetDisplay.bounds.y + targetDisplay.bounds.height - subtitleHeight)
-
   ctx.subtitleWindow = new BrowserWindow({
     show: show && !isUiTest,
-    x: initialX,
-    y: initialY,
-    width: targetDisplay.bounds.width,
-    height: subtitleHeight,
+    ...getSavedSubtitleBounds(targetDisplay),
     transparent: true,
     frame: false,
+    resizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     hasShadow: false,
     webPreferences: {
+      // Captions must keep painting while the user watches another application.
+      backgroundThrottling: false,
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false
     }
   })
 
-  ctx.subtitleWindow.setIgnoreMouseEvents(true, { forward: true })
+  ctx.subtitleWindow.setIgnoreMouseEvents(true, { forward: process.platform === 'darwin' })
+  // Windows can lose the constructor's topmost style when click-through is set.
+  // Apply the level after that change and restore it whenever the overlay shows.
+  const keepOnTop = (): void => raiseSubtitleWindow(ctx)
+  keepOnTop()
+  ctx.subtitleWindow.on('show', keepOnTop)
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     ctx.subtitleWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/subtitle`)
@@ -102,17 +143,19 @@ export function ensureDesktopWindows(ctx: AppContext, show = true): BrowserWindo
 /** Register display-change event handlers. Returns a cleanup function that removes the listeners. */
 export function registerDisplayHandlers(ctx: AppContext): () => void {
   // #46: reposition subtitle window when external display is disconnected
-  const onDisplayRemoved = (): void => {
+  const onDisplayRemoved = (_event: Electron.Event, removed: Electron.Display): void => {
     if (!ctx.subtitleWindow) return
-    const primaryDisplay = screen.getPrimaryDisplay()
-    const h = getSubtitleHeight(primaryDisplay)
-    ctx.subtitleWindow.setBounds({
-      x: primaryDisplay.bounds.x,
-      y: primaryDisplay.bounds.y + primaryDisplay.bounds.height - h,
-      width: primaryDisplay.bounds.width,
-      height: h
-    })
-    // #64: notify renderer to refresh display list
+    const current = store.get('selectedDisplay')
+    const bounds = ctx.subtitleWindow.getBounds()
+    const wasSelected = current === removed.id || (
+      !current && bounds.x >= removed.bounds.x && bounds.x < removed.bounds.x + removed.bounds.width &&
+      bounds.y >= removed.bounds.y && bounds.y < removed.bounds.y + removed.bounds.height)
+    if (wasSelected) {
+      const primary = screen.getPrimaryDisplay()
+      store.set('selectedDisplay', primary.id)
+      ctx.subtitleWindow.setBounds(getSavedSubtitleBounds(primary))
+      ctx.mainWindow?.webContents.send('subtitle-display-changed', primary.id)
+    }
     ctx.mainWindow?.webContents.send('displays-changed')
   }
 
@@ -122,9 +165,18 @@ export function registerDisplayHandlers(ctx: AppContext): () => void {
 
   screen.on('display-removed', onDisplayRemoved)
   screen.on('display-added', onDisplayAdded)
+  const onDisplayMetricsChanged = (_event: Electron.Event, display: Electron.Display): void => {
+    const window = ctx.subtitleWindow
+    if (window && screen.getDisplayMatching(window.getBounds()).id === display.id) {
+      window.setBounds(getSavedSubtitleBounds(display))
+    }
+    onDisplayAdded()
+  }
+  screen.on('display-metrics-changed', onDisplayMetricsChanged)
 
   return () => {
     screen.removeListener('display-removed', onDisplayRemoved)
     screen.removeListener('display-added', onDisplayAdded)
+    screen.removeListener('display-metrics-changed', onDisplayMetricsChanged)
   }
 }

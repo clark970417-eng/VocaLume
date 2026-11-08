@@ -21,9 +21,11 @@ import { boundedTranslation, TranslationCancelledError } from './bounded-transla
  */
 
 import type { Llama, LlamaModel, LlamaContext, LlamaContextSequence, Token } from 'node-llama-cpp'
+import { realpath } from 'node:fs/promises'
 import { LANG_NAMES_EN, LANG_NAMES_ZH } from '../engines/language-names'
 import { formatGlossaryPrompt, selectApplicableGlossary } from '../engines/translator/glossary-utils'
 import { buildJaZhFidelityGuidance, finishJaZhTranslation } from '../engines/translator/ja-zh-fidelity'
+import { applyTaiwanLivestreamTerminology, normalizeTaiwanChinese } from '../../../extension/taiwan-chinese.mjs'
 import { finishZhJaTranslation } from '../engines/translator/zh-ja-fidelity'
 import { createLogger } from './logger'
 import { resetTranslationHistory, translationContextForModel } from './translation-session'
@@ -139,15 +141,14 @@ async function handleInit(
   activeModelType = modelType ?? 'translategemma'
   const { getLlama } = await import('node-llama-cpp')
   const windows = process.platform === 'win32'
+  // The native loader can fail on Windows model paths through a junction.
+  const resolvedModelPath = windows ? await realpath(modelPath) : modelPath
   const threads = windowsInferenceThreads().llama
   if (windows) log.info(`Windows inference budget: ${threads} CPU threads; background priority=${lowerInferencePriority()}`)
   log.info('Getting llama instance...')
-  llama = await getLlama({ gpu: 'auto', ...(windows ? {
+  const windowsOptions = windows ? {
     maxThreads: threads, vramPadding: windowsVramPadding, build: 'never' as const, skipDownload: true
-  } : {}) })
-  log.info('Loading model:', modelPath)
-  model = await llama.loadModel({ modelPath })
-  log.info(`Model loaded (backend=${llama.gpu}, GPU layers=${model.gpuLayers}), creating context...`)
+  } : {}
 
   const contextOptions: Record<string, unknown> = {
     contextSize: TRANSLATION_CONTEXT_SIZE,
@@ -159,25 +160,47 @@ async function handleInit(
     contextOptions.experimentalKvCacheKeyType = 'Q8_0'
     contextOptions.experimentalKvCacheValueType = 'Q8_0'
   }
-  try {
-    context = await model.createContext(contextOptions)
-    log.info('Context created successfully')
-  } catch (err) {
-    log.error('createContext failed:', err)
-    // Retry without KV cache quantization
-    if (kvCacheQuant) {
-      log.info('Retrying without KV cache quantization...')
-      context = await model.createContext({ contextSize: TRANSLATION_CONTEXT_SIZE, ...(windows ? { threads } : {}) })
-      log.info('Context created without KV cache quant')
-    } else {
-      throw err
+  async function loadContext(gpu: 'auto' | false) {
+    let backend = llama = await getLlama({ gpu, ...windowsOptions })
+    if (windows && backend.gpu === 'vulkan') {
+      const devices = await backend.getGpuDeviceNames()
+      // Legacy Intel integrated GPUs can report shared VRAM that the Vulkan
+      // driver cannot allocate for the model context. Avoid loading twice.
+      if (devices.length > 0 && devices.every(device => /Intel.*(?:UHD|HD) Graphics/i.test(device))) {
+        log.info('Using CPU inference for legacy Intel integrated graphics')
+        await backend.dispose()
+        backend = llama = await getLlama({ gpu: false, ...windowsOptions })
+      }
     }
+    log.info('Loading model:', resolvedModelPath)
+    const loaded = model = await backend.loadModel({ modelPath: resolvedModelPath })
+    log.info(`Model loaded (backend=${backend.gpu}, GPU layers=${loaded.gpuLayers}), creating context...`)
+    try {
+      context = await loaded.createContext(contextOptions)
+    } catch (error) {
+      if (!kvCacheQuant) throw error
+      log.warn('Retrying without KV cache quantization:', error)
+      context = await loaded.createContext({ contextSize: TRANSLATION_CONTEXT_SIZE, ...(windows ? { threads } : {}) })
+    }
+    return backend
+  }
+  let backend
+  try {
+    backend = await loadContext('auto')
+  } catch (error) {
+    if (!windows || !llama?.gpu) throw error
+    log.warn('GPU model initialization failed; retrying on CPU:', error)
+    await model?.dispose()
+    model = null
+    await llama.dispose()
+    llama = null
+    backend = await loadContext(false)
   }
 
   // Load draft model for speculative decoding if provided
   if (draftModelPath) {
     try {
-      draftModel = await llama.loadModel({ modelPath: draftModelPath })
+      draftModel = await backend.loadModel({ modelPath: windows ? await realpath(draftModelPath) : draftModelPath })
       const draftContextOptions: Record<string, unknown> = windows ? { contextSize: TRANSLATION_CONTEXT_SIZE, threads } : {}
       if (kvCacheQuant) {
         draftContextOptions.flashAttention = true
@@ -265,6 +288,9 @@ function buildTranslationPrompt(
       }
       const terms = to === 'zh' && /配信|クリア/.test(text) ? '在直播或游戏语境中，配信译为直播，クリア译为通关。' : ''
       const fidelity = to === 'zh' && from === 'ja' ? buildJaZhFidelityGuidance(text) : ''
+      if (from === 'ja' && to === 'zh') {
+        return `${contextSection}譯成台灣繁體中文，忠實保留否定、數字與未完句，只輸出譯文。${terms}${fidelity}\n\n${text}`
+      }
       return `${contextSection}将以下文本翻译为${targetZh}，用自然流畅的台湾繁体中文口语；完整保留原意、否定、数字、时态和说话者。未说完的内容不要补完，不添加原文没有的信息。${terms}${fidelity}只输出译文，不要额外解释：\n\n${text}`
     }
     return `${contextSection}Translate the following segment into ${toLang}, without additional explanation.\n\n${text}`
@@ -285,9 +311,13 @@ function buildTranslationPrompt(
   return `${contextSection}Translate the following text from ${fromLang} to ${toLang}. Output only the translation, nothing else.\n\n${text}`
 }
 
-const finishTranslationResult = (source: string, from: string, to: string, response: string): string =>
-  from === 'ja' && to === 'zh' ? finishJaZhTranslation(source, response)
-    : from === 'zh' && to === 'ja' ? finishZhJaTranslation(source, response) : response.trim()
+function finishTranslationResult(source: string, from: string, to: string, response: string): string {
+  if (to === 'zh') {
+    const output = normalizeTaiwanChinese(response)
+    return from === 'ja' ? finishJaZhTranslation(source, applyTaiwanLivestreamTerminology(source, output)) : output.trim()
+  }
+  return from === 'zh' && to === 'ja' ? finishZhJaTranslation(source, response) : response.trim()
+}
 
 /** Get the system prompt for LFM2 based on target language */
 function getLFM2SystemPrompt(to: string): string {
@@ -435,7 +465,7 @@ async function runInference(
       }}),
       ...inferenceParams,
       ...(previousOutput?.trim() && { responsePrefix: previousOutput })
-    }, sourceLength, 15_000, activeRequest?.controller.signal)
+    }, sourceLength, process.platform === 'win32' ? 45_000 : 15_000, activeRequest?.controller.signal)
     const inferenceMs = performance.now() - t1
 
     // Log speculative decoding stats for debugging

@@ -1,3 +1,5 @@
+import { performanceState } from './performance-state'
+
 /** Conservative repair for meaning a complete written draft can lose.
  *
  * Each property pairs a Chinese source signal with the Japanese forms that carry
@@ -106,7 +108,7 @@ export async function translateWrittenDraft(
   // lines has lost structure and often content, so translate each line on its
   // own under the same deadline and preemption as clause repair.
   const unresolved = { ...whole, text: finishDraft(source, whole.text), reviewWarning: [whole.reviewWarning, LINE_WARNING].filter(Boolean).join('；') }
-  if (preempt?.aborted || lines.length > MAX_LINE_REPAIR_LINES) return unresolved
+  if (preempt?.aborted || performanceState().previewDutyCycle < .85 || lines.length > MAX_LINE_REPAIR_LINES) return unresolved
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(new Error('Draft repair deadline')), REPAIR_DEADLINE_MS)
   const release = (): void => controller.abort(new Error('Preempted by live audio'))
@@ -153,7 +155,7 @@ async function translateWrittenDraftCore(
   const unresolved = { text, reviewWarning: lost.map(property => property.warning).join('；') }
   // Live captions are already waiting for the shared worker; do not begin
   // several more model calls for optional repair.
-  if (preempt?.aborted) return unresolved
+  if (preempt?.aborted || performanceState().previewDutyCycle < .85) return unresolved
   // Restrict fallback to two or three short clauses; never split conditions or
   // quoted text. This is only for complete drafts, never streaming speech.
   if (parts.length < 2 || parts.length > 3 || parts.some(part => part.length < 5 || part.length > 60) || unsafeSplit.test(source)) return unresolved

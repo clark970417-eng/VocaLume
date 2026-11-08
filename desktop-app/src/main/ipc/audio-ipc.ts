@@ -20,7 +20,7 @@ export function registerAudioIpc(ctx: AppContext): void {
 
       // Forward received audio to the pipeline
       ctx.wsAudioServer.on('audio', async (chunk: Float32Array) => {
-        if (!ctx.pipeline?.running) return
+        if (!ctx.pipeline?.running || ctx.pipelineStarting || ctx.pipelineInputOwner === 'file') return
 
         try {
           await ctx.pipeline.process(chunk, SAMPLE_RATE)

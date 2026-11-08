@@ -2,11 +2,9 @@ import { t } from '../../ui-language'
 import React from 'react'
 
 const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '12px',
+  fontSize: '13px',
   fontWeight: 600,
-  color: '#94a3b8',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
+  color: '#e2e8f0',
   display: 'block',
   marginBottom: '6px'
 }

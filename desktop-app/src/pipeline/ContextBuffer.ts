@@ -1,4 +1,4 @@
-import type { TranslateContext, GlossaryEntry } from '../engines/types'
+import type { TranslateContext, GlossaryEntry, Language } from '../engines/types'
 
 const DEFAULT_MAX_SEGMENTS = 3
 
@@ -28,6 +28,13 @@ export class ContextBuffer {
       previousSegments: [...this.segments],
       glossary
     }
+  }
+
+  /** Japanese live captions use only the independently verified source
+   * reference. Generated history can propagate a wrong subject to new cues. */
+  forCaption(from: Language, to: Language, glossary?: GlossaryEntry[], sourceContext?: string): TranslateContext {
+    const context = from === 'ja' && to === 'zh' ? { previousSegments: [], glossary } : this.getContext(glossary)
+    return sourceContext ? { ...context, sourceContext } : context
   }
 
   /** Clear all stored segments */

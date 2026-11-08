@@ -14,6 +14,16 @@ export function joinJapaneseCaption(previous: string, current: string, atAudioCu
   const next = current.trim()
   if (!prefix || prefix.length > 120 || !next || next.length > 420 || /[」』）)]$/u.test(prefix)) return current
   if (next.startsWith(prefix)) return current // overlapping recognition already contains it
+  // A Japanese comparative predicate may be stranded after a hard cut. Bring
+  // over only its actual object, never the preceding numbers or subject.
+  const comparison = atAudioCut && !/[「」『』]/u.test(prefix) &&
+    prefix.match(/(?:市場(?:関係者)?|専門家)の(?:予想|予測|見通し)を(?:大きく?|大幅に)?$/u)?.[0]
+  if (comparison) {
+    const verb = /大きく?$/u.test(comparison) ? next.replace(/^く(?=上回|下回)/u, '') : next
+    if (/^(?:上回|下回)(?:りました|ります|った|る)(?=[。！？!?、\s]|$)/u.test(verb)) {
+      return comparison.replace(/大き$/u, '大きく') + verb
+    }
+  }
   const connected = atAudioCut && /[いきぎしちにびみりえけげせてねべめれ]$/u.test(prefix) &&
       /^(?:ませんでした|ません|ました|ます)(?=[。！？!?、\s]|が|けど|ので|から|$)/u.test(next) ||
     // Colloquial negatives/contractions and quoted speech need evidence of an
@@ -52,11 +62,12 @@ export class JapaneseCaptionContext {
 
   reset(): void { this.previous = undefined }
 
-  /** Only a nearby, complete source question may disambiguate a short reply.
-   * Never feed generated translations, an entire conversation, or a cut clause
-   * back into the model. This snapshot is captured before remembering this cue.
+  /** Use a short adjacent source question for known replies. Only providers
+   * with a separate reference field receive a declarative antecedent, and
+   * only for explicitly referential phrasing. Never feed generated output.
    */
-  referenceFor(text: string, from: Language, to: Language, evidence?: SpeechEvidence, speaker?: number): string | undefined {
+  referenceFor(text: string, from: Language, to: Language, evidence?: SpeechEvidence, speaker?: number,
+    acceptsReference = false): string | undefined {
     const prior=this.previous
     if (!prior || !((from==='ja'&&to==='zh')||(from==='zh'&&to==='ja')) || prior.from!==from || prior.to!==to ||
         prior.evidence?.continuationExpected || !evidence?.segment || !prior.evidence?.segment || evidence.segment===prior.evidence.segment ||
@@ -64,10 +75,17 @@ export class JapaneseCaptionContext {
     const start=evidence.captureStartSample,end=prior.evidence.captureEndSample
     if (start===undefined || end===undefined || start<end || start>end+32000) return undefined
     const previous=prior.text.trim(),current=text.trim()
-    if (previous.length>80 || /[\n「」『』"<>]/u.test(previous) || !/[?？]$/u.test(previous)) return undefined
-    // Unhandled senses keep ordinary preparation and cache reuse: a reference
-    // that cannot improve the reply must not add work or postpone its display.
-    return contextualShortReply(current, from, to, previous) !== undefined ? previous : undefined
+    if (previous.length>80 || /[\n「」『』"<>]/u.test(previous)) return undefined
+    if (contextualShortReply(current, from, to, previous) !== undefined) return previous
+    const priorStart = prior.evidence.captureStartSample
+    const priorSpeechEnd = prior.evidence.speechEndSample
+    const lastSpeech = priorStart !== undefined && priorSpeechEnd !== undefined &&
+      priorSpeechEnd > 0 && priorSpeechEnd <= end - priorStart ? priorStart + priorSpeechEnd : end
+    if (!acceptsReference || from!=='ja' || to!=='zh' || evidence.continuationExpected || current.length>120 ||
+        /[\n「」『』"<>]/u.test(current) || start - lastSpeech > 14400 ||
+        !/^(?:それ(?:は|が|を|も|について)|その(?:理由|件|結果|場所|後)|同じ(?:もの|ところ|理由))/u.test(current) ||
+        !/[^。.!！?？\n]+[。．.!！]$/u.test(previous) || /[。．.!！?？]/u.test(previous.slice(0, -1))) return undefined
+    return previous
   }
 
   resolve(text: string, from: Language, to: Language, evidence?: SpeechEvidence, speaker?: number): string {

@@ -1,7 +1,10 @@
 import { t } from '../../ui-language'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { LANGUAGE_LABELS, type TtsVoiceOption } from '../../../engines/types'
+import { verifyTtsOutputDevice } from '../../hooks/TtsPlayback'
 import { Section } from './Section'
-import { selectStyle, sliderLabelStyle } from './shared'
+import { VirtualMicSettings } from './VirtualMicSettings'
+import { buttonStyle, errorContainerStyle, selectStyle, sliderLabelStyle, warningContainerStyle } from './shared'
 
 /** Voice options by language group */
 const TTS_VOICES: Record<string, Array<{ id: string; label: string }>> = {
@@ -51,19 +54,29 @@ const ALL_VOICES = [
 
 interface TTSSettingsProps {
   disabled: boolean
+  platform: string
 }
 
-export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
+export function TTSSettings({ disabled, platform }: TTSSettingsProps): React.JSX.Element {
   const [enabled, setEnabled] = useState(false)
   const [voice, setVoice] = useState('auto')
   const [volume, setVolume] = useState(0.8)
   const [outputDevice, setOutputDevice] = useState('')
-  const [outputDevices, setOutputDevices] = useState<MediaDeviceInfo[]>([])
-  const [loading, setLoading] = useState(false)
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
+  const [loading, setLoading] = useState(true)
+  const [windowsVoices, setWindowsVoices] = useState<TtsVoiceOption[]>([])
+  const [loadingVoices, setLoadingVoices] = useState(false)
+  const [speechError, setSpeechError] = useState('')
+  const [scanning, setScanning] = useState(true)
+  const [routing, setRouting] = useState(false)
+  const [outputError, setOutputError] = useState<{ message: string; detail: string } | null>(null)
+  const scanId = useRef(0)
 
   // Load saved settings on mount
   useEffect(() => {
+    let active = true
     window.api.ttsGetSettings().then((settings) => {
+      if (!active) return
       setEnabled(settings.enabled)
       setVoice(settings.voice)
       setVolume(settings.volume)
@@ -71,24 +84,70 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
     }).catch((err: unknown) => {
       const e = err instanceof Error ? err : new Error(String(err))
       console.warn('[tts-settings] Failed to load TTS settings:', e.message)
+    }).finally(() => {
+      if (active) setLoading(false)
     })
-
-    // Enumerate audio output devices
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      setOutputDevices(devices.filter((d) => d.kind === 'audiooutput'))
-    }).catch((err: unknown) => {
-      const e = err instanceof Error ? err : new Error(String(err))
-      console.warn('[tts-settings] Failed to enumerate audio devices:', e.message)
-    })
+    return () => { active = false }
   }, [])
 
-  // Set up TTS audio playback listener
+  useEffect(() => window.api.onTtsError(setSpeechError), [])
+
   useEffect(() => {
-    const cleanup = window.api.onTtsAudio((data) => {
-      playTtsAudio(data.audio, data.sampleRate, data.volume, data.outputDevice)
+    if (!enabled || platform !== 'win32') return
+    let active = true
+    setLoadingVoices(true)
+    window.api.ttsGetVoices().then(voices => {
+      if (active) setWindowsVoices(voices)
+    }).catch(() => {
+      if (active) setSpeechError('Unable to list installed Windows speech voices.')
+    }).finally(() => {
+      if (active) setLoadingVoices(false)
     })
-    return cleanup
+    return () => { active = false }
+  }, [enabled, platform])
+
+  const refreshDevices = useCallback(async () => {
+    const id = ++scanId.current
+    setScanning(true)
+    setOutputError(null)
+    try {
+      const all = await navigator.mediaDevices.enumerateDevices()
+      if (id === scanId.current) setDevices(all)
+    } catch (error: unknown) {
+      if (id === scanId.current) setOutputError({
+        message: 'Unable to enumerate virtual audio devices: {0}',
+        detail: error instanceof Error ? error.message : String(error)
+      })
+    } finally {
+      if (id === scanId.current) setScanning(false)
+    }
   }, [])
+
+  useEffect(() => {
+    void refreshDevices()
+    navigator.mediaDevices?.addEventListener?.('devicechange', refreshDevices)
+    return () => {
+      ++scanId.current
+      navigator.mediaDevices?.removeEventListener?.('devicechange', refreshDevices)
+    }
+  }, [refreshDevices])
+
+  const requestAccess = useCallback(async () => {
+    setRouting(true)
+    setOutputError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      for (const track of stream.getTracks()) track.stop()
+      await refreshDevices()
+    } catch (error: unknown) {
+      setOutputError({
+        message: 'Unable to access audio devices: {0}',
+        detail: error instanceof Error ? error.message : String(error)
+      })
+    } finally {
+      setRouting(false)
+    }
+  }, [refreshDevices])
 
   const handleToggle = useCallback(async (checked: boolean) => {
     setLoading(true)
@@ -111,7 +170,8 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
 
   const handleVoiceChange = useCallback((voiceId: string) => {
     setVoice(voiceId)
-    window.api.ttsSetVoice(voiceId)
+    setSpeechError('')
+    void window.api.ttsSetVoice(voiceId).catch(() => setSpeechError('Unable to save the speech voice.'))
   }, [])
 
   const handleVolumeChange = useCallback((value: number) => {
@@ -119,12 +179,34 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
     window.api.ttsSetVolume(value)
   }, [])
 
-  const handleOutputDeviceChange = useCallback((deviceId: string) => {
-    setOutputDevice(deviceId)
-    window.api.ttsSetOutputDevice(deviceId)
+  const handleOutputDeviceChange = useCallback(async (deviceId: string) => {
+    setRouting(true)
+    setOutputError(null)
+    try {
+      await verifyTtsOutputDevice(deviceId)
+      await window.api.ttsSetOutputDevice(deviceId)
+      setOutputDevice(deviceId)
+    } catch (error: unknown) {
+      setOutputError({
+        message: 'Unable to route translated speech: {0}',
+        detail: error instanceof Error ? error.message : String(error)
+      })
+    } finally {
+      setRouting(false)
+    }
   }, [])
 
-  return (
+  const outputDevices = devices.filter(device => device.kind === 'audiooutput' && device.deviceId && device.deviceId !== 'default')
+  const outputBusy = loading || scanning || routing
+  const outputUnavailable = !outputBusy && outputDevice !== '' && outputDevice !== 'default' &&
+    !outputDevices.some(device => device.deviceId === outputDevice)
+  const voiceGroups = platform === 'win32' ? Object.entries(LANGUAGE_LABELS).flatMap(([language, group]) => {
+    const voices = windowsVoices.filter(option => option.language === language)
+    return voices.length ? [{ group, voices }] : []
+  }) : ALL_VOICES
+  const voiceUnavailable = voice !== 'auto' && !voiceGroups.some(group => group.voices.some(option => option.id === voice))
+
+  return (<>
     <Section label={t("Text-to-Speech")}>
       {/* Enable/disable toggle */}
       <label style={{
@@ -144,7 +226,7 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
           aria-label={t("Enable text-to-speech")}
         />
         <span>
-          {loading ? t("Loading Kokoro-82M model...") : t("Speak translated text (Kokoro-82M)")}
+          {loading ? t('Loading speech settings...') : platform === 'win32' ? t('Speak translated text') : t("Speak translated text (Kokoro-82M)")}
         </span>
       </label>
 
@@ -153,15 +235,15 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
           {/* Voice selector */}
           <div style={sliderLabelStyle}>{t("Voice")}</div>
           <select
-            value={voice}
+            value={voiceUnavailable ? 'auto' : voice}
             onChange={(e) => handleVoiceChange(e.target.value)}
             style={{ ...selectStyle, marginBottom: '8px' }}
-            disabled={disabled}
+            disabled={disabled || loadingVoices}
             aria-label={t("TTS voice")}
           >
             <option value="auto">{t("Automatic for translation language")}</option>
-            {ALL_VOICES.map((group) => (
-              <optgroup key={group.group} label={group.group}>
+            {voiceGroups.map((group) => (
+              <optgroup key={group.group} label={t(group.group)}>
                 {group.voices.map((v) => (
                   <option key={v.id} value={v.id}>{v.label}</option>
                 ))}
@@ -188,13 +270,14 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
             <>
               <div style={sliderLabelStyle}>{t("Output Device")}</div>
               <select
-                value={outputDevice}
+                value={outputDevice === 'default' ? '' : outputDevice}
                 onChange={(e) => handleOutputDeviceChange(e.target.value)}
                 style={selectStyle}
-                disabled={disabled}
+                disabled={disabled || outputBusy}
                 aria-label={t("TTS output device")}
               >
                 <option value="">{t("Default")}</option>
+                {outputUnavailable && <option value={outputDevice} disabled>{t('Selected audio output unavailable')}</option>}
                 {outputDevices.map((d) => (
                   <option key={d.deviceId} value={d.deviceId}>
                     {d.label || d.deviceId}
@@ -206,56 +289,19 @@ export function TTSSettings({ disabled }: TTSSettingsProps): React.JSX.Element {
         </>
       )}
 
-      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>{t("Offline TTS via Kokoro-82M (ONNX). Model downloads on first use (~80MB).")} </div>
+      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>{platform === 'win32'
+        ? t('Uses installed Windows speech voices. Kokoro is available for English.')
+        : t("Offline TTS via Kokoro-82M (ONNX). Model downloads on first use (~80MB).")} </div>
+      {enabled && speechError && <div role="alert" style={errorContainerStyle}>{t(speechError)}</div>}
     </Section>
-  )
-}
-
-/**
- * Play TTS audio in the renderer via Web Audio API.
- * Supports routing to a specific output device via setSinkId.
- */
-function playTtsAudio(
-  audioData: number[],
-  sampleRate: number,
-  volume: number,
-  outputDeviceId: string
-): void {
-  const samples = new Float32Array(audioData)
-  if (samples.length === 0) return
-
-  const audioCtx = new AudioContext({ sampleRate })
-  const buffer = audioCtx.createBuffer(1, samples.length, sampleRate)
-  buffer.copyToChannel(samples, 0)
-
-  const source = audioCtx.createBufferSource()
-  source.buffer = buffer
-
-  const gainNode = audioCtx.createGain()
-  gainNode.gain.value = volume
-
-  source.connect(gainNode)
-  gainNode.connect(audioCtx.destination)
-
-  // Route to specific output device if supported and specified
-  if (outputDeviceId && 'setSinkId' in audioCtx) {
-    (audioCtx as AudioContextWithSink).setSinkId(outputDeviceId).catch((err: unknown) => {
-      const e = err instanceof Error ? err : new Error(String(err))
-      console.warn('[tts-settings] setSinkId failed, falling back to default device:', e.message)
-    })
-  }
-
-  source.onended = (): void => {
-    audioCtx.close().catch((err: unknown) => {
-      const e = err instanceof Error ? err : new Error(String(err))
-      console.warn('[tts-settings] AudioContext close failed:', e.message)
-    })
-  }
-
-  source.start()
-}
-
-/** AudioContext with setSinkId support (Chrome/Electron) */
-interface AudioContextWithSink extends AudioContext {
-  setSinkId(sinkId: string): Promise<void>
+    <VirtualMicSettings disabled={disabled} platform={platform} ttsEnabled={enabled} devices={devices}
+      outputDevice={outputDevice} loading={outputBusy} refresh={refreshDevices}
+      requestAccess={requestAccess} selectDevice={handleOutputDeviceChange} />
+    {outputUnavailable && <div role="status" style={warningContainerStyle}>
+      <span>{t('Selected audio output unavailable')}</span>{' '}
+      <button type="button" style={buttonStyle} disabled={disabled}
+        onClick={() => void handleOutputDeviceChange('')}>{t('Use default audio output')}</button>
+    </div>}
+    {outputError && <div role="alert" style={errorContainerStyle}>{t(outputError.message, [outputError.detail])}</div>}
+  </>)
 }

@@ -1,5 +1,12 @@
 import type { SpeechEvidence } from '../types'
 
+/** Isolated particles and incomplete question stems are not full Japanese
+ * utterances. Keep short interjections, lexical kanji and connected speech. */
+export function isDetachedJapaneseParticle(text: string): boolean {
+  const compact = text.normalize('NFKC').trim().replace(/[。．.!！?？…]+$/u, '')
+  return /^[どがのはをにへでもやぞぜ]$/u.test(compact)
+}
+
 /** Reject impossible short-window decoder loops; keep genuine brief reactions. */
 export function isImplausibleTranscript(text: string, audioSeconds: number): boolean {
   if (!Number.isFinite(audioSeconds) || audioSeconds <= 0) return true

@@ -24,10 +24,12 @@ const TERM_GUIDANCE: Array<[RegExp, string]> = [
 ]
 
 const documentContext = (source: string): boolean => /図書館|公文書|博物館|歴史資料|研究資料|新聞|折り紙|ハサミ/.test(source)
+const hearsayEnding = /(?:(?:[うくぐすつぬぶむるただ]|ない|かった|だった)(?:らしい|そうです(?:よ)?)|とのこと(?:です)?)(?:[。！？!?]|$)/u
+const quoted = /[「」『』“”]/u
 
 export function buildJaZhFidelityGuidance(source: string): string {
   const rules = TERM_GUIDANCE.filter(([pattern, rule]) => pattern.test(source) && !(documentContext(source) && /アーカイブ|切り抜き/.test(rule))).map(([, rule]) => rule)
-  if (/(?:らしい|そうです(?:よ)?|とのこと(?:です)?)(?:[。！？!?]|$)/.test(source)) {
+  if (hearsayEnding.test(source) && !quoted.test(source)) {
     rules.push('句尾是傳聞語氣，譯文要明確保留「聽說」或「據說」')
   }
   if (/ないわけ(?:じゃ|では)ない/.test(source)) {
@@ -40,9 +42,98 @@ export function buildJaZhFidelityGuidance(source: string): string {
 }
 
 const hasHearsay = (text: string): boolean => /聽說|據說|據了解|傳聞|消息/.test(text)
+const timeEvent = {
+  到着: /到達|抵達|到站|抵站/u,
+  着: /到達|抵達|到站|抵站/u,
+  来: /來到|會來|就來|抵達|過來/u,
+  出発: /出發|啟程|開出|發車/u,
+  開始: /開始|開場|啟動/u,
+  始: /開始|開場|啟動/u
+}
+const calendarAnchors = [
+  [/昨日/u, /昨天|昨日/u],
+  [/今日/u, /今天|今日/u],
+  [/明日/u, /明天|明日/u],
+  [/今夜/u, /今晚|今夜/u],
+  [/先週/u, /上週|上周/u],
+  [/来週/u, /下週|下周/u]
+]
+const ordinaryFile = /ファイル|データ|資料|ドキュメント/u
+
+function calendarAnchorAgrees(source: string, output: string): boolean {
+  const sourceAnchors = calendarAnchors.filter(([japanese]) => japanese.test(source))
+  const outputAnchors = calendarAnchors.filter(([, chinese]) => chinese.test(output))
+  return !sourceAnchors.length || !outputAnchors.length || sourceAnchors.some(anchor => outputAnchors.includes(anchor))
+}
+
+function repairClause(source: string, translation: string, aligned: boolean, original: string): string {
+  if (!calendarAnchorAgrees(source, translation)) return translation
+  let result = translation
+  // An explicit future event is different from a deadline within that duration.
+  const numericSource = source.normalize('NFKC')
+  const delay = numericSource.match(/(?<![\d.,])(\d+(?:\.\d+)?)分後に(到着|着|来|出発|開始|始)/u)
+  if (aligned && delay && [...numericSource.matchAll(/\d+(?:\.\d+)?分/gu)].length === 1 &&
+      timeEvent[delay[2] as keyof typeof timeEvent].test(result)) {
+    const minutes = delay[1]
+    const within = new RegExp(`(?<![\\d.])${minutes.replace('.', '\\.')}\\s*分鐘(?:以)?內`, 'gu')
+    if ([...result.matchAll(within)].length === 1) result = result.replace(within, `${minutes}分鐘後`)
+  }
+
+  if (aligned && !documentContext(source) && /アーカイブ公開後/u.test(source)) {
+    result = result.replace(/(?:資源)?被?歸檔後|(?:資源|檔案)(?:被)?公開(?:之)?後/u, '直播存檔公開後')
+  } else if (aligned && !documentContext(source) && /アーカイブ/u.test(source) &&
+      !ordinaryFile.test(source) && !/直播存檔/u.test(result) &&
+      (!ordinaryFile.test(original) || !/另[一個份]|其他|別的/u.test(result))) {
+    const archive = /檔案館|歸檔檔案|存檔|檔案/gu
+    if ([...result.matchAll(archive)].length === 1) result = result.replace(archive, '直播存檔')
+  }
+  if (aligned && !documentContext(source) && /切り抜き/u.test(source) && !/切断|裁断|切り取/u.test(source)) {
+    const clip = /切り抜き(?:處理)?|切斷處理|切斷|裁切處理/gu
+    if ([...result.matchAll(clip)].length === 1) result = result.replace(clip, '剪輯')
+  }
+  if (hearsayEnding.test(source) && !quoted.test(source) && !hasHearsay(result)) {
+    result = result.replace(/^(\s*)(.*)$/s, (_match, space: string, body: string) =>
+      `${space}聽說${body.replace(/似乎(?:真的)?/u, '')}`)
+  }
+  return result
+}
+
+function repairAlignedClauses(source: string, output: string): string {
+  // Delimiters stay in the translated text, and decimals remain in their clause.
+  const sentenceBoundary = /([。．！？!?\r\n]+|(?<!\d)\.+|\.+(?!\d))/u
+  const clauseBoundary = /([、，；;]+|(?<!\d),|,(?!\d))/u
+  const sentenceEnd = /[。．.!！？?]+$/u
+  const repairParts = (japanese: string, chinese: string): string => {
+    const clauses = japanese.split(clauseBoundary)
+    const translated = chinese.split(clauseBoundary)
+    if (clauses.length !== translated.length ||
+        clauses.some((clause, index) => index % 2 === 0 && Boolean(clause.trim()) !== Boolean(translated[index].trim()))) {
+      // A single source assertion can include extra punctuation in translation.
+      return clauses.length === 1 ? repairClause(japanese, chinese, false, source) : chinese
+    }
+    return translated.map((part, index) => index % 2 || !part.trim() ? part : repairClause(clauses[index], part, true, source)).join('')
+  }
+  const sentences = source.trim().replace(sentenceEnd, '').split(sentenceBoundary)
+  const translated = output.replace(sentenceEnd, '').split(sentenceBoundary)
+  if (sentences.length !== translated.length ||
+      sentences.some((sentence, index) => index % 2 === 0 && Boolean(sentence.trim()) !== Boolean(translated[index].trim()))) return output
+  return translated.map((part, index) => index % 2 || !part.trim() ? part : repairParts(sentences[index], part)).join('') +
+    (output.match(sentenceEnd)?.[0] || '')
+}
 
 export function finishJaZhTranslation(source: string, output: string): string {
-  let result = output.trim()
+  let result = repairAlignedClauses(source, output.trim())
+  // 統計 describes a specific release/report, not generic data. Only refine
+  // a unique employment phrase when the source mentions no competing dataset.
+  if (/雇用統計/u.test(source) && !/雇用(?:データ|資料)|就業(?:データ|資料)/u.test(source)) {
+    const term = /就業(?:資料|數據)/gu
+    if ([...result.matchAll(term)].length === 1) result = result.replace(term, '就業統計')
+  }
+  // If the recognizer stopped before 上回る / 下回る, the direction has
+  // not been spoken yet. Only neutralize the provider's guessed final clause.
+  if (!quoted.test(source) && /市場の予想を(?:大きく?|大幅に)?[。．.、，,…\s]*$/u.test(source)) {
+    result = result.replace(/(?:^|(?<=[，,。；;]))\s*(?:(?:大幅(?:度)?|大大|遠)?(?:超出|超過|超越|高於|低於|低過|不及|未達)|遠超)(?:了)?市場(?:的)?(?:預期|預測|預估)[。．.…\s]*$/u, '與市場預期相比……')
+  }
 
   // A common hesitant fragment is not evidence for "exaggerated", "difficult"
   // or a guessed refusal. Leave the same open ending as the recognized source.
@@ -57,14 +148,6 @@ export function finishJaZhTranslation(source: string, output: string): string {
   }
   if (/クールタイム/.test(source)) {
     result = result.replace(/(?:技能的)?有效時間/g, '冷卻時間')
-  }
-  if (!documentContext(source) && /アーカイブ公開後/.test(source)) {
-    result = result.replace(/(?:資源)?被?歸檔後|(?:資源|檔案)(?:被)?公開(?:之)?後/g, '直播存檔公開後')
-  } else if (!documentContext(source) && /アーカイブ/.test(source)) {
-    result = result.replace(/檔案館|歸檔檔案|(?<!直播)存檔|檔案/g, '直播存檔')
-  }
-  if (!documentContext(source) && /切り抜き/.test(source)) {
-    result = result.replace(/切り抜き(?:處理)?|切斷處理|切斷|裁切處理/g, '剪輯')
   }
   if (/音がずれ/.test(source)) {
     result = result.replace(/(?:音訊|音頻|聲音)(?:就)?(?:出現了)?(?:錯誤|顆粒感)/g, '聲音不同步')
@@ -96,9 +179,6 @@ export function finishJaZhTranslation(source: string, output: string): string {
   }
   if (/帰っていい/.test(source) && !/可以|能夠|能先/.test(result)) {
     result = result.replace(/(?:那麼)?(?:就)?先回去吧[。！]?/, '可以先回去喔。')
-  }
-  if (/(?:らしい|そうです(?:よ)?|とのこと(?:です)?)(?:[。！？!?]|$)/.test(source) && !hasHearsay(result)) {
-    result = `聽說${result.replace(/似乎/g, '').replace(/真的/g, '')}`
   }
   if (/そろそろ$/.test(source)) {
     result = result.replace(/(?:所以|因此)[，,]?差不多該.+$/, '所以差不多該……')

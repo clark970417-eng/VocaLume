@@ -21,7 +21,6 @@
     "https://cdn-lfs-us-1.hf.co/*",
     "https://cdn-lfs.huggingface.co/*",
     "https://huggingface.co/*",
-    "https://api.mymemory.translated.net/*",
     "https://translate.googleapis.com/*",
     "https://integrate.api.nvidia.com/*",
     "https://openrouter.ai/*"
@@ -46,12 +45,25 @@
   },
   "content_scripts": [
     {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["youtube-source.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://vocalume.vercel.app/*"],
+      "js": ["website-language-content.js"],
+      "run_at": "document_idle"
+    },
+    {
       "matches": [
         "https://www.youtube.com/*"
       ],
       "js": [
         "streamer-vocabulary.js",
         "translation-guards.js",
+        "page-language.js",
+        "dom-work.js",
         "caption-window.js",
         "content.js"
       ],
@@ -72,6 +84,8 @@
       "js": [
         "streamer-vocabulary.js",
         "translation-guards.js",
+        "page-language.js",
+        "dom-work.js",
         "caption-window.js",
         "x-content.js"
       ],
@@ -94,6 +108,8 @@
       "js": [
         "streamer-vocabulary.js",
         "translation-guards.js",
+        "page-language.js",
+        "dom-work.js",
         "caption-window.js",
         "social-content.js"
       ],
@@ -110,6 +126,7 @@
         "https://*/*"
       ],
       "exclude_matches": [
+        "https://vocalume.vercel.app/*",
         "https://www.youtube.com/*",
         "https://x.com/*",
         "https://www.x.com/*",
@@ -126,6 +143,8 @@
       "js": [
         "streamer-vocabulary.js",
         "translation-guards.js",
+        "page-language.js",
+        "dom-work.js",
         "caption-window.js",
         "social-content.js"
       ],

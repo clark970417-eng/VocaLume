@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { DeepFilterNet3Core } from 'deepfilternet3-noise-filter'
+import type { DeepFilterNet3Core } from 'deepfilternet3-noise-filter'
 
 /**
  * DeepFilterNet3 noise suppression hook.
@@ -82,6 +82,7 @@ export function useNoiseSuppression(): UseNoiseSuppressionReturn {
     await destroy()
 
     try {
+      const { DeepFilterNet3Core } = await import('deepfilternet3-noise-filter')
       // DeepFilterNet3 requires 48 kHz
       const audioTrack = stream.getAudioTracks()[0]
       const trackSettings = audioTrack.getSettings()

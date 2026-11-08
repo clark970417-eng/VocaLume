@@ -36,22 +36,19 @@
 
 ## 連接 Mac App 與 Extension
 
-本機瀏覽器字幕需要這個一次性步驟。先安裝並開啟 App；這個連接安裝器目前支援 **macOS 的 Opera GX / Chrome**。
+本機瀏覽器字幕需要註冊一次。先安裝相同版本的 App 與擴充功能，並開啟 App。這個註冊程式支援 Chrome、Edge 與 Opera GX。
 
-1. 電腦需已有 Python 3。連接程式不需要 MLX、OpenCC 或其他 Python 套件；MLX 辨識引擎本身另需其執行環境。新用戶可先使用 App 已下載的 Whisper Local 引擎。
-2. 在擴充功能頁複製 VocaLume 的 32 字元 **ID**。
-3. 開啟終端機，輸入 `cd `，將解壓後的 Extension 資料夾拖進視窗，按 Enter。
-4. 執行以下指令，將 `你的擴充功能ID` 換成剛複製的值：
+1. 在瀏覽器擴充功能頁複製 VocaLume 的 32 字元 **ID**。
+2. 開啟終端機，切換到解壓後的擴充功能資料夾。
+3. 將下方的 `你的擴充功能ID` 換成剛複製的值，再執行指令。
 
 ```sh
-python3 desktop/install.py --extension-id 你的擴充功能ID --app '/Applications/VocaLume.app/Contents/MacOS/VocaLume'
+ELECTRON_RUN_AS_NODE=1 '/Applications/VocaLume.app/Contents/MacOS/VocaLume' desktop/install-mac.cjs 你的擴充功能ID
 ```
 
-5. 在擴充功能頁按重新載入，再重新整理影片頁。到「語音字幕 → 翻譯方式」選「桌面程式」。
+4. 重新載入擴充功能與影片頁，到「語音字幕 → 翻譯方式」選「桌面程式」。
 
-不要省略 `--app`；省略會選到保留給開發者的舊版 Python 模式。此步驟會在你自己的瀏覽器設定中註冊連接程式，不會上傳內容。
-
-Windows / Linux 的獨立 App 可自行收音；目前 ZIP 裡沒有這兩個系統的瀏覽器本機連接安裝器。Extension 可改選「瀏覽器」模式，需 WebGPU 支援與網路文字翻譯。不要把桌面安裝檔可下載理解成所有瀏覽器連接都已驗證。
+新版註冊程式使用 App 內附的執行環境。從舊版 Python 連線升級時，請用新版指令重新註冊。若下載的是較舊版本，請依該版本的 [Python 註冊步驟](installation.md#connect-the-mac-app) 安裝。Windows 使用[專用註冊步驟](windows-repair.md#在-windows-連接-extension-與本機-app)。Linux 可使用獨立 App，或在擴充功能選「瀏覽器」模式。瀏覽器模式需要 WebGPU 和網路文字翻譯。
 
 ## 第一次使用
 

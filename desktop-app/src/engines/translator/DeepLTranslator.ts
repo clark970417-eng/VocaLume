@@ -1,5 +1,5 @@
 import type { TranslatorEngine, Language, TranslateContext } from '../types'
-import { apiFetch, apiInitialize, DEFAULT_TIMEOUT_MS } from './api-utils'
+import { apiFetch, apiInitialize, DEFAULT_TIMEOUT_MS, translateProtectedCloudText } from './api-utils'
 import { createLogger } from '../../main/logger'
 
 const log = createLogger('deepl')
@@ -11,7 +11,7 @@ const DEEPL_PRO_URL = 'https://api.deepl.com/v2/translate'
 const LANG_MAP: Record<Language, { source: string; target: string }> = {
   ja: { source: 'JA', target: 'JA' },
   en: { source: 'EN', target: 'EN-US' },
-  zh: { source: 'ZH', target: 'ZH-HANS' },
+  zh: { source: 'ZH', target: 'ZH-HANT' },
   ko: { source: 'KO', target: 'KO' },
   fr: { source: 'FR', target: 'FR' },
   de: { source: 'DE', target: 'DE' },
@@ -84,34 +84,36 @@ export class DeepLTranslator implements TranslatorEngine {
 
     // Build context string from previous segments for DeepL's context parameter
     let contextStr: string | undefined
-    if (context?.previousSegments?.length) {
+    if (from === 'ja' && to === 'zh') {
+      contextStr = context?.sourceContext
+    } else if (context?.previousSegments?.length) {
       contextStr = context.previousSegments.map((s) => s.source).join(' ')
     }
 
-    const data = await apiFetch<{
-      translations: Array<{ text: string; detected_source_language: string }>
-    }>({
-      url: this.apiUrl,
-      init: {
-        method: 'POST',
-        headers: {
-          Authorization: `DeepL-Auth-Key ${this.apiKey}`,
-          'Content-Type': 'application/json'
+    return translateProtectedCloudText(text, context?.glossary, async source => {
+      const data = await apiFetch<{ translations?: Array<{ text?: string }> }>({
+        url: this.apiUrl,
+        init: {
+          method: 'POST',
+          headers: {
+            Authorization: `DeepL-Auth-Key ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: [source],
+            source_lang: LANG_MAP[from].source,
+            target_lang: LANG_MAP[to].target,
+            ...(contextStr && { context: contextStr })
+          })
         },
-        body: JSON.stringify({
-          text: [text],
-          source_lang: LANG_MAP[from].source,
-          target_lang: LANG_MAP[to].target,
-          ...(contextStr && { context: contextStr })
-        })
-      },
-      timeoutMs: this.timeoutMs,
-      serviceName: 'DeepL API',
-      errorMappings: ERROR_MAPPINGS,
-      classifyErrorBody: classifyDeepLError
-    })
-
-    return data.translations[0]?.text || ''
+        timeoutMs: this.timeoutMs,
+        signal: context?.signal,
+        serviceName: 'DeepL API',
+        errorMappings: ERROR_MAPPINGS,
+        classifyErrorBody: classifyDeepLError
+      })
+      return data?.translations?.[0]?.text
+    }, { from, to, sourceContext: context?.sourceContext })
   }
 
   async dispose(): Promise<void> {

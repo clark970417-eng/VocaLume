@@ -128,7 +128,7 @@
   let composerLayoutObserver;
   let composerPosition;
   let contextInvalid = false;
-  let pollTimer;
+  let subtitleExpiry;
   let pageObserver;
   const contextRecoveryMessage = '擴充功能已重新載入。請先保留未送出的留言，再重新整理此頁恢復翻譯。';
   const cache = new Map();
@@ -142,17 +142,22 @@
   let globalTextEnabled = true;
   let currentSiteEnabled = dedicatedSite;
   let epoch = 0;
-  let polling = false;
-  let nextSubtitlePollAt = 0;
   let subtitleRevision = 0;
   let lastSubtitleSignature = '';
   let captionBox;
   let streamerChatMode = false;
   let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
-  const langLabel=code=>({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();
+  const pageUi = globalThis.VocaLumePageLanguage;
+  const uiText = value => pageUi?.text(value) ?? value;
+  function setUi(element, value, property = 'textContent') {
+    if (pageUi) { pageUi.bind(element, value, property); return; }
+    const text = typeof value === 'function' ? value() : value;
+    if (property === 'textContent') { if (element.textContent !== text) element.textContent = text; }
+    else element.setAttribute(property, text);
+  }
+  const langLabel=code=>{const label=({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();return pageUi?.label(code,label)??label;};
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
-  const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
-  const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
+  const matchesLanguage=(text,lang)=>globalThis.VocaLumeTranslationGuards.shouldTranslateWriting(text,lang);
   const matchesReadLanguage=text=>globalThis.VocaLumeTranslationGuards.shouldTranslateReading(text,languageSettings.readSource,languageSettings.readTarget);
 
   const hasJapanese = text => /[\u3040-\u30ff]/.test(text);
@@ -185,13 +190,13 @@
     if (!contextInvalid && !/extension context invalidated/i.test(description)) return new Error(description);
     if (!contextInvalid) {
       contextInvalid = true;
-      if (pollTimer != null) clearInterval(pollTimer);
+      clearTimeout(subtitleExpiry);
       pageObserver?.disconnect?.();
       composerLayoutObserver?.disconnect();
       if (captionBox) captionBox.hidden = true;
       const button = activeControls?.children[0], status = activeControls?.children[1];
-      if (button) { button.disabled = true; button.title = contextRecoveryMessage; }
-      if (status) status.textContent = contextRecoveryMessage;
+      if (button) { button.disabled = true; setUi(button, contextRecoveryMessage, 'title'); }
+      if (status) setUi(status, contextRecoveryMessage);
       for (const task of translationQueue.splice(0)) {
         if (translationInFlight.get(task.key) === task) translationInFlight.delete(task.key);
         task.reject(new Error(contextRecoveryMessage));
@@ -227,13 +232,15 @@
       activeTranslations++;
       message({type: 'translate', text: task.source, direction: task.direction, priority: task.isTitle, ...(task.livestreamChat && {livestreamChat: true})})
         .then(result => {
+          if (typeof result !== 'string' || !result.trim()) throw new Error('沒有收到譯文');
           if (task.epoch === epoch && enabled) {
             cache.delete(task.key);
             cache.set(task.key, result);
             if (cache.size > MAX_CACHED_TRANSLATIONS) cache.delete(cache.keys().next().value);
           }
           task.resolve(result);
-        }, error => {
+        })
+        .catch(error => {
           if (translationInFlight.get(task.key) === task) translationInFlight.delete(task.key);
           task.reject(error);
         })
@@ -270,14 +277,15 @@
     const auto = site === 'twitch' && streamerChatMode && !isTitle;
     if (!isTitle && !auto) node = messageTextNode(node);
     const detectionEpoch = epoch;
-    const source = clean(node.innerText || node.textContent);
+    const readText = () => String(node.innerText || node.textContent || '').trim();
+    const source = readText();
     const parent = node.parentElement;
     // The background translator safely splits long messages. Keep only a
     // generous guard against accidentally selecting an entire chat timeline.
     const readDirection = auto
       ? await globalThis.VocaLumeTranslationGuards.streamerChatDirection(source, languageSettings.readTarget, value => chrome.i18n.detectLanguage(value))
       : matchesReadLanguage(source) ? direction('read') : null;
-    if (detectionEpoch !== epoch || !node.isConnected || clean(node.innerText || node.textContent) !== source) return;
+    if (detectionEpoch !== epoch || !node.isConnected || readText() !== source) return;
     let line = parent?.querySelector(':scope > .jtl-social-translation');
     if (!source || source.length > 3000 || !readDirection) {
       if (translated.has(node)) {
@@ -297,38 +305,32 @@
     const owner = {};
     lineOwners.set(line, owner);
     const ownsLine = () => lineOwners.get(line) === owner;
-    const valid = () => ownsLine() && enabled && currentEpoch === epoch && node.isConnected && clean(node.innerText || node.textContent) === source;
+    const valid = () => ownsLine() && enabled && currentEpoch === epoch && node.isConnected && readText() === source;
     const discard = () => {
       if (currentEpoch === epoch && translated.get(node) === source) translated.delete(node);
       if (ownsLine()) line.remove();
     };
-    line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯中…`;
+    line.textContent = '';
+    setUi(line, () => `${langLabel(languageSettings.readTarget)}：${uiText('翻譯中…')}`);
     try {
-      let result;
-      try { result = await requestTranslation(source, isTitle, order, valid, readDirection, auto); }
-      catch (firstError) {
-        if (contextInvalid) throw firstError;
-        if (!valid()) throw firstError;
-        line.textContent = `${langLabel(languageSettings.readTarget)}：第一次失敗，正在重試…`;
-        result = await requestTranslation(source, true, (order ?? 0) + 1000000, valid, readDirection, auto);
-      }
+      const result = await requestTranslation(source, isTitle, order, valid, readDirection, auto);
       if (!valid()) { discard(); return; }
-      line.textContent = `${langLabel(languageSettings.readTarget)}：${result}`;
+      setUi(line, () => `${langLabel(languageSettings.readTarget)}：${result}`);
     } catch (_) {
-      // Keep the failed source marked after one retry so the status mutation
+      // Keep the failed source marked after background recovery so the status mutation
       // cannot cause the page observer to resubmit it forever.
       if (valid()) {
-        if (contextInvalid) { line.textContent = contextRecoveryMessage; return; }
-        line.textContent = `${langLabel(languageSettings.readTarget)}：翻譯暫時失敗。`;
+        if (contextInvalid) { setUi(line, contextRecoveryMessage); return; }
+        setUi(line, () => `${langLabel(languageSettings.readTarget)}：${uiText('翻譯暫時失敗。')}`);
         const retry = document.createElement('button');
         retry.type = 'button';
         retry.className = 'jtl-retry';
-        retry.textContent = '再試一次';
-        retry.setAttribute('aria-label', '重新翻譯這則內容');
-        retry.title = '保留原文，重新取得翻譯';
+        setUi(retry, '再試一次');
+        setUi(retry, '重新翻譯這則內容', 'aria-label');
+        setUi(retry, '保留原文，重新取得翻譯', 'title');
         retry.addEventListener('click', event => {
           event.preventDefault(); event.stopPropagation();
-          if (!valid()) return;
+          if (retry.disabled || !valid()) return;
           retry.disabled = true;
           translated.delete(node);
           void translateNode(node, isTitle, 1_000_000_000 + ++translationOrder);
@@ -485,9 +487,9 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'jtl-social-language';
-    button.textContent = `${langLabel(languageSettings.typeSource)} → ${langLabel(languageSettings.typeTarget)}`;
-    button.setAttribute('aria-label', `將留言從${langLabel(languageSettings.typeSource)}文翻成${langLabel(languageSettings.typeTarget)}文草稿`);
-    button.title = 'Tab 或點一下翻譯；長按可拖曳位置，確認後自行送出';
+    setUi(button, () => `${langLabel(languageSettings.typeSource)} → ${langLabel(languageSettings.typeTarget)}`);
+    setUi(button, '翻譯留言草稿', 'aria-label');
+    setUi(button, 'Tab 或點一下翻譯；長按可拖曳位置，確認後自行送出', 'title');
     let press, holdTimer, suppressClick = false, movingControls = false;
     const finishDrag = event => {
       if (!press || event.pointerId !== press.id) return;
@@ -540,33 +542,32 @@
     preview.className = 'jtl-social-draft';
     preview.readOnly = true;
     preview.hidden = true;
-    preview.setAttribute('aria-label', '翻譯草稿；可選取並複製後貼入留言框');
+    setUi(preview, '翻譯草稿', 'aria-label');
     controls.addEventListener('keydown', event => event.stopPropagation());
     button.addEventListener('click', async event => {
       event.preventDefault();
       event.stopPropagation();
       if (suppressClick) { suppressClick = false; return; }
-      if (composing.has(box)) { status.textContent = '請先完成輸入法選字，再翻譯。'; return; }
+      if (composing.has(box)) { setUi(status, '請先完成輸入法選字。'); return; }
       const source = editableText(box);
       const currentEpoch = epoch;
-      if (!source || !matchesLanguage(source,languageSettings.typeSource)) { status.textContent = `請先輸入${langLabel(languageSettings.typeSource)}文`; return; }
+      if (!source || !matchesLanguage(source,languageSettings.typeSource)) { setUi(status, '請先輸入留言。'); return; }
       button.disabled = true;
-      status.textContent = '翻譯中…';
+      setUi(status, '翻譯中…');
       try {
         const result = await message({type: 'make-draft', text: source, direction: direction('type')});
         if (!enabled || currentEpoch !== epoch || !box.isConnected || !controls.isConnected) return;
-        if (editableText(box) !== source) { status.textContent = '原文已修改，請重新翻譯'; return; }
-        if (composing.has(box)) { status.textContent = '請先完成輸入法選字，再重新翻譯。'; return; }
+        if (editableText(box) !== source) { setUi(status, '原文已修改，請重新翻譯'); return; }
+        if (composing.has(box)) { setUi(status, '請先完成輸入法選字。'); return; }
         if (!result?.draft?.trim()) throw new Error('沒有收到翻譯草稿');
         preview.value = result.draft;
         preview.hidden = false;
         const inserted = await replaceEditable(box, result.draft);
         if (!enabled || currentEpoch !== epoch || !box.isConnected || !controls.isConnected) return;
         preview.hidden = inserted;
-        status.textContent = inserted ? '已放入譯文，確認後自行送出'
-          : '留言框未接受譯文；請複製下方草稿後貼入。';
+        setUi(status, inserted ? '已放入譯文，確認後自行送出' : '留言框未接受譯文；請複製下方草稿後貼入。');
       } catch (error) {
-        status.textContent = contextInvalid ? contextRecoveryMessage : `翻譯失敗：${error.message}`;
+        setUi(status, contextInvalid ? contextRecoveryMessage : '翻譯失敗，請再試一次。');
       } finally {
         button.disabled = contextInvalid;
       }
@@ -609,52 +610,60 @@
 
   function renderSubtitles(data) {
     if (document.hidden) return;
-    installCaptionBox();
-    if (!captionBox) return;
+    clearTimeout(subtitleExpiry);
     const item = data.running ? data.items?.at(-1) : null;
     const fresh = item && !item.expired && Date.now() / 1000 < (item.expiresAt ?? item.updatedAt + 3);
     const rows = data.running ? (item?.recordingRows || (fresh ? [item] : [])) : [];
+    if(rows.length)installCaptionBox();
+    if(!captionBox)return;
     const signature = JSON.stringify(rows);
     if (signature !== lastSubtitleSignature) {
       lastSubtitleSignature = signature;
       captionBox.controller.render(rows);
     }
     captionBox.hidden = !rows.length;
+    if(fresh&&!item.recordingRows){
+      const expires=(item.expiresAt??item.updatedAt+3)*1000;
+      subtitleExpiry=setTimeout(()=>{
+        if(Date.now()>=expires&&lastSubtitleSignature===signature)renderSubtitles({running:true,items:[]});
+      },Math.max(0,expires-Date.now())+5);
+    }
   }
 
   async function pollSubtitles() {
-    if (contextInvalid || document.hidden || window.top !== window || polling || Date.now() < nextSubtitlePollAt) return;
-    polling = true;
-    const revision = subtitleRevision;
+    if (contextInvalid || document.hidden || window.top !== window) return;
+    const revision = ++subtitleRevision;
     try {
       const data = await message({type: 'subtitles'});
       if (revision !== subtitleRevision) return;
-      nextSubtitlePollAt = Date.now() + (data.running ? 0 : 10000);
       renderSubtitles(data);
     }
-    catch (_) { nextSubtitlePollAt = Date.now() + 10000; /* The popup reports actionable capture/desktop errors. */ }
-    finally { polling = false; }
+    catch (_) { /* The popup reports actionable capture/desktop errors. */ }
   }
 
-  function scan() {
+  const domWork=globalThis.VocaLumeDomWork;
+  const query=(selector,roots)=>domWork?.query(document,selector,roots)??[...document.querySelectorAll(selector)];
+  const regionSelector='[role="log"], [aria-live="polite"], [aria-live="assertive"]';
+  function scan(roots) {
     if (contextInvalid || document.hidden) return;
     if (activeControls) positionComposerControls(activeComposer, activeControls);
-    if (window.top === window) installCaptionBox();
     if (!enabled) return;
-    if (window.top === window) config.title.forEach(selector => document.querySelectorAll(selector).forEach(node => translateNode(node, true, 1_000_000_000 + ++translationOrder)));
+    if (window.top === window) config.title.forEach(selector => query(selector,roots).forEach(node => translateNode(node, true, 1_000_000_000 + ++translationOrder)));
     // Both sites restore large virtualized chat histories. Keep model work
     // bounded and always let the newest visible messages enter the queue first.
     // Hashed classes change frequently on both sites. ARIA live regions are a
     // stable semantic contract, so scan their smallest Japanese leaves as a
     // fallback when product-specific selectors no longer match.
-    const semanticMessages = (site === 'discord' || (site === 'twitch' && streamerChatMode)) ? [] : [...document.querySelectorAll('[role="log"], [aria-live="polite"], [aria-live="assertive"]')]
-      .flatMap(region => [...region.querySelectorAll('span,p,div')])
+    const regions = (site === 'discord' || (site === 'twitch' && streamerChatMode)) ? []
+      : roots ? new Set([...query(regionSelector,roots),...roots.filter(root=>root.closest?.(regionSelector))]) : query(regionSelector);
+    const semanticMessages = [...regions]
+      .flatMap(region => [...(roots&&region.matches?.('span,p,div')?[region]:[]),...region.querySelectorAll('span,p,div')])
       .filter(element => {
         const text = clean(element.innerText || element.textContent);
         return text && matchesReadLanguage(text) && ![...element.children].some(child => matchesReadLanguage(clean(child.innerText || child.textContent)));
       });
     const messages = [...new Set([
-      ...(site === 'twitch' && streamerChatMode ? config.text.slice(0, 2) : config.text).flatMap(selector => [...document.querySelectorAll(selector)]),
+      ...(site === 'twitch' && streamerChatMode ? config.text.slice(0, 2) : config.text).flatMap(selector => query(selector,roots)),
       ...semanticMessages
     ])].slice(-20);
     const batch = ++translationOrder * 1000;
@@ -662,7 +671,7 @@
     if (!isUsableComposer(activeComposer) || !activeControls?.isConnected) {
       let candidate;
       for (const selector of config.composer) {
-        candidate = [...document.querySelectorAll(selector)].find(isUsableComposer);
+        candidate = query(selector,roots).find(isUsableComposer);
         if (candidate) break;
       }
       if (candidate) installComposer(candidate);
@@ -671,6 +680,7 @@
 
   function setEnabled(value) {
     enabled = value !== false;
+    pageObserver?.sync?.();
     epoch++;
     translated = new WeakMap();
     if (!enabled) {
@@ -689,8 +699,7 @@
   chrome.runtime.onMessage.addListener(payload => {
     if (payload.type === 'subtitle-update' && window.top === window) {
       subtitleRevision++;
-      nextSubtitlePollAt = 0;
-      renderSubtitles({running: true, items: [payload.item]});
+      renderSubtitles({running: payload.running??Boolean(payload.item), items: [payload.item]});
     }
   });
   chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess','streamerChatMode']).then(settings => {
@@ -709,21 +718,34 @@
       applyTextAccess();
     }
     if (area === 'local' && changes.subtitleSettings) captionBox?.controller.apply(changes.subtitleSettings.newValue);
-    if (area === 'local' && changes.languageSettings) {epoch++;languageSettings={...languageSettings,...changes.languageSettings.newValue};translated=new WeakMap();cache.clear();document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());activeComposer=null;activeControls=null;composerLayoutObserver?.disconnect();pumpTranslations();scan();}
+    if (area === 'local' && (changes.languageSettings || changes.speechMode || changes.cloudTranslation || changes.nvidiaKey || changes.openrouterKey)) {
+      if (changes.languageSettings) languageSettings = {...languageSettings, ...changes.languageSettings.newValue};
+      epoch++;
+      translated = new WeakMap();
+      cache.clear();
+      document.querySelectorAll('.jtl-social-translation,.jtl-social-controls').forEach(node=>node.remove());
+      activeComposer = null;
+      activeControls = null;
+      composerLayoutObserver?.disconnect();
+      pumpTranslations();
+      scan();
+    }
   });
   let scheduled = false;
-  pageObserver = new MutationObserver(() => {
-    if (contextInvalid) return;
-    if (scheduled) return;
-    scheduled = true;
-    setTimeout(() => { scheduled = false; scan(); }, 250);
-  });
-  pageObserver.observe(document.documentElement, {subtree: true, childList: true, attributes: true, attributeFilter: ['contenteditable']});
+  if(domWork){
+    pageObserver=domWork.observe(document,[...config.title,...config.text,...config.composer,regionSelector].join(','),scan,
+      {enabled:()=>enabled&&!contextInvalid});
+  }else{
+    pageObserver=new MutationObserver(()=>{
+      if(contextInvalid||scheduled)return;
+      scheduled=true;setTimeout(()=>{scheduled=false;scan();},250);
+    });
+    pageObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['contenteditable']});
+  }
   document.addEventListener('focusin', focusedComposer, true);
   document.addEventListener('visibilitychange', () => {
     subtitleRevision++;
     if (document.hidden || contextInvalid) return;
-    nextSubtitlePollAt = 0;
     void pollSubtitles();
     scan();
   });
@@ -739,5 +761,5 @@
   window.addEventListener?.('resize', reposition, {passive: true});
   document.addEventListener('scroll', reposition, {capture: true, passive: true});
   scan();
-  if (window.top === window) pollTimer = setInterval(pollSubtitles, 700);
+  if (window.top === window) void pollSubtitles();
 })();

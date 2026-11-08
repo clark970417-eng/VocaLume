@@ -1,10 +1,12 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
 import { existsSync } from 'fs'
 import { resolveBridgeScript } from '../engines/SubprocessBridge'
+import { WindowsAudioAnalysis } from '../engines/diarization/windows-audio-analysis'
 
 /** One low-priority local classifier at a time. A slow/missing helper is optional;
  * caption translation never waits for it. No audio or transcript is logged. */
 export class SpeechToneAnalyzer {
+  private readonly windows = process.platform === 'win32' ? new WindowsAudioAnalysis('laughter') : undefined
   private child?: ChildProcessWithoutNullStreams
   private pending?: { id: number; resolve: (confidence: number) => void; timer: ReturnType<typeof setTimeout> }
   private sequence = 0
@@ -12,6 +14,9 @@ export class SpeechToneAnalyzer {
   private retryAfter = 0
 
   analyze(audio: Float32Array, sampleRate: number): Promise<number> {
+    // The Windows classifier has its own acceptance threshold. Only pass an
+    // accepted event across the existing decoration gate.
+    if (this.windows) return this.windows.analyze(audio, sampleRate).then(laugh => laugh ? .93 : 0)
     if (process.platform !== 'darwin' || sampleRate !== 16000 || this.pending || Date.now() < this.retryAfter ||
         audio.length < 4000 || audio.length > 320000 || !audio.every(Number.isFinite)) return Promise.resolve(0)
     if (!this.child) {
@@ -56,6 +61,7 @@ export class SpeechToneAnalyzer {
   private fail(): void { this.retryAfter = Date.now() + 60000; this.dispose() }
 
   dispose(): void {
+    this.windows?.dispose()
     const child = this.child; this.child = undefined; this.buffer = ''
     child?.kill(); this.finish(0)
   }

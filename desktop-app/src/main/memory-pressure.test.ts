@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { expect, it, vi } from 'vitest'
-import { availableMemoryPressure, bindMemoryPressure, darwinMemoryPressure, linuxMemoryPressure } from './memory-pressure'
+import { availableMemoryPressure, bindMemoryPressure, darwinMemoryPressure, linuxMemoryPressure, windowsMemoryPressure } from './memory-pressure'
 
 it('uses macOS pressure levels and conservative non-Mac free-memory thresholds',()=>{
  expect(['1\n','2','4','0','bad','constructor','toString'].map(darwinMemoryPressure)).toEqual(['nominal','warning','critical','unknown','unknown','unknown','unknown'])
@@ -17,6 +17,19 @@ it('uses reclaimable Linux memory rather than treating a full disk cache as crit
  expect(linuxMemoryPressure('MemTotal: 16777216 kB\nMemFree: 50000 kB\nMemAvailable: 100000 kB')).toBe('critical')
  expect(linuxMemoryPressure('MemTotal: 16777216 kB\nMemFree: 50000 kB')).toBe('unknown')
  expect(linuxMemoryPressure('MemTotal: invalid\nMemAvailable: 100000 kB')).toBe('unknown')
+})
+
+it('reacts to Windows commit and sustained paging before physical memory hits the old threshold', () => {
+  const mib = (value: number) => value * 1024
+  const memory = { total: mib(8192), free: mib(498), swapTotal: mib(29_800), swapFree: mib(1500) }
+  expect(availableMemoryPressure(memory)).toBe('nominal')
+  expect(windowsMemoryPressure(memory)).toBe('warning')
+  expect(windowsMemoryPressure({ ...memory, swapFree: mib(500) })).toBe('critical')
+  const busy = { ...memory, free: mib(900), swapFree: mib(4900) }
+  expect(windowsMemoryPressure(busy)).toBe('nominal')
+  expect(windowsMemoryPressure(busy, true)).toBe('warning')
+  expect(windowsMemoryPressure({ ...busy, free: mib(1800) }, true)).toBe('nominal')
+  expect(windowsMemoryPressure({ ...memory, swapFree: NaN })).toBe('nominal')
 })
 
 it('polls only while audio is active, never overlaps checks, and ignores stale responses after Stop',async()=>{

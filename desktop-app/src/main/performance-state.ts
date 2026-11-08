@@ -6,6 +6,7 @@ export class PerformanceMonitor {
   private memoryPressure: MemoryPressure = 'unknown'
   private level = 0
   private recoverAt = 0
+  private analysisHealthySince = -Infinity
 
   update(update: { thermalState?: string; speedLimit?: number; memoryPressure?: MemoryPressure }, now = performance.now()): void {
     if (['unknown', 'nominal', 'fair', 'serious', 'critical'].includes(update.thermalState || '')) this.thermalState = update.thermalState!
@@ -17,10 +18,13 @@ export class PerformanceMonitor {
   snapshot(now = performance.now()): {
     thermalState: string; speedLimit: number; previewFloorMs: number
     previewDutyCycle: number; previewsPaused: boolean; coolingDown: boolean
+    optionalAnalysisAllowed: boolean
     memoryPressure?: MemoryPressure
   } {
     const target = this.thermalState === 'critical' || this.speedLimit < 50 || this.memoryPressure === 'critical' ? 3
       : this.thermalState === 'serious' || this.speedLimit < 80 || this.memoryPressure === 'warning' ? 2 : this.thermalState === 'fair' ? 1 : 0
+    if (target > 0) this.analysisHealthySince = Infinity
+    else if (this.analysisHealthySince === Infinity) this.analysisHealthySince = now
     if (target >= this.level) {
       this.level = target
       this.recoverAt = now + 30_000
@@ -36,10 +40,24 @@ export class PerformanceMonitor {
       memoryPressure: this.memoryPressure,
       previewFloorMs: [0, 900, 1500, 2500][this.level]!,
       previewDutyCycle: [0.85, 0.65, 0.4, 0.25][this.level]!,
-      previewsPaused: this.level === 3, coolingDown: this.level > target
+      previewsPaused: this.level === 3, coolingDown: this.level > target,
+      // Explicit cue analysis is occasional. Wait for stable recovery without
+      // lifting the longer cadence cooldown for rolling previews.
+      optionalAnalysisAllowed: now - this.analysisHealthySince >= 4000
     }
   }
 }
 const monitor = new PerformanceMonitor()
-export const updatePerformanceState = (update: { thermalState?: string; speedLimit?: number; memoryPressure?: MemoryPressure }): void => monitor.update(update)
+const optionalAnalysisStops = new Set<() => void>()
+export function onOptionalAnalysisPause(stop: () => void): () => void {
+  optionalAnalysisStops.add(stop)
+  return () => { optionalAnalysisStops.delete(stop) }
+}
+
+export const updatePerformanceState = (update: { thermalState?: string; speedLimit?: number; memoryPressure?: MemoryPressure }): void => {
+  monitor.update(update)
+  if (!monitor.snapshot().optionalAnalysisAllowed) {
+    for (const stop of optionalAnalysisStops) stop()
+  }
+}
 export const performanceState = (): ReturnType<PerformanceMonitor['snapshot']> => monitor.snapshot()

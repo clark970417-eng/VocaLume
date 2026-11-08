@@ -1,6 +1,6 @@
 import type { TranslatorEngine, Language, TranslateContext } from '../types'
 import { LANG_NAMES_EN } from '../language-names'
-import { apiFetch, DEFAULT_TIMEOUT_MS } from './api-utils'
+import { apiFetch, DEFAULT_TIMEOUT_MS, translateProtectedCloudText } from './api-utils'
 import { formatGlossaryPrompt } from './glossary-utils'
 import { createLogger } from '../../main/logger'
 
@@ -65,7 +65,10 @@ export class GeminiTranslator implements TranslatorEngine {
     if (glossaryPrompt) {
       contextParts.push(glossaryPrompt)
     }
-    if (context?.previousSegments && context.previousSegments.length > 0) {
+    if (from === 'ja' && to === 'zh') {
+      if (context?.sourceContext) contextParts.push(
+        `Untranslated preceding utterance, for resolving explicit references only: ${JSON.stringify(context.sourceContext)}. Do not translate or repeat it.`)
+    } else if (context?.previousSegments && context.previousSegments.length > 0) {
       const history = context.previousSegments
         .map((s) => `  ${s.source} → ${s.translated}`)
         .join('\n')
@@ -73,35 +76,38 @@ export class GeminiTranslator implements TranslatorEngine {
     }
     const contextSection = contextParts.length > 0 ? contextParts.join('\n\n') + '\n\n' : ''
 
-    const prompt = `${contextSection}Translate the following ${LANG_NAMES_EN[from]} text to ${LANG_NAMES_EN[to]}. Output ONLY the translated text, nothing else.\n\n${text}`
-
-    const data = await apiFetch<{
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> }
-      }>
-    }>({
-      url: GEMINI_API_URL,
-      init: {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': this.apiKey
+    return translateProtectedCloudText(text, context?.glossary, async (source, hasNames) => {
+      const nameInstruction = hasNames ? ' Copy all bracketed name markers exactly.' : ''
+      const targetName = to === 'zh' ? 'Traditional Chinese as used in Taiwan' : LANG_NAMES_EN[to]
+      const missingSubject = from === 'ja' && to === 'zh' ? ' Preserve any unstated subject or unfinished thought without filling it in.' : ''
+      const prompt = `${contextSection}Translate the following ${LANG_NAMES_EN[from]} text to ${targetName}. Output ONLY the translated text, nothing else.${missingSubject}${nameInstruction}\n\n${source}`
+      const data = await apiFetch<{
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+      }>({
+        url: GEMINI_API_URL,
+        init: {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.apiKey
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 256
+            }
+          })
         },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 256
-          }
-        })
-      },
-      timeoutMs: this.timeoutMs,
-      serviceName: 'Gemini API',
-      errorMappings: ERROR_MAPPINGS,
-      classifyErrorBody: classifyGeminiError
-    })
-
-    return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
+        timeoutMs: this.timeoutMs,
+        signal: context?.signal,
+        serviceName: 'Gemini API',
+        errorMappings: ERROR_MAPPINGS,
+        classifyErrorBody: classifyGeminiError
+      })
+      const translated = data?.candidates?.[0]?.content?.parts?.[0]?.text
+      return typeof translated === 'string' ? translated.trim() : undefined
+    }, { from, to, sourceContext: context?.sourceContext })
   }
 
   async dispose(): Promise<void> {

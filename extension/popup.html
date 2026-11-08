@@ -10,10 +10,9 @@
 <main aria-busy="true">
   <header class="app-header">
     <img src="icons/icon-128.png" width="32" height="32" alt="">
-    <div><h1>VocaLume</h1><p>讀懂、回覆，也聽懂。</p></div>
-    <span id="extensionVersion" class="version"></span>
+    <div class="app-title"><h1>VocaLume</h1><span id="extensionVersion" class="version"></span></div>
+    <label class="interface-language" for="uiLanguage"><span>介面語言</span><select id="uiLanguage" aria-label="介面語言"><option value="auto">跟隨系統</option><option value="zh-TW" lang="zh-Hant">繁體中文</option><option value="zh-CN" lang="zh-Hans">简体中文</option><option value="en" lang="en">English</option><option value="ja" lang="ja">日本語</option><option value="ko" lang="ko">한국어</option></select></label>
   </header>
-  <label class="interface-language" for="uiLanguage"><span>介面語言</span><select id="uiLanguage" aria-label="介面語言"><option value="auto">跟隨系統 / Auto</option><option value="zh-TW" lang="zh-Hant">繁體中文</option><option value="zh-CN" lang="zh-Hans">简体中文</option><option value="en" lang="en">English</option></select></label>
   <nav class="task-tabs" role="tablist" aria-label="選擇翻譯功能">
     <button id="tab-text" type="button" role="tab" aria-controls="panel-text" aria-selected="true" data-panel="text">文字翻譯</button>
     <button id="tab-speech" type="button" role="tab" aria-controls="panel-speech" aria-selected="false" tabindex="-1" data-panel="speech">語音字幕</button>
@@ -24,7 +23,7 @@
       <legend class="sr-only">翻譯設定</legend>
       <section id="textControls" class="text-controls" aria-label="文字翻譯開關">
         <label class="switch master-switch" for="websiteText">
-          <span><strong>網站文字翻譯</strong><small id="textToggleHint">關閉中，由你決定何時開啟</small></span>
+          <span><strong>網站文字翻譯</strong></span>
           <input id="websiteText" type="checkbox" role="switch">
           <span class="switch-track" aria-hidden="true"></span>
         </label>
@@ -34,7 +33,7 @@
             <input id="currentSiteTranslation" type="checkbox" role="switch">
             <span class="switch-track" aria-hidden="true"></span>
           </label>
-          <p id="currentSiteHint" class="hint"></p>
+          <p id="currentSiteHint" class="site-status" role="status"></p>
         </div>
       </section>
       <section id="panel-text" class="task-panel" role="tabpanel" aria-labelledby="tab-text" tabindex="0">
@@ -45,14 +44,14 @@
           <label for="readTarget">翻譯成<select id="readTarget"></select></label>
         </div>
         <label class="switch" for="streamerChatMode">
-          <span><strong>主播聊天室模式（實驗）</strong><small>YouTube／Twitch 直播留言會自動辨識語言，翻成上方選擇的語言。</small></span>
+          <span><strong>自動翻譯直播留言</strong> <span class="platforms">YouTube / Twitch</span></span>
           <input id="streamerChatMode" type="checkbox" role="switch">
           <span class="switch-track" aria-hidden="true"></span>
         </label>
         <div class="section-divider"></div>
         <h2>翻譯我的留言</h2>
         <label class="switch sync" for="syncTextLanguages">
-          <span><strong>自動反向回覆</strong><small id="syncSummary">留言方向與讀取方向相反</small></span>
+          <span><strong>自動反向回覆</strong><span id="syncSummary" class="direction" data-ui-pair></span></span>
           <input id="syncTextLanguages" type="checkbox" role="switch" checked>
           <span class="switch-track" aria-hidden="true"></span>
         </label>
@@ -61,69 +60,65 @@
           <button class="swap" type="button" data-swap="type" aria-label="交換留言語言" title="交換留言語言">⇄</button>
           <label for="typeTarget">翻譯成<select id="typeTarget"></select></label>
         </div>
-        <p id="writingHint" class="hint"></p>
-        <p class="hint">輸入留言後，點留言框旁的翻譯按鈕；X 也可按 <kbd>Tab</kbd>。確認譯文後，再自行送出。</p>
         <details id="writingOptions">
           <summary>中翻日的語氣與品質</summary>
           <label for="writingStyle">留言語氣<select id="writingStyle"><option value="general">自然 · 保留原文語氣</option><option value="viewer">直播留言 · 自然親切</option><option value="polite">禮貌 · です／ます</option></select></label>
           <label for="writingQuality">翻譯品質<select id="writingQuality"><option value="fast">快速 · 共用字幕模型</option><option value="quality">高品質 · 使用桌面草稿模型</option></select></label>
-          <p class="hint">高品質需更多記憶體，第一次載入較久。字幕運行時會共用字幕模型，減少等待。</p>
         </details>
       </section>
       <section id="panel-speech" class="task-panel" role="tabpanel" aria-labelledby="tab-speech" tabindex="0" hidden>
-        <div class="panel-heading"><h2>影片與直播字幕</h2><p>播放影片後按「開始」。關閉此視窗仍會繼續。</p></div>
+        <div class="panel-heading"><h2>影片與直播字幕</h2></div>
         <div class="language-pair">
           <label for="speechSource">聽到的語言<select id="speechSource"></select></label>
           <button class="swap" type="button" data-swap="speech" aria-label="交換語音語言" title="交換語音語言">⇄</button>
           <label for="speechTarget">翻譯成<select id="speechTarget"></select></label>
         </div>
         <label for="captionMode">字幕顯示<select id="captionMode"><option value="realtime">單組字幕 · 等待完整譯文</option><option value="record">四組字幕 · 保留完整記錄</option></select></label>
-        <p class="hint">先顯示原文，再補上譯文；下一句不會取消上一句翻譯。語言與顯示方式於下次開始時套用。</p>
+        <label for="holdSeconds">最後一組字幕停留時間 <output id="holdSecondsValue">3 秒</output><input id="holdSeconds" type="range" min="1" max="6" step="1" value="3"></label>
         <label for="position">顯示位置<select id="position"><option value="6">靠近底部</option><option value="12">稍微提高</option><option value="20">畫面中下方</option></select></label>
         <button id="openAppearance" class="text-button" type="button">字幕預覽、文字大小與顏色 →</button>
         <details id="engineOptions"><summary id="engineSummary">翻譯方式</summary>
           <label for="engineMode">使用<select id="engineMode"><option value="desktop">VocaLume 桌面程式 · 本機模型</option><option value="browser">瀏覽器 · 辨識＋網路翻譯</option></select></label>
-          <p id="engineHint" class="hint"></p>
+          <label id="browserSpeechOptions" for="browserSpeechProfile">瀏覽器辨識模型
+            <select id="browserSpeechProfile"><option value="default">Whisper Small · FP32（預設）</option><option value="small-fp16">Whisper Small · FP16（支援時試用）</option></select>
+          </label>
           <button id="desktopSettings" class="text-button" type="button">開啟 App 調整模型 ↗</button>
         </details>
         <details id="speechToneOptions"><summary>語氣與笑聲</summary>
           <label for="speechToneMode">笑聲顯示方式<select id="speechToneMode"><option value="off">關閉</option><option value="natural">自然標記（笑）</option><option value="ww">笑聲使用 ww</option><option value="笑">笑聲使用 笑</option><option value="草">笑聲使用 草</option></select></label>
-          <p class="hint">桌面模式下次開始時套用，保留辨識到的驚嘆號與問號。依目前引擎支援，以聲音分析或明確文字標記辨識笑聲；過熱時暫停聲音分析。無法區分主播或背景笑聲。</p>
         </details>
-        <details id="recordings"><summary>字幕記錄</summary><p id="recordingStatus" class="hint"></p><div class="actions"><button id="exportRecording" class="secondary" type="button">匯出記錄</button><button id="retryRecording" class="secondary" type="button">重試失敗翻譯</button></div><p id="recordingFeedback" class="hint" role="status"></p></details>
+        <details id="recordings"><summary>字幕記錄</summary><p id="recordingStatus" class="feedback"></p><div class="actions"><button id="exportRecording" class="secondary" type="button">匯出記錄</button><button id="retryRecording" class="secondary" type="button">重試失敗翻譯</button></div><p id="recordingFeedback" class="feedback" role="status"></p></details>
       </section>
       <section id="panel-settings" class="task-panel" role="tabpanel" aria-labelledby="tab-settings" tabindex="0" hidden>
-        <div class="panel-heading"><h2>字幕外觀</h2><p>調整後立即套用，不用另外儲存。</p></div>
+        <div class="panel-heading"><h2>字幕外觀</h2></div>
         <section id="appearance" class="caption-settings" aria-label="字幕外觀">
-          <div id="captionPreviewStage"><div id="captionPreview" aria-label="字幕外觀預覽"><span id="previewJa">一緒に楽しみましょう。</span><span id="previewZh">一起享受吧。</span></div></div>
+          <div id="captionPreviewStage"><div id="captionPreview" aria-label="字幕外觀預覽"><span id="previewJa">原文字幕</span><span id="previewZh">翻譯字幕</span></div></div>
           <label for="fontSize">文字大小 <output id="fontSizeValue">22 px</output><input id="fontSize" type="range" min="14" max="42" step="1" value="22"></label>
           <div class="color-row"><label for="japaneseColor">原文顏色<input id="japaneseColor" type="color" value="#ffffff"></label><label for="chineseColor">譯文顏色<input id="chineseColor" type="color" value="#ffffff"></label></div>
-          <label class="switch outline-switch" for="showOutline"><span><strong>文字描邊</strong><small>控制每個字的外框，與字幕背景分開</small></span><input id="showOutline" type="checkbox" role="switch" checked><span class="switch-track" aria-hidden="true"></span></label>
+          <label class="switch outline-switch" for="showOutline"><span><strong>文字描邊</strong></span><input id="showOutline" type="checkbox" role="switch" checked><span class="switch-track" aria-hidden="true"></span></label>
           <div class="outline-row"><label for="outlineColor">描邊顏色<input id="outlineColor" type="color" value="#000000"></label><label for="outlineWidth">粗細 <output id="outlineWidthValue">1 px</output><input id="outlineWidth" type="range" min="0" max="4" step="0.5" value="1"></label></div>
+          <label class="switch outline-switch" for="hideOnHover"><span><strong>游標移入時隱藏字幕</strong></span><input id="hideOnHover" type="checkbox" role="switch" aria-describedby="hideOnHoverHint"><span class="switch-track" aria-hidden="true"></span></label>
+          <p id="hideOnHoverHint" class="hint">游標離開字幕框後會重新顯示。關閉此設定即可拖曳或縮放字幕框。</p>
           <details class="nested"><summary>背景與透明度</summary>
             <label for="backgroundColor">字幕背景顏色<input id="backgroundColor" type="color" value="#000000"></label>
             <label for="backgroundOpacity">背景不透明度 <output id="backgroundOpacityValue">60%</output><input id="backgroundOpacity" type="range" min="0" max="100" step="5" value="60"></label>
             <label for="captionOpacity">整體不透明度 <output id="captionOpacityValue">100%</output><input id="captionOpacity" type="range" min="0" max="100" step="5" value="100"></label>
-            <label for="holdSeconds">單組字幕最後一句停留 <output id="holdSecondsValue">3 秒</output><input id="holdSeconds" type="range" min="1" max="6" step="1" value="3"></label>
           </details>
           <button id="reset" class="secondary full-width" type="button">恢復預設字幕設定</button>
         </section>
         <details id="apiSettings"><summary>網路翻譯服務（選用）</summary>
-          <p class="hint">選擇你已有 API 的服務。用於網站文字、留言和瀏覽器模式字幕；桌面語音的引擎仍在 App 選擇。</p>
           <label for="apiProvider">翻譯服務<select id="apiProvider"></select></label>
-          <p id="apiProviderHint" class="hint"></p>
           <div id="apiFields" hidden>
             <label id="apiUrlField" for="apiBaseUrl" hidden>API 網址<input id="apiBaseUrl" type="url" autocomplete="off" placeholder="https://你的服務/v1"></label>
             <label for="apiModel">模型名稱<input id="apiModel" type="text" autocomplete="off" spellcheck="false" placeholder="服務提供的模型 ID"></label>
             <label for="apiKey">API Key<input id="apiKey" type="password" autocomplete="off" placeholder="尚未設定"></label>
             <label id="apiClearLabel" class="key-removal" for="apiClearKey" hidden><input id="apiClearKey" type="checkbox">移除此服務已儲存的金鑰</label>
-            <p class="hint">金鑰只儲存在這個瀏覽器，不會顯示；留空保留已儲存的金鑰。本機相容服務可以不填金鑰。</p>
           </div>
-          <div class="actions api-actions"><button id="saveTranslation" class="secondary" type="button">儲存服務</button><button id="testTranslation" class="secondary" type="button" disabled>測試已儲存設定</button></div>
-          <p class="hint">測試只送出一句示範文字，會使用你的 API 額度。</p>
-          <p id="translationStatus" class="hint" role="status"></p>
+          <div class="actions api-actions"><button id="saveTranslation" class="secondary" type="button">儲存服務</button><button id="testTranslation" class="secondary" type="button" title="測試只送出一句示範文字，會使用你的 API 額度。" disabled>測試 API 連線</button></div>
+          <p id="translationStatus" class="feedback" role="status"></p>
         </details>
-        <details><summary>連線與執行資訊</summary><p class="hint">遇到問題時，可提供下方資訊協助排查。</p><pre id="diagnostics">等待資料</pre></details>
+        <details><summary>連線與執行資訊</summary><pre id="diagnostics" data-ui-lines>等待資料</pre></details>
+        <details class="legal"><summary>Copyright &amp; use</summary><p>© 2026 Clark · VocaLume</p><p>Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.</p><a href="https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">授權條款 ↗</a></details>
       </section>
     </fieldset>
   </div>
@@ -131,8 +126,7 @@
     <div class="speech-status"><span id="captureDot" class="status-dot" aria-hidden="true"></span><p id="status" role="status" aria-live="polite">正在確認字幕狀態…</p></div>
     <div class="actions"><button id="start" class="primary" type="button" disabled>開始語音字幕</button><button id="stop" class="stop" type="button" disabled hidden>停止收音</button></div>
   </section>
-  <details style="margin:12px 0;font-size:12px"><summary>Copyright &amp; use</summary><p>© 2026 Clark · VocaLume</p><p>Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.</p><a href="https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">LICENSE ↗</a></details>
-  <footer><span class="save-dot" aria-hidden="true"></span><p id="languageStatus" role="status" aria-live="polite">正在讀取設定…</p></footer>
+  <footer><span class="save-dot" aria-hidden="true"></span><p id="languageStatus" role="status" aria-live="polite">正在讀取設定…</p><a id="officialWebsite" href="https://vocalume.vercel.app/" target="_blank" rel="noopener noreferrer">官方網站 ↗</a></footer>
 </main>
 <script type="module" src="popup-locale.mjs"></script>
 <script type="module" src="popup.js"></script>

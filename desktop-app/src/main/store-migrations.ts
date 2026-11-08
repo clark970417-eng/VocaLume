@@ -10,11 +10,17 @@ export type MigratableKey = 'translationEngine' | 'adaptiveRoutingQualityEngine'
 
 export function migrateUnsupportedStt(store: MigratableStore, platform: string, arch: string): boolean {
   const engine = store.get('sttEngine')
-  const appleOnly = ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber']
+  const appleOnly = ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber', 'qwen3-asr']
   if (platform === 'darwin' && (arch === 'arm64' || engine === 'apple-speech-transcriber')) return false
   if (typeof engine !== 'string' || !appleOnly.includes(engine)) return false
   store.set('sttEngine', 'whisper-local')
   store.set('whisperVariant', 'base')
+  return true
+}
+
+export function migrateUnsupportedTranslator(store: MigratableStore, platform: string): boolean {
+  if (platform !== 'win32' || store.get('translationEngine') !== 'offline-apple') return false
+  store.set('translationEngine', 'offline-hymt15')
   return true
 }
 

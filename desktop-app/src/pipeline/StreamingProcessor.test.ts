@@ -5,6 +5,37 @@ import { LocalAgreement } from './LocalAgreement'
 import { ContextBuffer } from './ContextBuffer'
 import * as pressure from '../main/performance-state'
 import {contextualShortReply} from '../engines/translator/contextual-short-reply'
+import type { DiarizationResult } from '../engines/types'
+
+it.each([false, true])('publishes a final without waiting for optional speaker inference (serial=%s)', async serial => {
+  const emitter = new EventEmitter()
+  const published = vi.fn()
+  emitter.on('result', published)
+  let releaseFirst!: (speaker: DiarizationResult) => void
+  const second = { speakerIndex: 1, speakerLabel: 'Speaker 2', confidence: .84 }
+  const diarizer = {
+    finalOnly: true,
+    processAudio: vi.fn()
+      .mockImplementationOnce(() => new Promise<DiarizationResult>(resolve => { releaseFirst = resolve }))
+      .mockResolvedValueOnce(second)
+  }
+  const processor = new StreamingProcessor({
+    emitter, agreement: new LocalAgreement(), contextBuffer: new ContextBuffer(),
+    getSTTEngine: () => ({ processAudio: async () => ({ text: '明日は休みです。', language: 'ja' }) }),
+    getTranslator: () => ({ translate: async () => '明天放假。', translateSimulMt: async () => '明天放假。' }),
+    getDiarizer: () => diarizer, getGlossary: () => [], resolveTargetLanguage: () => 'zh',
+    getSimulMtConfig: () => ({ enabled: serial, waitK: 3 }), incrementProcessing() {}, decrementProcessing() {}
+  } as unknown as StreamingDeps)
+  const audio = new Float32Array(24_000)
+  try {
+    await processor.processStreaming(audio, 16_000)
+    expect(diarizer.processAudio).not.toHaveBeenCalled()
+    expect((await processor.finalizeStreaming(audio, 16_000))?.speakerLabel).toBeUndefined()
+    releaseFirst({ speakerIndex: 0, speakerLabel: 'Speaker 1', confidence: .83 })
+    expect((await processor.finalizeStreaming(audio, 16_000))?.speakerLabel).toBe('Speaker 2')
+    expect(published).toHaveBeenCalledTimes(2)
+  } finally { processor.reset() }
+})
 
 for (const language of ['ja', 'zh'] as const) for (const simul of [false, true]) {
   it('preserves ' + language + ' target-language captions without model work (SimulMT=' + simul + ')', async () => {
@@ -178,7 +209,7 @@ it.each([false,true])('uses visible source context for final captions, including
 
 it('leaves idle time after slow previews while final sentences bypass thermal admission', async () => {
   vi.useFakeTimers()
-  const policy = vi.spyOn(pressure, 'performanceState').mockReturnValue({thermalState:'serious',speedLimit:100,previewFloorMs:1500,previewDutyCycle:.4,previewsPaused:false,coolingDown:false})
+  const policy = vi.spyOn(pressure, 'performanceState').mockReturnValue({thermalState:'serious',speedLimit:100,previewFloorMs:1500,previewDutyCycle:.4,previewsPaused:false,coolingDown:false,optionalAnalysisAllowed:false})
   const stt = vi.fn(async () => {await new Promise(resolve=>setTimeout(resolve,2000));return {text:'今日は配信しません。',language:'ja'}})
   const extraDraft = vi.fn()
   const processor = new StreamingProcessor({
@@ -192,7 +223,7 @@ it('leaves idle time after slow previews while final sentences bypass thermal ad
     await vi.advanceTimersByTimeAsync(2000);expect((await first)?.sourceText).toBe('今日は配信しません。')
     expect(await processor.processStreaming(new Float32Array(32000),16000)).toBeNull()
     expect(stt).toHaveBeenCalledOnce();expect(extraDraft).not.toHaveBeenCalled()
-    policy.mockReturnValue({thermalState:'critical',speedLimit:100,previewFloorMs:2500,previewDutyCycle:.25,previewsPaused:true,coolingDown:false})
+    policy.mockReturnValue({thermalState:'critical',speedLimit:100,previewFloorMs:2500,previewDutyCycle:.25,previewsPaused:true,coolingDown:false,optionalAnalysisAllowed:false})
     expect(await processor.processStreaming(new Float32Array(48000),16000)).toBeNull()
     const final=processor.finalizeStreaming(new Float32Array(64000),16000)
     await vi.advanceTimersByTimeAsync(2000)
@@ -470,7 +501,7 @@ it('reuses an exact completed translation at speech end but re-translates a chan
  }finally{processor.reset();vi.useRealTimers()}
 })
 
-it('recognizes subsequent speech while final Chinese is pending, then publishes finals in source order', async () => {
+it.each(['local', 'network'])('recognizes subsequent speech and publishes %s finals in source order', async (route) => {
   const emitter = new EventEmitter()
   emitter.on('error', () => {})
   const published: string[] = [], sources: string[] = [], calls: string[] = []
@@ -482,7 +513,7 @@ it('recognizes subsequent speech while final Chinese is pending, then publishes 
   const processor = new StreamingProcessor({
     emitter, agreement: new LocalAgreement(), contextBuffer: new ContextBuffer(),
     getSTTEngine: () => ({processAudio: async () => ({text: source, language: 'ja'})}),
-    getTranslator: () => ({translate}), getGlossary: () => [],
+    getTranslator: () => ({translate, isOffline: route === 'local', id: route === 'network' ? 'google-public-translate' : 'test-local'}), getGlossary: () => [],
     getSimulMtConfig: () => ({enabled: false, waitK: 3}), resolveTargetLanguage: () => 'zh',
     incrementProcessing() {}, decrementProcessing() {}, getGeneration: () => 1
   } as unknown as StreamingDeps)
@@ -492,13 +523,16 @@ it('recognizes subsequent speech while final Chinese is pending, then publishes 
     source = '次の文'
     const second = await processor.prepareFinalStreaming(new Float32Array(16000), 16000)
     expect(sources).toEqual(['最初の文', '次の文'])
-    expect(calls).toEqual(['最初の文'])
+    expect(calls).toEqual(route === 'network' ? ['最初の文', '次の文'] : ['最初の文'])
     expect(published).toEqual([])
+    source = '三つ目の文'
+    const third = await processor.prepareFinalStreaming(new Float32Array(16000), 16000)
+    expect(calls).not.toContain('三つ目の文')
     source = ''
     await processor.processStreaming(new Float32Array(16000), 16000)
     release('第一句')
-    await Promise.all([first?.completion, second?.completion])
-    expect(published).toEqual(['最初の文:第一句', '次の文:第二句'])
+    await Promise.all([first?.completion, second?.completion, third?.completion])
+    expect(published).toEqual(['最初の文:第一句', '次の文:第二句', '三つ目の文:第二句'])
   } finally { release?.('cleanup'); processor.reset() }
 })
 

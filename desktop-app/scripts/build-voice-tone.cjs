@@ -4,5 +4,7 @@ const { join } = require('node:path')
 if (process.platform === 'darwin') {
   const output = join(__dirname, '../resources/bin')
   mkdirSync(output, { recursive: true })
-  execFileSync('/usr/bin/xcrun', ['swiftc', '-O', join(__dirname, 'voice-tone.swift'), '-o', join(output, 'voice-tone-helper')], { stdio: 'inherit' })
+  for (const [source, name] of [['voice-tone.swift', 'voice-tone-helper'], ['capture-claim.swift', 'capture-claim-helper']]) {
+    execFileSync('/usr/bin/xcrun', ['swiftc', '-O', join(__dirname, source), '-o', join(output, name)], { stdio: 'inherit' })
+  }
 }

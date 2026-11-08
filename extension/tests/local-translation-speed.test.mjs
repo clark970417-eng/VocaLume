@@ -1,13 +1,14 @@
+import {NativeCueTimeline} from '../youtube-cue.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {TranslationMemo} from '../translation-policy.mjs';
+import {protectNames,TranslationMemo} from '../translation-policy.mjs';
 const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8');
 const body=src.slice(src.indexOf('async function localTranslation('),src.indexOf('async function makeDraft('));
 function harness(){
  const calls=[];let configured={writingStyle:'general',writingQuality:'fast'};
- const translate=vm.runInNewContext(body+';localTranslation',{settings:async()=>configured,localTranslationMemo:new TranslationMemo(),checkedTranslation:x=>x,desktop:{request:(...args)=>new Promise((resolve,reject)=>calls.push({args,resolve,reject}))}});
+ const translate=vm.runInNewContext(body+';localTranslation',{settings:async()=>configured,localTranslationMemo:new TranslationMemo(),protectNames,checkedTranslation:x=>x,taiwanProviderOutput:(_text,_direction,output)=>output,desktop:{request:(...args)=>new Promise((resolve,reject)=>calls.push({args,resolve,reject}))}});
  return{calls,translate,set:value=>configured={...configured,...value}};
 }
 test('concurrent page/caption calls share local inference and repeat returns the complete result',async()=>{

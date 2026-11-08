@@ -29,6 +29,23 @@ it('does not reuse at natural pauses, on invalid capture metadata, or for other 
  boundary.remember(audio,16000,prior,'まだ食べてないです。あとで','ja')
  expect(boundary.prepare(audio.slice(0,16000),16000,next,'ja')).toBeNull()
 })
+it('allows a brief voiced continuation with a VAD quiet tail and keeps only proven speech duration', () => {
+  const boundary = new RecognitionBoundary()
+  const previous = new Float32Array(64000).fill(0.1)
+  boundary.remember(previous, 16000, {
+    ...prior, captureEndSample: 64000, speechEndSample: 64000, speechSeconds: 2.4
+  }, 'まだ終わってい', 'ja')
+  const continuation = new Float32Array(32000)
+  continuation.fill(0.1, 0, 6400)
+  const evidence = {
+    ...next, captureStartSample: 64000, captureEndSample: 96000, speechEndSample: 6400, speechSeconds: 0.4
+  }
+  const prepared = boundary.prepare(continuation, 16000, evidence, 'ja')!
+  expect(prepared.audio).toHaveLength(64000)
+  expect(prepared.evidence.speechSeconds).toBeCloseTo(0.8)
+  expect(prepared.restore('終わっていません。')).toBe('まだ終わっていません。')
+  expect(boundary.prepare(continuation, 16000, { ...evidence, speechEndSample: 16001 }, 'ja')).toBeNull()
+})
 it('retains changed negation, tense, short overlaps and deliberate whole repetitions',()=>{
  expect(restoreRecognizedOverlap('まだ終わってい','終わっていません。')).toBe('まだ終わっていません。')
  expect(restoreRecognizedOverlap('他说今天不会。','今天不会来。')).toBe('他说今天不会来。')

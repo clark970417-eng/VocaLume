@@ -1,4 +1,4 @@
-import { resolveSpeechEngine } from '../../../engine-selection'
+import { resolveSpeechEngine, resolveWindowsJapaneseFallback } from '../../../engine-selection'
 import { describe, it, expect } from 'vitest'
 import { buildEngineConfig, resolveEngineMode, getEngineDisplayName, LEGACY_TRANSLATION_ENGINES, LLM_ENGINE_MODES, API_ENGINE_MODES } from './shared'
 import type { EngineMode, SttEngineType } from './shared'
@@ -33,6 +33,11 @@ describe('EngineMode catalog (#702)', () => {
 })
 
 describe('buildEngineConfig (#702)', () => {
+  it('keeps public cloud translation explicitly selectable without API keys', () => {
+    expect(buildEngineConfig('online-public', STT, NO_KEYS)).toEqual({
+      mode: 'cascade', sttEngineId: STT, translatorEngineId: 'google-public-translate'
+    })
+  })
   it('returns HY-MT 1.5 config for the default offline mode', () => {
     expect(buildEngineConfig('offline-hymt15', STT, NO_KEYS)).toEqual({
       mode: 'cascade',
@@ -111,7 +116,7 @@ describe('resolveEngineMode (#702)', () => {
     expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-hymt15')
     expect(resolveEngineMode('offline-hunyuan-mt', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-hunyuan-mt')
     expect(resolveEngineMode('auto', ALL_KEYS, { hasGpu: true }, 'win32')).toBe('rotation')
-    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'darwin')).toBe('offline-hunyuan-mt')
+    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'darwin')).toBe('offline-hymt15')
   })
   it('resolves auto → rotation when at least one API key is configured', () => {
     expect(resolveEngineMode('auto', ALL_KEYS, { hasGpu: false })).toBe('rotation')
@@ -225,6 +230,12 @@ describe('buildEngineConfig realtime e2e precedence (#723)', () => {
 
 
 describe('local speech language routing', () => {
+  it('uses the measured Japanese fallback only when installed and CPU or memory is constrained', () => {
+    const i5 = { logicalCpus: 8, totalMemoryBytes: 8 * 1024 ** 3, senseVoiceInstalled: true }
+    expect(resolveWindowsJapaneseFallback(i5)).toBe('sensevoice-sherpa')
+    expect(resolveWindowsJapaneseFallback({ ...i5, senseVoiceInstalled: false })).toBe('whisper-local')
+    expect(resolveWindowsJapaneseFallback({ ...i5, totalMemoryBytes: 16 * 1024 ** 3 })).toBe('whisper-local')
+  })
   it('defaults Japanese to Haas with hints and preserves the opt-out', () => {
     expect(resolveSpeechEngine('ja', STT, true)).toBe('haas-ja-fast')
     expect(resolveSpeechEngine('ja', 'haas-ja-fast', true)).toBe('haas-ja-fast')

@@ -1,4 +1,6 @@
+import {NativeCueTimeline} from '../youtube-cue.mjs';
 import * as cloudApi from '../cloud-api.mjs';
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {RecordingQueue} from '../recording-queue.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +15,7 @@ test('identical ASR does not extend expiry; later utterance can repeat; native e
  const chrome={storage:{local:{set:async()=>{},get:async()=>({subtitleSettings:{holdSeconds:3,captionMode:'realtime'}})}},tabs:{sendMessage:async(id,m)=>updates.push(m),onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start')session=m.session;return{ok:true};}}};
  const fetch=()=>new Promise(resolve=>finish=()=>resolve({ok:true,json:async()=>[[['今天的天氣']]]}));
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock,console,fetch});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,RecordingQueue,chrome,ResultGate,CueCursor,NativeCueTimeline,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock,console,fetch});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));const flush=()=>new Promise(r=>setTimeout(r,0));
  const say=id=>listener({type:'speech-result',session,id,text:'こんにちは'},{url:'chrome-extension://test/offscreen.html'},()=>{});
  const current=async()=> (await call({type:'subtitles'},{tab:{id:7}})).text.items;
@@ -23,7 +25,7 @@ test('identical ASR does not extend expiry; later utterance can repeat; native e
  now+=1100;assert.equal((await current()).length,0,'silence clears after three seconds');
  say(2);await flush();assert.equal((await current()).length,1,'a new utterance may repeat the same word');
  const sender={tab:{id:7},frameId:0,url:'https://www.youtube.com/watch?v=test'};
- await call({type:'native-caption',text:'今日の天気ですね'},sender);await flush();
- await call({type:'native-caption',text:''},sender);finish();await flush();
- assert.equal((await current()).length,0,'late translation cannot resurrect ended native cue');
+ await call({type:'native-caption',cue:{key:'cue-1',language:'ja',text:'今日の天気ですね',startAt:now-200,observedAt:now}},sender);await flush();
+ await call({type:'native-caption',cue:null},sender);finish();await flush();
+ assert.equal((await current()).some(item=>item.source==='native'),false,'late translation cannot resurrect ended native cue');
 });

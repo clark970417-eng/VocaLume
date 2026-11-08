@@ -8,7 +8,7 @@ const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
 function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={},wrappedComposer=false){
- const requests=[], selectors=[], documentEvents={}, storageListeners=[], rendered=[];
+ const requests=[], statusRequests=[], selectors=[], documentEvents={}, storageListeners=[], rendered=[];
  let now=0, runtimeListener;
  const translationLines=[];
  const controls=[];
@@ -46,37 +46,36 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   },
   createElement:makeElement,addEventListener(name,fn){documentEvents[name]=fn;},createRange:()=>({selectNodeContents(){}})};
  const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(rows){rendered.push(rows);} apply(){}}};window.top=window;
- const chrome={runtime:{lastError:null,onMessage:{addListener(fn){runtimeListener=fn;}},sendMessage(message,reply){requests.push({message,reply});}},
+ const chrome={runtime:{lastError:null,onMessage:{addListener(fn){runtimeListener=fn;}},sendMessage(message,reply){(message.type==='subtitles'?statusRequests:requests).push({message,reply});}},
   storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(fn){storageListeners.push(fn);}}}};
- let scan,poll,disconnected=false,pollStopped=false;
- vm.runInNewContext(source,{Date:{now:()=>now},VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout:fn=>{fn();return 1;},clearTimeout(){},setInterval(fn){poll=fn;return 42;},clearInterval(id){if(id===42)pollStopped=true;},Event:class{},InputEvent:class{}});
- return {requests,translationLines,controls,box,shell,selectors,rendered,node:japanese,scan:()=>scan(),poll:()=>poll(),runtime:chrome.runtime,stopped:()=>disconnected&&pollStopped,
+ let scan,intervals=0,disconnected=false;
+ vm.runInNewContext(source,{Date:{now:()=>now},VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout:fn=>{fn();return 1;},clearTimeout(){},setInterval(){intervals++;return 42;},clearInterval(){},Event:class{},InputEvent:class{}});
+ return {requests,statusRequests,translationLines,controls,box,shell,selectors,rendered,node:japanese,scan:()=>scan(),intervals:()=>intervals,runtime:chrome.runtime,stopped:()=>disconnected&&intervals===0,
   advance:ms=>now+=ms, visibility:hidden=>{document.hidden=hidden;documentEvents.visibilitychange();}, push:item=>runtimeListener({type:'subtitle-update',item}),
-  languages:value=>storageListeners.forEach(fn=>fn({languageSettings:{newValue:value}},'local'))};
+  languages:value=>storageListeners.forEach(fn=>fn({languageSettings:{newValue:value}},'local')),
+  provider:()=>storageListeners.forEach(fn=>fn({cloudTranslation:{newValue:{}}},'local'))};
 }
 
-test('idle social tabs back off status requests, hidden tabs stay quiet, and visibility or a push resumes captions',async()=>{
+test('social tabs request initial and visibility status once, and live captions arrive by push',async()=>{
  const t=setup('example.com');await settle();
- void t.poll();t.requests.at(-1).reply({ok:true,text:{running:false,items:[]}});await settle();
- for(let i=0;i<12;i++){t.advance(700);await t.poll();}
- assert.equal(t.requests.length,1,'idle tabs do not keep waking the background worker every 700 ms');
- t.visibility(true);t.advance(20000);await t.poll();assert.equal(t.requests.length,1);
- t.visibility(false);assert.equal(t.requests.length,2,'returning to the tab refreshes immediately');
- t.requests.at(-1).reply({ok:true,text:{running:false,items:[]}});await settle();
- t.push(null);void t.poll();assert.equal(t.requests.length,3,'capture updates bypass the idle delay');
- t.requests.at(-1).reply({ok:true,text:{running:true,items:[]}});await settle();
- t.advance(700);void t.poll();assert.equal(t.requests.length,4,'active captions keep their existing polling cadence');
- t.requests.at(-1).reply({ok:true,text:{running:false,items:[]}});await settle();
+ t.statusRequests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
+ t.advance(20000);assert.equal(t.intervals(),0,'idle tabs never schedule a background heartbeat');
+ t.visibility(true);t.advance(20000);assert.equal(t.statusRequests.length,1);
+ t.visibility(false);assert.equal(t.statusRequests.length,2,'returning to the tab refreshes immediately');
+ t.statusRequests[1].reply({ok:true,text:{running:false,items:[]}});await settle();
+ t.push({original:'こんにちは',translated:'你好',expiresAt:100});
+ assert.equal(t.rendered.at(-1)[0].translated,'你好');
+ t.push(null);
+ assert.equal(t.rendered.at(-1).length,0);
+ assert.equal(t.statusRequests.length,2,'capture pushes do not trigger background polling');
 });
 
-test('an older idle status response cannot erase a pushed caption or reinstate the idle delay',async()=>{
- const t=setup('example.com');await settle();void t.poll();
+test('an older idle status response cannot erase a pushed caption',async()=>{
+ const t=setup('example.com');await settle();
  t.push({original:'こんにちは',translated:'你好',expiresAt:20});
  assert.equal(t.rendered.at(-1)[0].translated,'你好');
- t.requests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
+ t.statusRequests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
  assert.equal(t.rendered.at(-1)[0].translated,'你好');
- void t.poll();assert.equal(t.requests.length,2);
- t.requests[1].reply({ok:true,text:{running:false,items:[]}});await settle();
 });
 
 test('changing reading language cannot reuse an older request or let its cleanup forget newer work',async()=>{
@@ -167,27 +166,38 @@ test('semantic live region keeps chat translation working after site selectors c
  assert.equal(t.translationLines[0].textContent,'中：謝謝直播');
 });
 
-test('social live chat exposes retry progress and retries a transient failure once',async()=>{
+test('social live chat treats a blank success as a failure',async()=>{
  const t=setup('www.tiktok.com');await settle();
  assert.equal(t.translationLines[0].textContent,'中：翻譯中…');
- t.requests[0].reply({ok:false,error:'temporary'});await settle();
- assert.equal(t.requests.filter(x=>x.message.type==='translate').length,2);
- assert.equal(t.translationLines[0].textContent,'中：第一次失敗，正在重試…');
+ t.requests[0].reply({ok:true,text:' '});await settle();
+ assert.equal(t.requests.filter(x=>x.message.type==='translate').length,1);
+ assert.equal(t.translationLines[0].textContent,'中：翻譯暫時失敗。');
+ t.translationLines[0].children[0].onclick({preventDefault(){},stopPropagation(){}});await settle();
  t.requests[1].reply({ok:true,text:'謝謝直播'});await settle();
  assert.equal(t.translationLines[0].textContent,'中：謝謝直播');
 });
 
-test('social live chat stops after its bounded retry fails',async()=>{
+test('social live chat stops after background recovery is exhausted',async()=>{
  const t=setup('live.bilibili.com');await settle();
- t.requests[0].reply({ok:false,error:'first'});await settle();
- t.requests[1].reply({ok:false,error:'second'});await settle();
+ t.requests[0].reply({ok:false,error:'background retries exhausted'});await settle();
  assert.equal(t.translationLines[0].textContent,'中：翻譯暫時失敗。');
- assert.equal(t.requests.filter(x=>x.message.type==='translate').length,2);
- t.scan();await settle();assert.equal(t.requests.length,2);
+ assert.equal(t.requests.filter(x=>x.message.type==='translate').length,1);
+ t.scan();await settle();assert.equal(t.requests.length,1);
  const retry=t.translationLines[0].children[0];assert.equal(retry.textContent,'再試一次');
- retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,3);
- t.requests[2].reply({ok:true,text:'恢復翻譯'});await settle();
+ retry.onclick({preventDefault(){},stopPropagation(){}});await settle();assert.equal(t.requests.length,2);
+ t.requests[1].reply({ok:true,text:'恢復翻譯'});await settle();
  assert.equal(t.translationLines[0].textContent,'中：恢復翻譯');
+});
+
+test('a provider settings correction retries visible failed text without refreshing the tab',async()=>{
+ const t=setup('live.bilibili.com');await settle();
+ t.requests[0].reply({ok:false,error:'invalid credentials'});await settle();
+ assert.equal(t.translationLines[0].textContent,'中：翻譯暫時失敗。');
+ t.provider();await settle();
+ assert.equal(t.requests.filter(x=>x.message.type==='translate').length,2);
+ t.requests[1].reply({ok:true,text:'謝謝直播'});await settle();
+ assert.equal(t.translationLines.filter(line=>line.isConnected).length,1);
+ assert.equal(t.translationLines.find(line=>line.isConnected).textContent,'中：謝謝直播');
 });
 
 test('Instagram reports a stale extension context clearly and stops invalid requests without editing the draft',async()=>{
@@ -199,7 +209,7 @@ test('Instagram reports a stale extension context clearly and stops invalid requ
  assert.equal(t.controls[0].children[0].disabled,true);
  assert.equal(t.box.value,'今天也很可愛');
  assert.equal(t.stopped(),true);
- t.scan();await t.poll();await settle();
+ t.scan();t.visibility(false);await settle();
  assert.equal(attempts,1);
 });
 
@@ -329,7 +339,7 @@ test('Discord translates the complete Korean message body, not its channel or me
  const requests=t.requests.filter(r=>r.message.type==='translate');
  assert.equal(requests.length,1);
  assert.equal(requests[0].message.direction,'ko-zh');
- assert.equal(requests[0].message.text,'안녕하세요. 오늘도 감사합니다.');
+ assert.equal(requests[0].message.text,'안녕하세요.\n오늘도 감사합니다.');
  assert.ok(!t.selectors.some(s=>s.includes('h1')||s.includes('aria-live')||s==='[role="log"]'));
  requests[0].reply({ok:true,text:'你好。今天也謝謝你。'});await settle();
 });

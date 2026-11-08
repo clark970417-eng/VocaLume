@@ -6,10 +6,12 @@ import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { createWriteStream } from 'node:fs'
 import { app } from 'electron'
-import type { STTEngine, STTResult, Language } from '../types'
+import type { STTEngine, STTResult, Language, SourceLanguage, SpeechEvidence } from '../types'
 import { ALL_LANGUAGES } from '../types'
 import { createLogger } from '../../main/logger'
 import type { WhisperWorkerClient } from './whisper-worker-client'
+import { SpeechLanguageStabilizer } from './SpeechLanguageStabilizer'
+import { isImplausibleTranscript } from './transcript-guard'
 
 const log = createLogger('sensevoice-sherpa')
 
@@ -31,6 +33,25 @@ const SENSEVOICE_MODEL = {
   tokensFile: 'tokens.txt',
   sizeMB: 229
 } as const
+
+const SUPPORTED_SOURCE_LANGUAGES = new Set<SourceLanguage>(['ja', 'en', 'zh', 'ko'])
+
+function senseVoiceModelDirectory(modelsRoot: string): string {
+  const legacy = join(modelsRoot, 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17')
+  return existsSync(join(legacy, SENSEVOICE_MODEL.modelFile)) ? legacy : join(modelsRoot, SENSEVOICE_MODEL.dirName)
+}
+
+export function isSenseVoiceModelInstalled(modelsRoot = join(app.getPath('userData'), 'models', 'sherpa-onnx')): boolean {
+  const directory = senseVoiceModelDirectory(modelsRoot)
+  return existsSync(join(directory, SENSEVOICE_MODEL.modelFile)) && existsSync(join(directory, SENSEVOICE_MODEL.tokensFile))
+}
+
+interface SenseVoiceRequest {
+  samples: Float32Array
+  sampleRate: number
+  evidence?: SpeechEvidence
+}
+type SenseVoiceWorker = WhisperWorkerClient<SenseVoiceRequest, STTResult | null>
 
 /** Minimal sherpa-onnx-node types for SenseVoice offline recognizer */
 interface SherpaOnnxModule {
@@ -101,7 +122,11 @@ export class SenseVoiceSherpaEngine implements STTEngine {
   private generation = 0
   private mutex: Promise<void> = Promise.resolve()
   private onProgress?: (message: string) => void
-  private workerClient: WhisperWorkerClient<{samples:Float32Array;sampleRate:number},STTResult|null> | null = null
+  private workerClient: SenseVoiceWorker | null = null
+  private nativeFactory?: (language: SourceLanguage) => Promise<SherpaOnnxRecognizer>
+  private sourceLanguage: SourceLanguage = 'auto'
+  private loadedLanguage: SourceLanguage | null = null
+  private languageStabilizer = new SpeechLanguageStabilizer()
   private inWorker = false
   private modelsRoot?: string
 
@@ -109,10 +134,20 @@ export class SenseVoiceSherpaEngine implements STTEngine {
     onProgress?: (message: string) => void
     inWorker?: boolean
     modelsRoot?: string
+    sourceLanguage?: SourceLanguage
   }) {
     this.onProgress = options?.onProgress
     this.inWorker = options?.inWorker || false
     this.modelsRoot = options?.modelsRoot
+    if (options?.sourceLanguage) this.setLanguage(options.sourceLanguage)
+  }
+
+  setLanguage(language: SourceLanguage): void {
+    // On unsupported input, keep the model's detected language. Never claim
+    // the recognizer transcribed in a language its model cannot accept.
+    const supported = SUPPORTED_SOURCE_LANGUAGES.has(language) ? language : 'auto'
+    if (this.sourceLanguage !== supported) this.languageStabilizer.reset()
+    this.sourceLanguage = supported
   }
 
   async initialize(): Promise<void> {
@@ -127,13 +162,7 @@ export class SenseVoiceSherpaEngine implements STTEngine {
     if (this.recognizer) return
     const generation = this.generation
     if (process.platform === 'win32' && !this.inWorker) {
-      const { WhisperWorkerClient } = await import('./whisper-worker-client')
-      if (generation !== this.generation) throw new Error('SenseVoice initialization cancelled')
-      const client = this.workerClient ??= new WhisperWorkerClient({
-        workerFile:'sensevoice-worker.js',name:'SenseVoice',initTimeoutMs:12*60_000,
-        initPayload:{modelsRoot:this.modelsRoot || join(app.getPath('userData'),'models','sherpa-onnx')},onProgress:this.onProgress
-      })
-      await client.initialize()
+      await this.prepareWorker(this.sourceLanguage, generation)
       return
     }
 
@@ -145,8 +174,7 @@ export class SenseVoiceSherpaEngine implements STTEngine {
       mkdirSync(modelsRoot, { recursive: true })
     }
 
-    const legacyDir = join(modelsRoot, 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17')
-    const modelDir = existsSync(join(legacyDir, SENSEVOICE_MODEL.modelFile)) ? legacyDir : join(modelsRoot, SENSEVOICE_MODEL.dirName)
+    const modelDir = senseVoiceModelDirectory(modelsRoot)
 
     // Auto-download model if not present
     if (!existsSync(modelDir)) {
@@ -182,7 +210,7 @@ export class SenseVoiceSherpaEngine implements STTEngine {
       )
     }
 
-    const config: SherpaOnnxConfig = {
+    const config = (language: SourceLanguage): SherpaOnnxConfig => ({
       featConfig: {
         sampleRate: 16000,
         featureDim: 80
@@ -190,7 +218,7 @@ export class SenseVoiceSherpaEngine implements STTEngine {
       modelConfig: {
         senseVoice: {
           model: modelPath,
-          language: 'auto',
+          language,
           useItn: 1
         },
         tokens: tokensPath,
@@ -198,14 +226,14 @@ export class SenseVoiceSherpaEngine implements STTEngine {
         provider: 'cpu',
         debug: 0
       }
-    }
+    })
 
     try {
       // Both model construction and decoding otherwise block Electron's main
       // loop. The pinned native package supplies asynchronous N-API methods.
-      const recognizer = await sherpaOnnx.OfflineRecognizer.createAsync(config)
       if (generation !== this.generation) throw new Error('SenseVoice initialization cancelled')
-      this.recognizer = recognizer
+      this.nativeFactory = language => sherpaOnnx.OfflineRecognizer.createAsync(config(language))
+      await this.prepareRecognizer(this.sourceLanguage, generation)
     } catch (err) {
       throw new Error(
         `[sensevoice-sherpa] Failed to create recognizer: ${err instanceof Error ? err.message : err}`
@@ -216,9 +244,44 @@ export class SenseVoiceSherpaEngine implements STTEngine {
     log.info('SenseVoice Small initialized successfully')
   }
 
-  async processAudio(audioChunk: Float32Array, sampleRate: number): Promise<STTResult | null> {
-    if (!this.recognizer && !this.workerClient) return null
-    const recognizer = this.recognizer, client = this.workerClient, generation = this.generation
+  private async prepareWorker(language: SourceLanguage, generation: number): Promise<SenseVoiceWorker> {
+    const { WhisperWorkerClient } = await import('./whisper-worker-client')
+    if (generation !== this.generation) throw new Error('SenseVoice initialization cancelled')
+    if (!this.workerClient || this.loadedLanguage !== language) {
+      // Switching a manual language releases the old native model. Preserve
+      // only one worker/model on low-memory systems.
+      this.workerClient?.dispose()
+      this.workerClient = new WhisperWorkerClient({
+        workerFile: 'sensevoice-worker.js',
+        name: 'SenseVoice',
+        initTimeoutMs: 12 * 60_000,
+        initPayload: { modelsRoot: this.modelsRoot || join(app.getPath('userData'), 'models', 'sherpa-onnx'), sourceLanguage: language },
+        onProgress: this.onProgress
+      })
+      this.loadedLanguage = language
+    }
+    const client = this.workerClient
+    await client.initialize()
+    return client
+  }
+
+  private async prepareRecognizer(language: SourceLanguage, generation: number): Promise<SherpaOnnxRecognizer> {
+    if (this.recognizer && this.loadedLanguage === language) return this.recognizer
+    if (!this.nativeFactory) throw new Error('SenseVoice is not initialized')
+    // Recreate to preserve model-specific feature settings derived by sherpa.
+    this.recognizer = null
+    const recognizer = await this.nativeFactory(language)
+    if (generation !== this.generation) throw new Error('SenseVoice initialization cancelled')
+    this.recognizer = recognizer
+    this.loadedLanguage = language
+    return recognizer
+  }
+
+  async processAudio(audioChunk: Float32Array, sampleRate: number, evidence?: SpeechEvidence): Promise<STTResult | null> {
+    if (!this.nativeFactory && !this.workerClient) return null
+    const useWorker = this.workerClient !== null
+    const generation = this.generation
+    const requestedLanguage = this.sourceLanguage
     const previous = this.mutex
     let release!: () => void
     this.mutex = new Promise<void>(resolve => { release = resolve })
@@ -226,29 +289,43 @@ export class SenseVoiceSherpaEngine implements STTEngine {
 
     try {
       if (generation !== this.generation) return null
-      if (client) {
-        const result = await client.transcribe({samples:audioChunk,sampleRate})
+      if (useWorker) {
+        const client = this.workerClient && this.loadedLanguage === requestedLanguage
+          ? this.workerClient : await this.prepareWorker(requestedLanguage, generation)
+        const result = await client.transcribe({ samples: audioChunk, sampleRate, evidence })
         return generation === this.generation ? result : null
       }
-      const stream = recognizer!.createStream()
+      const recognizer = await this.prepareRecognizer(requestedLanguage, generation)
+      if (generation !== this.generation) return null
+      const stream = recognizer.createStream()
       stream.acceptWaveform({ sampleRate, samples: audioChunk })
-      const result = await recognizer!.decodeAsync(stream)
+      // Windows runs recognition in a dedicated utility process.
+      let result: SherpaOnnxResult
+      if (this.inWorker) {
+        recognizer.decode(stream)
+        result = recognizer.getResult(stream)
+      } else {
+        result = await recognizer.decodeAsync(stream)
+      }
       if (generation !== this.generation) return null
 
       const text = (result.text ?? '').trim()
-      if (!text) return null
+      if (!text || isImplausibleTranscript(text, audioChunk.length / sampleRate)) return null
 
       // SenseVoice returns lang field (e.g., 'en', 'ja', 'zh', 'ko')
-      const detectedLang = result.lang
-      const language: Language = (detectedLang && ALL_LANGUAGES.includes(detectedLang as Language))
+      const detectedLang = result.lang?.replace(/^<\|([a-z]+)\|>$/, '$1')
+      const candidate: Language = (detectedLang && ALL_LANGUAGES.includes(detectedLang as Language))
         ? (detectedLang as Language)
         : this.detectLanguageFallback(text)
+      const timestamp = Date.now()
+      const language = requestedLanguage !== 'auto' ? requestedLanguage :
+        this.sourceLanguage === 'auto' ? this.languageStabilizer.detect(candidate, text, timestamp, evidence) : candidate
 
       return {
         text,
         language,
         isFinal: true,
-        timestamp: Date.now()
+        timestamp
       }
     } catch (err) {
       log.error('Transcription error:', err)
@@ -262,6 +339,9 @@ export class SenseVoiceSherpaEngine implements STTEngine {
     this.workerClient?.dispose()
     this.workerClient = null
     this.recognizer = null
+    this.nativeFactory = undefined
+    this.loadedLanguage = null
+    this.languageStabilizer.reset()
     this.initPromise = null
   }
 
@@ -308,17 +388,15 @@ export class SenseVoiceSherpaEngine implements STTEngine {
   private detectLanguageFallback(text: string): Language {
     if (!text) return 'en'
 
-    const jpKana = text.match(/[\u3040-\u309F\u30A0-\u30FF]/g)
-    const jpCount = jpKana?.length ?? 0
-    if (jpCount / text.length > 0.3 && jpCount >= 2) return 'ja'
+    if (/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(text)) return 'ja'
 
     const cjk = text.match(/[\u4E00-\u9FFF\u3400-\u4DBF]/g)
     const cjkCount = cjk?.length ?? 0
-    if (cjkCount / text.length > 0.3 && cjkCount >= 2 && jpCount === 0) return 'zh'
+    if (cjkCount / text.length > 0.3) return 'zh'
 
     const ko = text.match(/[\uAC00-\uD7AF\u1100-\u11FF\u3130-\u318F]/g)
     const koCount = ko?.length ?? 0
-    if (koCount / text.length > 0.3 && koCount >= 2) return 'ko'
+    if (koCount / text.length > 0.3) return 'ko'
 
     return 'en'
   }

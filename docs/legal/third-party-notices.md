@@ -8,6 +8,8 @@ Design references (no third-party source copied for the new orchestration):
 
 Silero V5 model is distributed from the pinned npm package `@ricky0123/vad-web@0.0.29`, under `vendor/silero/`. See its bundled LICENSE for Silero MIT and ricky0123 ISC notices. SHA-256: `2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f`. The recurrent ONNX input/output contract follows https://github.com/ricky0123/vad/blob/master/packages/web/src/models/v5.ts . The model is loaded locally; no microphone or cloud audio upload is used.
 
+The local Taiwan Traditional Chinese converter uses the browser module from `opencc-js@1.4.2`. The MIT license and the Apache 2.0 notice for the dictionary data are included under `vendor/opencc/`.
+
 Commercial product pages informed interaction design only. Their private implementation and advertised latency were not independently verified.
 
 ## Optional model evaluation and downloads (3.8)
@@ -24,6 +26,10 @@ The recognition evaluation also used
 Python environment. These are evaluation dependencies, not a bundled or enabled
 production recognition path. See the 3.8 test report for the rejected results.
 
+
+## Optional Windows acoustic models
+
+Speaker labels use the [3D-Speaker CAM++ checkpoint](https://www.modelscope.cn/models/iic/speech_campplus_sv_zh-cn_16k-common) (Apache-2.0) in [Sherpa ONNX's model format](https://github.com/k2-fsa/sherpa-onnx/releases/tag/speaker-recongition-models). Laughter detection uses the [Xiaomi CED-Mini checkpoint](https://huggingface.co/mispeech/ced-mini) (Apache-2.0) from the [Sherpa ONNX int8 conversion](https://huggingface.co/k2-fsa/sherpa-onnx-ced-mini-audio-tagging-2024-04-19/tree/4da6df50dc47b25f91074b5ef7df4c1cc0dd7d4d), with class names from [Google AudioSet](https://research.google.com/audioset/). These assets are downloaded only when the corresponding setting is enabled. The app verifies the SHA-256 digest of each download.
 
 ## VocaLume original material
 

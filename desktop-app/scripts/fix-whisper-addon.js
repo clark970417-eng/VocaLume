@@ -74,7 +74,7 @@ if (process.platform === 'win32') {
   }
 }
 
-// Fix 3: Copy vad-web assets to renderer public directory
+// Fix 4: Copy vad-web assets to renderer public directory
 const vadSrc = path.join(__dirname, '..', 'node_modules', '@ricky0123', 'vad-web', 'dist')
 const vadDest = path.join(__dirname, '..', 'src', 'renderer', 'public', 'vad')
 
@@ -94,17 +94,19 @@ if (fs.existsSync(vadSrc)) {
     }
   }
 
-  // Copy ONNX Runtime's WASM binaries and their runtime-loaded ES modules.
-  // onnxruntime-web resolves the .mjs loader through wasmPaths at runtime, so
-  // bundling only the .wasm files leaves packaged VAD startup with
-  // net::ERR_FILE_NOT_FOUND.
-  const ortDist = path.join(__dirname, '..', 'node_modules', 'onnxruntime-web', 'dist')
-  if (fs.existsSync(ortDist)) {
-    for (const file of fs.readdirSync(ortDist)) {
-      if (file.endsWith('.wasm') || /^ort-wasm-simd-threaded(?:\.jsep)?\.mjs$/.test(file)) {
-        fs.copyFileSync(path.join(ortDist, file), path.join(vadDest, file))
-        console.log(`[fix-whisper-addon] Copied ORT runtime asset: ${file}`)
-      }
+  // MicVAD uses onnxruntime-web/wasm. Resolve its own loader and matching WASM,
+  // even when Transformers installs a different ORT version at the root.
+  const ortAssets = ['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']
+  for (const file of ortAssets) {
+    const source = require.resolve(`onnxruntime-web/${file}`, { paths: [vadSrc] })
+    fs.copyFileSync(source, path.join(vadDest, file))
+    console.log(`[fix-whisper-addon] Copied ORT runtime asset: ${file}`)
+  }
+  // Clear generated variants left behind by older builds, preserving the VAD
+  // models, worklet, and bundled DeepFilterNet3 assets.
+  for (const file of fs.readdirSync(vadDest)) {
+    if (/^ort-wasm-simd-threaded\.(?:jsep|jspi|asyncify)\.(?:wasm|mjs)$/.test(file)) {
+      fs.rmSync(path.join(vadDest, file), { force: true })
     }
   }
 } else {

@@ -1,5 +1,6 @@
 import { HaasJaEngine } from '../engines/stt/HaasJaEngine'
-import { publishObsCaption } from './obs-captions'
+import { clearObsCaption, publishObsCaption, shutdownObsCaptions } from './obs-captions'
+import { LiveCaptionRevisions } from './live-caption-revisions'
 import { updatePerformanceState } from './performance-state'
 import { bindMemoryPressure } from './memory-pressure'
 import { isUiTest } from './ui-test-mode'
@@ -8,7 +9,7 @@ import type { Language } from '../engines/types'
 import { app, protocol, net, powerSaveBlocker, powerMonitor } from 'electron'
 import { bindPipelineActivity } from './pipeline-activity'
 import { initMain as initAudioLoopback } from 'electron-audio-loopback'
-import { TranslationPipeline } from '../pipeline/TranslationPipeline'
+import { PipelineState, TranslationPipeline } from '../pipeline/TranslationPipeline'
 import { startExtensionCompanion } from './extension-companion'
 import { WhisperLocalEngine } from '../engines/stt/WhisperLocalEngine'
 import { MlxWhisperEngine } from '../engines/stt/MlxWhisperEngine'
@@ -23,6 +24,7 @@ import { MoonshineTinyJaEngine } from '../engines/stt/MoonshineTinyJaEngine'
 import { QwenAsrNativeEngine } from '../engines/stt/QwenAsrNativeEngine'
 import { CarelessWhisperEngine } from '../engines/stt/CarelessWhisperEngine'
 import { OpusMTTranslator } from '../engines/translator/OpusMTTranslator'
+import { GooglePublicTranslator } from '../engines/translator/GooglePublicTranslator'
 import { SLMTranslator } from '../engines/translator/SLMTranslator'
 import { HunyuanMTTranslator } from '../engines/translator/HunyuanMTTranslator'
 import { HunyuanMT2Translator } from '../engines/translator/HunyuanMT2Translator'
@@ -40,6 +42,7 @@ import {
   migrateLegacyAdaptiveRoutingQualityEngine,
   migrateLegacyTranslationEngine,
   migrateUnsupportedStt,
+  migrateUnsupportedTranslator,
   type MigratableKey
 } from './store-migrations'
 import { sanitizeErrorMessage, getErrorHint } from './error-utils'
@@ -51,6 +54,7 @@ import { registerUpdateHandlers, disposeAutoUpdater } from './auto-updater'
 import { createAppContext } from './app-context'
 import { registerGlobalShortcuts, setLastSubtitleText } from './shortcut-manager'
 import { TTSManager } from './tts-manager'
+import { SherpaDiarizer } from '../engines/diarization/windows-audio-analysis'
 import { VirtualMicManager } from './virtual-mic-manager'
 import { loadMdmConfig } from './mdm-config'
 import { trackTranslatedCharacters } from './ipc/pipeline-ipc'
@@ -158,6 +162,7 @@ async function initPipeline(): Promise<void> {
     chunkSizeMs: (store.get('carelessWhisperChunkMs') as number) || undefined
   }))
   // Register translator engines
+  ctx.pipeline.registerTranslator('google-public-translate', () => new GooglePublicTranslator())
   // ONNX-based OPUS-MT — legacy fallback for low-memory systems and while downloading LLM models
   ctx.pipeline.registerTranslator('opus-mt', () => new OpusMTTranslator({
     onProgress: (msg) => ctx.mainWindow?.webContents.send('status-update', msg)
@@ -221,7 +226,11 @@ async function initPipeline(): Promise<void> {
       kvCacheQuant: store.get('slmKvCacheQuant'),
       modelSize: store.get('slmModelSize'),
       speculativeDecoding: store.get('slmSpeculativeDecoding')
-    })
+    }),
+    () => {
+      const from = store.get('sourceLanguage')
+      return from === 'auto' ? undefined : [from, store.get('targetLanguage')]
+    }
   ))
   // Speculative decoding: LFM2-350M draft + HY-MT1.5-1.8B verifier (#518)
   // Token-level speculative decoding for 1.5-2x throughput improvement
@@ -230,11 +239,15 @@ async function initPipeline(): Promise<void> {
     kvCacheQuant: store.get('slmKvCacheQuant'),
     speculativeDecoding: true
   }))
-  // Register speaker diarizer — experimental, macOS only, requires FluidAudio (#549)
+  // Register the local speaker classifier for each platform (#549).
   if (process.platform === 'darwin') {
     ctx.pipeline.registerDiarizer('fluid-audio', () => new FluidAudioDiarizer({
       onProgress: (msg) => ctx.mainWindow?.webContents.send('status-update', msg)
     }))
+  } else if (process.platform === 'win32') {
+    ctx.pipeline.registerDiarizer('sherpa-speaker', () => new SherpaDiarizer(
+      msg => ctx.mainWindow?.webContents.send('status-update', msg)
+    ))
   }
 
   // Apply diarization setting from store
@@ -257,8 +270,18 @@ async function initPipeline(): Promise<void> {
     log.info(`Registered ${manifest.engineType} plugin: ${manifest.name} (${manifest.engineId})`)
   }
 
+  const liveRevisions = new LiveCaptionRevisions()
+  ctx.pipeline.on('state-change', state => {
+    if (state !== PipelineState.RUNNING) {
+      liveRevisions.clear()
+      if (ctx.ttsManager?.isEnabled()) ctx.ttsManager.stopPlayback()
+    }
+    if (state === PipelineState.IDLE) void clearObsCaption()
+  })
+
   // Forward results to subtitle window and logger
   ctx.pipeline.on('result', (result: TranslationResult) => {
+    liveRevisions.record(result)
     publishObsCaption(result)
     ctx.subtitleWindow?.webContents.send('translation-result', result)
     ctx.mainWindow?.webContents.send('translation-result', result)
@@ -271,27 +294,51 @@ async function initPipeline(): Promise<void> {
       trackTranslatedCharacters(result.translatedText.length)
     }
     // TTS: synthesize translated text and send audio to renderer (#508)
-    ctx.ttsManager?.handleTranslationResult(result, ctx.mainWindow).catch((err) => {
+    if (ctx.pipelineInputOwner !== 'file') ctx.ttsManager?.handleTranslationResult(result, ctx.mainWindow).catch((err) => {
       log.error('TTS error:', err)
     })
   })
 
   // Forward interim (streaming) results to subtitle window
+  const sendOverlayPreview = (channel: string, result: TranslationResult): void => {
+    const overlay = ctx.subtitleWindow
+    if (overlay?.isVisible() && !overlay.isMinimized()) overlay.webContents.send(channel, result)
+  }
   ctx.pipeline.on('interim-result', (result: TranslationResult) => {
-    ctx.subtitleWindow?.webContents.send('interim-result', result)
-    ctx.mainWindow?.webContents.send('interim-result', result)
+    liveRevisions.provisional(result)
+    sendOverlayPreview('interim-result', result)
+  })
+
+  // Keep the recognized source visible when both final translation attempts fail.
+  // This goes to the local overlay only, without entering OBS or the transcript.
+  ctx.pipeline.on('translation-failed', (result: TranslationResult) => {
+    liveRevisions.provisional(result)
+    ctx.subtitleWindow?.webContents.send('interim-result', { ...result, translationFailed: true })
   })
 
   // Forward draft results from hybrid translation (#235)
   ctx.pipeline.on('draft-result', (result: TranslationResult) => {
-    ctx.subtitleWindow?.webContents.send('draft-result', result)
-    ctx.mainWindow?.webContents.send('draft-result', result)
+    liveRevisions.provisional(result)
+    sendOverlayPreview('draft-result', result)
   })
 
   // Forward draft STT interim results (#536)
   ctx.pipeline.on('draft-stt-result', (result: TranslationResult) => {
-    ctx.subtitleWindow?.webContents.send('interim-result', result)
-    ctx.mainWindow?.webContents.send('interim-result', result)
+    liveRevisions.provisional(result)
+    sendOverlayPreview('interim-result', result)
+  })
+
+  ctx.pipeline.on('ger-corrected', (revision: TranslationResult) => {
+    const accepted = liveRevisions.correct(revision)
+    if (!accepted) return
+    // Keep the version in history without counting or speaking it again.
+    ctx.logger?.log(accepted.result)
+    if (!accepted.visible) return
+    const result = accepted.result
+    publishObsCaption(result)
+    ctx.subtitleWindow?.webContents.send('translation-result', result)
+    ctx.mainWindow?.webContents.send('translation-result', result)
+    setLastSubtitleText([result.sourceText, result.translatedText].join('\n'))
   })
 
   ctx.pipeline.on('error', (err: Error) => {
@@ -322,7 +369,10 @@ protocol.registerSchemesAsPrivileged([
 
 // --- Initialize electron-audio-loopback before app is ready ---
 // Must be called before app.whenReady() per package documentation
-initAudioLoopback()
+initAudioLoopback(process.platform === 'win32' ? {
+  // The fallback needs a source ID, but never renders a source preview.
+  sourcesOptions: { types: ['screen'], thumbnailSize: { width: 0, height: 0 } }
+} : undefined)
 
 // --- App Lifecycle ---
 
@@ -375,6 +425,7 @@ app.whenReady().then(async () => {
   }
   migrateLegacyTranslationEngine(migratableStore, log)
   migrateUnsupportedStt(migratableStore, process.platform, process.arch)
+  migrateUnsupportedTranslator(migratableStore, process.platform)
   migrateLegacyAdaptiveRoutingQualityEngine(migratableStore, log)
 
   // #730: dev-only shadow measurement run. Builds its own engines, opens no
@@ -444,7 +495,7 @@ app.whenReady().then(async () => {
   if (!isUiTest) cleanupShortcuts = registerGlobalShortcuts(ctx)
   // This local fork must never replace itself with an upstream release.
   if (!isUiTest) initAutoUpdater(ctx)
-  if (process.argv.includes('--jtl-companion')) return
+  if (companion || isUiTest) return
 
   // #694: Start progressive model download for instant offline start
   // Tier 1 (fast-start ~371MB) downloads first, Tier 2 (full-quality) follows
@@ -493,6 +544,7 @@ app.on('before-quit', (event) => {
       await Promise.race([
         Promise.all([
           ctx.pipeline?.dispose() ?? Promise.resolve(),
+          shutdownObsCaptions(),
           ctx.wsAudioServer?.stop() ?? Promise.resolve(),
           ctx.ttsManager?.dispose() ?? Promise.resolve(),
           ctx.virtualMicManager?.dispose() ?? Promise.resolve()

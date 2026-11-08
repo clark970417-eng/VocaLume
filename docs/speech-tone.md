@@ -8,7 +8,7 @@ On macOS 12 and newer, a bundled helper also checks captured audio with Apple's 
 
 Audio analysis runs once per finalized cue, alongside recognition. A late result is ignored after the caption is delivered. A busy helper is skipped; a stalled helper is stopped after 2.5 seconds and backs off for a minute. On thermal pressure, optional analysis is skipped so recognition and translation keep priority. The helper runs at reduced CPU priority, processes PCM in memory, and does not send audio over the network or save it to disk. Stopping captions terminates the helper.
 
-Windows and Linux retain source punctuation and explicit transcript markers; they do not have the macOS acoustic classifier. Browser-only speech mode does not use this desktop feature. There is no automatic website translation toggle associated with the setting.
+On Windows, enabling a laughter style allows local CED-Mini analysis of finalized cues. The first use downloads about 11 MB of model data. The Windows classifier checks up to the final four seconds and accepts a dominant laughter category at a score of 0.55 or higher. Quiet laughter and laughter mixed with speech may be missed. Inference runs at reduced priority with a single CPU thread, and captions continue when a model is loading or a result is late. Linux retains punctuation and explicit transcript markers.
 
 Markers are added after translation. They are excluded from translation caches, previous-sentence context and TTS input. Both single-pair captions and four-pair history receive the completed decorated result; their existing delivery order is preserved.
 

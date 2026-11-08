@@ -2,14 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveUiLanguage, uiLanguagePreference, translateUiText } from '../ui-language.mjs';
 
-test('interface preference supports Chinese, English and system fallback', () => {
+test('interface preference supports five languages and system fallback', () => {
   assert.equal(resolveUiLanguage('zh-TW', ['en-US']), 'zh-TW');
   assert.equal(resolveUiLanguage('en', ['zh-TW']), 'en');
   assert.equal(resolveUiLanguage('auto', ['zh-Hant-TW', 'en-US']), 'zh-TW');
   assert.equal(resolveUiLanguage('auto', ['en-US', 'zh-TW']), 'en');
   assert.equal(resolveUiLanguage('auto', ['fr-FR', 'zh-CN']), 'zh-CN');
+  assert.equal(resolveUiLanguage('auto', ['ja-JP', 'en-US']), 'ja');
+  assert.equal(resolveUiLanguage('auto', ['it-IT', 'ko-KR']), 'ko');
+  assert.equal(resolveUiLanguage('ko', ['ja-JP']), 'ko');
   assert.equal(resolveUiLanguage('auto', []), 'en');
-  for (const value of [null, '', 'ja', {}, '__proto__']) assert.equal(uiLanguagePreference(value), 'auto');
+  for (const value of [null, '', 'es', {}, '__proto__']) assert.equal(uiLanguagePreference(value), 'auto');
 });
 
 test('Chinese covers navigation, controls, accessible copy and common status messages', () => {
@@ -34,12 +37,25 @@ test('popup English option covers Chinese labels and dynamic status updates', ()
   assert.equal(translateUiText('語音字幕', 'en'), 'Live captions');
   assert.equal(translateUiText('翻譯失敗：network offline', 'en'), 'Translation failed: network offline');
   assert.equal(translateUiText('尚未套用，請儲存服務。', 'en'), 'Not applied yet. Save the service.');
+  assert.equal(translateUiText('字幕預覽、文字大小與顏色 →', 'en'), 'Caption preview, size & colors →');
+  assert.equal(translateUiText('最後一組字幕停留時間', 'en'), 'Final caption hold time');
+});
+
+test('Japanese and Korean localize both popup and desktop copy', () => {
+  assert.equal(translateUiText('自動翻譯直播留言', 'ja'), 'ライブチャットを自動翻訳');
+  assert.equal(translateUiText('原文字幕', 'ko'), '원문 자막');
+  assert.equal(translateUiText('正在辨識原文 · 待處理 2 段', 'ja'), '音声を認識中 · 2件待ち');
+  assert.equal(translateUiText('允許 example.org 翻譯', 'ko'), 'example.org에서 번역 허용');
+  assert.match(translateUiText('Watch folder and translate automatically', 'ja'), /フォルダ/);
+  assert.match(translateUiText('Watch folder and translate automatically', 'ko'), /폴더/);
 });
 
 test('unrecognized content and proper names remain literal; the formatter executes no markup', () => {
   for (const text of ['まほろちゃん、ありがとう！', 'https://my.service/v1', 'gpt-model-v1', '<script>test</script>']) {
     assert.equal(translateUiText(text, 'zh-TW'), text);
     assert.equal(translateUiText(text, 'en'), text);
+    assert.equal(translateUiText(text, 'ja'), text);
+    assert.equal(translateUiText(text, 'ko'), text);
   }
   assert.equal(translateUiText('Error: {0}', 'zh-TW', ['<img src=x>']), '錯誤：<img src=x>');
 });

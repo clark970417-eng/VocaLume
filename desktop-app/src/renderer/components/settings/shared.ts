@@ -170,6 +170,7 @@ export function getEngineDisplayName(mode: EngineMode): string {
     case 'offline-hunyuan-mt': return 'Hunyuan-MT 7B (High Quality)'
     case 'rotation': return 'API Auto Rotation'
     case 'online': return 'Google Translation'
+    case 'online-public': return 'Google Translate (no API key)'
     case 'online-deepl': return 'DeepL'
     case 'online-gemini': return 'Gemini 2.5 Flash'
     case 'online-microsoft': return 'Microsoft Translator'

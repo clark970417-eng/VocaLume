@@ -14,3 +14,49 @@ test('drag and edge resize stay within viewport and save proportional position',
  panel.begin(pointer('se'));handlers.pointermove({clientX:500,clientY:250});handlers.pointerup();assert.equal(saved.rect.w,.9);assert.equal(saved.rect.h,.75);
  panel.place(saved.rect);assert.equal(root.style.width,'90%');assert.equal(root.style.height,'75%');
 });
+
+test('hover hiding tracks the full caption rectangle and releases it on exit', async () => {
+ const listeners = new Map();
+ const classes = new Set();
+ const window = {
+  addEventListener: (name, listener) => listeners.set(name, listener),
+  removeEventListener: name => listeners.delete(name),
+  requestAnimationFrame: queueMicrotask
+ };
+ const node = () => ({style: {setProperty() {}}, dataset: {}, append() {}, replaceChildren() {}});
+ const root = {
+  ...node(),
+  addEventListener() {},
+  getBoundingClientRect: () => ({left: 100, top: 50, right: 400, bottom: 250}),
+  classList: {
+   add: name => classes.add(name),
+   remove: name => classes.delete(name),
+   toggle: (name, active) => active ? classes.add(name) : classes.delete(name)
+  }
+ };
+ const chrome = {storage: {local: {get: async () => ({captionStyleV34: true}), set: async () => {}}}};
+ vm.runInNewContext(fs.readFileSync(new URL('../caption-window.js',import.meta.url),'utf8'), {window, chrome, document: {createElement: node}});
+ const panel = new window.JtlCaptionWindow(root, 'rect');
+ await Promise.resolve();
+ panel.render([{original: '字幕', translated: '測試'}]);
+ assert.equal(listeners.has('pointermove'), false);
+ panel.apply({hideOnHover: true});
+ assert.equal(classes.has('jtl-hover-through'), true);
+ const move = (clientX, clientY) => listeners.get('pointermove')({clientX, clientY, pointerType: 'mouse'});
+ move(390, 240); // Empty corner of the box, away from the caption text.
+ assert.equal(classes.has('jtl-hover-hidden'), true);
+ panel.render([{original: '次の文', translated: '下一句'}]);
+ assert.equal(classes.has('jtl-hover-hidden'), true, 'new captions stay hidden under a stationary pointer');
+ move(401, 240);
+ assert.equal(classes.has('jtl-hover-hidden'), false);
+ move(100, 50);
+ assert.equal(classes.has('jtl-hover-hidden'), true);
+ listeners.get('pointerout')({relatedTarget: null, pointerType: 'mouse'});
+ assert.equal(classes.has('jtl-hover-hidden'), false);
+ move(390, 240);
+ panel.render([]);
+ assert.equal(classes.has('jtl-hover-hidden'), false);
+ panel.dispose();
+ assert.equal(classes.has('jtl-hover-through'), false);
+ assert.equal(listeners.size, 0);
+});

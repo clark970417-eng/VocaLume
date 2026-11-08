@@ -126,3 +126,19 @@ test('desktop recovery retries an interrupted preview when no newer work exists'
  assert.equal(h.speech[1].posts.at(-1).id,1,'the still-useful preview is retried');
  await h.call({type:'offscreen-stop'});
 });
+
+test('optional FP16 failure terminates its worker before loading FP32',async()=>{
+ const h=harness();
+ assert.equal((await h.call({type:'offscreen-start',session:'profile',streamId:'test',mode:'browser',speechProfile:'small-fp16',sourceLanguage:'ja'})).ok,true);
+ const speech=()=>h.workers.filter(w=>w.url.startsWith('speech-worker.js'));
+ const [first]=speech();
+ assert.equal(first.posts[0].profile,'small-fp16');
+ await first.onmessage({data:{type:'profile-fallback'}});
+ const [,fallback]=speech();
+ assert.equal(first.terminated,true);
+ assert.equal(fallback.posts[0].profile,'default');
+ assert.equal(fallback.posts[0].sourceLanguage,'ja');
+ await fallback.onmessage({data:{type:'ready',model:'whisper-small',dtype:'fp32'}});
+ assert.ok(h.messages.some(m=>m.type==='model-status'&&m.text.includes('已回到 FP32')));
+ await h.call({type:'offscreen-stop'});
+});

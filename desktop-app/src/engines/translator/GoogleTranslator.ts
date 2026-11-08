@@ -1,5 +1,5 @@
-import type { TranslatorEngine, Language } from '../types'
-import { apiFetch, apiInitialize, DEFAULT_TIMEOUT_MS } from './api-utils'
+import type { TranslatorEngine, Language, TranslateContext } from '../types'
+import { apiFetch, apiInitialize, DEFAULT_TIMEOUT_MS, translateProtectedCloudText } from './api-utils'
 import { createLogger } from '../../main/logger'
 
 const log = createLogger('google-translate')
@@ -56,28 +56,30 @@ export class GoogleTranslator implements TranslatorEngine {
     if (!alreadyInit) this.initialized = true
   }
 
-  async translate(text: string, from: Language, to: Language): Promise<string> {
+  async translate(text: string, from: Language, to: Language, context?: TranslateContext): Promise<string> {
     if (!text.trim()) return ''
     if (from === to) return text
 
-    const params = new URLSearchParams({
-      q: text,
-      source: from,
-      target: to,
-      key: this.apiKey,
-      format: 'text'
-    })
+    return translateProtectedCloudText(text, context?.glossary, async source => {
+      const params = new URLSearchParams({
+        q: source,
+        source: from,
+        target: to === 'zh' ? 'zh-TW' : to,
+        key: this.apiKey,
+        format: 'text'
+      })
 
-    const data = await apiFetch<{ data: { translations: Array<{ translatedText: string }> } }>({
-      url: `${GOOGLE_TRANSLATE_URL}?${params}`,
-      init: { method: 'POST' },
-      timeoutMs: this.timeoutMs,
-      serviceName: 'Google Translation API',
-      errorMappings: ERROR_MAPPINGS,
-      classifyErrorBody: classifyGoogleError
-    })
-
-    return data.data.translations[0]?.translatedText || ''
+      const data = await apiFetch<{ data?: { translations?: Array<{ translatedText?: string }> } }>({
+        url: `${GOOGLE_TRANSLATE_URL}?${params}`,
+        init: { method: 'POST' },
+        timeoutMs: this.timeoutMs,
+        signal: context?.signal,
+        serviceName: 'Google Translation API',
+        errorMappings: ERROR_MAPPINGS,
+        classifyErrorBody: classifyGoogleError
+      })
+      return data?.data?.translations?.[0]?.translatedText
+    }, { from, to, sourceContext: context?.sourceContext })
   }
 
   async dispose(): Promise<void> {

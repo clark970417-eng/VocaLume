@@ -285,24 +285,34 @@ export async function downloadGGUF(
   onProgress?: (message: string) => void,
   sha256?: string
 ): Promise<string> {
-  const modelPath = join(getGGUFDir(), filename)
+  return downloadModelAsset(join(getGGUFDir(), filename), url, filename, onProgress, sha256)
+}
+
+/** Share the resumable downloader and checksum checks with optional audio models. */
+export async function downloadModelAsset(
+  modelPath: string,
+  url: string,
+  filename: string,
+  onProgress?: (message: string) => void,
+  sha256?: string
+): Promise<string> {
 
   if (existsSync(modelPath)) {
     return modelPath
   }
 
   // Serialize downloads via shared lock (#208)
-  if (activeDownloads.has(filename)) {
+  if (activeDownloads.has(modelPath)) {
     onProgress?.('Waiting for model download in progress...')
-    return activeDownloads.get(filename)!
+    return activeDownloads.get(modelPath)!
   }
 
   const downloadPromise = doDownloadWithResume(modelPath, url, filename, onProgress, sha256)
-  activeDownloads.set(filename, downloadPromise)
+  activeDownloads.set(modelPath, downloadPromise)
   try {
     return await downloadPromise
   } finally {
-    activeDownloads.delete(filename)
+    activeDownloads.delete(modelPath)
   }
 }
 

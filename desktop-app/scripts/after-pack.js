@@ -9,11 +9,14 @@ exports.default = async function afterPack(context) {
   const platform = context.packager.platform.name // 'mac', 'windows', 'linux'
 
   if (platform === 'mac') {
-    const helper = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents/Resources/bridge-scripts/bin/voice-tone-helper')
-    fs.mkdirSync(path.dirname(helper), { recursive: true })
+    const helperDir = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents/Resources/bridge-scripts/bin')
+    fs.mkdirSync(helperDir, { recursive: true })
     // Build for the package architecture, including Intel packages on Apple Silicon.
-    execFileSync('/usr/bin/xcrun', ['swiftc', '-O', '-target', `${context.arch === 3 ? 'arm64' : 'x86_64'}-apple-macos12.0`,
-      path.join(__dirname, 'voice-tone.swift'), '-o', helper], { stdio: 'inherit' })
+    const target = `${context.arch === 3 ? 'arm64' : 'x86_64'}-apple-macos12.0`
+    for (const [source, name] of [['voice-tone.swift', 'voice-tone-helper'], ['capture-claim.swift', 'capture-claim-helper']]) {
+      execFileSync('/usr/bin/xcrun', ['swiftc', '-O', '-target', target,
+        path.join(__dirname, source), '-o', path.join(helperDir, name)], { stdio: 'inherit' })
+    }
     await fixMacOS(context)
   } else if (platform === 'windows') {
     await fixWindows(context)

@@ -1,6 +1,18 @@
 import { expect, it } from 'vitest'
 import { PerformanceMonitor } from './performance-state'
 
+it('recovers occasional audio analysis after four healthy seconds without restoring the preview cadence', () => {
+  const monitor = new PerformanceMonitor()
+  expect(monitor.snapshot(0).optionalAnalysisAllowed).toBe(true)
+  monitor.update({ speedLimit: 45 }, 10)
+  expect(monitor.snapshot(10).optionalAnalysisAllowed).toBe(false)
+  monitor.update({ speedLimit: 100 }, 1000)
+  expect(monitor.snapshot(4999).optionalAnalysisAllowed).toBe(false)
+  expect(monitor.snapshot(5000)).toMatchObject({ optionalAnalysisAllowed: true, previewsPaused: true })
+  monitor.update({ memoryPressure: 'warning' }, 5010)
+  expect(monitor.snapshot(5010).optionalAnalysisAllowed).toBe(false)
+})
+
 it('reduces optional inference immediately and restores one step per 30 seconds', () => {
   const monitor = new PerformanceMonitor()
   monitor.update({ thermalState: 'serious' }, 0)

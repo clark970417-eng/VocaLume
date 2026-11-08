@@ -1,19 +1,20 @@
 import { t } from '../../ui-language'
-import React from 'react'
+import React, { useSyncExternalStore } from 'react'
 import { Section } from './Section'
-import { buttonStyle, selectStyle, sliderLabelStyle } from './shared'
+import { selectStyle, sliderLabelStyle } from './shared'
 import type { UseAudioCaptureReturn, AudioSource } from '../../hooks/useAudioCapture'
-import { MEDIA_FILE_ACCEPT } from '../../../media-formats'
+import type { AudioLevel } from '../../hooks/audioLevel'
 
 /** Audio source display labels */
-const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string; description: string }> = [
-  { value: 'microphone', label: 'Microphone', description: 'Capture from microphone only' },
-  { value: 'system', label: 'System Audio', description: 'Capture system audio (Zoom, YouTube, etc.)' },
-  { value: 'both', label: 'Microphone + System', description: 'Mix microphone and system audio' }
+const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string }> = [
+  { value: 'microphone', label: 'Microphone' },
+  { value: 'system', label: 'System Audio' },
+  { value: 'both', label: 'Microphone + System' }
 ]
 
 interface AudioSettingsProps {
   audio: UseAudioCaptureReturn
+  showLevel: boolean
   disabled: boolean
   /** #313: Noise suppression enabled state */
   noiseSuppressionEnabled: boolean
@@ -23,13 +24,35 @@ interface AudioSettingsProps {
   /** #606: Streaming chunk interval in ms */
   streamingIntervalMs: number
   onStreamingIntervalChange: (ms: number) => void
-  onTranslateFile: (file: File) => Promise<void>
-  mediaImportActive: boolean
-  onCancelMediaImport: () => Promise<void>
 }
 
-export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange, onTranslateFile, mediaImportActive, onCancelMediaImport }: AudioSettingsProps): React.JSX.Element {
+function AudioLevelMeter({ level }: { level: AudioLevel }): React.JSX.Element {
+  const percent = useSyncExternalStore(level.subscribe, level.read)
+  return <>
+    <div style={{ marginTop: '6px', height: '4px', background: '#1e293b', borderRadius: '2px' }}>
+      <div
+        role="progressbar"
+        aria-label={t('Volume level')}
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        style={{
+          height: '100%',
+          width: `${percent}%`,
+          background: percent > 70 ? '#ef4444' : '#22c55e',
+          borderRadius: '2px',
+          transition: 'width 0.1s'
+        }}
+      />
+    </div>
+    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{t('Input level:')} {percent}%</div>
+  </>
+}
+
+export function AudioSettings({ audio, showLevel, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange }: AudioSettingsProps): React.JSX.Element {
   const showMicSelector = audio.audioSource !== 'system'
+  const showWindowsLoopback = platform === 'win32' && audio.audioSource !== 'microphone'
+  const loopbackInputs = audio.systemLoopbackInputs.filter(input => audio.audioSource !== 'both' || input.deviceId !== audio.selectedDevice)
 
   return (
     <Section label={t("Sound source")}>
@@ -47,18 +70,27 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
           </option>
         ))}
       </select>
-      {/* Description for selected audio source */}
-      <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '8px' }}>
-        {t(AUDIO_SOURCE_OPTIONS.find((o) => o.value === audio.audioSource)?.description || '')}
-        {audio.audioSource !== 'microphone' && platform === 'darwin' && (
-          <span style={{ color: '#f59e0b' }}>
-            {' '}{t("— Requires Screen Recording permission")} </span>
-        )}
-        {audio.audioSource !== 'microphone' && platform === 'win32' && (
-          <span style={{ color: '#94a3b8' }}>
-            {' '}{t("— Uses WASAPI loopback (no extra setup needed)")} </span>
-        )}
-      </div>
+      {audio.audioSource !== 'microphone' && platform === 'darwin' && (
+        <p className="settings-notice">{t("Screen Recording permission is required.")}</p>
+      )}
+      {showWindowsLoopback && (
+        <label className="settings-field">
+          {t('Windows system audio input')}
+          <select
+            value={audio.systemLoopbackDeviceId}
+            onChange={event => audio.setSystemLoopbackDeviceId(event.target.value)}
+            style={selectStyle}
+            disabled={disabled}
+          >
+            <option value="">{t('Screen-sharing audio')}</option>
+            {audio.systemLoopbackDeviceId && !loopbackInputs.some(input => input.deviceId === audio.systemLoopbackDeviceId) && (
+              <option value={audio.systemLoopbackDeviceId}>{t('Previously selected audio input')}</option>
+            )}
+            {loopbackInputs.map(input => <option key={input.deviceId} value={input.deviceId}>{input.label}</option>)}
+          </select>
+          <span className="settings-note">{t('Use Stereo Mix or a routed virtual cable for audio-only capture. Screen sharing is used if the input is unavailable.')}</span>
+        </label>
+      )}
       {/* Microphone device selector — hidden when system-only mode */}
       {showMicSelector && (
         <select
@@ -79,25 +111,7 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
           )}
         </select>
       )}
-      {/* Volume meter */}
-      <div style={{ marginTop: '6px', height: '4px', background: '#1e293b', borderRadius: '2px' }}>
-        <div
-          role="progressbar"
-          aria-label={t("Volume level")}
-          aria-valuenow={Math.round(audio.volume * 100)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          style={{
-            height: '100%',
-            width: `${audio.volume * 100}%`,
-            background: audio.volume > 0.7 ? '#ef4444' : '#22c55e',
-            borderRadius: '2px',
-            transition: 'width 0.1s'
-          }}
-        />
-      </div>
-      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{t("Input level:")} {Math.round(audio.volume * 100)}%
-      </div>
+      {showLevel ? <AudioLevelMeter level={audio.level} /> : null}
       <details className="settings-disclosure"><summary>{t("Audio options")}</summary>
       {/* #313: Noise suppression toggle — only relevant when microphone is active */}
       {showMicSelector && (
@@ -141,23 +155,9 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
         </div>
       </div>
       </details>
-      <details className="settings-disclosure">
-        <summary>{t("Translate an audio or video file")}</summary>
-        <label htmlFor="media-file" style={{ display: 'block', marginBottom: 6, fontSize: 12, color: '#b5c4d8' }}>{t("Choose a file to begin translation")}</label>
-        <input id="media-file" type="file" accept={MEDIA_FILE_ACCEPT} disabled={disabled}
-          style={{ width: '100%', color: '#b5c4d8', fontSize: 12 }}
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            event.target.value = ''
-            if (file) void onTranslateFile(file)
-          }} />
-        <p style={{ fontSize: 11, color: '#94a3b8' }}>{t("MP3, M4A, WAV, FLAC, WebM, MP4 and other common formats.")}</p>
-      </details>
-      {mediaImportActive && <button type="button" onClick={() => void onCancelMediaImport()}
-        style={{ ...buttonStyle, background: '#7f1d1d', color: '#fecaca' }}>{t("Cancel file translation")}</button>}
       {audio.permissionError && (
         <div role="alert" style={{ marginTop: '6px', fontSize: '12px', color: '#ef4444' }}>
-          {audio.permissionError}
+          {t(audio.permissionError)}
         </div>
       )}
     </Section>

@@ -115,6 +115,70 @@ class MockTranslator implements TranslatorEngine {
   async dispose(): Promise<void> {}
 }
 
+it('cancels only the file-owned recognizer while it is decoding a segment', async () => {
+  const p = new TranslationPipeline()
+  const stt = new MockSTT('file-stt', null)
+  const translator = new MockTranslator('file-translator')
+  const entered = Promise.withResolvers<void>()
+  const recognition = Promise.withResolvers<STTResult | null>()
+  stt.processAudio = vi.fn(() => { entered.resolve(); return recognition.promise })
+  stt.dispose = vi.fn(async () => { recognition.resolve(null) })
+  p.registerSTT(stt.id, () => stt)
+  p.registerTranslator(translator.id, () => translator)
+  await p.switchEngine({ mode: 'cascade', sttEngineId: stt.id, translatorEngineId: translator.id })
+  p.start()
+  const controller = new AbortController()
+  const work = p.process(new Float32Array(16_000), 16_000, {
+    signal: controller.signal, publish: () => true,
+    prepareSource: recognized => recognized.text, onTranslationFailure: vi.fn()
+  })
+  try {
+    await entered.promise
+    controller.abort()
+    expect(await work).toBeNull()
+    expect(stt.dispose).toHaveBeenCalledOnce()
+    expect(translator.translateCalls).toHaveLength(0)
+  } finally { await p.dispose() }
+  expect(stt.dispose).toHaveBeenCalledOnce()
+})
+
+it('passes a file cancellation to the active translator without publishing or retrying', async () => {
+  const p = new TranslationPipeline()
+  const stt = new MockSTT('file-stt', { text: '明日から始まります。', language: 'ja', timestamp: 1, isFinal: true })
+  const entered = Promise.withResolvers<AbortSignal | undefined>()
+  const translator: TranslatorEngine = {
+    id: 'file-translator', name: 'file-translator', isOffline: true,
+    initialize: async () => {}, dispose: async () => {},
+    translate: vi.fn(async (_text, _from, _to, context) => {
+      const signal = context?.signal
+      entered.resolve(signal)
+      if (!signal) return '未取消'
+      return new Promise<string>((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }))
+    })
+  }
+  p.registerSTT(stt.id, () => stt)
+  p.registerTranslator(translator.id, () => translator)
+  await p.switchEngine({ mode: 'cascade', sttEngineId: stt.id, translatorEngineId: translator.id })
+  p.setLanguageConfig('ja', 'zh')
+  p.start()
+  const controller = new AbortController()
+  const emitted = vi.fn(), failed = vi.fn()
+  p.on('result', emitted)
+  const work = p.process(new Float32Array(16_000), 16_000, {
+    signal: controller.signal, publish: () => true,
+    prepareSource: recognized => recognized.text, onTranslationFailure: failed
+  })
+  try {
+    const signal = await entered.promise
+    controller.abort()
+    expect(signal).toBe(controller.signal)
+    expect(await work).toBeNull()
+    expect(translator.translate).toHaveBeenCalledOnce()
+    expect(emitted).not.toHaveBeenCalled()
+    expect(failed).not.toHaveBeenCalled()
+  } finally { await p.dispose() }
+})
+
 it('keeps already-Chinese recognition in the selected Chinese target for whole and streaming audio', async () => {
   const p=new TranslationPipeline(), text='今天直播辛苦了。'
   const stt=new MockSTT('zh-stt',{text,language:'zh',timestamp:Date.now(),isFinal:true})
@@ -156,6 +220,43 @@ it('recovers a failed spoken translation without repeating recognition or losing
       expect(await p.finalizeStreaming(audio,16000)).toMatchObject({translatedText:translated})
       expect(translate).toHaveBeenCalledTimes(2)
     } finally {await p.dispose()}
+  }
+})
+
+it.each(['process', 'finalizeStreaming'] as const)('reports a source-only failure and recovers the next %s cue', async (method) => {
+  const pipeline = new TranslationPipeline()
+  const text = '明日の配信を楽しみにしています。'
+  const stt = new MockSTT('retry-stt', {text, language: 'ja', timestamp: Date.now(), isFinal: true})
+  const recognize = vi.spyOn(stt, 'processAudio')
+  const translator = new MockTranslator('hunyuan-mt-15')
+  const translate = vi.spyOn(translator, 'translate')
+    .mockResolvedValueOnce('')
+    .mockResolvedValueOnce('  ')
+    .mockRejectedValueOnce(Object.assign(new Error('Worker replaced'), {name: 'WorkerTerminatedError'}))
+    .mockResolvedValueOnce('期待明天的直播。')
+  const error = vi.fn(), failure = vi.fn(), completed = vi.fn()
+  pipeline.on('error', error).on('translation-failed', failure).on('result', completed)
+  pipeline.registerSTT(stt.id, () => stt)
+  pipeline.registerTranslator(translator.id, () => translator)
+  await pipeline.switchEngine({mode: 'cascade', sttEngineId: stt.id, translatorEngineId: translator.id})
+  pipeline.setLanguageConfig('ja', 'zh')
+  pipeline.start()
+  try {
+    const audio = new Float32Array(16000)
+    expect(await pipeline[method](audio, 16000)).toBeNull()
+    expect(recognize).toHaveBeenCalledOnce()
+    expect(translate).toHaveBeenCalledTimes(2)
+    expect(error).toHaveBeenCalledOnce()
+    expect(failure).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({sourceText: text, translatedText: ''}))
+    expect(completed).not.toHaveBeenCalled()
+
+    expect(await pipeline[method](audio, 16000)).toMatchObject({sourceText: text, translatedText: '期待明天的直播。'})
+    expect(recognize).toHaveBeenCalledTimes(2)
+    expect(translate).toHaveBeenCalledTimes(4)
+    expect(failure).toHaveBeenCalledOnce()
+    expect(completed).toHaveBeenCalledOnce()
+  } finally {
+    await pipeline.dispose()
   }
 })
 

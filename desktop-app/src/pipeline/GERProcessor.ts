@@ -26,8 +26,31 @@ import {
 } from '../engines/constants'
 import { workerPool } from '../main/worker-pool'
 import { createLogger } from '../main/logger'
+import { validateTranslation } from '../../../extension/translation-policy.mjs'
 
 const log = createLogger('pipeline:ger')
+
+const facts = (value: string): string => (value.normalize('NFKC').match(
+  /\d+(?:[.,]\d+)*|[〇零一二三四五六七八九十百千万億]+(?=人|円|年|月|日|時|分|秒|割|件|個|%|パーセント)|ません|ない|なかった|不|沒|没|未|否|上回|下回|上昇|低下|増加|減少/gu
+) ?? []).join('|')
+
+function faithfulSmallEdit(original: string, candidate: string): boolean {
+  if (facts(original) !== facts(candidate)) return false
+  const before = Array.from(original.normalize('NFKC').replace(/[\p{P}\s]/gu, ''))
+  const after = Array.from(candidate.normalize('NFKC').replace(/[\p{P}\s]/gu, ''))
+  if (before.length > 160 || after.length > 160) return false
+  const limit = Math.min(6, Math.max(2, Math.floor(before.length / 5)))
+  if (Math.abs(before.length - after.length) > limit) return false
+  let row = Array.from({ length: after.length + 1 }, (_, index) => index)
+  for (let i = 0; i < before.length; i++) {
+    const next = [i + 1]
+    for (let j = 0; j < after.length; j++) {
+      next.push(Math.min(next[j]! + 1, row[j + 1]! + 1, row[j]! + (before[i] === after[j] ? 0 : 1)))
+    }
+    row = next
+  }
+  return row[after.length]! <= limit
+}
 
 export interface GERDeps {
   readonly emitter: EventEmitter
@@ -49,7 +72,7 @@ export class GERProcessor {
   /** Track in-flight corrections to avoid duplicate work */
   private pendingTimestamp: number | null = null
   /** Last known translation for SSBD re-translation draft */
-  private lastTranslation: string | null = null
+  private active?: AbortController
   private revision = 0
 
   constructor(deps: GERDeps) {
@@ -92,11 +115,10 @@ export class GERProcessor {
     // Skip if text is too short to meaningfully correct
     if (sttText.length < GER_MIN_TEXT_LENGTH) return
 
-    // Skip if confidence is above threshold (STT is confident enough)
-    if (confidence !== undefined && confidence >= GER_CONFIDENCE_THRESHOLD) {
-      log.info(`GER skipped: confidence ${confidence.toFixed(2)} >= ${GER_CONFIDENCE_THRESHOLD}`)
-      return
-    }
+    const lowConfidence = Number.isFinite(confidence) && confidence! < GER_CONFIDENCE_THRESHOLD
+    const riskyTerm = confidence === undefined && (facts(sttText).length > 0 ||
+      this.deps.getGlossary().some(entry => entry.source.length >= 2 && sttText.includes(entry.source)))
+    if (!lowConfidence && !riskyTerm) return
 
     // Skip if worker is not alive (no SLM model loaded)
     if (!workerPool.isAlive) {
@@ -111,36 +133,47 @@ export class GERProcessor {
     }
 
     this.pendingTimestamp = timestamp
-    this.lastTranslation = previousTranslation ?? null
     const revision = this.revision
-    this.runCorrection(sttText, language, targetLanguage, timestamp).catch((err) => {
-      log.warn('GER correction failed:', err)
+    const controller = new AbortController()
+    this.active = controller
+    // One budget covers correction AND retranslation.
+    const timeout = setTimeout(() => controller.abort(), GER_TIMEOUT_MS)
+    this.runCorrection(sttText, language, targetLanguage, timestamp, controller.signal, previousTranslation).catch((err) => {
+      if (!controller.signal.aborted) log.warn('GER correction failed:', err)
     }).finally(() => {
+      clearTimeout(timeout)
       if (this.revision === revision && this.pendingTimestamp === timestamp) {
         this.pendingTimestamp = null
+        this.active = undefined
       }
     })
   }
 
+  /** New speech gets priority over optional background work. */
+  preempt(): void { this.active?.abort() }
+
   /** Reset state (e.g., on pipeline stop) */
   reset(): void {
+    this.preempt()
     this.revision++
     this.pendingTimestamp = null
-    this.lastTranslation = null
+    this.active = undefined
   }
 
   private async runCorrection(
     sttText: string,
     language: Language,
     targetLanguage: Language,
-    timestamp: number
+    timestamp: number,
+    signal: AbortSignal,
+    previousTranslation?: string
   ): Promise<void> {
     const t0 = performance.now()
     const gen = this.deps.getGeneration?.()
     const revision = this.revision
     const configuration = this.deps.getConfigurationRevision?.()
     const translator = this.deps.getTranslator()
-    const current = (): boolean => this.enabled && revision === this.revision &&
+    const current = (): boolean => !signal.aborted && this.enabled && revision === this.revision &&
       gen === this.deps.getGeneration?.() && configuration === this.deps.getConfigurationRevision?.() &&
       translator === this.deps.getTranslator()
 
@@ -149,23 +182,9 @@ export class GERProcessor {
       ? glossaryEntries.map((g) => ({ source: g.source, target: g.target }))
       : undefined
 
-    // Send GER request to the SLM worker with a timeout race
-    let timeout: ReturnType<typeof setTimeout> | undefined
-    let correctedText: string
-    try { correctedText = await Promise.race([
-      workerPool.sendRequest(
-        {
-          type: 'ger-correct',
-          text: sttText,
-          language,
-          glossary
-        },
-        'ger-correct'
-      ),
-      new Promise<string>((_resolve, reject) =>
-        timeout = setTimeout(() => reject(new Error('GER timed out')), GER_TIMEOUT_MS)
-      )
-    ]) } finally { if (timeout) clearTimeout(timeout) }
+    const correctedText = await workerPool.sendRequest(
+      { type: 'ger-correct', text: sttText, language, glossary }, 'ger-correct', undefined, signal
+    )
     if (!current()) return
 
     const gerMs = performance.now() - t0
@@ -174,7 +193,7 @@ export class GERProcessor {
     // Only proceed if the correction actually changed the text
     const trimmedOriginal = sttText.trim()
     const trimmedCorrected = correctedText.trim()
-    if (!trimmedCorrected || trimmedCorrected === trimmedOriginal) {
+    if (!trimmedCorrected || trimmedCorrected === trimmedOriginal || !faithfulSmallEdit(trimmedOriginal, trimmedCorrected)) {
       log.info('GER: no change, skipping re-translation')
       return
     }
@@ -189,27 +208,15 @@ export class GERProcessor {
     let translatedText: string
     if (language === targetLanguage) {
       translatedText = trimmedCorrected
-    } else if (translator.translateSSBD && this.lastTranslation) {
-      try {
-        translatedText = await translator.translateSSBD(
-          trimmedCorrected,
-          this.lastTranslation,
-          language,
-          targetLanguage
-        )
-        log.info('GER: used SSBD for re-translation')
-      } catch (ssbdErr) {
-        if (!current()) return
-        log.warn('GER: SSBD failed, falling back to regular translate:', ssbdErr)
-        translatedText = await translator.translate(trimmedCorrected, language, targetLanguage)
-      }
     } else {
-      translatedText = await translator.translate(
-        trimmedCorrected,
-        language,
-        targetLanguage
-      )
+      const context = { glossary, previousSegments: [], signal }
+      translatedText = translator.translateSSBD && previousTranslation
+        ? await translator.translateSSBD(trimmedCorrected, previousTranslation, language, targetLanguage, context)
+        : await translator.translate(trimmedCorrected, language, targetLanguage, context)
+      if (!current()) return
+      if (language === 'ja' && targetLanguage === 'zh') translatedText = validateTranslation(translatedText, 'ja-zh', trimmedCorrected, glossary)
     }
+    if (!translatedText.trim()) return
 
     const result: TranslationResult = {
       sourceText: trimmedCorrected,
@@ -217,6 +224,7 @@ export class GERProcessor {
       sourceLanguage: language,
       targetLanguage: targetLanguage,
       timestamp,
+      captionRevision: 1,
       isInterim: false,
       translationStage: 'ger-corrected'
     }

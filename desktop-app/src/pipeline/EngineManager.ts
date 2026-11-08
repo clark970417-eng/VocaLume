@@ -3,7 +3,8 @@ import type {
   STTEngine,
   TranslatorEngine,
   E2ETranslationEngine,
-  SpeakerDiarizer
+  SpeakerDiarizer,
+  SourceLanguage
 } from '../engines/types'
 import { HybridTranslator } from '../engines/translator/HybridTranslator'
 import type { EventEmitter } from 'events'
@@ -53,7 +54,7 @@ export class EngineManager {
    * Initialize engines for the given configuration.
    * Emits 'engine-loading' status updates via the provided emitter.
    */
-  async initializeEngines(config: EngineConfig, emitter: EventEmitter): Promise<void> {
+  async initializeEngines(config: EngineConfig, emitter: EventEmitter, sourceLanguage: SourceLanguage = 'auto'): Promise<void> {
     this.config = config
 
     if (config.mode === 'cascade') {
@@ -71,6 +72,7 @@ export class EngineManager {
       try {
         emitter.emit('engine-loading', 'Loading STT model...')
         this.sttEngine = await Promise.resolve(sttFactory())
+        this.sttEngine.setLanguage?.(sourceLanguage)
         await this.withTimeout(this.sttEngine.initialize(), ENGINE_INIT_TIMEOUT_MS, 'STT initialization')
 
         emitter.emit('engine-loading', 'Initializing translator...')

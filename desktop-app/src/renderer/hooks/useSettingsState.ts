@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { AudioCaptureStartError, type UseAudioCaptureReturn } from './useAudioCapture'
+import { isNetworkCascadeTranslator } from '../../engine-selection'
 
 function friendlyError(err: unknown): string {
+  if (err instanceof AudioCaptureStartError) return err.message
   const msg = err instanceof Error ? err.message : String(err)
   if (msg.includes('timed out')) return 'Failed to start — model loading took too long. Try restarting the app.'
   if (msg.includes('Model not found') || msg.includes('model not found')) return 'Model not found. It may need to be downloaded first.'
@@ -8,7 +11,6 @@ function friendlyError(err: unknown): string {
   if (msg.includes('ENOENT') || msg.includes('No such file')) return 'Required file not found. Try reinstalling the app.'
   return `Unexpected error: ${msg}`
 }
-import type { UseAudioCaptureReturn } from './useAudioCapture'
 import type { UseNoiseSuppressionReturn } from './useNoiseSuppression'
 import { useEngineSettings } from './useEngineSettings'
 import { useDisplaySettings } from './useDisplaySettings'
@@ -96,6 +98,10 @@ export interface SettingsState {
   subtitleFontSize: number
   setSubtitleFontSize: (v: number) => void
   subtitleSourceColor: string
+  lowPowerRendering: boolean
+  setLowPowerRendering: (v: boolean) => void
+  hideOnHover: boolean
+  setHideOnHover: (v: boolean) => void
   setSubtitleSourceColor: (v: string) => void
   subtitleTranslatedColor: string
   setSubtitleTranslatedColor: (v: string) => void
@@ -217,6 +223,7 @@ export function useSettingsState(): SettingsState {
         targetLanguage: language.targetLanguage,
         noiseSuppressionEnabled: session.noiseSuppression.enabled,
         audioSource: session.audio.audioSource,
+        systemLoopbackDeviceId: session.audio.systemLoopbackDeviceId,
         draftSttEnabled: language.draftSttEnabled,
         speakerDiarizationEnabled: language.speakerDiarizationEnabled,
         adaptiveRoutingEnabled: engine.adaptiveRoutingEnabled,
@@ -229,6 +236,14 @@ export function useSettingsState(): SettingsState {
   const handleSaveSettings = async (): Promise<void> => {
     try { await saveCurrentSettings(); session.setStatus('Settings saved. Restart browser captions to apply.') }
     catch (error) { session.setStatus(`Could not save settings: ${String(error)}`) }
+  }
+
+  const rollbackFailedCapture = async (pipelineStarted: boolean): Promise<void> => {
+    session.audio.stop()
+    if (!pipelineStarted) return
+    // Release the running model worker when the capture setup fails.
+    try { await withIpcTimeout(window.api.pipelineStop(), 10_000, 'pipelineStopAfterCaptureFailure') }
+    catch (error) { console.warn('[settings] Could not roll back failed capture:', error) }
   }
 
   const handleStart = async (options?: { captureAudio?: boolean }): Promise<boolean> => {
@@ -249,7 +264,7 @@ export function useSettingsState(): SettingsState {
         geminiLiveEnabled: options?.captureAudio === false ? false : engine.geminiLiveEnabled
       })
 
-      const result = await withIpcTimeout(window.api.pipelineStart(config), 120_000, 'pipelineStart')
+      const result = await withIpcTimeout(window.api.pipelineStart(config, options?.captureAudio !== false), 120_000, 'pipelineStart')
       if (result.error) {
         session.setStatus(`Error: ${result.error}`)
         session.setIsStarting(false)
@@ -260,22 +275,17 @@ export function useSettingsState(): SettingsState {
       // #721: cloud e2e pipelines consume a continuous 100ms PCM stream; cascade
       // pipelines use the VAD-segmented rolling buffer.
       if (options?.captureAudio !== false) {
-        await session.audio.start({ captureMode: config.mode === 'e2e' ? 'realtime' : 'cascade' })
+        await session.audio.start({
+          captureMode: config.mode === 'e2e' ? 'realtime' : 'cascade',
+          ...(config.mode === 'cascade' && isNetworkCascadeTranslator(config.translatorEngineId) ? { preferPauseBoundaries: true } : {})
+        })
       }
       session.setIsRunning(true)
       session.startSessionTimer()
       session.setStatus(options?.captureAudio === false ? 'Ready to process audio file...' : 'Listening...')
       return true
     } catch (err) {
-      // Starting the engine succeeds before microphone/VAD capture begins. If
-      // capture setup fails, roll the engine back as well; otherwise its model
-      // worker remains active and can make browser draft translation fail when
-      // it tries to acquire the shared worker.
-      session.audio.stop()
-      if (pipelineStarted) {
-        try { await withIpcTimeout(window.api.pipelineStop(), 10_000, 'pipelineStopAfterCaptureFailure') }
-        catch (stopError) { console.warn('[settings] Could not roll back failed start:', stopError) }
-      }
+      await rollbackFailedCapture(pipelineStarted)
       session.setStatus(friendlyError(err))
       session.setIsRunning(false)
       session.stopSessionTimer()
@@ -306,6 +316,7 @@ export function useSettingsState(): SettingsState {
   const handleResume = async (): Promise<void> => {
     if (!session.crashedSession || session.isStarting) return
     session.setIsStarting(true)
+    let pipelineStarted = false
 
     try {
       session.setStatus('Resuming previous session...')
@@ -315,18 +326,22 @@ export function useSettingsState(): SettingsState {
         session.setIsStarting(false)
         return
       }
+      pipelineStarted = true
       // #721: preserve the resumed session's capture mode
       const resumeMode = (session.crashedSession.config as { mode?: string }).mode === 'e2e' ? 'realtime' : 'cascade'
-      await session.audio.start({ captureMode: resumeMode })
+      await session.audio.start({
+        captureMode: resumeMode,
+        ...(resumeMode === 'cascade' && isNetworkCascadeTranslator(session.crashedSession.config.translatorEngineId) ? { preferPauseBoundaries: true } : {})
+      })
       session.setIsRunning(true)
       session.setCrashedSession(null)
       session.startSessionTimer()
       session.setStatus('Listening... (resumed)')
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      session.setStatus(`Resume failed: ${msg}`)
+      await rollbackFailedCapture(pipelineStarted)
+      session.setStatus(err instanceof AudioCaptureStartError ? msg : `Resume failed: ${msg}`)
       session.setIsRunning(false)
-      session.audio.stop()
       session.stopSessionTimer()
     } finally {
       session.setIsStarting(false)
@@ -383,6 +398,8 @@ export function useSettingsState(): SettingsState {
     // Subtitle
     subtitleFontSize: subtitle.subtitleFontSize, setSubtitleFontSize: subtitle.setSubtitleFontSize,
     subtitleSourceColor: subtitle.subtitleSourceColor, setSubtitleSourceColor: subtitle.setSubtitleSourceColor,
+    lowPowerRendering: subtitle.lowPowerRendering, setLowPowerRendering: subtitle.setLowPowerRendering,
+    hideOnHover: subtitle.hideOnHover, setHideOnHover: subtitle.setHideOnHover,
     subtitleTranslatedColor: subtitle.subtitleTranslatedColor, setSubtitleTranslatedColor: subtitle.setSubtitleTranslatedColor,
     subtitleBgOpacity: subtitle.subtitleBgOpacity, setSubtitleBgOpacity: subtitle.setSubtitleBgOpacity,
     subtitlePosition: subtitle.subtitlePosition, setSubtitlePosition: subtitle.setSubtitlePosition,

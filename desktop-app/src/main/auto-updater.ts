@@ -7,6 +7,7 @@ import { createLogger } from './logger'
 import type { AppContext } from './app-context'
 import { store } from './store'
 import { isNewerVersion } from './release-version'
+import { getMdmConfig } from './mdm-config'
 
 const log = createLogger('auto-updater')
 
@@ -29,6 +30,7 @@ let checkTimer: ReturnType<typeof setInterval> | null = null
 let automaticUpdaterAvailable = false
 
 const RELEASES_API = 'https://api.github.com/repos/clark970417-eng/VocaLume/releases'
+const MANAGED_UPDATE_MESSAGE = 'Auto-updates managed by organization'
 
 interface GitHubRelease {
   tag_name: string
@@ -80,6 +82,11 @@ function sendStatus(ctx: AppContext, status: UpdateStatus): void {
  */
 export function initAutoUpdater(ctx: AppContext): void {
   autoUpdater.autoDownload = false
+  if (getMdmConfig().autoUpdateDisabled) {
+    autoUpdater.autoInstallOnAppQuit = false
+    log.info(MANAGED_UPDATE_MESSAGE)
+    return
+  }
   // Skip auto-updater for unsigned/local builds — app-update.yml won't exist
   if (!app.isPackaged) {
     log.info('Dev mode — skipping auto-updater')
@@ -142,6 +149,7 @@ export function initAutoUpdater(ctx: AppContext): void {
 /** Register IPC handlers for update actions */
 export function registerUpdateHandlers(ctx: AppContext): void {
   ipcMain.handle('update-check', async () => {
+    if (getMdmConfig().autoUpdateDisabled) return { error: MANAGED_UPDATE_MESSAGE }
     try {
       await checkForUpdates(ctx)
       return { success: true }
@@ -151,6 +159,7 @@ export function registerUpdateHandlers(ctx: AppContext): void {
   })
 
   ipcMain.handle('update-download', async () => {
+    if (getMdmConfig().autoUpdateDisabled) return { error: MANAGED_UPDATE_MESSAGE }
     try {
       if (currentStatus.installMode === 'browser' && currentStatus.releaseUrl) {
         await shell.openExternal(currentStatus.releaseUrl)
@@ -164,6 +173,7 @@ export function registerUpdateHandlers(ctx: AppContext): void {
   })
 
   ipcMain.handle('update-install', () => {
+    if (getMdmConfig().autoUpdateDisabled) return { error: MANAGED_UPDATE_MESSAGE }
     // Quit and install — deferred if pipeline is running
     if (ctx.pipeline?.running) {
       log.info('Pipeline is running, deferring restart until quit')
@@ -177,6 +187,7 @@ export function registerUpdateHandlers(ctx: AppContext): void {
   ipcMain.handle('update-get-status', () => {
     return {
       ...currentStatus,
+      managedDisabled: getMdmConfig().autoUpdateDisabled,
       currentVersion: app.getVersion(),
       channel: store.get('updateChannel') || 'stable',
       installMode: currentStatus.installMode || (automaticUpdaterAvailable ? 'automatic' : 'browser')
@@ -184,6 +195,7 @@ export function registerUpdateHandlers(ctx: AppContext): void {
   })
 
   ipcMain.handle('update-set-channel', async (_event, channel: unknown) => {
+    if (getMdmConfig().autoUpdateDisabled) return { error: MANAGED_UPDATE_MESSAGE }
     if (channel !== 'stable' && channel !== 'beta') return { error: 'Invalid update channel' }
     store.set('updateChannel', channel)
     currentStatus = { state: 'idle', currentVersion: app.getVersion(), channel, installMode: channel === 'beta' ? 'browser' : undefined }
