@@ -17,6 +17,9 @@ interface SubtitleSettingsProps {
   onPositionChange: (v: SubtitlePositionType) => void
   lowPowerRendering: boolean
   onLowPowerRenderingChange: (v: boolean) => void
+  supportsHideOnHover: boolean
+  hideOnHover: boolean
+  onHideOnHoverChange: (v: boolean) => void
   showConfidenceIndicator: boolean
   onShowConfidenceIndicatorChange: (v: boolean) => void
   displays: DisplayInfo[]
@@ -37,6 +40,9 @@ export function SubtitleSettings({
   onPositionChange,
   lowPowerRendering,
   onLowPowerRenderingChange,
+  supportsHideOnHover,
+  hideOnHover,
+  onHideOnHoverChange,
   showConfidenceIndicator,
   onShowConfidenceIndicatorChange,
   displays,
@@ -68,6 +74,12 @@ export function SubtitleSettings({
             <input type="checkbox" checked={lowPowerRendering} onChange={event => onLowPowerRenderingChange(event.target.checked)} />
             {' '}{t('Low-power subtitle display')}
           </label>
+          {supportsHideOnHover && (
+            <label>
+              <input type="checkbox" checked={hideOnHover} onChange={event => onHideOnHoverChange(event.target.checked)} />
+              {' '}{t('Hide subtitles on hover')}
+            </label>
+          )}
           <div>
             <div style={sliderLabelStyle}>{t("Font Size:")} {fontSize}px</div>
             <input
@@ -195,7 +207,13 @@ export function SubtitleSettings({
           {isDragMode && (
             <div style={{ fontSize: '11px', color: '#f59e0b' }}>{t("Drag the subtitle overlay to your preferred position, then click \"Done Repositioning\"")} </div>
           )}
-          {!isDragMode && <span className="settings-note">{t('Press and drag the subtitle box to move it. The position is saved for each display.')}</span>}
+          {!isDragMode && (
+            <span className="settings-note">
+              {t(supportsHideOnHover && hideOnHover
+                ? 'Use Reposition Subtitles to move the box while hover hiding is on.'
+                : 'Press and drag the subtitle box to move it. The position is saved for each display.')}
+            </span>
+          )}
         </div>
       </Section>
     </>
