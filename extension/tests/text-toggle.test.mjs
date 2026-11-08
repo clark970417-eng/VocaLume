@@ -9,7 +9,7 @@ for (const saved of [{}, {websiteTextEnabled:true}, {websiteTextOptInEnabled:fal
  const document={documentElement:{},querySelector:s=>s.includes('ytd-watch-metadata')?title:null,querySelectorAll:s=>s.includes('.jtl-title')?lines.filter(x=>!x.removed):[],createElement:()=>({remove(){this.removed=true;}}),addEventListener(){}};
  const window={};window.top=window;
  const chrome={storage:{local:{get:()=>Promise.resolve(saved)},onChanged:{addListener:f=>change=f}},runtime:{onMessage:{addListener(){}},sendMessage:(m,cb)=>{messages.push(m);reply=cb;}}};
- const src=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8'));
+ const src=['translation-guards.js','dom-changes.js','content.js'].map(file=>fs.readFileSync(new URL(`../${file}`,import.meta.url),'utf8')).join('\n');
  vm.runInNewContext(src,{chrome,window,document,MutationObserver:class{observe(){}},setInterval(){},setTimeout(){},clearTimeout(){},console});
  await Promise.resolve();assert.equal(messages.length,0);
  change({websiteTextOptInEnabled:{newValue:true}},'local');assert.equal(messages.length,1);

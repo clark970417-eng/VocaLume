@@ -1,4 +1,5 @@
 import type { GpuInfo } from './gpu-detector'
+import { isMacAppleSpeechAvailable } from '../main/mac-engine-availability'
 import {
   WHISPER_VARIANTS,
   HUNYUAN_MT_15_VARIANTS,
@@ -49,25 +50,11 @@ function hasNvidiaCuda(platform: string, gpuInfo: GpuInfo): boolean {
   return gpuInfo.gpuNames.some((name) => /nvidia|geforce|rtx|gtx/i.test(name))
 }
 
-/** Detect if macOS 26+ (Tahoe) is running for Apple SpeechTranscriber support */
-function isMacOS26Plus(): boolean {
-  if (process.platform !== 'darwin') return false
-  try {
-    // process.getSystemVersion() returns e.g. "26.0.0" for macOS 26
-    const version = process.getSystemVersion?.()
-    if (!version) return false
-    const major = parseInt(version.split('.')[0], 10)
-    return major >= 26
-  } catch {
-    return false
-  }
-}
-
 /**
  * Recommend optimal engines based on hardware capabilities.
  *
  * Priority:
- * 0. macOS 26+ (any Apple Silicon): Apple SpeechTranscriber — zero setup, ANE-native (#548)
+ * 0. macOS 26+ with Apple Silicon and the SpeechTranscriber helper installed
  * 1. Apple Silicon M1+ with >=16GB: MLX Whisper (or Kotoba-Whisper for JA) + HY-MT1.5-1.8B
  * 2. Apple Silicon M1+ with >=8GB: MLX Whisper (or Kotoba-Whisper for JA) + LFM2 (lighter)
  * 3. Apple Silicon M1+ with <8GB: MLX Whisper (or Kotoba-Whisper for JA) + API fallback
@@ -83,13 +70,13 @@ export function recommendEngines(
   sourceLanguage?: string
 ): EngineRecommendation {
   const appleSilicon = isAppleSilicon(platform, gpuInfo)
-  const macOS26 = isMacOS26Plus()
+  const appleSpeechAvailable = appleSilicon && isMacAppleSpeechAvailable()
   const downloads: DownloadItem[] = []
   // Prefer Kotoba-Whisper for JA-only setups on Apple Silicon (unless macOS 26+ available)
-  const preferKotoba = appleSilicon && sourceLanguage === 'ja' && !macOS26
+  const preferKotoba = appleSilicon && sourceLanguage === 'ja' && !appleSpeechAvailable
 
   // macOS 26+ with Apple Silicon: prefer Apple SpeechTranscriber (zero setup, ANE-optimized)
-  if (macOS26 && appleSilicon) {
+  if (appleSpeechAvailable) {
     const sttEngine = 'apple-speech-transcriber' as const
     // Choose translator based on memory (same logic as other Apple Silicon tiers)
     if (totalMemoryMB >= 16384) {

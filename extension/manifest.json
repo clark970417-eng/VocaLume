@@ -57,6 +57,7 @@
       "js": [
         "streamer-vocabulary.js",
         "translation-guards.js",
+        "dom-changes.js",
         "page-language.js",
         "caption-window.js",
         "content.js"
@@ -78,6 +79,7 @@
       "js": [
         "streamer-vocabulary.js",
         "translation-guards.js",
+        "dom-changes.js",
         "page-language.js",
         "caption-window.js",
         "x-content.js"
@@ -101,6 +103,7 @@
       "js": [
         "streamer-vocabulary.js",
         "translation-guards.js",
+        "dom-changes.js",
         "page-language.js",
         "caption-window.js",
         "social-content.js"
@@ -135,6 +138,7 @@
       "js": [
         "streamer-vocabulary.js",
         "translation-guards.js",
+        "dom-changes.js",
         "page-language.js",
         "caption-window.js",
         "social-content.js"

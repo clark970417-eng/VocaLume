@@ -5,7 +5,7 @@ import { Section } from './Section'
 interface SpeakerSettingsProps {
   speakerDiarizationEnabled: boolean
   onSpeakerDiarizationEnabledChange: (v: boolean) => void
-  platform: string
+  available: boolean
   disabled: boolean
 }
 
@@ -16,11 +16,10 @@ interface SpeakerSettingsProps {
 export function SpeakerSettings({
   speakerDiarizationEnabled,
   onSpeakerDiarizationEnabledChange,
-  platform,
+  available,
   disabled
 }: SpeakerSettingsProps): React.JSX.Element | null {
-  // Only show on macOS — FluidAudio is CoreML-native
-  if (platform !== 'darwin') return null
+  if (!available) return null
 
   return (
     <Section label={t("Speaker Diarization")}>

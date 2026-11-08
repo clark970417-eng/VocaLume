@@ -7,7 +7,7 @@ import type { EngineMode } from './shared'
 interface TranslatorSettingsProps {
   engineMode: EngineMode
   onEngineModeChange: (v: EngineMode) => void
-  platform: string
+  appleTranslateAvailable: boolean
   disabled: boolean
   // GPU info
   gpuInfo: { hasGpu: boolean; gpuNames: string[] } | null
@@ -58,7 +58,7 @@ interface TranslatorSettingsProps {
 export function TranslatorSettings({
   engineMode,
   onEngineModeChange,
-  platform,
+  appleTranslateAvailable,
   disabled,
   gpuInfo,
   slmKvCacheQuant,
@@ -162,7 +162,7 @@ export function TranslatorSettings({
             <div style={{ fontWeight: 500 }}>{t("Hunyuan-MT 7B (High Quality, GPU recommended)")}</div>
           </div>
         </label>
-        {platform === 'darwin' && (
+        {appleTranslateAvailable && (
           <label style={radioLabelStyle}>
             <input
               type="radio"
@@ -172,7 +172,7 @@ export function TranslatorSettings({
               disabled={disabled}
             />
             <div>
-              <div style={{ fontWeight: 500 }}>{t("Apple Translate (Built-in, macOS 15+)")}</div>
+              <div style={{ fontWeight: 500 }}>Apple Translate</div>
             </div>
           </label>
         )}

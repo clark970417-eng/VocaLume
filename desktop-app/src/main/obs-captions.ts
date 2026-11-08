@@ -6,18 +6,24 @@ type Mode = 'off' | 'translation' | 'bilingual'
 let mode: Mode = 'off'
 let pending: Promise<void> = Promise.resolve()
 let error = ''
+let lastPublished: { path: string; text: string } | undefined
 const outputPath = () => join(app.getPath('userData'), 'vocalume-obs-caption.txt')
 
-function write(text: string, captionQueuedAt?: number): Promise<void> {
+function write(text: string, caption?: { queuedAt?: number }): Promise<void> {
   const path = outputPath()
   pending = pending.then(async () => {
-    await writeFile(path + '.tmp', text, { encoding: 'utf8', mode: 0o600 })
+    if (caption && lastPublished?.path === path && lastPublished.text === text) return
+    await writeFile(path + '.tmp', caption ? wrapObsText(text) : text, { encoding: 'utf8', mode: 0o600 })
     await rename(path + '.tmp', path)
+    lastPublished = caption ? { path, text } : undefined
     error = ''
-    if (captionQueuedAt !== undefined) {
-      console.info(`[OBS] Caption file ready in ${Math.round(performance.now() - captionQueuedAt)}ms`)
+    if (caption?.queuedAt !== undefined) {
+      console.info(`[OBS] Caption file ready in ${Math.round(performance.now() - caption.queuedAt)}ms`)
     }
-  }).catch(() => { error = 'Could not write OBS caption file.' })
+  }).catch(() => {
+    lastPublished = undefined
+    error = 'Could not write OBS caption file.'
+  })
   return pending
 }
 
@@ -79,5 +85,5 @@ export function publishObsCaption(result: { sourceText: string; translatedText: 
   const text = mode === 'bilingual'
     ? [result.sourceText.trim(), translation].filter(Boolean).join('\n')
     : translation
-  void write(wrapObsText(text), process.env.VOCALUME_CAPTION_TIMING === '1' ? performance.now() : undefined)
+  void write(text, { queuedAt: process.env.VOCALUME_CAPTION_TIMING === '1' ? performance.now() : undefined })
 }

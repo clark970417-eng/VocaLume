@@ -1,6 +1,7 @@
 // Browser extension interface strings.
 export const UI_KO = {
   "Interface language": "인터페이스 언어",
+  "Automatic (IP region)": "자동 (IP 주소 지역)",
   "Follow system": "시스템 설정 따르기",
   "Text translation": "텍스트 번역",
   "Live captions": "실시간 자막",
@@ -58,6 +59,8 @@ export const UI_KO = {
   "Export history": "기록 내보내기",
   "Retry failed translations": "실패한 번역 다시 시도",
   "Caption appearance": "자막 모양",
+  "Hide subtitles when the pointer is nearby": "포인터가 가까이 오면 자막 숨기기",
+  "Hold Alt/Option to drag or resize": "Alt/Option 키를 누른 채로 이동하거나 크기를 조절할 수 있습니다",
   "Caption appearance preview": "자막 모양 미리보기",
   "Source caption": "원문 자막",
   "Translated caption": "번역 자막",

@@ -6,6 +6,7 @@ let streamerChatMode=false;
 let websiteTextOptInEnabled=false, textEpoch=0, contextInvalid=false;
 let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
 const pageUi = globalThis.VocaLumePageLanguage;
+const domChanges = globalThis.VocaLumeDomChanges;
 const uiText = value => pageUi?.text(value) ?? value;
 function setUi(element, value, property = 'textContent') {
   if (pageUi) { pageUi.bind(element, value, property); return; }
@@ -58,9 +59,8 @@ function pumpTranslations() {
 const hasJapanese = text => /[\u3040-\u30ff]/.test(text);
 const hasChinese = text => /[\u3400-\u9fff]/.test(text) && !hasJapanese(text);
 
-function smallestJapaneseLeaves(region) {
-  if (!region?.querySelectorAll) return [];
-  return [...region.querySelectorAll('span,p,div,yt-formatted-string')].filter(element => {
+function smallestJapaneseLeaves(nodes) {
+  return nodes.filter(element => {
     if (element.closest?.('#author-name,[id*="author" i],[class*="author" i],a')) return false;
     const text = (element.textContent || '').trim();
     return text && matchesReadLanguage(text) && ![...(element.children || [])].some(child => matchesReadLanguage(child.textContent || ''));
@@ -154,38 +154,47 @@ async function translateElement(element, className, priority = false, queueOrder
   }
 }
 
-function scan() {
+const titleSelectors = [
+  "ytd-watch-metadata h1 yt-formatted-string", "ytd-watch-metadata #title h1",
+  "#above-the-fold #title h1", "h1.ytd-watch-metadata"
+];
+const chatSelector = "#message.yt-live-chat-text-message-renderer, yt-live-chat-text-message-renderer #message";
+const commentSelector = "ytd-comment-thread-renderer #content-text, ytd-comment-view-model #content-text";
+const composerSelector = ":is(#input, #contenteditable-root):is([contenteditable='true'], [contenteditable='plaintext-only'])";
+const semanticLeafSelector = 'span,p,div,yt-formatted-string';
+let currentTitle;
+
+function scan(scope) {
   if(contextInvalid)return;
-  if (window.top === window) installSubtitleOverlay();
   if (!websiteTextOptInEnabled) return;
   if (window.top === window) {
-    const title = [
-      "ytd-watch-metadata h1 yt-formatted-string",
-      "ytd-watch-metadata #title h1",
-      "#above-the-fold #title h1",
-      "h1.ytd-watch-metadata"
-    ].map(selector=>document.querySelector(selector)).find(element=>matchesReadLanguage(element?.textContent||""));
-    const titleLines = [...document.querySelectorAll(".jtl-title")];
-    if (!title) titleLines.forEach(line => line.remove());
-    titleLines.slice(1).forEach(line => line.remove());
-    titleLines.forEach(line => { if (!line.textContent.trim()) line.remove(); });
-    translateElement(title, "jtl-title", true);
-    installCommentButtons();
-    installSubtitleOverlay();
+    const titleCandidates = titleSelectors.flatMap(selector => scope
+      ? domChanges.select(scope, selector)
+      : [document.querySelector(selector)].filter(Boolean));
+    if (!scope || titleCandidates.length || (currentTitle && !currentTitle.isConnected)) {
+      const title = titleCandidates.find(element => matchesReadLanguage(element.textContent || ""));
+      const titleLines = [...document.querySelectorAll(".jtl-title")];
+      titleLines.forEach((line, index) => { if (!title || index > 0 || !line.textContent.trim()) line.remove(); });
+      currentTitle = title;
+      if (title) void translateElement(title, "jtl-title", true);
+    }
+    installCommentButtons(domChanges.select(scope, commentSelector));
   }
   // YouTube restores a large virtualized backlog after navigation. Translating
   // all of it at once rate-limits the service and makes fresh chat wait behind
   // stale messages. Keep the newest visible window and enqueue newest first.
-  const selectedChat = [...document.querySelectorAll("#message.yt-live-chat-text-message-renderer, yt-live-chat-text-message-renderer #message")];
-  const semanticChat = streamerChatMode ? [] : [...document.querySelectorAll('[role="log"]')].flatMap(smallestJapaneseLeaves);
+  const selectedChat = domChanges.select(scope, chatSelector);
+  const semanticChat = streamerChatMode ? [] : smallestJapaneseLeaves(scope
+    ? domChanges.select(scope, `[role="log"] :is(${semanticLeafSelector})`)
+    : [...document.querySelectorAll('[role="log"]')].flatMap(region => [...region.querySelectorAll(semanticLeafSelector)]));
   const chat = [...new Set([...selectedChat, ...semanticChat])].slice(-20);
   const batch = ++chatBatch;
   for (let i = chat.length - 1; i >= 0; i--) translateElement(chat[i], "jtl-translation", false, batch * 1000 + i, true);
-  installComposerButton();
+  installComposerButton(domChanges.select(scope, composerSelector));
 }
 
-function installCommentButtons() {
-  document.querySelectorAll("ytd-comment-thread-renderer #content-text, ytd-comment-view-model #content-text").forEach(element => {
+function installCommentButtons(elements) {
+  elements.forEach(element => {
     const text = element.textContent.trim();
     if (!text || !matchesReadLanguage(text) || element.parentElement?.querySelector(":scope > .jtl-comment-action")) return;
     const action = document.createElement("button");
@@ -230,6 +239,7 @@ function installSubtitleOverlay() {
   const overlay = document.createElement("div");
   overlay.id = "jtl-subtitles";
   overlay.captionWindow=new window.JtlCaptionWindow(overlay,'youtubeCaptionRect');
+  lastSubtitleKey='';
   player.appendChild(overlay);
   applySubtitleSettings();
 }
@@ -266,15 +276,32 @@ chrome.storage.onChanged.addListener((changes, area) => {
 let lastSubtitleKey = "", subtitleExpiryTimer;
 let pollEpoch=0;
 let polling=false,pollTimer,nativeTimer;
-let lastNativeCaption = "", nativeChangedAt=0, captionRunning=false;
+let lastNativeCaption = "", nativeNotifiedAt=0, captionRunning=false;
 function readNativeCaption(){
  if(!captionRunning)return;
  const video=document.querySelector('#movie_player video');
  const text=video&&!video.paused ? [...document.querySelectorAll('#movie_player .ytp-caption-window-container .ytp-caption-segment')].map(el=>el.textContent).join(' ').replace(/\s+/g,' ').trim() : '';
- if(text!==lastNativeCaption){lastNativeCaption=text;nativeChangedAt=Date.now();}
- // Follow the visible native cue; its end is authoritative.
- runtimeMessage({type:'native-caption',text}).catch(()=>{});
+ const changed=text!==lastNativeCaption, now=Date.now();
+ // A visible cue can outlive its 1.8-second lease. Renew it before expiry,
+ // but send changes and the cue's disappearance immediately.
+ if(changed || (text && now-nativeNotifiedAt>=650)){
+  lastNativeCaption=text;nativeNotifiedAt=now;
+  runtimeMessage({type:'native-caption',text}).catch(()=>{});
+ }
  document.querySelector('#movie_player')?.classList.toggle('jtl-native-active',matchesLanguage(text,languageSettings.speechSource||'ja'));
+}
+function setCaptionRunning(running){
+ if(captionRunning===running)return;
+ captionRunning=running;
+ if(running){
+  readNativeCaption();
+  pollTimer=setInterval(pollSubtitles,700);
+  nativeTimer=setInterval(readNativeCaption,350);
+ }else{
+  clearInterval(pollTimer);clearInterval(nativeTimer);
+  lastNativeCaption='';nativeNotifiedAt=0;
+  document.querySelector('#movie_player')?.classList.remove('jtl-native-active');
+ }
 }
 function renderSubtitle(item) {
   if(item?.recordingRows){clearTimeout(subtitleExpiryTimer);installSubtitleOverlay();const overlay=document.querySelector('#jtl-subtitles');if(overlay){overlay.captionWindow.render(item.recordingRows);overlay.classList.toggle('jtl-visible',item.recordingRows.length>0);}return;}
@@ -305,45 +332,50 @@ async function pollSubtitles() {
   try {
     const data = await runtimeMessage({type: "subtitles"});
     if (epoch !== pollEpoch) return;
-    captionRunning=data.running;
-    if(!captionRunning)document.querySelector('#movie_player')?.classList.remove('jtl-native-active');
+    setCaptionRunning(Boolean(data.running));
     renderSubtitle(data.running ? data.items?.at(-1) : null);
-  } catch (error) {if(!chrome.runtime?.id){contextInvalid=true;captionRunning=false;clearInterval(pollTimer);clearInterval(nativeTimer);document.querySelector('#jtl-subtitles')?.remove();}} finally {polling=false;}
+  } catch (error) {if(!chrome.runtime?.id){contextInvalid=true;setCaptionRunning(false);document.querySelector('#jtl-subtitles')?.remove();}} finally {polling=false;}
 }
 chrome.runtime.onMessage.addListener(message => {
   if (message.type === "subtitle-update" && window.top === window) {
     pollEpoch++;
+    if (typeof message.running === 'boolean') setCaptionRunning(message.running);
     renderSubtitle(message.item);
   }
 });
 
 function editableText(box) {
-  return (box.innerText || box.textContent || "").trim();
+  return (box.innerText ?? box.textContent ?? "").trim();
 }
 
-async function replaceEditable(box, text) {
+async function replaceEditable(box, text, source) {
   const doc = box.ownerDocument || document;
   const view = doc.defaultView || window;
   box.focus();
   const selection = view.getSelection();
-  if (!selection) return false;
+  if (doc.activeElement !== box || !selection || editableText(box) !== source || composingComposers.has(box)) return false;
   const range = doc.createRange();
   range.selectNodeContents(box);
   selection.removeAllRanges();
   selection.addRange(range);
-  const inserted=doc.execCommand("insertText", false, text);
-  if (!inserted || editableText(box)!==text.trim()) return false;
-  box.dispatchEvent(new InputEvent("input", {bubbles: true, inputType: "insertText", data: text}));
-  box.dispatchEvent(new Event("change", {bubbles:true}));
+  let nativeInput = false;
+  const onInput = event => { if (event.isTrusted) nativeInput = true; };
+  box.addEventListener("input", onInput, true);
+  try {
+    // Use the browser edit so YouTube receives the same input as manual typing.
+    // A second synthetic input/change can conflict with the editor's own state.
+    if (!doc.execCommand?.("insertText", false, text) || !nativeInput) return false;
+  } finally {
+    box.removeEventListener("input", onInput, true);
+  }
   await new Promise(resolve=>setTimeout(resolve,0));
   return box.isConnected && editableText(box)===text.trim();
 }
 
 const composerControls = new WeakMap();
 const composingComposers = new WeakSet();
-function installComposerButton() {
+function installComposerButton(boxes) {
   // Comment editors are created lazily for watch pages, Shorts and replies.
-  const boxes = document.querySelectorAll("#input[contenteditable='true'], #input.yt-live-chat-text-input-field-renderer, #contenteditable-root[contenteditable='true']");
   for (const box of boxes) {
     const previous = composerControls.get(box);
     if (previous?.isConnected) continue;
@@ -362,35 +394,46 @@ function installComposerButton() {
     preview.readOnly = true;
     preview.hidden = true;
     setUi(preview, '翻譯草稿', 'aria-label');
-    box.addEventListener("compositionstart",()=>composingComposers.add(box));
-    box.addEventListener("compositionend",()=>composingComposers.delete(box));
+    if (previous) box.removeEventListener("keydown", previous.translateKey, true);
+    else {
+      box.addEventListener("compositionstart",()=>composingComposers.add(box));
+      box.addEventListener("compositionend",()=>composingComposers.delete(box));
+    }
+    let appliedDraft;
     button.addEventListener("click", async () => {
+      if (button.disabled) return;
       if (composingComposers.has(box)) {setUi(status, '請先完成輸入法選字。');return;}
       const text = editableText(box), epoch = textEpoch;
       if (!text) { setUi(status, '請先輸入留言。'); return; }
-      if (!matchesLanguage(text,languageSettings.typeSource)) { setUi(status, '請先輸入留言。'); return; }
+      if (text === appliedDraft) return;
       button.disabled = true;
+      preview.hidden = true;
       setUi(status, '翻譯中…');
       try {
         const result = await runtimeMessage({type:'make-draft',text,direction:direction('type')});
         if (!websiteTextOptInEnabled || epoch !== textEpoch || !box.isConnected || !controls.isConnected) return;
         if(editableText(box)!==text){setUi(status, '原文已修改，請重新翻譯');return;}
         if(composingComposers.has(box)){setUi(status, '請先完成輸入法選字。');return;}
-        if (!result.draft?.trim()) throw new Error("沒有收到日文草稿");
+        if (!result?.draft?.trim()) throw new Error("沒有收到譯文");
         preview.value = result.draft;
-        const inserted = await replaceEditable(box, result.draft);
+        const inserted = await replaceEditable(box, result.draft, text);
         if (!websiteTextOptInEnabled || epoch !== textEpoch || !box.isConnected || !controls.isConnected) return;
+        if (inserted) appliedDraft = editableText(box);
         preview.hidden = inserted;
         setUi(status, inserted ? '已放入譯文，確認後自行送出' : '留言框未接受譯文；請複製下方草稿後貼入。');
       } catch (error) {
         setUi(status, '翻譯失敗，請再試一次。');
       } finally { button.disabled = false; }
     });
-    box.addEventListener("keydown",event=>{
-      if(!websiteTextOptInEnabled||!controls.isConnected||event.key!=="Tab"||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||composingComposers.has(box)||!matchesLanguage(editableText(box),languageSettings.typeSource))return;
+    controls.translateKey = event=>{
+      if(!websiteTextOptInEnabled||!controls.isConnected||button.disabled||event.key!=="Tab"||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey||event.isComposing||composingComposers.has(box))return;
+      const text = editableText(box);
+      const lang = languageSettings.typeSource;
+      if (!text || text === appliedDraft || (!matchesLanguage(text, lang) && !(lang === 'ja' && hasChinese(text)))) return;
       event.preventDefault();event.stopPropagation();event.stopImmediatePropagation?.();
-      if(!button.disabled)button.click();
-    },true);
+      button.click();
+    };
+    box.addEventListener("keydown",controls.translateKey,true);
     setUi(button, 'Tab：翻譯並放入留言框；確認後自行送出', 'title');
     controls.append(button, status, preview);
     const live = box.closest("yt-live-chat-text-input-field-renderer");
@@ -405,19 +448,25 @@ function setWebsiteText(enabled){
  if(!enabled)document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-composer-controls').forEach(el=>el.remove());
  else scan();
 }
-chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','streamerChatMode']).then(s=>{streamerChatMode=s.streamerChatMode === true;languageSettings={...languageSettings,...(s.languageSettings||{})};setWebsiteText(s.websiteTextOptInEnabled === true);});
-let timer;
-new MutationObserver(() => {
-  if (!timer) timer = setTimeout(() => { timer = null; scan(); }, 250);
-}).observe(document.documentElement, {childList: true, subtree: true, attributes: true, attributeFilter: ["contenteditable"]});
-document.addEventListener("focusin", () => { if (websiteTextOptInEnabled && !contextInvalid) installComposerButton(); });
-scan();
+chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','streamerChatMode','captionsHidden']).then(s=>{
+ streamerChatMode=s.streamerChatMode === true;
+ languageSettings={...languageSettings,...(s.languageSettings||{})};
+ setWebsiteText(s.websiteTextOptInEnabled === true);
+ if(window.top===window && s.captionsHidden===false)void pollSubtitles();
+});
+domChanges.observe(scan, {active: () => websiteTextOptInEnabled && !contextInvalid});
+document.addEventListener("focusin", event => {
+  if (!websiteTextOptInEnabled || contextInvalid) return;
+  const box=event.target?.closest?.(composerSelector);
+  if(box)installComposerButton([box]);
+});
 if (window.top === window) {
- pollTimer=setInterval(pollSubtitles,700);
- nativeTimer=setInterval(readNativeCaption,350);
- const reset=()=>{textEpoch++;translated=new WeakMap();document.querySelectorAll('.jtl-title').forEach(line=>line.remove());pollEpoch++;lastNativeCaption='';nativeChangedAt=0;lastSubtitleKey='';renderSubtitle(null);runtimeMessage({type:'subtitle-reset'}).catch(()=>{});};
+ const reset=()=>{textEpoch++;translated=new WeakMap();currentTitle=undefined;document.querySelectorAll('.jtl-title').forEach(line=>line.remove());pollEpoch++;lastNativeCaption='';nativeNotifiedAt=0;lastSubtitleKey='';renderSubtitle(null);if(captionRunning)runtimeMessage({type:'subtitle-reset'}).catch(()=>{});};
  document.addEventListener('yt-navigate-start',reset);
+ document.addEventListener('yt-navigate-finish',()=>scan());
  document.addEventListener('seeking',event=>{if(event.target.tagName==='VIDEO')reset();},true);
+ document.addEventListener('fullscreenchange',()=>{if(document.querySelector('#jtl-subtitles'))installSubtitleOverlay();});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void pollSubtitles();});
 }
 
 })();

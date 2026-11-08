@@ -1,34 +1,81 @@
 import {completeSpokenClause,unfinishedSentence} from './sentence-boundary.mjs';
+/** Owns captured PCM and returns an independent, chronological copy only on delivery. */
+export class PcmRing {
+ constructor(capacity){this.data=new Float32Array(capacity);this.clear();}
+ get capacity(){return this.data.length;}
+ clear(){this.end=0;this.length=0;}
+ push(samples){
+  const values=samples.length>this.capacity?samples.subarray(samples.length-this.capacity):samples;
+  const first=Math.min(values.length,this.capacity-this.end);
+  if(first===values.length)this.data.set(values,this.end);
+  else{this.data.set(values.subarray(0,first),this.end);this.data.set(values.subarray(first),0);}
+  this.end=(this.end+values.length)%this.capacity;this.length=Math.min(this.capacity,this.length+values.length);
+ }
+ snapshot(count=this.length){
+  count=Math.min(count,this.length);
+  const start=(this.end-count+this.capacity)%this.capacity,first=Math.min(count,this.capacity-start);
+  const out=new Float32Array(count);
+  out.set(this.data.subarray(start,start+first));
+  if(first<count)out.set(this.data.subarray(0,count-first),first);
+  return out;
+ }
+}
+
 // PCM sample positions, rather than timer cadence, define every audio boundary.
 export class Resampler {
  constructor(rate){this.ratio=rate/16000;this.reset();}
  reset(){this.sum=0;this.weight=0;this.remaining=this.ratio;}
  push(input){
-  const out=[];
+  const out=new Float32Array(Math.ceil(input.length/this.ratio)+1);
+  let offset=0;
   for(const value of input){
    let left=1;
    while(left>1e-8){
     const take=Math.min(left,this.remaining);
     this.sum+=value*take;this.weight+=take;this.remaining-=take;left-=take;
-    if(this.remaining<1e-8){out.push(this.sum/this.weight);this.sum=0;this.weight=0;this.remaining=this.ratio;}
+    if(this.remaining<1e-8){out[offset++]=this.sum/this.weight;this.sum=0;this.weight=0;this.remaining=this.ratio;}
    }
   }
-  return Float32Array.from(out);
+  return out.subarray(0,offset);
  }
 }
 export class SpeechGain {
  constructor(){this.gain=1;}
- push(frame){
+ push(frame,out=new Float32Array(frame.length)){
   let energy=0;for(const x of frame)energy+=x*x;
   const rms=Math.sqrt(energy/frame.length);
   const target=rms>1e-5?Math.max(1,Math.min(12,.06/rms)):1;
   this.gain+=.2*(target-this.gain);
-  return frame.map(x=>Math.max(-1,Math.min(1,x*this.gain)));
+  for(let i=0;i<frame.length;i++)out[i]=Math.max(-1,Math.min(1,frame[i]*this.gain));
+  return out;
  }
 }
 export class SpeechWindows {
- constructor({shortCues=false}={}){this.shortCues=shortCues;this.sentenceMode=shortCues;this.maxSamples=shortCues?128000:80000;this.overlapFrames=shortCues?0:32;this.reset();}
- reset(){this.pre=[];this.parts=[];this.samples=0;this.clock=0;this.onset=0;this.silent=0;this.voiced=0;this.confident=0;this.active=false;this.id=0;this.lastEmission=0;this.overlap=false;this.utterance=0;this.sentenceComplete=false;this.sentenceUnfinished=false;this.lastSpeechSample=0;this.hintSample=0;}
+ constructor({shortCues=false}={}){
+  this.shortCues=shortCues;this.sentenceMode=shortCues;this.maxSamples=shortCues?128000:80000;this.overlapFrames=shortCues?0:32;
+  this.pcm=new PcmRing(this.maxSamples+(shortCues?64000:0)+512);
+  this.frameLengths=new Uint32Array(32);
+  this.reset();
+ }
+ reset(){this.clearAudio();this.clock=0;this.onset=0;this.silent=0;this.voiced=0;this.confident=0;this.active=false;this.id=0;this.lastEmission=0;this.lastPreviewVoiced=undefined;this.overlap=false;this.utterance=0;this.sentenceComplete=false;this.sentenceUnfinished=false;this.lastSpeechSample=0;this.hintSample=0;}
+ clearAudio(){this.pcm.clear();this.frameIndex=0;this.frameCount=0;this.samples=0;}
+ recentSamples(count){
+  let samples=0;
+  for(let i=1;i<=Math.min(count,this.frameCount);i++)samples+=this.frameLengths[(this.frameIndex+this.frameLengths.length-i)%this.frameLengths.length];
+  return samples;
+ }
+ appendFrame(frame){
+  const required=this.samples+frame.length;
+  if(required>this.pcm.capacity){
+   const previous=this.pcm.snapshot(this.samples);
+   this.pcm=new PcmRing(Math.max(required,this.maxSamples+(this.shortCues?64000:0)+frame.length));
+   this.pcm.push(previous);
+  }
+  this.pcm.push(frame);
+  this.frameLengths[this.frameIndex]=frame.length;
+  this.frameIndex=(this.frameIndex+1)%this.frameLengths.length;
+  this.frameCount=Math.min(this.frameCount+1,this.frameLengths.length);
+ }
  hint(text,utteranceId,id=this.id,sampleCount=this.clock){
   if(!this.active||utteranceId!==this.utterance||id!==this.id)return;
   // A recognizer's period alone is weak evidence. Japanese hanging particles
@@ -42,28 +89,29 @@ export class SpeechWindows {
  finish(){
   if(!this.active)return null;
   this.active=false;
-  if(this.voiced<3584){this.parts=[];this.samples=0;return null;}
-  const audio=new Float32Array(this.samples);let offset=0;
-  for(const part of this.parts){audio.set(part,offset);offset+=part.length;}
-  const job={id:this.id,utteranceId:this.utterance,utteranceEnd:true,audio,final:true,overlap:this.overlap,voicedSeconds:this.voiced/16000,speechSeconds:this.confident/16000,sampleCount:this.clock,startSample:this.start,endSample:this.clock,speechStartSample:this.speechStart,lastSpeechSample:this.lastSpeechSample};
-  this.parts=[];this.samples=0;return job;
+  const job=this.voiced>=3584?this.job(true,true):null;
+  this.clearAudio();return job;
  }
- push(frame,probability,interval=.65){
+ job(final,utteranceEnd){
+  const audio=this.pcm.snapshot(this.samples);
+  return {id:this.id,utteranceId:this.utterance,utteranceEnd,audio,final,overlap:this.overlap,voicedSeconds:this.voiced/16000,speechSeconds:this.confident/16000,sampleCount:this.clock,startSample:this.start,endSample:this.clock,speechStartSample:this.speechStart,lastSpeechSample:this.lastSpeechSample};
+ }
+ push(frame,probability,interval=.65,previewAllowed=true){
   const n=frame.length;this.clock+=n;
+  this.appendFrame(frame);
   const speech=probability>=(this.active?.15:.30);
   this.onset=speech?this.onset+n:0;
   if(!this.active){
-   this.pre.push(frame);while(this.pre.length>16)this.pre.shift();
    if(this.onset<1024)return null;
-   this.active=true;this.id++;this.utterance++;this.parts=this.pre.slice();this.samples=this.parts.reduce((a,b)=>a+b.length,0);
+   this.active=true;this.id++;this.utterance++;this.frameCount=Math.min(this.frameCount,16);this.samples=this.recentSamples(16);
    this.start=this.clock-this.samples;this.speechStart=this.clock-this.onset;this.voiced=this.onset;this.confident=this.onset;this.silent=0;
    // The first cadence starts at acoustic onset, not after VAD activation.
    // Otherwise the two-frame onset confirmation is added to the configured
    // preview delay and a nominal 500 ms preview arrives closer to 600 ms.
-   this.lastEmission=this.speechStart;this.overlap=false;this.sentenceComplete=false;this.sentenceUnfinished=false;this.lastSpeechSample=this.clock;this.hintSample=0;
+   this.lastEmission=this.speechStart;this.lastPreviewVoiced=undefined;this.overlap=false;this.sentenceComplete=false;this.sentenceUnfinished=false;this.lastSpeechSample=this.clock;this.hintSample=0;
    return null;
   }
-  this.parts.push(frame);this.samples+=n;
+  this.samples+=n;
   if(speech){this.voiced+=n;this.lastSpeechSample=this.clock;}
   // Speech at the onset probability, which the companion's outro check was calibrated on.
   if(probability>=.30)this.confident+=n;
@@ -92,15 +140,17 @@ export class SpeechWindows {
   const confidentRatio=this.voiced?this.confident/this.voiced:0;
   const previewReady=speechSamples>=(confidentRatio>=.75?8000:10400);
   let job=null;
-  if(this.voiced>=3200 && ((ended||cut) || (previewReady&&this.clock-this.lastEmission>=interval*16000))){
-   const audio=new Float32Array(this.samples);let at=0;for(const part of this.parts){audio.set(part,at);at+=part.length;}
-   job={id:this.id,utteranceId:this.utterance,utteranceEnd:ended,audio,final:ended||cut,overlap:this.overlap,voicedSeconds:this.voiced/16000,speechSeconds:this.confident/16000,sampleCount:this.clock,startSample:this.start,endSample:this.clock,speechStartSample:this.speechStart,lastSpeechSample:this.lastSpeechSample};
+  const newSpeech=this.lastPreviewVoiced===undefined||this.voiced-this.lastPreviewVoiced>=1536;
+  if(this.voiced>=3200 && ((ended||cut) || (previewAllowed&&newSpeech&&previewReady&&this.clock-this.lastEmission>=interval*16000))){
+   job=this.job(ended||cut,ended);
    this.lastEmission=this.clock;
+   if(!job.final)this.lastPreviewVoiced=this.voiced;
   }
-  if(ended){this.active=false;this.parts=[];this.samples=0;this.pre=[];this.onset=0;}
+  if(ended){this.active=false;this.clearAudio();this.onset=0;}
   else if(cut){
-   const keep=this.overlapFrames??32;this.parts=keep?this.parts.slice(-keep):[];this.samples=this.parts.reduce((a,b)=>a+b.length,0);
+   const keep=this.overlapFrames??32;this.frameCount=Math.min(this.frameCount,keep);this.samples=this.recentSamples(keep);
    this.start=this.clock-this.samples;this.id++;this.overlap=keep>0;this.voiced=0;this.confident=0;this.speechStart=this.clock;
+   this.lastPreviewVoiced=undefined;
    this.sentenceComplete=false;this.sentenceUnfinished=false;
   }
   return job;

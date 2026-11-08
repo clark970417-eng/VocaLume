@@ -3,7 +3,7 @@ import type { WhisperVariant } from '../model-downloader'
 import { filterWhisperHallucination } from '../../pipeline/whisper-filter'
 import type { STTEngine, STTResult, Language, SourceLanguage } from '../types'
 import { createLogger } from '../../main/logger'
-import { windowsInferenceThreads } from '../inference-resources'
+import { macInferenceThreads, windowsInferenceThreads } from '../inference-resources'
 import type { WhisperWorkerClient } from './whisper-worker-client'
 
 const log = createLogger('whisper-local')
@@ -87,6 +87,8 @@ export class WhisperLocalEngine implements STTEngine {
 
     try {
       if (generation !== this.generation) return null
+      const threads = process.platform === 'win32' ? windowsInferenceThreads().whisper :
+        process.platform === 'darwin' && process.arch === 'arm64' ? macInferenceThreads().speech : undefined
       const result = await transcribe({
         model: this.modelPath,
         pcmf32: audioChunk,
@@ -96,7 +98,7 @@ export class WhisperLocalEngine implements STTEngine {
         translate: false,
         vad: false,
         no_timestamps: true,
-        ...(process.platform === 'win32' ? { n_threads: windowsInferenceThreads().whisper } : {}),
+        ...(threads !== undefined ? { n_threads: threads } : {}),
         no_prints: true
       })
       if (generation !== this.generation) return null

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
@@ -6,6 +6,10 @@ import { clearObsCaption, configureObsCaptions, obsCaptionStatus, publishObsCapt
 
 const profile = vi.hoisted(() => ({ path: '' }))
 vi.mock('electron', () => ({ app: { getPath: () => profile.path } }))
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs/promises')>()
+  return { ...fs, rename: vi.fn(fs.rename) }
+})
 
 it('exports only final translations, supports bilingual output, and clears on disable', async () => {
   profile.path = await mkdtemp(join(tmpdir(), 'vocalume-obs-test-'))
@@ -33,6 +37,36 @@ it('exports only final translations, supports bilingual output, and clears on di
     await configureObsCaptions('off')
     publishObsCaption({ sourceText: 'こんにちは', translatedText: '你好' })
     expect(await readFile(path, 'utf8')).toBe('')
+  } finally {
+    await configureObsCaptions('off')
+    await rm(profile.path, { recursive: true, force: true })
+  }
+})
+
+it('deduplicates consecutive successful captions while preserving clear and retry', async () => {
+  profile.path = await mkdtemp(join(tmpdir(), 'vocalume-obs-test-'))
+  const atomicRename = vi.mocked(rename)
+  try {
+    const { path } = await configureObsCaptions('translation')
+    atomicRename.mockClear()
+    const first = { sourceText: 'こんにちは', translatedText: '你好' }
+    publishObsCaption(first)
+    publishObsCaption({ sourceText: '翻訳対象外', translatedText: '你好' })
+    publishObsCaption({ sourceText: 'またね', translatedText: '再見' })
+    await vi.waitFor(async () => expect(await readFile(path, 'utf8')).toBe('再見'))
+    expect(atomicRename).toHaveBeenCalledTimes(2)
+
+    atomicRename.mockRejectedValueOnce(new Error('temporary rename failure'))
+    publishObsCaption(first)
+    await vi.waitFor(() => expect(obsCaptionStatus().error).toBeTruthy())
+    publishObsCaption(first)
+    await vi.waitFor(async () => expect(await readFile(path, 'utf8')).toBe('你好'))
+    expect(obsCaptionStatus().error).toBe('')
+
+    await clearObsCaption()
+    expect(await readFile(path, 'utf8')).toBe('')
+    publishObsCaption(first)
+    await vi.waitFor(async () => expect(await readFile(path, 'utf8')).toBe('你好'))
   } finally {
     await configureObsCaptions('off')
     await rm(profile.path, { recursive: true, force: true })

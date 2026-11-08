@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { FILE_STABILITY_MS, MediaFolderQueue } from './media-folder-watch'
 
 export function useFileTranslation({ disabled, handleStart, handleStop, setStatus }: {
   disabled: boolean
@@ -13,7 +14,7 @@ export function useFileTranslation({ disabled, handleStart, handleStop, setStatu
   }), [mediaJobId, setStatus])
 
   const mediaBusy = useRef(false)
-  const translatePath = async (path: string, name: string): Promise<void> => {
+  const translatePath = async (path: string, name: string, expectedRevision?: string): Promise<void> => {
     if (mediaBusy.current) return
     mediaBusy.current = true
     let started = false
@@ -25,7 +26,7 @@ export function useFileTranslation({ disabled, handleStart, handleStop, setStatu
       setStatus(`Opening ${name}...`)
       started = await handleStart({ captureAudio: false })
       if (!started) return
-      const result = await window.api.processMediaFile(path, jobId)
+      const result = await window.api.processMediaFile(path, jobId, expectedRevision)
       finalStatus = result.cancelled
         ? `Cancelled ${name} at ${formatMediaTime(result.processedSeconds)}`
         : `Finished ${name} (${formatMediaTime(result.processedSeconds)})`
@@ -42,34 +43,67 @@ export function useFileTranslation({ disabled, handleStart, handleStop, setStatu
   }
 
   const [watchFolder, setWatchFolder] = useState<string | null>(null)
-  const watchState = useRef({ seen: new Map<string, string>(), attempted: new Map<string, string>(), busy: false })
+  const watchState = useRef<{ queue: MediaFolderQueue; busy: boolean; dirty: boolean } | undefined>(undefined)
+  const scheduleScan = useRef<(delay: number) => void>(() => {})
   const scanFolder = useRef<() => Promise<void>>(async () => {})
   scanFolder.current = async () => {
     const state = watchState.current
-    if (!watchFolder || disabled || mediaJobId || state.busy) return
+    if (!state || disabled || mediaJobId) return
+    if (state.busy) { state.dirty = true; return }
     state.busy = true
+    let delay = FILE_STABILITY_MS
     try {
-      const files = await window.api.scanMediaFolder()
-      if (state !== watchState.current) return
-      const next = files.find(file => state.seen.get(file.path) === file.revision &&
-        state.attempted.get(file.path) !== file.revision)
-      state.seen = new Map(files.map(file => [file.path, file.revision]))
-      if (next && !mediaBusy.current) {
-        state.attempted.set(next.path, next.revision)
-        await translatePath(next.path, next.name)
+      const scan = await window.api.scanMediaFolder()
+      if (state !== watchState.current || !scan) return
+      const { ready, nextCheck } = state.queue.scan(scan.files, performance.now())
+      delay = scan.eventDriven ? nextCheck : Math.min(nextCheck, FILE_STABILITY_MS)
+      if (ready) {
+        if (mediaBusy.current) delay = FILE_STABILITY_MS
+        else {
+          state.queue.markAttempted(ready)
+          await translatePath(ready.path, ready.name, ready.revision)
+          delay = 0
+        }
       }
     } catch (error) {
-      setStatus(String(error))
-      setWatchFolder(null)
+      if (state === watchState.current) {
+        setStatus(String(error))
+        setWatchFolder(null)
+      }
     } finally {
       state.busy = false
+      if (state === watchState.current) scheduleScan.current(state.dirty ? 0 : delay)
+      state.dirty = false
     }
   }
   useEffect(() => {
     if (!watchFolder) return
-    const timer = setInterval(() => void scanFolder.current(), 3000)
-    return () => clearInterval(timer)
+    watchState.current = { queue: new MediaFolderQueue(), busy: false, dirty: false }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let deadline = Infinity
+    scheduleScan.current = delay => {
+      const at = performance.now() + delay
+      if (deadline <= at) return
+      clearTimeout(timer)
+      deadline = at
+      timer = setTimeout(() => {
+        deadline = Infinity
+        void scanFolder.current()
+      }, delay)
+    }
+    const unsubscribe = window.api.onMediaFolderChanged(() => scheduleScan.current(0))
+    scheduleScan.current(0)
+    return () => {
+      clearTimeout(timer)
+      unsubscribe()
+      watchState.current = undefined
+      scheduleScan.current = () => {}
+      void window.api.stopMediaFolderWatch().catch(() => {})
+    }
   }, [watchFolder])
+  useEffect(() => {
+    if (!disabled && !mediaJobId) scheduleScan.current(0)
+  }, [disabled, mediaJobId])
 
   const cancelMediaFile = async (): Promise<void> => {
     if (!mediaJobId) return
@@ -78,7 +112,6 @@ export function useFileTranslation({ disabled, handleStart, handleStop, setStatu
   }
 
   const toggleWatchFolder = async (): Promise<void> => {
-    watchState.current = { seen: new Map(), attempted: new Map(), busy: false }
     if (watchFolder) setWatchFolder(null)
     else {
       try { setWatchFolder(await window.api.chooseMediaFolder()) }

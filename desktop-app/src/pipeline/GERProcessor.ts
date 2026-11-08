@@ -26,6 +26,7 @@ import {
 } from '../engines/constants'
 import { workerPool } from '../main/worker-pool'
 import { createLogger } from '../main/logger'
+import { performanceState } from '../main/performance-state'
 
 const log = createLogger('pipeline:ger')
 
@@ -87,7 +88,7 @@ export class GERProcessor {
     timestamp: number,
     previousTranslation?: string
   ): void {
-    if (!this.enabled) return
+    if (!this.enabled || performanceState().auxiliaryWorkPaused) return
 
     // Skip if text is too short to meaningfully correct
     if (sttText.length < GER_MIN_TEXT_LENGTH) return
@@ -140,7 +141,7 @@ export class GERProcessor {
     const revision = this.revision
     const configuration = this.deps.getConfigurationRevision?.()
     const translator = this.deps.getTranslator()
-    const current = (): boolean => this.enabled && revision === this.revision &&
+    const current = (): boolean => this.enabled && !performanceState().auxiliaryWorkPaused && revision === this.revision &&
       gen === this.deps.getGeneration?.() && configuration === this.deps.getConfigurationRevision?.() &&
       translator === this.deps.getTranslator()
 

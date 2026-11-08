@@ -8,7 +8,7 @@ import {spawnSync} from 'node:child_process';
 // Override the interpreter on Windows, where python3 may be a Store alias.
 const python = process.env.VOCALUME_TEST_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 
-test('native installer preserves another browser extension origin',async()=>{
+test('native installer preserves the existing browser origins for inference and language sync',async()=>{
  const home=await mkdtemp(join(tmpdir(),'jtl-install-'));
  const folder=join(home,'Library/Application Support/Google/Chrome/NativeMessagingHosts');
  await mkdir(folder,{recursive:true});
@@ -19,12 +19,44 @@ test('native installer preserves another browser extension origin',async()=>{
  assert.equal(result.status,0,result.stderr);
  const manifest=JSON.parse(await readFile(target,'utf8'));
  assert.deepEqual(manifest.allowed_origins,[`chrome-extension://${oldId}/`,`chrome-extension://${nextId}/`]);
+ const language=JSON.parse(await readFile(join(folder,'org.jtl.ui_language.json'),'utf8'));
+ assert.equal(language.name,'org.jtl.ui_language');
+ assert.deepEqual(language.allowed_origins,manifest.allowed_origins);
+ assert.match(await readFile(language.path,'utf8'),/relay\.py['"]? --ui-language\n$/);
+ await rm(home,{recursive:true,force:true});
+});
+
+test('the native language helper does not start a closed desktop app',async()=>{
+ const home=await mkdtemp(join(tmpdir(),'jtl-language-'));
+ try {
+  const result=spawnSync(python,['extension/desktop/relay.py','--ui-language'],{
+   cwd:process.cwd(),env:{...process.env,HOME:home,USERPROFILE:home},encoding:'utf8',timeout:5000
+  });
+  assert.equal(result.error,undefined);
+  assert.notEqual(result.status,0);
+  assert.match(result.stderr,/VocaLume language connection is unavailable/);
+ } finally { await rm(home,{recursive:true,force:true}); }
 });
 
 test('relay imports without the optional OpenCC package',()=>{
  const code="import importlib.util; s=importlib.util.spec_from_file_location('relay','extension/desktop/relay.py'); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); assert m.OpenCC is None";
  const result=spawnSync(python,['-I','-c',code],{cwd:process.cwd(),encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
+});
+
+test('relay keeps compact audio frames and safely normalizes multiline or Unicode frames', () => {
+ const code = String.raw`import importlib.util, json
+spec=importlib.util.spec_from_file_location('relay','extension/desktop/relay.py')
+m=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+raw=b'{"id":7,"op":"decode","audio":"zMzMPQ==","segment":"1:2"}'
+assert m.desktop_frame(json.loads(raw), raw) == raw + b'\n'
+for payload in (b'{\n"id":7,"op":"decode"}', '{"id":7,"op":"decode","segment":"日本語"}'.encode()):
+ frame=m.desktop_frame(json.loads(payload), payload)
+ assert frame.count(b'\n') == 1 and frame.isascii() and json.loads(frame) == json.loads(payload)
+`;
+ const result = spawnSync(python, ['-I', '-c', code], {cwd: process.cwd(), encoding: 'utf8'});
+ assert.equal(result.status, 0, result.stderr);
 });
 
 test('relay finds VocaLume after an obsolete registered application was deleted',()=>{

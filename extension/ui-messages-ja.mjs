@@ -1,6 +1,7 @@
 // Browser extension interface strings.
 export const UI_JA = {
   "Interface language": "表示言語",
+  "Automatic (IP region)": "自動（IP アドレスの地域）",
   "Follow system": "システム設定に従う",
   "Text translation": "テキスト翻訳",
   "Live captions": "音声字幕",
@@ -58,6 +59,8 @@ export const UI_JA = {
   "Export history": "字幕履歴を書き出す",
   "Retry failed translations": "失敗した翻訳を再試行",
   "Caption appearance": "字幕の外観",
+  "Hide subtitles when the pointer is nearby": "ポインターが近づくと字幕を隠す",
+  "Hold Alt/Option to drag or resize": "Alt／Option キーを押しながら移動やサイズ調整ができます",
   "Caption appearance preview": "字幕のプレビュー",
   "Source caption": "原文の字幕",
   "Translated caption": "翻訳の字幕",

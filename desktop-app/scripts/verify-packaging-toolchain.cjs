@@ -38,6 +38,19 @@ async function verifyNativeModuleFilters(source, destination) {
     })
     assert(matches(`${whisperRoot}/js/index.js`))
     assert(matches('node_modules/onnxruntime-node/dist/binding.js'))
+    for (const entry of ['@huggingface/transformers/dist/transformers.node.mjs',
+      '@huggingface/transformers/dist/transformers.node.cjs', 'kokoro-js/dist/kokoro.js',
+      'kokoro-js/dist/kokoro.cjs', 'kokoro-js/voices/af_heart.bin', 'node-llama-cpp/dist/index.js',
+      'naudiodon/build/Release/naudiodon.node']) {
+      assert(matches(`node_modules/${entry}`), `${platform}-${arch}: missing runtime ${entry}`)
+    }
+    for (const entry of ['onnxruntime-web/dist/ort.min.mjs', '@huggingface/transformers/src/transformers.js',
+      '@huggingface/transformers/types/transformers.d.ts', '@huggingface/transformers/dist/transformers.web.js',
+      'kokoro-js/dist/kokoro.web.js', 'node-llama-cpp/llama/gitRelease.bundle',
+      'naudiodon/portaudio/bin/libportaudio.so.2', 'naudiodon/scratch/smokeSine.js',
+      'segfault-handler/example.js', 'onnxruntime-node/script/install.js']) {
+      assert.equal(matches(`node_modules/${entry}`), platform !== 'mac', `${platform}-${arch}: ${entry}`)
+    }
     for (const native of whisperDirs) {
       const keep = nativeDirs.includes(native)
       assert.equal(matches(`${whisperRoot}/${native}`, true), keep, `${platform}-${arch}: ${native}`)

@@ -3,11 +3,20 @@ import type { AppContext } from '../app-context'
 import { store } from '../store'
 import { getSubtitleHeight } from '../window-manager'
 import { createLogger } from '../logger'
+import { isSubtitleHoverRegion, setSubtitleHoverRegion } from '../subtitle-hover'
 
 const log = createLogger('ipc:display')
 
 /** Register display and subtitle window IPC handlers */
 export function registerDisplayIpc(ctx: AppContext): void {
+  ipcMain.on('subtitle-hover-region', (event, region: unknown) => {
+    const window = ctx.subtitleWindow
+    if (window && event.sender === window.webContents &&
+        (region === null || isSubtitleHoverRegion(region))) {
+      setSubtitleHoverRegion(window, region)
+    }
+  })
+
   ipcMain.handle('get-displays', () => {
     const primary = screen.getPrimaryDisplay()
     return screen.getAllDisplays().map((d, i) => ({
@@ -36,7 +45,7 @@ export function registerDisplayIpc(ctx: AppContext): void {
 
   // Toggle subtitle drag mode (#509): disable click-through so user can drag
   ipcMain.handle('toggle-subtitle-drag-mode', (_event, enabled: boolean) => {
-    if (!ctx.subtitleWindow) return
+    if (!ctx.subtitleWindow) return false
     if (enabled) {
       ctx.subtitleWindow.showInactive()
       ctx.subtitleWindow.setIgnoreMouseEvents(false)
@@ -44,6 +53,7 @@ export function registerDisplayIpc(ctx: AppContext): void {
       ctx.subtitleWindow.setIgnoreMouseEvents(true, { forward: true })
     }
     ctx.subtitleWindow.webContents.send('drag-mode-changed', enabled)
+    return enabled
   })
 
   // Move subtitle window by pixel delta (#509)
@@ -85,7 +95,7 @@ export function registerDisplayIpc(ctx: AppContext): void {
 
   // Toggle subtitle edit mode (#590): disable click-through so user can edit translations
   ipcMain.handle('toggle-subtitle-edit-mode', (_event, enabled: boolean) => {
-    if (!ctx.subtitleWindow) return
+    if (!ctx.subtitleWindow) return false
     if (enabled) {
       ctx.subtitleWindow.setIgnoreMouseEvents(false)
     } else {
@@ -94,6 +104,7 @@ export function registerDisplayIpc(ctx: AppContext): void {
     ctx.subtitleWindow.webContents.send('edit-mode-changed', enabled)
     ctx.mainWindow?.webContents.send('edit-mode-changed', enabled)
     log.info(`Subtitle edit mode ${enabled ? 'enabled' : 'disabled'}`)
+    return enabled
   })
 
   // Forward translation result to subtitle window (from renderer)

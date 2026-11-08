@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { MacEngineAvailability } from '../../engine-selection'
 import { AudioCaptureStartError, type UseAudioCaptureReturn } from './useAudioCapture'
 
 function friendlyError(err: unknown): string {
@@ -103,6 +104,8 @@ export interface SettingsState {
   subtitleBgOpacity: number
   setSubtitleBgOpacity: (v: number) => void
   subtitlePosition: SubtitlePositionType
+  hideOnHover: boolean
+  setHideOnHover: (v: boolean) => void
   setSubtitlePosition: (v: SubtitlePositionType) => void
   showConfidenceIndicator: boolean
   setShowConfidenceIndicator: (v: boolean) => void
@@ -138,8 +141,7 @@ export interface SettingsState {
 
   // Platform
   platform: string
-  /** Whether the current system is macOS 26+ (Tahoe) */
-  isMacOS26: boolean
+  macEngines: MacEngineAvailability | null
 
   // Meeting summary
   lastTranscriptPath: string | null
@@ -258,7 +260,7 @@ export function useSettingsState(): SettingsState {
         geminiLiveEnabled: options?.captureAudio === false ? false : engine.geminiLiveEnabled
       })
 
-      const result = await withIpcTimeout(window.api.pipelineStart(config), 120_000, 'pipelineStart')
+      const result = await withIpcTimeout(window.api.pipelineStart({ ...config, mediaFileSession: options?.captureAudio === false }), 120_000, 'pipelineStart')
       if (result.error) {
         session.setStatus(`Error: ${result.error}`)
         session.setIsStarting(false)
@@ -389,6 +391,7 @@ export function useSettingsState(): SettingsState {
     subtitleTranslatedColor: subtitle.subtitleTranslatedColor, setSubtitleTranslatedColor: subtitle.setSubtitleTranslatedColor,
     subtitleBgOpacity: subtitle.subtitleBgOpacity, setSubtitleBgOpacity: subtitle.setSubtitleBgOpacity,
     subtitlePosition: subtitle.subtitlePosition, setSubtitlePosition: subtitle.setSubtitlePosition,
+    hideOnHover: subtitle.hideOnHover, setHideOnHover: subtitle.setHideOnHover,
     showConfidenceIndicator: subtitle.showConfidenceIndicator, setShowConfidenceIndicator: subtitle.setShowConfidenceIndicator,
     accessibility: subtitle.accessibility,
     pushSubtitleSettings: subtitle.pushSubtitleSettings,
@@ -399,7 +402,7 @@ export function useSettingsState(): SettingsState {
     sttEngine: language.sttEngine, setSttEngine: language.setSttEngine,
     whisperVariant: language.whisperVariant, setWhisperVariant: language.setWhisperVariant,
     platform: language.platform,
-    isMacOS26: language.isMacOS26,
+    macEngines: language.macEngines,
     draftSttEnabled: language.draftSttEnabled, setDraftSttEnabled: language.setDraftSttEnabled,
     speakerDiarizationEnabled: language.speakerDiarizationEnabled, setSpeakerDiarizationEnabled: language.setSpeakerDiarizationEnabled,
 

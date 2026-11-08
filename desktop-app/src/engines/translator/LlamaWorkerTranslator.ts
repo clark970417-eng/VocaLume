@@ -95,15 +95,19 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     return this.initPromise
   }
 
+  /** Prepare files without taking ownership of the shared worker. */
+  async downloadModel(): Promise<string> {
+    const variants = this.getVariants()
+    const variantConfig = variants[this.variant] ?? variants['Q4_K_M']!
+    const modelPath = join(getGGUFDir(), variantConfig.filename)
+    await downloadGGUF(variantConfig.filename, variantConfig.url, this.onProgress, variantConfig.sha256)
+    return modelPath
+  }
+
   private async doInitialize(): Promise<void> {
     if (this.initialized) return
 
-    // Download model if needed
-    const variants = this.getVariants()
-    const variantConfig = variants[this.variant] ?? variants['Q4_K_M']!
-    this.modelPath = join(getGGUFDir(), variantConfig.filename)
-    await downloadGGUF(variantConfig.filename, variantConfig.url, this.onProgress, variantConfig.sha256)
-
+    this.modelPath = await this.downloadModel()
     await this.afterDownload()
     this.interruption.signal.throwIfAborted()
 
@@ -185,7 +189,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
       if (restored.trim()) context.onPartial!(restored)
     } : undefined)
     const ms = performance.now() - t0
-    this.log.info(`translate ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
+    this.log.debug(`translate ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
     return result
   }
 
@@ -244,7 +248,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
       'translate-ssbd', this.workerOptions, this.requestSignal(context?.signal)
     )
     const ms = performance.now() - t0
-    this.log.info(`ssbd ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
+    this.log.debug(`ssbd ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
     return validateTranslation(result, `${from}-${to}`, text, context?.glossary)
   }
 
@@ -283,7 +287,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     )
     const ms = performance.now() - t0
     const label = isRevision ? 'simulmt-rev' : 'simulmt-incr'
-    this.log.info(`${label} ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
+    this.log.debug(`${label} ${from}→${to} inputLen=${text.length} outputLen=${result.length} time=${ms.toFixed(0)}ms`)
     return validateTranslation(result, `${from}-${to}`, text, context?.glossary)
   }
 

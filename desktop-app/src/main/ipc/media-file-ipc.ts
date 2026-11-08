@@ -1,43 +1,87 @@
 import { dialog, ipcMain } from 'electron'
 import { spawn, type ChildProcess } from 'node:child_process'
+import { watch, type FSWatcher, type Stats } from 'node:fs'
 import { resolve } from 'node:path'
 import { readdir, lstat, stat, writeFile } from 'node:fs/promises'
 import ffmpegPath from 'ffmpeg-static'
 import { isSupportedMediaFile } from '../../media-formats'
 import type { AppContext } from '../app-context'
+import { liveWork } from '../live-work'
+import { performanceState } from '../performance-state'
+import { setTimeout as wait } from 'node:timers/promises'
 import { findQuietSegmentEnd } from '../media-segmentation'
+import { translateUiText } from '../../../../extension/ui-language.mjs'
+import { getUiLanguageState } from '../interface-language'
 const MAX_PCM_BYTES = 16_000 * 4 * 60 * 60 * 6 // Six hours of mono float32 PCM.
 const SAMPLE_RATE = 16_000
 const MAX_SEGMENT_SAMPLES = SAMPLE_RATE * 24
 const activeDecoders = new Map<string, ChildProcess>()
+const mediaRevision = (info: Stats): string => `${info.ino}:${info.size}:${info.mtimeMs}`
 
 export function registerMediaFileIpc(ctx: AppContext): void {
   ipcMain.handle('export-file-transcript', async (_event, contents: unknown) => {
     if (typeof contents !== 'string') throw new Error('Invalid transcript.')
     const { canceled, filePath } = await dialog.showSaveDialog({
+      title: translateUiText('Export text file', getUiLanguageState().locale),
       defaultPath: 'VocaLume-transcript.txt',
-      filters: [{ name: 'Text', extensions: ['txt'] }]
+      filters: [{ name: 'TXT', extensions: ['txt'] }]
     })
     if (!canceled && filePath) await writeFile(filePath, contents, 'utf8')
   })
-  let watchedFolder: string | undefined
-  ipcMain.handle('choose-media-folder', async () => {
+  let watched: { path: string; owner: Electron.WebContents; native?: FSWatcher; close: () => void } | undefined
+  ipcMain.handle('choose-media-folder', async ({ sender }) => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
-    if (result.canceled) return null
-    watchedFolder = result.filePaths[0]
-    return watchedFolder
-  })
-  ipcMain.handle('scan-media-folder', async () => {
-    const folder = watchedFolder
-    if (!folder) return []
-    const files: { path: string; name: string; revision: string }[] = []
-    for (const entry of await readdir(folder, { withFileTypes: true })) {
-      if (!entry.isFile() || entry.name.startsWith('.') || !isSupportedMediaFile(entry.name)) continue
-      const path = resolve(folder, entry.name)
-      const info = await lstat(path).catch(() => null)
-      if (info?.isFile() && info.size) files.push({ path, name: entry.name, revision: `${info.ino}:${info.size}:${info.mtimeMs}` })
+    const folder = result.filePaths[0]
+    if (result.canceled || !folder || sender.isDestroyed()) return null
+    watched?.close()
+    let notification: ReturnType<typeof setTimeout> | undefined
+    const notify = (): void => {
+      clearTimeout(notification)
+      notification = setTimeout(() => {
+        if (watched === selection && !sender.isDestroyed()) sender.send('media-folder-changed')
+      }, 250)
+      notification.unref()
     }
-    return files.sort((a, b) => a.name.localeCompare(b.name))
+    const close = (): void => {
+      if (watched === selection) watched = undefined
+      clearTimeout(notification)
+      selection.native?.close()
+      sender.off('destroyed', close)
+    }
+    const selection: NonNullable<typeof watched> = { path: folder, owner: sender, close }
+    watched = selection
+    sender.once('destroyed', close)
+    try {
+      selection.native = watch(folder, { persistent: false }, notify)
+      selection.native.on('error', () => {
+        selection.native?.close()
+        selection.native = undefined
+        notify()
+      })
+      selection.native.on('close', () => {
+        if (watched !== selection || !selection.native) return
+        selection.native = undefined
+        notify()
+      })
+    } catch { /* Remote and removable folders can fall back to periodic scans. */ }
+    return folder
+  })
+  ipcMain.handle('stop-media-folder-watch', ({ sender }) => {
+    if (watched?.owner === sender) watched.close()
+  })
+  ipcMain.handle('scan-media-folder', async ({ sender }) => {
+    const selection = watched
+    if (!selection || selection.owner !== sender || ctx.pipeline?.active ||
+        ctx.pipeline?.state === 'initializing' || performanceState().auxiliaryWorkPaused) return null
+    const files: { path: string; name: string; revision: string }[] = []
+    for (const entry of await readdir(selection.path, { withFileTypes: true })) {
+      if (!entry.isFile() || entry.name.startsWith('.') || !isSupportedMediaFile(entry.name)) continue
+      const path = resolve(selection.path, entry.name)
+      const info = await lstat(path).catch(() => null)
+      if (info?.isFile() && info.size) files.push({ path, name: entry.name, revision: mediaRevision(info) })
+    }
+    if (watched !== selection) return null
+    return { files: files.sort((a, b) => a.name.localeCompare(b.name)), eventDriven: Boolean(selection.native) }
   })
   ipcMain.handle('decode-media-file', async (_event, requestedPath: string) => {
     if (typeof requestedPath !== 'string' || requestedPath.length === 0) throw new Error('No media file was selected.')
@@ -48,11 +92,14 @@ export function registerMediaFileIpc(ctx: AppContext): void {
     return decodeWithFfmpeg(inputPath)
   })
 
-  ipcMain.handle('process-media-file', async (event, requestedPath: string, jobId: string) => {
-    if (!ctx.pipeline?.running) throw new Error('Start the translation engine before importing a media file.')
+  ipcMain.handle('process-media-file', async (event, requestedPath: string, jobId: string, expectedRevision?: string) => {
+    const work = liveWork(ctx)
+    const session = work.mediaSession
+    if (!ctx.pipeline?.running || !session) throw new Error('Start a file translation session before importing a media file.')
     if (typeof jobId !== 'string' || !jobId) throw new Error('Invalid media import job.')
-    const inputPath = await validatedMediaPath(requestedPath)
-    if (activeDecoders.has(jobId)) throw new Error('This media import is already running.')
+    const inputPath = await validatedMediaPath(requestedPath, expectedRevision)
+    if (work.mediaSession !== session || !ctx.pipeline?.running) throw new Error('The file translation session ended.')
+    if (activeDecoders.size) throw new Error('A media import is already running.')
     return processMediaWithFfmpeg(ctx, event.sender, inputPath, jobId)
   })
 
@@ -64,12 +111,13 @@ export function registerMediaFileIpc(ctx: AppContext): void {
   })
 }
 
-async function validatedMediaPath(requestedPath: string): Promise<string> {
+async function validatedMediaPath(requestedPath: string, expectedRevision?: string): Promise<string> {
   if (typeof requestedPath !== 'string' || requestedPath.length === 0) throw new Error('No media file was selected.')
   const inputPath = resolve(requestedPath)
   if (!isSupportedMediaFile(inputPath)) throw new Error('Unsupported media file type.')
-  const info = await stat(inputPath)
+  const info = await (expectedRevision === undefined ? stat(inputPath) : lstat(inputPath))
   if (!info.isFile()) throw new Error('The selected media path is not a file.')
+  if (expectedRevision !== undefined && expectedRevision !== mediaRevision(info)) throw new Error('The watched file changed before translation started.')
   return inputPath
 }
 
@@ -120,10 +168,13 @@ async function processMediaWithFfmpeg(
     '-nostdin', '-hide_banner', '-loglevel', 'error', '-i', inputPath,
     '-vn', '-ac', '1', '-ar', String(SAMPLE_RATE), '-c:a', 'pcm_f32le', '-f', 'f32le', 'pipe:1'
   ], { stdio: ['ignore', 'pipe', 'pipe'] })
+  const work = liveWork(ctx)
+  const session = work.mediaSession
   activeDecoders.set(jobId, decoder)
   let pending = Buffer.alloc(0)
   let totalBytes = 0
   let processedSamples = 0
+  let stopped = false
   const errors: Buffer[] = []
   let processing = Promise.resolve()
   const timeout = setTimeout(() => decoder.kill('SIGKILL'), 6 * 60 * 60_000)
@@ -142,7 +193,19 @@ async function processMediaWithFfmpeg(
       const segmentBuffer = Buffer.from(pending.subarray(0, segmentBytes))
       pending = pending.subarray(segmentBytes)
       const audio = new Float32Array(segmentBuffer.buffer, segmentBuffer.byteOffset, segmentSamples)
-      await ctx.pipeline?.process(new Float32Array(audio), SAMPLE_RATE)
+      for (;;) {
+        const processed = await work.run('background', async signal => {
+          if (signal.aborted || !session || work.mediaSession !== session || !ctx.pipeline?.running || decoder.killed) return 'stopped'
+          if (performanceState().speculativeTranslationPaused) return 'paused'
+          await ctx.pipeline.process(new Float32Array(audio), SAMPLE_RATE)
+          return 'done'
+        })
+        if (processed === 'done') break
+        if (processed === 'stopped') { stopped = true; decoder.kill('SIGKILL'); return }
+        // The decoder's stream remains backpressured during this wait; only
+        // the file is delayed. Audio never waits on a pressure timer.
+        await wait(1000)
+      }
       processedSamples += segmentSamples
       sender.send('media-file-progress', { jobId, processedSeconds: processedSamples / SAMPLE_RATE })
     }
@@ -178,5 +241,5 @@ async function processMediaWithFfmpeg(
     const detail = Buffer.concat(errors).toString('utf8').trim().slice(-500)
     throw new Error(detail || 'FFmpeg could not decode this media file.')
   }
-  return { processedSeconds: processedSamples / SAMPLE_RATE, cancelled }
+  return { processedSeconds: processedSamples / SAMPLE_RATE, cancelled: cancelled || stopped }
 }

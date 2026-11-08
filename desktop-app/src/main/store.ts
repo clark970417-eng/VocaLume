@@ -2,6 +2,7 @@ import Store from 'electron-store'
 import type { GlossaryEntry, Language, SourceLanguage } from '../engines/types'
 import { DEFAULT_WS_PORT } from './constants'
 import type { SpeechToneMode } from '../pipeline/SpeechTone'
+import type { UiLanguageChoice } from './interface-language'
 
 export interface QuotaRecord {
   monthKey: string
@@ -28,6 +29,7 @@ export interface SubtitleSettings {
   translatedTextColor: string
   backgroundOpacity: number
   position: 'top' | 'bottom'
+  hideOnHover?: boolean
   accessibility: AccessibilitySettings
 }
 
@@ -52,6 +54,7 @@ export interface CorrectionEntry {
 }
 
 export interface AppSettings {
+  uiLanguageChoice?: UiLanguageChoice
   speechToneMode: SpeechToneMode
   translationEngine: string
   googleApiKey: string
@@ -80,6 +83,7 @@ export interface AppSettings {
   quotaTracking: Record<string, QuotaRecord>
   activeSession: ActiveSession | null
   subtitleSettings: SubtitleSettings
+  obsHideDesktopOverlay: boolean
   sessionLogs: SessionLog[]
   /** Enable KV cache quantization (Q8_0) for TranslateGemma to reduce VRAM usage ~50% */
   slmKvCacheQuant: boolean
@@ -187,12 +191,14 @@ export const store = new Store<AppSettings>({
     selectedDisplay: 0,
     quotaTracking: {},
     activeSession: null,
+    obsHideDesktopOverlay: false,
     subtitleSettings: {
       fontSize: 30,
       sourceTextColor: '#f0f0f0',
       translatedTextColor: '#93c5fd',
       backgroundOpacity: 78,
       position: 'bottom',
+      hideOnHover: false,
       accessibility: {
         highContrast: false,
         dyslexiaFont: false,

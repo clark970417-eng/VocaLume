@@ -3,6 +3,7 @@ import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { store } from './store'
+import { obsCaptionStatus } from './obs-captions'
 import type { AppContext } from './app-context'
 
 /** Calculate subtitle window height based on display scale factor */
@@ -57,7 +58,7 @@ export function createSubtitleWindow(ctx: AppContext, show = true): void {
   const initialX = savedPos?.x ?? targetDisplay.bounds.x
   const initialY = savedPos?.y ?? (targetDisplay.bounds.y + targetDisplay.bounds.height - subtitleHeight)
 
-  ctx.subtitleWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     show: show && !isUiTest,
     x: initialX,
     y: initialY,
@@ -74,18 +75,34 @@ export function createSubtitleWindow(ctx: AppContext, show = true): void {
       nodeIntegration: false
     }
   })
+  ctx.subtitleWindow = window
 
-  ctx.subtitleWindow.setIgnoreMouseEvents(true, { forward: true })
+  window.setIgnoreMouseEvents(true, { forward: true })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    ctx.subtitleWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/subtitle`)
+    window.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/subtitle`)
   } else {
-    ctx.subtitleWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: '/subtitle' })
+    window.loadFile(join(__dirname, '../renderer/index.html'), { hash: '/subtitle' })
   }
 
-  ctx.subtitleWindow.on('closed', () => {
-    ctx.subtitleWindow = null
+  window.on('closed', () => {
+    if (ctx.subtitleWindow === window) ctx.subtitleWindow = null
   })
+}
+
+export function syncDesktopSubtitleWindow(ctx: AppContext, show = true): void {
+  const window = ctx.subtitleWindow
+  if (store.get('obsHideDesktopOverlay') && obsCaptionStatus().mode !== 'off') {
+    if (window && !window.isDestroyed()) {
+      window.destroy()
+      ctx.mainWindow?.webContents.send('drag-mode-changed', false)
+      ctx.mainWindow?.webContents.send('edit-mode-changed', false)
+    }
+    return
+  }
+  if (ctx.mainWindow && (!window || window.isDestroyed())) {
+    createSubtitleWindow(ctx, show && !ctx.extensionConnected)
+  }
 }
 
 /** Browser captions need no renderer, desktop microphone or audio device
@@ -94,7 +111,7 @@ export function ensureDesktopWindows(ctx: AppContext, show = true): BrowserWindo
   if (!ctx.mainWindow || ctx.mainWindow.isDestroyed()) {
     createMainWindow(ctx, show)
   }
-  if (!ctx.subtitleWindow || ctx.subtitleWindow.isDestroyed()) createSubtitleWindow(ctx, show && !ctx.extensionConnected)
+  syncDesktopSubtitleWindow(ctx, show)
   if (show && !isUiTest) { ctx.mainWindow!.show(); ctx.mainWindow!.focus() }
   return ctx.mainWindow!
 }

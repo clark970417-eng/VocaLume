@@ -8,6 +8,8 @@ const draft='今日は参加できません。\nまた明日来ます！😊'
 const root=resolve(__dirname,'../../extension')
 const platforms=[
   {name:'YouTube',host:'www.youtube.com',script:'content.js',css:'content.css',editor:'<ytd-commentbox><div data-editor id="contenteditable-root" role="textbox" contenteditable="true"></div></ytd-commentbox>'},
+  {name:'YouTube live chat',host:'www.youtube.com',script:'content.js',css:'content.css',keyboardSubmit:true,editor:'<div id="input-container"><yt-live-chat-text-input-field-renderer><div data-editor id="input" role="textbox" contenteditable="plaintext-only"></div></yt-live-chat-text-input-field-renderer></div>'},
+  {name:'YouTube Shorts reply',host:'www.youtube.com',script:'content.js',css:'content.css',editor:'<ytd-comment-replies-renderer><ytd-commentbox><div data-editor id="contenteditable-root" role="textbox" contenteditable="true"></div></ytd-commentbox></ytd-comment-replies-renderer>'},
   {name:'X',host:'x.com',script:'x-content.js',css:'x-content.css',editor:'<div data-testid="tweetTextarea_0RichTextInputContainer"><div data-editor role="textbox" contenteditable="true" data-testid="tweetTextarea_0"></div></div><div data-testid="toolBar"></div>'},
   {name:'Discord',host:'discord.com',managed:true,editor:'<div data-editor role="textbox" contenteditable="true" data-slate-editor="true"><span data-slate-string="true"></span></div>'},
   {name:'Twitch',host:'www.twitch.tv',managed:true,editor:'<div class="chat-input"><div data-a-target="chat-input"><div data-editor role="textbox" contenteditable="true" data-slate-editor="true"></div></div></div>'},
@@ -26,11 +28,11 @@ async function fixture(platform:Platform,reject=false):Promise<Page> {
   await page.route('**/*',route=>route.fulfill({contentType:'text/html',body:
     '<!doctype html><meta charset="utf-8"><style>body{margin:50px;background:#18211d;color:white;font:16px system-ui}form{margin-top:150px;width:600px}[data-editor]{display:block;white-space:pre-wrap;min-height:70px;border:1px solid #aaa;width:550px;padding:8px}#send{margin-top:24px;padding:10px 25px}</style><main><form>'+platform.editor+'<button id="send" type="submit">Send fixture</button></form></main>'}))
   await page.goto('https://'+platform.host+'/vocalume-local-fixture')
-  await page.evaluate(({source,draft,managed,textarea,reject})=>{
+  await page.evaluate(({source,draft,managed,textarea,reject,youtube,keyboardSubmit})=>{
     const box=document.querySelector('[data-editor]') as HTMLElement & {value?:string}
     let model=source
     if(textarea)box.value=source;else box.innerText=source
-    const state={submitted:[] as string[],requests:[] as Array<{type:string;direction?:string;text?:string}>}
+    const state={submitted:[] as string[],inputs:[] as boolean[],requests:[] as Array<{type:string;direction?:string;text?:string}>}
     Object.assign(window,{__fixture:state})
     // Reproduce editors that report success but reject the native transaction.
     if(reject)document.execCommand=()=>true
@@ -48,9 +50,16 @@ async function fixture(platform:Platform,reject=false):Promise<Page> {
           setTimeout(()=>{box.innerText=model},0)
         }
       })
-      box.addEventListener('input',()=>{model=box.innerText})
+      box.addEventListener('input',event=>{
+        state.inputs.push(event.isTrusted)
+        if(!youtube||event.isTrusted)model=box.innerText
+      })
     }
-    document.querySelector('form')!.addEventListener('submit',event=>{event.preventDefault();state.submitted.push(model)})
+    const form=document.querySelector('form')!
+    if(keyboardSubmit)box.addEventListener('keydown',event=>{
+      if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();form.requestSubmit()}
+    })
+    form.addEventListener('submit',event=>{event.preventDefault();state.submitted.push(model)})
     const settings={websiteTextOptInEnabled:true,languageSettings:{readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja'}}
     const chrome={runtime:{id:'local-test',getURL:(file:string)=>file,lastError:null,onMessage:{addListener(){}},
       sendMessage(payload:{type:string},callback?:(reply:unknown)=>void){
@@ -60,8 +69,8 @@ async function fixture(platform:Platform,reject=false):Promise<Page> {
       }},
       storage:{onChanged:{addListener(){}},local:{get(_keys:unknown,callback?:(value:unknown)=>void){callback?.(settings);return Promise.resolve(settings)}}}}
     Object.assign(globalThis,{chrome})
-  },{source,draft,managed:!!platform.managed,textarea:!!platform.textarea,reject})
-  for(const file of ['streamer-vocabulary.js','translation-guards.js','caption-window.js',platform.script||'social-content.js']){
+  },{source,draft,managed:!!platform.managed,textarea:!!platform.textarea,reject,youtube:platform.script==='content.js',keyboardSubmit:!!platform.keyboardSubmit})
+  for(const file of ['streamer-vocabulary.js','translation-guards.js','dom-changes.js','caption-window.js',platform.script||'social-content.js']){
     await page.addScriptTag({path:resolve(root,file)})
   }
   await page.addStyleTag({path:resolve(root,platform.css||'social-content.css')})
@@ -73,7 +82,7 @@ async function translate(page:Page,platform:Platform,shortcut=false){
   else if(platform.name==='X'){
     await page.locator('.jtl-x-composer .jtl-x-language').click()
     await page.getByRole('button',{name:'放入留言框',exact:true}).click()
-  }else await page.locator(platform.name==='YouTube'?'.jtl-compose':'.jtl-social-language').click()
+  }else await page.locator(platform.script==='content.js'?'.jtl-compose':'.jtl-social-language').click()
 }
 
 for(const platform of platforms)for(const shortcut of [false,true])test(platform.name+' ('+(shortcut?'Tab':'button')+'): visible Japanese equals the submitted model, without automatic sending',async()=>{
@@ -86,11 +95,30 @@ for(const platform of platforms)for(const shortcut of [false,true])test(platform
     await expect.poll(()=>page.evaluate(()=> (window as any).__fixture.submitted.length)).toBe(0)
     const requests=await page.evaluate(()=> (window as any).__fixture.requests.filter((p:any)=>p.type==='make-draft'))
     expect(requests).toEqual([{type:'make-draft',text:source,direction:'zh-ja'}])
-    const control=page.locator(platform.name==='X'?'.jtl-x-composer':platform.name==='YouTube'?'.jtl-composer-controls':'.jtl-social-controls')
+    if(platform.script==='content.js'){
+      const inputs:boolean[]=await page.evaluate(()=> (window as any).__fixture.inputs)
+      expect(inputs).toContain(true)
+      expect(inputs).not.toContain(false)
+    }
+    const control=page.locator(platform.name==='X'?'.jtl-x-composer':platform.script==='content.js'?'.jtl-composer-controls':'.jtl-social-controls')
     const a=await control.boundingBox(),b=await page.locator('#send').boundingBox()
     expect(a&&b&&a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y).toBeFalsy()
-    await page.locator('#send').click()
+    if(platform.keyboardSubmit&&shortcut)await editor.press('Enter')
+    else await page.locator('#send').click()
     expect(await page.evaluate(()=> (window as any).__fixture.submitted)).toEqual([draft])
+  }finally{await page.close()}
+})
+
+test('YouTube: Tab can leave the editor after a Japanese draft is applied',async()=>{
+  const page=await fixture(platforms[0])
+  try{
+    await translate(page,platforms[0],true)
+    const editor=page.locator('[data-editor]')
+    await expect.poll(()=>editor.innerText()).toBe(draft)
+    await expect(page.getByRole('status').last()).toContainText('已放入譯文')
+    await editor.press('Tab')
+    await expect(editor).not.toBeFocused()
+    expect(await page.evaluate(()=> (window as any).__fixture.requests.filter((p:any)=>p.type==='make-draft').length)).toBe(1)
   }finally{await page.close()}
 })
 
@@ -117,5 +145,17 @@ for(const platform of platforms.filter(p=>['YouTube','X'].includes(p.name)))test
     await expect(page.locator('[data-editor]')).toHaveText(source)
     await expect(page.locator('textarea').last()).toHaveValue(draft)
     expect(await page.evaluate(()=> (window as any).__fixture.submitted)).toEqual([])
+  }finally{await page.close()}
+})
+
+for(const platform of platforms.filter(p=>['TikTok','Bilibili'].includes(p.name)))test(platform.name+': a top-edge composer leaves its Send button clickable',async()=>{
+  const page=await fixture(platform)
+  try{
+    await page.addStyleTag({content:'body{margin-top:0!important} form{margin-top:0!important} #send{margin-top:8px!important}'})
+    await page.evaluate(()=>window.dispatchEvent(new Event('resize')))
+    await translate(page,platform)
+    await expect(page.getByRole('status').last()).toContainText('已放入譯文')
+    await page.locator('#send').click({timeout:5000})
+    expect(await page.evaluate(()=> (window as any).__fixture.submitted)).toEqual([draft])
   }finally{await page.close()}
 })

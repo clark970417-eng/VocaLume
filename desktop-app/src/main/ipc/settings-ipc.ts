@@ -6,9 +6,19 @@ import { store } from '../store'
 import type { AppSettings, SubtitleSettings, CorrectionEntry } from '../store'
 import { validateSubtitleSettings } from '../ipc-validators'
 import type { AppContext } from '../app-context'
+import { syncDesktopSubtitleWindow } from '../window-manager'
 import { createLogger } from '../logger'
 import { isSpeechToneMode } from '../../pipeline/SpeechTone'
+import { normalizeMacSttEngine, type SttEngineType } from '../../engine-selection'
+import { getMacEngineAvailability } from '../mac-engine-availability'
 import { localizedWebsiteUrl } from '../../../../extension/website-language.mjs'
+import { translateUiText, uiLanguagePreference } from '../../../../extension/ui-language.mjs'
+import {
+  getUiLanguageState,
+  onUiLanguageStateChanged,
+  setUiLanguagePreference,
+  updateUiLanguageChoice
+} from '../interface-language'
 import {
   parseGlossary,
   detectGlossaryFormat,
@@ -21,14 +31,36 @@ const _log = createLogger('ipc:settings')
 
 /** Register settings persistence IPC handlers */
 export function registerSettingsIpc(ctx: AppContext): void {
-  ipcMain.handle('obs-caption-status', () => obsCaptionStatus())
-  ipcMain.handle('configure-obs-captions', (_event, mode: unknown) => configureObsCaptions(mode))
+  ipcMain.handle('get-ui-language', (_event, legacyPreference: unknown) => {
+    const preference = uiLanguagePreference(legacyPreference)
+    if (preference !== 'auto') updateUiLanguageChoice({ preference, changedAt: 0 })
+    return getUiLanguageState()
+  })
+  ipcMain.handle('set-ui-language', (_event, preference: unknown) => setUiLanguagePreference(preference))
+  onUiLanguageStateChanged(state => {
+    for (const window of [ctx.mainWindow, ctx.subtitleWindow]) {
+      if (window && !window.isDestroyed()) window.webContents.send('ui-language-changed', state)
+    }
+  })
+  const obsStatus = () => ({ ...obsCaptionStatus(), hideDesktopOverlay: store.get('obsHideDesktopOverlay') })
+  ipcMain.handle('obs-caption-status', obsStatus)
+  ipcMain.handle('configure-obs-captions', async (_event, mode: unknown) => {
+    await configureObsCaptions(mode)
+    syncDesktopSubtitleWindow(ctx)
+    return obsStatus()
+  })
+  ipcMain.handle('set-obs-only', (_event, enabled: unknown) => {
+    if (typeof enabled !== 'boolean') throw new Error('Invalid OBS overlay preference')
+    store.set('obsHideDesktopOverlay', enabled)
+    syncDesktopSubtitleWindow(ctx)
+    return obsStatus()
+  })
   const supportUrls = new Set([
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=translation-quality.yml',
     'https://github.com/clark970417-eng/VocaLume/blob/main/docs/legal/privacy.md',
     'https://github.com/clark970417-eng/VocaLume/releases',
-    ...['en', 'zh-TW', 'zh-CN', 'ja', 'ko'].map(localizedWebsiteUrl)
+    ...['auto', 'en', 'zh-TW', 'zh-CN', 'ja', 'ko'].map(localizedWebsiteUrl)
   ])
 
   ipcMain.handle('open-support-url', async (_event, url: unknown) => {
@@ -40,7 +72,7 @@ export function registerSettingsIpc(ctx: AppContext): void {
   ipcMain.handle('export-diagnostics', async () => {
     if (!ctx.mainWindow) return { error: 'No main window' }
     const result = await dialog.showSaveDialog(ctx.mainWindow, {
-      title: 'Export diagnostics',
+      title: translateUiText('Export Diagnostics', getUiLanguageState().locale),
       defaultPath: `vocalume-diagnostics-${Date.now()}.json`,
       filters: [{ name: 'JSON', extensions: ['json'] }]
     })
@@ -66,10 +98,14 @@ export function registerSettingsIpc(ctx: AppContext): void {
     return { success: true, path: result.filePath }
   })
 
-  ipcMain.handle('get-settings', () => {
+  ipcMain.handle('get-settings', async () => {
+    const macEngines = await getMacEngineAvailability()
+    const savedTranslator = store.get('translationEngine')
+    const savedStt = store.get('sttEngine')
     return {
+      macEngines,
       speechToneMode: store.get('speechToneMode'),
-      translationEngine: store.get('translationEngine'),
+      translationEngine: macEngines && !macEngines.appleTranslate && savedTranslator === 'offline-apple' ? 'offline-hymt15' : savedTranslator,
       googleApiKey: store.get('googleApiKey'),
       deeplApiKey: store.get('deeplApiKey'),
       geminiApiKey: store.get('geminiApiKey'),
@@ -79,7 +115,7 @@ export function registerSettingsIpc(ctx: AppContext): void {
       cloudRealtimeEnabled: store.get('cloudRealtimeEnabled'),
       geminiLiveApiKey: store.get('geminiLiveApiKey'),
       geminiLiveEnabled: store.get('geminiLiveEnabled'),
-      sttEngine: store.get('sttEngine'),
+      sttEngine: macEngines ? normalizeMacSttEngine(savedStt as SttEngineType, macEngines) : savedStt,
       selectedMicrophone: store.get('selectedMicrophone'),
       selectedDisplay: store.get('selectedDisplay'),
       subtitleSettings: store.get('subtitleSettings'),
@@ -109,7 +145,7 @@ export function registerSettingsIpc(ctx: AppContext): void {
       ttsVolume: store.get('ttsVolume'),
       hasCompletedSetup: store.get('hasCompletedSetup'),
       draftSttEnabled: store.get('draftSttEnabled'),
-      speakerDiarizationEnabled: store.get('speakerDiarizationEnabled'),
+      speakerDiarizationEnabled: (macEngines?.speakerIdentification ?? true) && store.get('speakerDiarizationEnabled'),
       telemetryConsent: store.get('telemetryConsent'),
       telemetryConsentShown: store.get('telemetryConsentShown'),
       showConfidenceIndicator: store.get('showConfidenceIndicator'),
@@ -126,7 +162,8 @@ export function registerSettingsIpc(ctx: AppContext): void {
     if (validationError) {
       throw new Error(`Invalid subtitle settings: ${validationError}`)
     }
-    const validated = settings as unknown as SubtitleSettings
+    const validated = { ...settings } as unknown as SubtitleSettings
+    validated.hideOnHover ??= store.get('subtitleSettings').hideOnHover ?? false
     store.set('subtitleSettings', validated)
     ctx.subtitleWindow?.webContents.send('subtitle-settings-changed', validated)
   })
@@ -165,9 +202,9 @@ export function registerSettingsIpc(ctx: AppContext): void {
     if (!win) return { error: 'No main window' }
 
     const result = await dialog.showOpenDialog(win, {
-      title: 'Import Glossary',
+      title: translateUiText('Import JSON/CSV', getUiLanguageState().locale),
       filters: [
-        { name: 'Glossary Files', extensions: ['json', 'csv'] },
+        { name: 'JSON / CSV', extensions: ['json', 'csv'] },
         { name: 'JSON', extensions: ['json'] },
         { name: 'CSV', extensions: ['csv'] }
       ],
@@ -219,7 +256,7 @@ export function registerSettingsIpc(ctx: AppContext): void {
 
     const ext = format === 'json' ? 'json' : 'csv'
     const result = await dialog.showSaveDialog(win, {
-      title: 'Export Glossary',
+      title: translateUiText(format === 'json' ? 'Export JSON' : 'Export CSV', getUiLanguageState().locale),
       defaultPath: `glossary-${target}.${ext}`,
       filters: [
         { name: format === 'json' ? 'JSON' : 'CSV', extensions: [ext] }

@@ -12,6 +12,56 @@ import { createLogger } from '../main/logger'
 const log = createLogger('pipeline')
 
 const ENGINE_INIT_TIMEOUT_MS = 5 * 60_000 // 5 minutes for model download
+type EngineLifecycle = { initialize(): Promise<void>; dispose(): Promise<void> }
+
+async function disposeEngine(engine: EngineLifecycle | null): Promise<void> {
+  try {
+    await engine?.dispose()
+  } catch (err) {
+    log.warn('Error during engine disposal:', err)
+  }
+}
+
+/** Optional engines never block the primary engine's startup or its first cue. */
+class OptionalEngine<T extends EngineLifecycle> {
+  private current?: T
+  private attempted = false
+  private ready = false
+  private retirement?: Promise<void>
+
+  get(create: () => T, initialize: (engine: T) => Promise<void>, onError: (error: unknown) => void): T | null {
+    if (this.ready) return this.current ?? null
+    if (this.attempted || this.retirement) return null
+    this.attempted = true
+    try {
+      const engine = this.current = create()
+      void Promise.resolve().then(() => {
+        if (this.current === engine) return initialize(engine)
+      }).then(() => {
+        if (this.current === engine) this.ready = true
+      }).catch(async (error: unknown) => {
+        if (this.current !== engine) return
+        this.current = undefined
+        this.retirement = disposeEngine(engine).finally(() => { this.retirement = undefined })
+        onError(error)
+        await this.retirement
+      })
+    } catch (error) {
+      onError(error)
+    }
+    return null
+  }
+
+  release(afterUse: Promise<void>): Promise<void> {
+    const engine = this.current
+    this.current = undefined
+    this.attempted = false
+    this.ready = false
+    if (this.retirement || !engine) return this.retirement ?? Promise.resolve()
+    this.retirement = afterUse.then(() => disposeEngine(engine)).finally(() => { this.retirement = undefined })
+    return this.retirement
+  }
+}
 
 /**
  * Manages engine registration, creation, initialization, and disposal.
@@ -26,11 +76,11 @@ export class EngineManager {
   sttEngine: STTEngine | null = null
   translator: TranslatorEngine | null = null
   e2eEngine: E2ETranslationEngine | null = null
-  draftSttEngine: STTEngine | null = null
+  private readonly draftStt = new OptionalEngine<STTEngine>()
   /** Secondary quality translator for adaptive routing (#547) */
   qualityTranslator: TranslatorEngine | null = null
   /** Speaker diarizer for multi-speaker identification (#549) */
-  diarizer: SpeakerDiarizer | null = null
+  private readonly diarizer = new OptionalEngine<SpeakerDiarizer>()
   config: EngineConfig | null = null
 
   registerSTT(id: string, factory: () => STTEngine): void {
@@ -114,55 +164,41 @@ export class EngineManager {
     log.info(`Quality translator initialized: ${engineId}`)
   }
 
-  /**
-   * Initialize the draft STT engine for fast interim results (#536).
-   * Called separately from initializeEngines since draft STT is optional.
-   */
-  async initDraftStt(engineId: string, emitter: EventEmitter): Promise<void> {
-    const factory = this.sttFactories.get(engineId)
-    if (!factory) throw new Error(`Draft STT engine not found: ${engineId}`)
-
-    emitter.emit('engine-loading', 'Loading draft STT model...')
-    this.draftSttEngine = await Promise.resolve(factory())
-    await this.withTimeout(this.draftSttEngine.initialize(), ENGINE_INIT_TIMEOUT_MS, 'Draft STT initialization')
+  getDraftStt(engineId: string): STTEngine | null {
+    return this.draftStt.get(() => {
+      const factory = this.sttFactories.get(engineId)
+      if (!factory) throw new Error(`Draft STT engine not found: ${engineId}`)
+      return factory()
+    }, engine => this.withTimeout(engine.initialize(), ENGINE_INIT_TIMEOUT_MS, 'Draft STT initialization'),
+    error => log.warn('Draft STT initialization failed (non-fatal):', error))
   }
 
-  /**
-   * Initialize the speaker diarizer for multi-speaker identification (#549).
-   * Called separately from initializeEngines since diarization is optional.
-   */
-  async initDiarizer(engineId: string, emitter: EventEmitter): Promise<void> {
-    const factory = this.diarizerFactories.get(engineId)
-    if (!factory) throw new Error(`Diarizer engine not found: ${engineId}`)
+  getDiarizer(engineId: string): SpeakerDiarizer | null {
+    return this.diarizer.get(() => {
+      const factory = this.diarizerFactories.get(engineId)
+      if (!factory) throw new Error(`Diarizer engine not found: ${engineId}`)
+      return factory()
+    }, engine => this.withTimeout(engine.initialize(), ENGINE_INIT_TIMEOUT_MS, 'Diarizer initialization'),
+    error => log.warn('Speaker diarization initialization failed (non-fatal):', error))
+  }
 
-    emitter.emit('engine-loading', 'Loading speaker diarization model...')
-    this.diarizer = await Promise.resolve(factory())
-    await this.withTimeout(this.diarizer.initialize(), ENGINE_INIT_TIMEOUT_MS, 'Diarizer initialization')
-    log.info(`Speaker diarizer initialized: ${engineId}`)
+  async releaseOptionalEngines(afterUse = Promise.resolve()): Promise<void> {
+    await Promise.all([this.draftStt.release(afterUse), this.diarizer.release(afterUse)])
   }
 
   /** Dispose all active engines and clear references */
   async disposeEngines(): Promise<void> {
-    const engines: Array<{ dispose(): Promise<void> } | null> = [
-      this.sttEngine, this.translator, this.e2eEngine,
-      this.draftSttEngine, this.qualityTranslator, this.diarizer
+    const optionalDisposal = this.releaseOptionalEngines()
+    const engines = [
+      this.sttEngine, this.translator, this.e2eEngine, this.qualityTranslator
     ]
     this.sttEngine = null
     this.translator = null
     this.e2eEngine = null
-    this.draftSttEngine = null
     this.qualityTranslator = null
-    this.diarizer = null
 
-    for (const engine of engines) {
-      if (engine) {
-        try {
-          await engine.dispose()
-        } catch (err) {
-          log.warn('Error during engine disposal:', err)
-        }
-      }
-    }
+    for (const engine of engines) await disposeEngine(engine)
+    await optionalDisposal
   }
 
   /** Clear config reference (used on initialization failure) */

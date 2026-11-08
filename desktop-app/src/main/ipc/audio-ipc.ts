@@ -3,6 +3,7 @@ import { WsAudioServer } from '../ws-audio-server'
 import { store } from '../store'
 import { sanitizeErrorMessage } from '../error-utils'
 import { createLogger } from '../logger'
+import { liveWork } from '../live-work'
 import type { AppContext } from '../app-context'
 import { DEFAULT_WS_PORT, SAMPLE_RATE } from '../constants'
 
@@ -10,6 +11,8 @@ const log = createLogger('ipc:audio')
 
 /** Register WebSocket audio server IPC handlers */
 export function registerAudioIpc(ctx: AppContext): void {
+  const work = liveWork(ctx)
+  let processing = false
   ipcMain.handle('ws-audio-start', async (_event, port?: number) => {
     try {
       if (ctx.wsAudioServer?.running) {
@@ -20,13 +23,19 @@ export function registerAudioIpc(ctx: AppContext): void {
 
       // Forward received audio to the pipeline
       ctx.wsAudioServer.on('audio', async (chunk: Float32Array) => {
-        if (!ctx.pipeline?.running) return
-
+        const pipeline = ctx.pipeline
+        if (!pipeline?.running || processing || work.mediaSession || ctx.extensionConnected) return
+        const epoch = pipeline.sessionStartTime
+        processing = true
         try {
-          await ctx.pipeline.process(chunk, SAMPLE_RATE)
+          await work.run('final', async () => {
+            if (ctx.pipeline === pipeline && pipeline.running && pipeline.sessionStartTime === epoch && !work.mediaSession && !ctx.extensionConnected) {
+              await pipeline.process(chunk, SAMPLE_RATE)
+            }
+          })
         } catch (err) {
           log.error('Pipeline processing error (ws-audio):', err)
-        }
+        } finally { processing = false }
       })
 
       ctx.wsAudioServer.on('connected', () => {

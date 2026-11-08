@@ -1,6 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveUiLanguage, uiLanguagePreference, translateUiText } from '../ui-language.mjs';
+import { lookupRegionalUiLanguage, resolveUiLanguage, uiLanguagePreference, translateUiText } from '../ui-language.mjs';
+
+test('automatic language uses the first-party IP region response', async () => {
+  for (const [language, expected] of [['ko','ko'], ['ja','ja'], ['zh-Hant','zh-TW'], ['zh-Hans','zh-CN'], ['en','en'], ['__proto__',null]]) {
+    const fetch = async (url, options) => {
+      assert.equal(url, 'https://vocalume.vercel.app/api/site-language');
+      assert.equal(options.credentials, 'omit');
+      assert.equal(options.referrerPolicy, 'no-referrer');
+      return {ok:true, json:async () => ({language})};
+    };
+    assert.equal(await lookupRegionalUiLanguage({fetch}), expected);
+  }
+  assert.equal(await lookupRegionalUiLanguage({fetch: async () => { throw new Error('offline'); }}), null);
+});
 
 test('interface preference supports five languages and system fallback', () => {
   assert.equal(resolveUiLanguage('zh-TW', ['en-US']), 'zh-TW');
@@ -48,6 +61,9 @@ test('Japanese and Korean localize both popup and desktop copy', () => {
   assert.equal(translateUiText('允許 example.org 翻譯', 'ko'), 'example.org에서 번역 허용');
   assert.match(translateUiText('Watch folder and translate automatically', 'ja'), /フォルダ/);
   assert.match(translateUiText('Watch folder and translate automatically', 'ko'), /폴더/);
+  assert.equal(translateUiText('自動（依 IP 地區）', 'en'), 'Automatic (IP region)');
+  assert.equal(translateUiText('自動（依 IP 地區）', 'ja'), '自動（IP アドレスの地域）');
+  assert.equal(translateUiText('自動（依 IP 地區）', 'ko'), '자동 (IP 주소 지역)');
 });
 
 test('unrecognized content and proper names remain literal; the formatter executes no markup', () => {
@@ -70,4 +86,15 @@ test('unrecognized content and proper names remain literal; the formatter execut
   assert.equal(translateUiText('文字翻譯', 'zh-CN'), '文本翻译');
   assert.equal(translateUiText('Opening {0}...', 'zh-CN', ['繁體檔名.mp4']), '正在打开 繁體檔名.mp4…');
   assert.equal(translateUiText('まほろちゃん、ありがとう！', 'zh-CN'), 'まほろちゃん、ありがとう！');
+});
+
+test('the caption pointer toggle and adjustment hint are localized in each interface language', () => {
+  const option = '滑鼠靠近時隱藏字幕';
+  const hint = '按住 Alt／Option 可拖曳或調整大小';
+  assert.equal(translateUiText(option, 'zh-TW'), option);
+  assert.equal(translateUiText(option, 'en'), 'Hide subtitles when the pointer is nearby');
+  assert.equal(translateUiText(option, 'zh-CN'), '鼠标靠近时隐藏字幕');
+  assert.equal(translateUiText(option, 'ja'), 'ポインターが近づくと字幕を隠す');
+  assert.equal(translateUiText(option, 'ko'), '포인터가 가까이 오면 자막 숨기기');
+  for (const locale of ['en', 'zh-CN', 'ja', 'ko']) assert.notEqual(translateUiText(hint, locale), hint);
 });

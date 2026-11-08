@@ -1,6 +1,25 @@
 export type EngineMode = 'auto' | 'rotation' | 'online' | 'online-deepl' | 'online-gemini' | 'online-microsoft' | 'offline-hymt15' | 'offline-hymt2' | 'offline-hunyuan-mt' | 'offline-apple'
 export type SttEngineType = 'haas-ja-recommended' | 'haas-ja-fast' | 'whisper-local' | 'mlx-whisper' | 'kotoba-whisper' | 'qwen3-asr' | 'sensevoice-sherpa' | 'apple-speech-transcriber'
 
+export interface MacEngineAvailability {
+  appleSilicon: boolean
+  haasJa: boolean
+  qwenAsr: boolean
+  appleSpeech: boolean
+  appleTranslate: boolean
+  speakerIdentification: boolean
+}
+
+export function normalizeMacSttEngine(engine: SttEngineType, available: MacEngineAvailability): SttEngineType {
+  if ((!available.appleSilicon && (engine === 'mlx-whisper' || engine === 'kotoba-whisper')) ||
+      (!available.haasJa && (engine === 'haas-ja-recommended' || engine === 'haas-ja-fast')) ||
+      (!available.qwenAsr && engine === 'qwen3-asr') ||
+      (!available.appleSpeech && engine === 'apple-speech-transcriber')) {
+    return available.appleSilicon ? 'mlx-whisper' : 'whisper-local'
+  }
+  return engine
+}
+
 /** Route explicit speech languages to compatible local recognition engines. */
 export function resolveSpeechEngine(
   language: string,
@@ -16,6 +35,15 @@ export function resolveSpeechEngine(
   if (usesHaas || (selected === 'sensevoice-sherpa' && language !== 'auto' && language !== 'ja') ||
       (selected === 'kotoba-whisper' && language !== 'ja' && language !== 'auto')) return fallback
   return selected
+}
+
+/** Match the native Japanese fallback on Macs without the separately installed Haas runtime. */
+export function resolveMacSpeechEngine(
+  language: string, selected: SttEngineType, available: MacEngineAvailability
+): SttEngineType {
+  if (language === 'ja' && available.appleSilicon && !available.haasJa) return 'kotoba-whisper'
+  const fallback = available.appleSilicon ? 'mlx-whisper' : 'whisper-local'
+  return resolveSpeechEngine(language, normalizeMacSttEngine(selected, available), available.appleSilicon, fallback)
 }
 
 /** Resolve 'auto' engine mode to a concrete mode based on available keys and GPU */

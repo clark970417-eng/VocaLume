@@ -9,11 +9,13 @@ exports.default = async function afterPack(context) {
   const platform = context.packager.platform.name // 'mac', 'windows', 'linux'
 
   if (platform === 'mac') {
-    const helper = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents/Resources/bridge-scripts/bin/voice-tone-helper')
-    fs.mkdirSync(path.dirname(helper), { recursive: true })
+    const bridgeBin = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents/Resources/bridge-scripts/bin')
+    const arm64 = context.arch === 3
+    fs.mkdirSync(bridgeBin, { recursive: true })
+    if (!arm64) fs.rmSync(path.join(bridgeBin, 'fluid-audio-bridge'), { force: true })
     // Build for the package architecture, including Intel packages on Apple Silicon.
-    execFileSync('/usr/bin/xcrun', ['swiftc', '-O', '-target', `${context.arch === 3 ? 'arm64' : 'x86_64'}-apple-macos12.0`,
-      path.join(__dirname, 'voice-tone.swift'), '-o', helper], { stdio: 'inherit' })
+    execFileSync('/usr/bin/xcrun', ['swiftc', '-O', '-target', `${arm64 ? 'arm64' : 'x86_64'}-apple-macos12.0`,
+      path.join(__dirname, 'voice-tone.swift'), '-o', path.join(bridgeBin, 'voice-tone-helper')], { stdio: 'inherit' })
     await fixMacOS(context)
   } else if (platform === 'windows') {
     await fixWindows(context)

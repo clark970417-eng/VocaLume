@@ -71,6 +71,17 @@ describe('RealtimeChunker', () => {
     expect(chunks).toHaveLength(0)
   })
 
+  it('owns pending samples even when VAD reuses the input frame', () => {
+    const { chunks, onChunk } = collect()
+    const chunker = new RealtimeChunker(4, onChunk)
+    const reused = new Float32Array([0.1, 0.2])
+    chunker.push(reused)
+    reused.set([0.3, 0.4])
+    chunker.push(reused)
+    reused.fill(0)
+    expect(chunks[0]).toEqual(new Float32Array([0.1, 0.2, 0.3, 0.4]))
+  })
+
   it('rejects a non-positive chunk size', () => {
     expect(() => new RealtimeChunker(0, () => {})).toThrow()
   })

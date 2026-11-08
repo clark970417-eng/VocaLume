@@ -1,12 +1,13 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { access } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { endianness, homedir } from 'node:os'
 import { join } from 'node:path'
 import type { SpeechEvidence, STTEngine, STTResult } from '../types'
 import { isImplausibleTranscript, isUnspokenOutro } from './transcript-guard'
-import { lowerInferencePriority, windowsInferenceThreads } from '../inference-resources'
+import { lowerInferencePriority, macInferenceThreads, windowsInferenceThreads } from '../inference-resources'
 import { createLogger } from '../../main/logger'
 const log = createLogger('haas-ja')
+const LITTLE_ENDIAN = endianness() === 'LE'
 
 export function haasPaths() {
   const windows=process.platform==='win32'
@@ -39,9 +40,12 @@ function wav(samples: Float32Array, sampleRate: number): Uint8Array<ArrayBuffer>
   header.writeUInt16LE(16, 34)
   header.write('data', 36)
   header.writeUInt32LE(samples.length * 2, 40)
+  const pcm = LITTLE_ENDIAN ? new Int16Array(bytes.buffer, 44) : undefined
   for (let i = 0; i < samples.length; i++) {
     const value = Math.max(-1, Math.min(1, samples[i]!))
-    header.writeInt16LE(Math.round(value * (value < 0 ? 32768 : 32767)), 44 + i * 2)
+    const sample = Math.round(value * (value < 0 ? 32768 : 32767))
+    if (pcm) pcm[i] = sample
+    else header.writeInt16LE(sample, 44 + i * 2)
   }
   return bytes
 }
@@ -77,6 +81,7 @@ export class HaasJaEngine implements STTEngine {
     const windows=process.platform==='win32'
     const args=['serve',model,'--host','127.0.0.1','--port','0','--device',this.device || (windows?'auto':'gpu')]
     if(windows)args.push('--threads',String(windowsInferenceThreads().whisper))
+    else if (process.platform === 'darwin') args.push('--threads', String(macInferenceThreads().speech))
     const child=spawn(binary,args,{windowsHide:true})
     this.process=child
     child.once('spawn',()=>{if(windows&&child.pid)lowerInferencePriority(child.pid)})
@@ -106,9 +111,10 @@ export class HaasJaEngine implements STTEngine {
     } finally {if(this.process===child)this.cancelStartup=undefined}
   }
 
-  async processAudio(samples: Float32Array, sampleRate: number, evidence?: SpeechEvidence): Promise<STTResult | null> {
-    if(!this.endpoint)return null
+  async processAudio(samples: Float32Array, sampleRate: number, evidence?: SpeechEvidence, signal?: AbortSignal): Promise<STTResult | null> {
+    if(!this.endpoint || signal?.aborted)return null
     const generation=this.generation,controller=new AbortController()
+    const requestSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal
     this.requests.add(controller)
     const timeout=setTimeout(()=>controller.abort(),15_000)
     try {
@@ -118,13 +124,13 @@ export class HaasJaEngine implements STTEngine {
         for(const phrase of phrases)form.append('keywords[]',phrase)
         form.append('keywords_alpha','2');form.append('keywords_guard','true')
       }
-      const response=await fetch(this.endpoint+'/v1/audio/transcriptions',{method:'POST',body:form,signal:controller.signal})
+      const response=await fetch(this.endpoint+'/v1/audio/transcriptions',{method:'POST',body:form,signal:requestSignal})
       if(!response.ok)throw new Error(`Haas-ja recognition failed (HTTP ${response.status}).`)
       const result=await response.json() as {text?:string}
       const text=result.text?.trim()
-      if(generation!==this.generation||!text||isImplausibleTranscript(text,samples.length/sampleRate)||isUnspokenOutro(text,evidence))return null
+      if(requestSignal.aborted||generation!==this.generation||!text||isImplausibleTranscript(text,samples.length/sampleRate)||isUnspokenOutro(text,evidence))return null
       return {text,language:'ja',isFinal:true,timestamp:Date.now()}
-    }catch(error){if(!controller.signal.aborted)log.warn('Recognition failed:',String(error));return null}
+    }catch(error){if(!requestSignal.aborted)log.warn('Recognition failed:',String(error));return null}
     finally{clearTimeout(timeout);this.requests.delete(controller)}
   }
 

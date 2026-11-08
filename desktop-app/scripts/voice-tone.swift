@@ -2,6 +2,28 @@ import Foundation
 import AVFoundation
 import SoundAnalysis
 
+if CommandLine.arguments.contains("--memory-pressure") {
+    let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.normal, .warning, .critical], queue: .main)
+    pressure.setEventHandler {
+        let state = pressure.data
+        if state.contains(.critical) { print("4") }
+        else if state.contains(.warning) { print("2") }
+        else if state.contains(.normal) { print("1") }
+        fflush(stdout)
+    }
+    // Electron closes this pipe on Stop or process exit.
+    let parent = DispatchSource.makeReadSource(fileDescriptor: STDIN_FILENO, queue: .main)
+    parent.setEventHandler {
+        var byte: UInt8 = 0
+        if read(STDIN_FILENO, &byte, 1) <= 0 { exit(0) }
+    }
+    parent.resume()
+    pressure.resume()
+    print("ready")
+    fflush(stdout)
+    dispatchMain()
+}
+
 // Local-only, serial JSON-lines helper. No microphone access or network.
 final class Observer: NSObject, SNResultsObserving {
     var laughter = 0.0

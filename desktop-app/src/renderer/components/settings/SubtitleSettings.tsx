@@ -1,5 +1,5 @@
 import { t } from '../../ui-language'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Section } from './Section'
 import { buttonStyle, colorInputStyle, selectStyle, sliderLabelStyle } from './shared'
 import type { DisplayInfo, SubtitlePositionType } from './shared'
@@ -15,6 +15,8 @@ interface SubtitleSettingsProps {
   onBgOpacityChange: (v: number) => void
   position: SubtitlePositionType
   onPositionChange: (v: SubtitlePositionType) => void
+  hideOnHover: boolean
+  onHideOnHoverChange: (v: boolean) => void
   showConfidenceIndicator: boolean
   onShowConfidenceIndicatorChange: (v: boolean) => void
   displays: DisplayInfo[]
@@ -33,6 +35,8 @@ export function SubtitleSettings({
   onBgOpacityChange,
   position,
   onPositionChange,
+  hideOnHover,
+  onHideOnHoverChange,
   showConfidenceIndicator,
   onShowConfidenceIndicatorChange,
   displays,
@@ -40,11 +44,10 @@ export function SubtitleSettings({
   onDisplayChange
 }: SubtitleSettingsProps): React.JSX.Element {
   const [isDragMode, setIsDragMode] = useState(false)
+  useEffect(() => window.api.onDragModeChanged?.(setIsDragMode), [])
 
   const handleToggleDragMode = useCallback(() => {
-    const next = !isDragMode
-    setIsDragMode(next)
-    window.api.toggleSubtitleDragMode?.(next)
+    void window.api.toggleSubtitleDragMode?.(!isDragMode).then(setIsDragMode)
   }, [isDragMode])
 
   const handleResetPosition = useCallback(() => {
@@ -118,6 +121,14 @@ export function SubtitleSettings({
               <option value="top">{t("Top")}</option>
             </select>
           </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={hideOnHover}
+              onChange={(e) => onHideOnHoverChange(e.target.checked)}
+            />
+            <span>{t("Hide subtitles when the pointer is nearby")}</span>
+          </label>
           <label style={{
             display: 'flex',
             alignItems: 'center',

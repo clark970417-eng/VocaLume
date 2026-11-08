@@ -14,6 +14,8 @@ test('capture messages require active session and correct offscreen sender; stop
  vm.runInNewContext(src,{...cloudApi,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console,fetch:async()=>({ok:true,json:async()=>([[['大家好','こんにちは']]])})});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
+ assert.equal(updates.at(-1).running,true);
+ assert.equal(updates.at(-1).item,null,'the page learns about capture before the first caption');
  listener({type:'speech-result',session,id:1,text:'こんにちは'},{url:'https://evil.example'},()=>{});
  assert.equal((await call({type:'subtitles'},{tab:{id:7}})).text.items.length,0);
  listener({type:'speech-result',session,id:1,text:'こんにちは'},{url:'chrome-extension://test/offscreen.html'},()=>{});
@@ -33,6 +35,7 @@ test('capture messages require active session and correct offscreen sender; stop
  assert.equal((await call({type:'subtitles'},{tab:{id:7}})).text.items[0].original,'音声に戻りました');
  await call({type:'subtitle-control',action:'stop'});
  assert.equal(updates.at(-1).item,null);
+ assert.equal(updates.at(-1).running,false);
  listener({type:'speech-result',session,id:2,text:'古い'},{url:'chrome-extension://test/offscreen.html'},()=>{});
  assert.equal((await call({type:'subtitles'},{tab:{id:7}})).text.items.length,0);
 });

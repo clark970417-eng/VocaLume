@@ -82,12 +82,10 @@ export function useNoiseSuppression(): UseNoiseSuppressionReturn {
     await destroy()
 
     try {
-      // DeepFilterNet3 requires 48 kHz
-      const audioTrack = stream.getAudioTracks()[0]
-      const trackSettings = audioTrack.getSettings()
-      const sampleRate = trackSettings.sampleRate || 48000
-
-      const ctx = new AudioContext({ sampleRate })
+      // Resample the microphone at the Web Audio boundary if the device
+      // supplies a different rate (e.g. a Bluetooth headset at 16 kHz).
+      // DeepFilterNet3 always receives the 48 kHz format its model expects.
+      const ctx = new AudioContext({ sampleRate: 48000 })
       audioCtxRef.current = ctx
 
       const core = new DeepFilterNet3Core({
@@ -97,8 +95,8 @@ export function useNoiseSuppression(): UseNoiseSuppressionReturn {
           cdnUrl: window.location.protocol === 'file:' ? 'vad-asset://host/deepfilter' : '/vad/deepfilter'
         }
       })
-      await core.initialize()
       coreRef.current = core
+      await core.initialize()
 
       const node = await core.createAudioWorkletNode(ctx)
       workletNodeRef.current = node

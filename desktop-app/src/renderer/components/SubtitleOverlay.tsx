@@ -1,5 +1,5 @@
 import { t, useUiLanguage } from '../ui-language'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 interface AccessibilityConfig {
   highContrast: boolean
@@ -23,6 +23,7 @@ interface SubtitleConfig {
   translatedTextColor: string
   backgroundOpacity: number
   position: 'top' | 'bottom'
+  hideOnHover: boolean
   accessibility: AccessibilityConfig
   showConfidenceIndicator: boolean
 }
@@ -33,6 +34,7 @@ const DEFAULT_CONFIG: SubtitleConfig = {
   translatedTextColor: '#7dd3fc',
   backgroundOpacity: 78,
   position: 'bottom',
+  hideOnHover: false,
   accessibility: DEFAULT_ACCESSIBILITY,
   showConfidenceIndicator: true
 }
@@ -91,7 +93,7 @@ function confidenceToUnderline(score: number): string {
  * If tokenConfidences is provided, each whitespace-delimited token gets individual styling.
  * Otherwise, uses the sentence-level confidence for uniform styling.
  */
-function ConfidenceText({
+const ConfidenceText = React.memo(function ConfidenceText({
   text,
   confidence,
   tokenConfidences,
@@ -106,6 +108,7 @@ function ConfidenceText({
   highContrast: boolean
   style?: React.CSSProperties
 }): React.JSX.Element {
+  useUiLanguage()
   // If no confidence data, render plain text
   if (confidence === undefined && !tokenConfidences?.length) {
     return <span style={{ color, ...style }}>{text}</span>
@@ -184,7 +187,7 @@ function ConfidenceText({
       {text}
     </span>
   )
-}
+})
 
 interface ResultData {
   sourceText: string
@@ -213,6 +216,8 @@ function SubtitleOverlay(): React.JSX.Element {
   const [config, setConfig] = useState<SubtitleConfig>(DEFAULT_CONFIG)
   const [isDragMode, setIsDragMode] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [pointerNear, setPointerNear] = useState(false)
+  const subtitleCard = useRef<HTMLDivElement>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
   const [editSaving, setEditSaving] = useState(false)
@@ -223,11 +228,11 @@ function SubtitleOverlay(): React.JSX.Element {
 
   const a11y = config.accessibility
 
-  const resetSilenceTimer = useCallback(() => {
+  const resetSilenceTimer = useCallback((at = Date.now()) => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     silenceTimerRef.current = setTimeout(() => {
       setVisible(false)
-    }, SILENCE_TIMEOUT_MS)
+    }, Math.max(0, SILENCE_TIMEOUT_MS - Math.max(0, Date.now() - at)))
   }, [])
 
   const handleResult = useCallback((data: unknown) => {
@@ -250,7 +255,10 @@ function SubtitleOverlay(): React.JSX.Element {
 
     // Update confidence data for visualization (#581)
     setConfidence(result.confidence)
-    setTokenConfidences(result.tokenConfidences)
+    setTokenConfidences(previous => {
+      const next = result.tokenConfidences
+      return previous?.length === next?.length && previous?.every((score, index) => score === next?.[index]) ? previous : next
+    })
 
     // Update speaker label from diarization (#549)
     if (result.speakerLabel !== undefined) {
@@ -350,14 +358,19 @@ function SubtitleOverlay(): React.JSX.Element {
     const unsubResult = window.api.onTranslationResult(handleResult)
     const unsubInterim = window.api.onInterimResult(handleResult)
     const unsubDraft = window.api.onDraftResult(handleResult)
+    const unsubActivity = window.api.onSubtitleActivity?.(at => {
+      setVisible(true)
+      resetSilenceTimer(at)
+    })
 
     return () => {
       unsubResult?.()
       unsubInterim?.()
       unsubDraft?.()
+      unsubActivity?.()
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
     }
-  }, [handleResult])
+  }, [handleResult, resetSilenceTimer])
 
   // Edit mode: click translated text to start editing (#590)
   const handleTranslationClick = useCallback(() => {
@@ -407,6 +420,28 @@ function SubtitleOverlay(): React.JSX.Element {
   const effectiveFontSize = a11y.highContrast ? Math.max(config.fontSize + 4, 34) : config.fontSize
   const translatedFontSize = Math.max(effectiveFontSize - 2, 16)
   const hasContent = confirmedText || interimText
+  const hoverActive = config.hideOnHover && visible && Boolean(hasContent) && !isDragMode && !isEditMode
+  const hoverHidden = hoverActive && pointerNear
+
+  useLayoutEffect(() => window.api.onSubtitlePointerNear?.(setPointerNear), [])
+
+  useLayoutEffect(() => {
+    const card = subtitleCard.current
+    if (!hoverActive || !card) return
+    const updateRegion = (): void => {
+      const { x, y, width, height } = card.getBoundingClientRect()
+      window.api.setSubtitleHoverRegion?.(width && height ? { x, y, width, height } : null)
+    }
+    updateRegion()
+    const observer = new ResizeObserver(updateRegion)
+    observer.observe(card)
+    window.addEventListener('resize', updateRegion)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateRegion)
+      window.api.setSubtitleHoverRegion?.(null)
+    }
+  }, [hoverActive, config.position])
 
   const effectiveSourceColor = a11y.highContrast ? '#ffffff' : config.sourceTextColor
   const effectiveTranslatedColor = a11y.highContrast ? '#ffff00' : config.translatedTextColor
@@ -417,6 +452,7 @@ function SubtitleOverlay(): React.JSX.Element {
   // Transition: instant for reduced motion, normal otherwise
   const fadeOutTransition = a11y.reducedMotion ? 'none' : `opacity ${FADE_OUT_MS}ms ease-out`
   const fadeInTransition = a11y.reducedMotion ? 'none' : 'opacity 0.15s ease-out'
+  const backdrop = visible && hasContent && !hoverHidden && !a11y.highContrast ? 'blur(8px)' : 'none'
 
   // WCAG 1.4.12 spacing
   const spacingStyle: React.CSSProperties = {
@@ -494,15 +530,16 @@ function SubtitleOverlay(): React.JSX.Element {
 
       {/* Single subtitle slot */}
       <div
+        ref={subtitleCard}
         style={{
           background: `rgba(0, 0, 0, ${effectiveBgOpacity / 100})`,
           borderRadius: a11y.highContrast ? '0' : '0.625rem',
           padding: '0.625rem 1.25rem',
-          backdropFilter: a11y.highContrast ? 'none' : 'blur(8px)',
-          WebkitBackdropFilter: a11y.highContrast ? 'none' : 'blur(8px)',
-          opacity: visible && hasContent ? 1 : 0,
-          transition: visible ? fadeInTransition : fadeOutTransition,
-          pointerEvents: visible ? 'auto' : 'none',
+          backdropFilter: backdrop,
+          WebkitBackdropFilter: backdrop,
+          opacity: visible && hasContent && !hoverHidden ? 1 : 0,
+          transition: hoverHidden ? 'none' : visible ? fadeInTransition : fadeOutTransition,
+          pointerEvents: visible && !hoverHidden ? 'auto' : 'none',
           textAlign: 'center'
         }}
       >

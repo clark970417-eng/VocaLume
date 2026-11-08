@@ -198,7 +198,7 @@ export class AppleSpeechTranscriberEngine implements STTEngine {
 }
 
 /** Find the apple-stt binary in well-known paths */
-function findAppleSttBinary(): string | null {
+export function findAppleSttBinary(): string | null {
   for (const p of APPLE_STT_PATHS) {
     if (existsSync(p)) return p
   }

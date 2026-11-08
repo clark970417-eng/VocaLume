@@ -42,6 +42,20 @@ mac:
     - '!**/node_modules/onnxruntime-node/bin/napi-v3/darwin/!(${arch}){,/**/*}'
     - '!**/node_modules/@kutalia/whisper-node-addon/dist/{linux-*,win-*,win32-*}{,/**/*}'
     - '!**/node_modules/@kutalia/whisper-node-addon/dist/{darwin,mac}-!(${arch}){,/**/*}'
+    # The renderer already bundles its WASM VAD runtime. Transformers and
+    # Kokoro resolve their Node builds, which use the native ONNX binding.
+    - '!**/node_modules/{onnxruntime-web,flatbuffers,guid-typescript,platform,protobufjs,long}{,/**/*}'
+    - '!**/node_modules/@huggingface/transformers/{src,types}{,/**/*}'
+    - '!**/node_modules/@huggingface/transformers/dist/!(transformers.node.mjs|transformers.node.cjs){,/**/*}'
+    - '!**/node_modules/kokoro-js/types{,/**/*}'
+    - '!**/node_modules/kokoro-js/dist/kokoro.web.js'
+    # Packaged Electron uses the prebuilt llama bindings, not a source build.
+    - '!**/node_modules/node-llama-cpp/llama/gitRelease.bundle'
+    # Keep the compiled PortAudio binding and its adjacent library, not
+    # the upstream build inputs, examples, or other platforms' binaries.
+    - '!**/node_modules/naudiodon/{src,scratch,portaudio,binding.gyp}{,/**/*}'
+    - '!**/node_modules/segfault-handler/{src,binding.gyp,example.js}{,/**/*}'
+    - '!**/node_modules/onnxruntime-node/{lib,script}{,/**/*}'
   target:
     - target: dmg
       arch:

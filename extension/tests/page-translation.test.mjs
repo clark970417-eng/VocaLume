@@ -6,7 +6,8 @@ import fs from 'node:fs';
 /** Live chat and comment translation with a recyclable node, as a virtualized
  * list gives us: the same element object is reused for a different message. */
 function setup(semanticOnly=false,titleConfig=null){
- const chat=[], requests=[], rendered=[], intervals=[]; let change, navigate, receive;
+ const chat=[], requests=[], rendered=[], intervals=new Map(), selectors=[], events={}; let change, navigate, receive;
+ let now=Date.now(), nativeText='', paused=false;
  const makeLine=()=>({className:'',textContent:'',dataset:{},children:[],isConnected:false,
   classList:{add(){},remove(){},toggle(){}},style:{setProperty(){}},
   setAttribute(){},append(...kids){this.children.push(...kids);},replaceChildren(...kids){this.children=kids;},
@@ -21,28 +22,36 @@ function setup(semanticOnly=false,titleConfig=null){
  };
  const title=titleConfig?makeNode(titleConfig.text):null;
  const overlay={...makeLine(),captionWindow:{render:rows=>rendered.push(rows)}};
+ const player={classList:{toggle(){},remove(){}}};
  const document={documentElement:{},
-  querySelector:selector=>selector==='#jtl-subtitles'?overlay:selector===titleConfig?.selector?title:null,
+  querySelector:selector=>selector==='#jtl-subtitles'?overlay:selector==='#movie_player'?player:selector==='#movie_player video'?{paused}:selector===titleConfig?.selector?title:null,
   // Match the live-chat message selector only; the composer selector also
   // mentions yt-live-chat and must not receive these nodes.
   querySelectorAll:selector=>{
+   selectors.push(selector);
+   if(selector.includes('.ytp-caption-segment'))return nativeText?[{textContent:nativeText}]:[];
    if(selector==='.jtl-title')return title?.lines.filter(line=>!line.removed)||[];
+   if(selector===titleConfig?.selector)return [title].filter(node=>node.isConnected);
    if(!semanticOnly&&selector.includes('yt-live-chat-text-message-renderer'))return chat;
    if(semanticOnly&&selector==='[role="log"]')return [{querySelectorAll:()=>chat}];
+   if(semanticOnly&&selector.startsWith('[role="log"] :is('))return chat;
    return [];
   },
   createElement:()=>makeLine(),
-  addEventListener:(name,fn)=>{if(name==='yt-navigate-start')navigate=fn;}};
+  addEventListener:(name,fn)=>{events[name]=fn;if(name==='yt-navigate-start')navigate=fn;}};
  const window={};window.top=window;
  const chrome={storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true})},
    onChanged:{addListener:f=>change=f}},
   runtime:{onMessage:{addListener:f=>receive=f},sendMessage:(message,reply)=>requests.push({message,reply})}};
  let scan;
- vm.runInNewContext((fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../content.js',import.meta.url),'utf8')),
-  {chrome,window,document,MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
-   setInterval(fn){intervals.push(fn);},setTimeout(fn,delay){if(delay===250)fn();return 0;},clearTimeout(){},console});
- return {chat,title,requests,makeNode,scan:()=>scan(),navigate:()=>navigate?.(),runtime:chrome.runtime,
-  rendered,poll:()=>intervals[0](),push:item=>receive({type:'subtitle-update',item}),
+ const root={nodeType:1,isConnected:true,closest:()=>null,matches:()=>false,querySelectorAll:document.querySelectorAll};
+ vm.runInNewContext(['translation-guards.js','dom-changes.js','content.js'].map(file=>fs.readFileSync(new URL(`../${file}`,import.meta.url),'utf8')).join('\n'),
+  {chrome,window,document,Date:{now:()=>now},MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
+   setInterval(fn,delay){intervals.set(delay,fn);return delay;},clearInterval(id){intervals.delete(id);},setTimeout(fn,delay){if(delay===250)fn();return 0;},clearTimeout(){},console});
+ return {chat,title,requests,makeNode,selectors,intervals,mutate:records=>scan(records),
+  scan:()=>scan([{type:'childList',target:root,addedNodes:[root],removedNodes:[]}]),navigate:()=>navigate?.(),runtime:chrome.runtime,
+  rendered,poll:()=>events.visibilitychange(),push:(item,running)=>receive({type:'subtitle-update',item,running}),
+  native(text,time,isPaused=false){nativeText=text;now+=time;paused=isPaused;intervals.get(350)?.();},
   toggle:v=>change({websiteTextOptInEnabled:{newValue:v}},'local')};
 }
 
@@ -70,6 +79,27 @@ test('an unchanged message is translated once however often the page mutates',as
  t.scan();t.scan();await settle();
  assert.equal(t.requests.length,1);
  assert.equal(node.lines.length,1);
+});
+
+test('added and recycled YouTube chat messages translate without querying the page',async()=>{
+ const t=setup();await settle();
+ const parent={nodeType:1,isConnected:true,closest:()=>null};
+ const message=t.makeNode('最初のコメントです');
+ Object.assign(message,{
+  nodeType:1,parentElement:{...parent,querySelector:selector=>selector.includes('jtl-')?message.lines.find(line=>!line.removed):null},
+  matches:selector=>selector.includes('yt-live-chat-text-message-renderer'),
+  closest:selector=>message.matches(selector)?message:null,querySelectorAll:()=>[]
+ });
+ const wholePageQueries=t.selectors.length;
+ t.mutate([{type:'childList',target:parent,addedNodes:[message],removedNodes:[]}]);
+ assert.equal(t.requests[0].message.text,'最初のコメントです');
+ t.requests[0].reply({ok:true,text:'第一則留言'});await settle();
+ message.textContent='別のコメントです';
+ t.mutate([{type:'characterData',target:{nodeType:3,parentElement:message}}]);
+ assert.equal(t.requests[1].message.text,'別のコメントです');
+ t.requests[1].reply({ok:true,text:'另一則留言'});await settle();
+ assert.equal(message.lines[0].textContent,'中：另一則留言');
+ assert.equal(t.selectors.length,wholePageQueries);
 });
 
 test('recycling a translated chat node for Chinese clears its old line without another request',async()=>{
@@ -162,13 +192,39 @@ test('a queued duplicate remains valid after its first consumer leaves the scree
 
 test('an older subtitle poll cannot clear a newly pushed caption',async()=>{
  const t=setup();await settle();
- const poll=t.poll();
+ t.poll();
  const caption={id:2,original:'今',translated:'新字幕',expiresAt:Date.now()/1000+30};
  t.push(caption);
  t.requests[0].reply({ok:true,text:{running:false,items:[]}});
- await poll;
+ await settle();
  assert.equal(t.rendered.length,1);
  assert.equal(t.rendered[0][0],caption);
+});
+
+test('YouTube native cue notifications renew only as needed and clear once on pause',async()=>{
+ const t=setup();await settle();
+ assert.equal(t.intervals.size,0);
+ t.push(null,true);
+ assert.deepEqual([...t.intervals.keys()],[700,350]);
+ t.native('配信ありがとう',0);
+ t.native('配信ありがとう',350);
+ t.native('配信ありがとう',350);
+ t.native('配信ありがとう',350);
+ t.native('またね',350);
+ t.native('またね',350,true);
+ t.native('またね',350,true);
+ assert.deepEqual(t.requests.map(entry=>entry.message.text),['配信ありがとう','配信ありがとう','またね','']);
+ t.push(null,false);
+ assert.equal(t.intervals.size,0);
+});
+
+test('YouTube native caption heartbeats are halved for an unchanged cue',async()=>{
+ const t=setup();await settle();
+ t.push(null,true);
+ const ticks=120;
+ for(let tick=0;tick<ticks;tick++) t.native('配信ありがとう',350);
+ assert.equal(t.requests.length,60);
+ t.push(null,false);
 });
 
 test('a blank live-chat reply is not cached or rendered as a successful translation',async()=>{

@@ -25,6 +25,7 @@ import { MemoryMonitor } from './MemoryMonitor'
 import { AdaptiveRouter } from './AdaptiveRouter'
 import type { AdaptiveRoutingConfig } from './AdaptiveRouter'
 import { createLogger } from '../main/logger'
+import { subscribePerformanceState } from '../main/performance-state'
 
 const log = createLogger('pipeline')
 
@@ -133,6 +134,7 @@ export class TranslationPipeline extends EventEmitter {
   private memoryMonitor = new MemoryMonitor()
   private streaming: StreamingProcessor
   private ger: GERProcessor
+  private unsubscribePerformance?: () => void
 
   constructor() {
     super()
@@ -163,8 +165,8 @@ export class TranslationPipeline extends EventEmitter {
         }
       },
       getGER: () => this.ger,
-      getDraftSTTEngine: () => this.draftSttEnabled ? this.engineManager.draftSttEngine : null,
-      getDiarizer: () => this.diarizationEnabled ? this.engineManager.diarizer : null,
+      getDraftSTTEngine: () => this.draftSttEnabled ? this.engineManager.getDraftStt(this.draftSttEngineId) : null,
+      getDiarizer: () => this.diarizationEnabled && process.platform === 'darwin' ? this.engineManager.getDiarizer('fluid-audio') : null,
       getGeneration: () => this.generation
     })
     this.ger = new GERProcessor({
@@ -201,6 +203,16 @@ export class TranslationPipeline extends EventEmitter {
 
   get currentConfig(): EngineConfig | null {
     return this.engineManager.config
+  }
+
+  getTranslator(): TranslatorEngine | null {
+    return this.engineManager.translator
+  }
+
+  getTranslatorForBackgroundText(): TranslatorEngine | null {
+    const translator = this.getTranslator()
+    const completeSentencePair = ['ja', 'zh'].includes(this.sourceLanguage) && ['ja', 'zh'].includes(this.targetLanguage)
+    return this.running && translator?.id === 'hunyuan-mt-15' && (!this.simulMtEnabled || completeSentencePair) ? translator : null
   }
 
   get sessionStartTime(): number | null {
@@ -349,26 +361,6 @@ export class TranslationPipeline extends EventEmitter {
       this.engineManager.sttEngine?.setLanguage?.(this.sourceLanguage)
       this.engineManager.sttEngine?.setVocabularyHints?.(this.glossary.map(entry => entry.source))
 
-      // Initialize draft STT if enabled (#536)
-      if (this.draftSttEnabled) {
-        try {
-          await this.engineManager.initDraftStt(this.draftSttEngineId, this)
-        } catch (err) {
-          log.warn('Draft STT initialization failed (non-fatal):', err)
-          this.emit('engine-loading', 'Draft STT not available — continuing without fast interim results')
-        }
-      }
-
-      // Initialize speaker diarizer if enabled (#549)
-      if (this.diarizationEnabled && process.platform === 'darwin') {
-        try {
-          await this.engineManager.initDiarizer('fluid-audio', this)
-        } catch (err) {
-          log.warn('Speaker diarization initialization failed (non-fatal):', err)
-          this.emit('engine-loading', 'Speaker diarization not available — continuing without speaker labels')
-        }
-      }
-
       // Initialize adaptive routing quality engine if enabled (#547)
       if (this.adaptiveRouter.getConfig().enabled && config.mode === 'cascade') {
         try {
@@ -421,9 +413,17 @@ export class TranslationPipeline extends EventEmitter {
     this.setState(PipelineState.RUNNING)
     this.consecutiveErrors = 0
     this.memoryMonitor.start()
+    this.unsubscribePerformance ??= subscribePerformanceState(state => {
+      if (state.auxiliaryWorkPaused) this.streaming.pauseAuxiliaryWork()
+      if (state.speculativeTranslationPaused) {
+        void this.engineManager.releaseOptionalEngines(this.streaming.waitForOptionalWork())
+      }
+    })
   }
 
   async stop(): Promise<void> {
+    this.unsubscribePerformance?.()
+    this.unsubscribePerformance = undefined
     this.memoryMonitor.stop()
     this.setState(PipelineState.IDLE)
     // Bump generation and tear down the e2e session so no stale async result is
@@ -613,6 +613,10 @@ export class TranslationPipeline extends EventEmitter {
     if (this._state !== PipelineState.RUNNING || !this.engineManager.config) return null
     if (this.engineManager.config.mode !== 'cascade') return null
     return this.streaming.processStreaming(audioBuffer, sampleRate, evidence)
+  }
+
+  interruptStreamingPreview(ending?: Pick<SpeechEvidence, 'segment' | 'speechEndSample' | 'speechSeconds'>): void {
+    this.streaming.interruptStreamingPreview(ending)
   }
 
   /** GPU-local translation and recognition competed in matched load tests.

@@ -1,18 +1,29 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import type { UiLanguageState } from './ui-language'
+import type { CaptureSpeechEvidence } from './capture-speech-evidence'
 
 contextBridge.exposeInMainWorld('api', {
   // Pipeline control
   pipelineStart: (config: unknown) => ipcRenderer.invoke('pipeline-start', config),
   pipelineStop: () => ipcRenderer.invoke('pipeline-stop'),
   processAudio: (audioData: number[]) => ipcRenderer.invoke('process-audio', audioData),
-  processAudioStreaming: (audioData: number[] | Float32Array) => ipcRenderer.invoke('process-audio-streaming', audioData),
-  finalizeStreaming: (audioData: number[] | Float32Array) => ipcRenderer.invoke('finalize-streaming', audioData),
+  processAudioStreaming: (audioData: number[] | Float32Array, evidence?: CaptureSpeechEvidence) => ipcRenderer.invoke('process-audio-streaming', audioData, evidence),
+  finalizeStreaming: (audioData: number[] | Float32Array, evidence?: CaptureSpeechEvidence) => ipcRenderer.invoke('finalize-streaming', audioData, evidence),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   decodeMediaFile: (path: string) => ipcRenderer.invoke('decode-media-file', path),
   exportFileTranscript: (contents: string) => ipcRenderer.invoke('export-file-transcript', contents),
+  translateText: (text: string, sourceLanguage: string, targetLanguage: string) =>
+    ipcRenderer.invoke('translate-text', text, sourceLanguage, targetLanguage) as Promise<string>,
   chooseMediaFolder: () => ipcRenderer.invoke('choose-media-folder'),
   scanMediaFolder: () => ipcRenderer.invoke('scan-media-folder'),
-  processMediaFile: (path: string, jobId: string) => ipcRenderer.invoke('process-media-file', path, jobId),
+  stopMediaFolderWatch: () => ipcRenderer.invoke('stop-media-folder-watch'),
+  onMediaFolderChanged: (callback: () => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('media-folder-changed', handler)
+    return () => ipcRenderer.off('media-folder-changed', handler)
+  },
+  processMediaFile: (path: string, jobId: string, expectedRevision?: string) =>
+    ipcRenderer.invoke('process-media-file', path, jobId, expectedRevision),
   cancelMediaFile: (jobId: string) => ipcRenderer.invoke('cancel-media-file', jobId),
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: { jobId: string; processedSeconds: number }): void => callback(data)
@@ -33,6 +44,11 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_event: Electron.IpcRendererEvent, data: unknown): void => callback(data)
     ipcRenderer.on('interim-result', handler)
     return () => ipcRenderer.off('interim-result', handler)
+  },
+  onSubtitleActivity: (callback: (at: number) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, at: number): void => callback(at)
+    ipcRenderer.on('subtitle-activity', handler)
+    return () => ipcRenderer.off('subtitle-activity', handler)
   },
   // Draft result from hybrid translation (#235)
   onDraftResult: (callback: (data: unknown) => void) => {
@@ -57,6 +73,13 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.send('move-subtitle-to-display', displayId),
 
   // Settings persistence (#49)
+  getUiLanguage: (legacyPreference: string) => ipcRenderer.invoke('get-ui-language', legacyPreference),
+  setUiLanguage: (preference: string) => ipcRenderer.invoke('set-ui-language', preference),
+  onUiLanguageChanged: (callback: (state: UiLanguageState) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: UiLanguageState): void => callback(state)
+    ipcRenderer.on('ui-language-changed', handler)
+    return () => ipcRenderer.off('ui-language-changed', handler)
+  },
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: (settings: Record<string, unknown>) =>
     ipcRenderer.invoke('save-settings', settings),
@@ -90,6 +113,13 @@ contextBridge.exposeInMainWorld('api', {
   // Subtitle settings (#118)
   saveSubtitleSettings: (settings: Record<string, unknown>) =>
     ipcRenderer.invoke('save-subtitle-settings', settings),
+  setSubtitleHoverRegion: (region: Electron.Rectangle | null) =>
+    ipcRenderer.send('subtitle-hover-region', region),
+  onSubtitlePointerNear: (callback: (near: boolean) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, near: boolean) => callback(near)
+    ipcRenderer.on('subtitle-pointer-near', handler)
+    return () => ipcRenderer.off('subtitle-pointer-near', handler)
+  },
   onSubtitleSettingsChanged: (callback: (settings: unknown) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, settings: unknown): void => callback(settings)
     ipcRenderer.on('subtitle-settings-changed', handler)
@@ -234,6 +264,7 @@ contextBridge.exposeInMainWorld('api', {
   updateGetStatus: () => ipcRenderer.invoke('update-get-status'),
   obsCaptionStatus: () => ipcRenderer.invoke('obs-caption-status'),
   configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ipcRenderer.invoke('configure-obs-captions', mode),
+  setObsOnly: (enabled: boolean) => ipcRenderer.invoke('set-obs-only', enabled),
   exportDiagnostics: () => ipcRenderer.invoke('export-diagnostics'),
   openSupportUrl: (url: string) => ipcRenderer.invoke('open-support-url', url),
   onUpdateStatus: (callback: (status: { state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }) => void) => {
