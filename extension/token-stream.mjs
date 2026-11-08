@@ -9,10 +9,9 @@ export class CaptionTokenStream {
   this.tokens.push(...(batch[0]||[]));this.flush(false);
  }
  flush(force){
-  if(!this.tokens.length)return;
+  if(!this.tokens.length||(!force&&this.now()-this.sentAt<300))return;
   const text=this.tokenizer.decode(this.tokens,{skip_special_tokens:true}).trim();
   if(text.includes('\ufffd')||text===this.last||text.length<4)return;
-  if(!force&&this.now()-this.sentAt<300)return;
   this.last=text;this.sentAt=this.now();this.emit(text);
  }
  end(){this.flush(true);}

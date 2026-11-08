@@ -13,7 +13,7 @@ function reset(m){
 }
 function publish(job){
  if(!job)return;
- job.epoch=epoch;job.speechAt=origin+job.speechStartSample/16;job.audioEndAt=origin+job.endSample/16;
+ job.epoch=epoch;job.speechAt=origin+job.speechStartSample/16;job.audioEndAt=origin+job.endSample/16;job.speechEndAt=origin+job.lastSpeechSample/16;
  postMessage({type:'segment',job},[job.audio.buffer]);
 }
 async function processFrame(interval,allowPreview){
@@ -51,7 +51,11 @@ self.onmessage=({data:m})=>{
   }
   if(m.type!=='audio'||m.epoch!==epoch){if(m.type==='audio')postMessage({type:'processed',epoch,probability:0,vadMs:0});return;}
   const began=performance.now();
-  const probability=await processFrames(resampler.push(m.audio),m.interval,m.allowPreview!==false);
-  postMessage({type:'processed',epoch,probability,vadMs:performance.now()-began});
+  let probability=0;
+  const batch=m.batch||[m.audio];
+  for(const audio of batch){
+   probability=await processFrames(resampler.push(audio),m.interval,m.allowPreview!==false);
+  }
+  postMessage({type:'processed',epoch,probability,vadMs:(performance.now()-began)/batch.length});
  }).catch(error=>postMessage({type:'error',error:error.message,epoch}));
 };

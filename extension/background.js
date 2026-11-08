@@ -456,9 +456,29 @@ function sharedEvent(event){
 function pushSubtitle(item){
  if(captureTabId)chrome.tabs.sendMessage(captureTabId,{type:'subtitle-update',item,running,nativeCaptions:running&&captureRole!=='shared'},{frameId:0}).catch(()=>{});
 }
+function markBrowserFinal(item,m){
+ if(captureRole!=='browser'||m.source==='native'||!m.final||item.finalSourceAt)return;
+ item.finalSourceAt=Date.now();
+ item.audioEndAt=m.audioEndAt;item.speechEndAt=m.speechEndAt;
+ diagnostics.browserFinals??={received:0,translated:0,failed:0,superseded:0};
+ diagnostics.browserFinals.received++;
+ recordDeliveryTime('endToSourceMs',item.finalSourceAt-item.audioEndAt);
+}
+function settleBrowserFinal(item,outcome){
+ if(!item.finalSourceAt||item.finalOutcome)return;
+ item.finalOutcome=outcome;
+ diagnostics.browserFinals[outcome]++;
+ if(outcome!=='translated')return;
+ const completed=Date.now();
+ recordDeliveryTime('sourceToTranslationMs',completed-item.finalSourceAt);
+ recordDeliveryTime('endToTranslationMs',completed-item.audioEndAt);
+ recordDeliveryTime('speechEndToTranslationMs',completed-item.speechEndAt);
+}
 function failCaptionTranslation(job,error){
  const {item,session}=job;
- if(gate.session!==session||gate.latest!==item||item.expired)return;
+ if(gate.session!==session)return;
+ settleBrowserFinal(item,'failed');
+ if(gate.latest!==item||item.expired)return;
  lastError='翻譯失敗：'+error.message;
  if(!item.pending)return;
  item.pending=false;item.error=lastError;item.expiresAt=Date.now()/1000+captionHold;
@@ -469,10 +489,22 @@ async function translateItem(job){
  // aborting the oldest request starves subtitles on slower connections.
  if(job.item.expired)return;
  if(Date.now()-job.started>=MAX_CAPTION_TRANSLATION_MS){failCaptionTranslation(job,new Error('翻譯等待逾時'));return;}
- if(captionRequests.size>=2){translationPending=job;return;}
+ if(job.item.final){
+  for(const [active,controller] of captionRequests){
+   if(active.item.final||active.item.source==='native')continue;
+   captionRequests.delete(active);controller.abort();
+  }
+ }else if([...captionRequests.keys()].some(active=>active.item.final))return;
+ if(captionRequests.size>=2){
+  if(translationPending?.item.final&&!job.item.final)return;
+  if(translationPending)settleBrowserFinal(translationPending.item,'superseded');
+  translationPending=job;return;
+ }
+ job.item.translationAttempted=job.item.final?'final':'preview';
  const controller=new AbortController();captionRequests.set(job,controller);
  try {
   const configured=await settings(),direction=pair(speechFrom,speechTo);
+  controller.signal.throwIfAborted();
   const key=JSON.stringify([apiCacheScope(configured),configured.speechMode||'browser',engineMode,direction,job.item.original,job.reference]);
   const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,direction,configured,job.reference);
   if(controller.signal.aborted)return;
@@ -482,8 +514,9 @@ async function translateItem(job){
      (job.item.source!=='native'||gate.latest===job.item)){
    publishedId=job.item.id;job.item.translated=result;job.item.pending=false;job.item.error='';job.item.expiresAt=Date.now()/1000+captionHold;items.length=0;items.push(job.item);
    if(job.item.source!=='native')cueCursor.markDelivered(job.item.speechId,job.fullSpeechText,job.item.original);
-   lastError='';diagnostics.translationMs=Date.now()-job.started;diagnostics.chineseLagMs=job.item.audioEndAt?Date.now()-job.item.audioEndAt:diagnostics.translationMs;pushSubtitle(job.item);
-  }
+   lastError='';diagnostics.translationMs=Date.now()-job.started;diagnostics.chineseLagMs=job.item.audioEndAt?Date.now()-job.item.audioEndAt:diagnostics.translationMs;
+   settleBrowserFinal(job.item,'translated');pushSubtitle(job.item);
+  }else if(gate.session===job.session)settleBrowserFinal(job.item,'superseded');
  } catch(error){if(!controller.signal.aborted)failCaptionTranslation(job,error);}
  finally{captionRequests.delete(job);if(translationPending&&captionRequests.size<2){const next=translationPending;translationPending=null;if(next.session===gate.session)translateItem(next);}}
 }
@@ -514,27 +547,39 @@ function addTranscript(m){
  if(m.source!=='native'){
   lastSpeechId=m.id;
  }
+ // Show raw token revisions as source text and leave the network free for
+ // finals and rolling hypotheses confirmed by two recognition passes.
+ const shouldTranslate=m.source==='native'||m.final||(!m.partial&&(!m.provisional||m.stableText===fullSpeechText));
+ const schedule=item=>{
+  if(!shouldTranslate||item.translated||item.finalOutcome||item.translationAttempted===(item.final?'final':'preview')||
+     [...captionRequests.keys()].some(job=>job.item===item))return;
+  if(translationPending?.item===item){
+   if(!item.final)return;
+   translationPending=null;
+  }
+  translateItem({session:m.session,item,fullSpeechText,reference:cueReferences.get(item),started:Date.now()});
+ };
  if(gate.latest?.original===m.text && gate.latest.speechId===m.id && gate.latest.source===m.source){
   const item=gate.latest;
   item.provisional=Boolean(m.provisional);
   if(m.source!=='native'&&m.final&&!item.final){
    item.final=true;
-   if(!item.translated){
-    item.pending=true;item.error='';item.expiresAt=Date.now()/1000+MAX_CAPTION_TRANSLATION_MS/1000;
-    if(items[0]===item)pushSubtitle(item);
-    const scheduled=translationPending?.item===item||[...captionRequests.keys()].some(job=>job.item===item);
-    if(!scheduled)translateItem({session:m.session,item,fullSpeechText,reference:cueReferences.get(item),started:Date.now()});
-   }
+   markBrowserFinal(item,m);
+   if(item.translated){settleBrowserFinal(item,'translated');}
+   else {item.pending=true;item.error='';item.expiresAt=Date.now()/1000+MAX_CAPTION_TRANSLATION_MS/1000;}
+   if(items[0]===item)pushSubtitle(item);
   }
+  schedule(item);
   return;
  }
  const reference=captionReference(m);
  const item=gate.accept(m.session,++outputSequence,m.text);if(!item)return;
  if(reference)cueReferences.set(item,reference);
  item.source=m.source;item.speechId=m.id;item.final=Boolean(m.final);item.pending=m.source!=='native'&&item.final;item.expiresAt=Date.now()/1000+(item.pending?MAX_CAPTION_TRANSLATION_MS/1000:captionHold);item.provisional=Boolean(m.provisional);item.audioEndAt=m.audioEndAt;item.stableText=m.stableText||'';
+ markBrowserFinal(item,m);
  if(!items[0]?.translated||!fresh(items[0])){items.length=0;items.push(item);pushSubtitle(item);}
  diagnostics.lastRecognition=Date.now();diagnostics.decodeMs=m.decodeMs;modelStatus='已辨識語音';
- translateItem({session:m.session,item,fullSpeechText,reference,started:Date.now()});
+ schedule(item);
 }
 function scheduleNativeIdle(){
  if(!desktopClient?.port||running||captureRole||drainingSession||nativeRequests||nativeIdleTimer!==null||typeof setTimeout!=='function')return;
