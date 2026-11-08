@@ -239,7 +239,7 @@ test('Android Chrome: the installed app shell opens offline without uploading a 
     let requests = 0;
     await context.route(cloudUrl, route => { requests++; return route.abort(); });
     await openMobile(page);
-    await page.waitForFunction(async () => (await navigator.serviceWorker.getRegistration('/mobile/'))?.active?.state === 'activated');
+    await page.waitForFunction(() => navigator.serviceWorker.controller?.state === 'activated');
     await context.setOffline(true);
     await page.reload();
     await page.locator('#source-text').fill('おやすみなさい。');
