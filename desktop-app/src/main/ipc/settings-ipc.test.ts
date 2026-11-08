@@ -10,7 +10,7 @@ vi.mock('../store', () => ({
     }
   }
 }))
-vi.mock('../obs-captions', () => ({ configureObsCaptions: vi.fn(), obsCaptionStatus: vi.fn() }))
+vi.mock('../obs-captions', () => ({ configureObsCaptions: vi.fn(), setObsCaptionRecordMode: vi.fn(), obsCaptionStatus: vi.fn() }))
 vi.mock('../window-manager', () => ({ syncDesktopSubtitleWindow: vi.fn() }))
 vi.mock('../mac-engine-availability', () => ({ getMacEngineAvailability: async () => null }))
 vi.mock('../interface-language', () => ({ onUiLanguageStateChanged: vi.fn() }))

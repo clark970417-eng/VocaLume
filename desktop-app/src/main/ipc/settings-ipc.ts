@@ -1,4 +1,4 @@
-import { configureObsCaptions, configureObsCaptionTransport, obsCaptionStatus } from '../obs-captions'
+import { configureObsCaptions, configureObsCaptionTransport, obsCaptionStatus, setObsCaptionRecordMode } from '../obs-captions'
 import { app, ipcMain, dialog, shell } from 'electron'
 import { arch, platform, release, totalmem } from 'os'
 import { readFile, writeFile } from 'fs/promises'
@@ -172,9 +172,10 @@ export function registerSettingsIpc(ctx: AppContext): void {
     store.set('subtitleSettings', validated)
     ctx.subtitleWindow?.webContents.send('subtitle-settings-changed', validated)
     if (validated.position !== previous?.position) resetSubtitlePosition(ctx)
-    else if ((process.platform === 'win32' || process.platform === 'darwin') &&
+    if ((process.platform === 'win32' || process.platform === 'darwin') &&
       (validated.captionMode === 'record') !== (previous?.captionMode === 'record')) {
-      resizeSubtitleWindow(ctx)
+      if (validated.position === previous?.position) resizeSubtitleWindow(ctx)
+      setObsCaptionRecordMode(validated.captionMode === 'record')
     }
   })
 
