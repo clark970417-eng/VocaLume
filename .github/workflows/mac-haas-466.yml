@@ -31,9 +31,9 @@ jobs:
         run: node scripts/verify-packaging-toolchain.cjs
       - run: npm run typecheck
       - run: npm test -- --run
-      - run: npm run build
       - name: Stage bundled Haas-ja for Apple Silicon
         run: bash scripts/stage-haas-mac.sh
+      - run: npm run build
       - name: Build unsigned beta package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"

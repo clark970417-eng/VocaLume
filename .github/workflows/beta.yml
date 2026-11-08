@@ -125,10 +125,10 @@ jobs:
       - name: Build the Intel Mac speech engine
         if: matrix.os == 'macos-15-intel'
         run: node scripts/rebuild-whisper-mac-x64.cjs
-      - run: npm run build
       - name: Stage bundled Haas-ja for Apple Silicon
         if: matrix.artifact == 'macOS-Apple-Silicon'
         run: bash scripts/stage-haas-mac.sh
+      - run: npm run build
       - name: Build unsigned beta package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
