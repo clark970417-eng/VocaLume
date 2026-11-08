@@ -102,8 +102,9 @@ jobs:
         if: runner.os != 'Windows'
       - run: npm ci --ignore-scripts
         if: runner.os == 'Windows'
-      - run: node node_modules/electron/install.js
-        if: runner.os == 'Windows'
+      # Install Electron once before parallel tests can trigger its lazy download.
+      - name: Install Electron binary
+        run: node node_modules/electron/install.js
       - name: Install FFmpeg for Windows file translation
         if: runner.os == 'Windows'
         run: node node_modules/ffmpeg-static/install.js
