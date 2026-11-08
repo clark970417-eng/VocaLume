@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { expect, it, vi } from 'vitest'
 import { WebSocketServer } from 'ws'
-import { clearObsCaption, configureObsCaptions, configureObsCaptionTransport, obsCaptionStatus, publishObsCaption } from './obs-captions'
+import { clearObsCaption, configureObsCaptions, configureObsCaptionTransport, obsCaptionStatus, publishObsCaption, setObsCaptionRecordMode } from './obs-captions'
 
 const profile = vi.hoisted(() => ({ path: '', mode: 'bilingual' }))
 vi.mock('electron', () => ({ app: { getPath: () => profile.path } }))
@@ -84,11 +84,18 @@ it.skipIf(process.platform !== 'win32')('pushes authenticated final captions to 
     acknowledge!()
     await vi.waitFor(() => expect(captions.at(-1)).toBe('三\n最新字幕'))
     expect(captions).not.toContain('二\n中間字幕')
+    setObsCaptionRecordMode(true)
+    await vi.waitFor(() => expect(captions.at(-1)).toBe('またね\n再見\n一\n第一筆\n二\n中間字幕\n三\n最新字幕'))
+    publishObsCaption({ sourceText: '四', translatedText: '第四筆' })
+    await vi.waitFor(() => expect(captions.at(-1)).toBe('一\n第一筆\n二\n中間字幕\n三\n最新字幕\n四\n第四筆'))
+    setObsCaptionRecordMode(false)
+    await vi.waitFor(() => expect(captions.at(-1)).toBe('四\n第四筆'))
     await configureObsCaptionTransport('file', '')
     expect(captions.at(-1)).toBe('')
     publishObsCaption({ sourceText: 'さようなら', translatedText: '再會' })
     await vi.waitFor(async () => expect(await readFile(file.path, 'utf8')).toBe('さようなら\n再會'))
   } finally {
+    setObsCaptionRecordMode(false)
     await configureObsCaptionTransport('file', '')
     await configureObsCaptions('off')
     for (const socket of server.clients) socket.terminate()
