@@ -4,7 +4,7 @@ This preview is intended for people who agree to test unfinished software and re
 
 ## Download and install
 
-Download the package for your computer and `vocalume-extension.zip` from [4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0). New users can follow the [English quick start](../README.md) or [完整中文使用手冊](user-guide.md).
+Download the installer for your computer from [4.6.7 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7). For browser features, use `vocalume-extension-windows.zip` on Windows Chrome or Edge, or use the universal `vocalume-extension.zip`. New users can follow the [English quick start](../README.md) or [完整中文使用手冊](user-guide.md).
 
 ### Verify the download
 
@@ -29,8 +29,8 @@ Each release includes `SHA256SUMS.txt` and `release-manifest.json`. Verify the i
 
 ### Browser extension
 
-1. Unzip `vocalume-extension.zip`.
-2. Open `opera://extensions`, `chrome://extensions`, or `edge://extensions`.
+1. Extract the extension ZIP to a permanent folder.
+2. Open `chrome://extensions`, `edge://extensions` or `opera://extensions`.
 3. Turn on Developer mode, choose **Load unpacked**, and select the unzipped folder.
 4. Keep the desktop app open when using desktop recognition or local writing translation.
 

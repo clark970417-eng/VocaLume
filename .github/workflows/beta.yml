@@ -53,10 +53,8 @@ jobs:
           name: browser-extension
           path: beta/vocalume-extension.zip
       - name: Package Windows Chromium extension
-        if: github.event_name == 'workflow_dispatch'
         run: python3 scripts/package-windows-extension.py beta/vocalume-extension.zip beta/vocalume-extension-windows.zip
       - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch'
         with:
           name: browser-extension-Windows
           path: beta/vocalume-extension-windows.zip
@@ -160,7 +158,7 @@ jobs:
         with:
           path: beta
           merge-multiple: true
-      - name: Publish prerelease
+      - name: Prepare prerelease draft
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -169,7 +167,7 @@ jobs:
             mv "$file" "${file// /.}"
           done
           cd ..
-          node scripts/verify-release-assets.mjs beta "${GITHUB_REF_NAME}" "${GITHUB_SHA}" \
+          node scripts/verify-release-assets.mjs beta "${GITHUB_REF_NAME}" "$(git rev-parse HEAD)" \
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           VERSION="${GITHUB_REF_NAME#beta-v}"
           if test -f "docs/releases/${VERSION}.md"; then
@@ -181,18 +179,15 @@ jobs:
           Verify downloads with \`SHA256SUMS.txt\`. These packages are not code-signed, so the operating system will show a security warning. Report results through the repository issue forms.
           EOF
           fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
-            -f tag_name="${GITHUB_REF_NAME}" --jq .body > generated-notes.md
-          printf '\n## Changes\n\n' >> beta-notes.md
-          cat generated-notes.md >> beta-notes.md
-          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+          if DRAFT=$(gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq .isDraft); then
+            test "$DRAFT" = true || { echo 'The prerelease has already been published.' >&2; exit 1; }
             gh release upload "${GITHUB_REF_NAME}" beta/* --repo "${GITHUB_REPOSITORY}" --clobber
             gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" \
               --prerelease --notes-file beta-notes.md
           else
             gh release create "${GITHUB_REF_NAME}" beta/* \
               --repo "${GITHUB_REPOSITORY}" \
-              --prerelease \
+              --verify-tag --draft --prerelease \
               --title "VocaLume ${VERSION} — Public Beta" \
               --notes-file beta-notes.md
           fi
