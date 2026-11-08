@@ -9,8 +9,8 @@ vi.mock('../store', () => ({
     }
   }
 }))
-vi.mock('../obs-captions', () => ({ configureObsCaptions: vi.fn(), obsCaptionStatus: vi.fn() }))
-vi.mock('./display-ipc', () => ({ resetSubtitlePosition: vi.fn() }))
+vi.mock('../obs-captions', () => ({ configureObsCaptions: vi.fn(), setObsCaptionRecordMode: vi.fn(), obsCaptionStatus: vi.fn() }))
+vi.mock('./display-ipc', () => ({ resetSubtitlePosition: vi.fn(), resizeSubtitleWindow: vi.fn() }))
 import { registerSettingsIpc } from './settings-ipc'
 import type { AppContext } from '../app-context'
 

@@ -109,7 +109,8 @@ export function toggleSubtitleEditMode(ctx: AppContext): boolean {
 function rememberSubtitlePosition(ctx: AppContext, window: BrowserWindow): void {
   const current = window.getBounds()
   const display = screen.getDisplayMatching(current)
-  const bounds = getSubtitleBounds(display, current)
+  const record = process.platform === 'win32' && store.get('subtitleSettings')?.captionMode === 'record'
+  const bounds = getSubtitleBounds(display, current, undefined, record)
   if (bounds.x !== current.x || bounds.y !== current.y || bounds.width !== current.width || bounds.height !== current.height) {
     window.setBounds(bounds)
   }
@@ -119,6 +120,11 @@ function rememberSubtitlePosition(ctx: AppContext, window: BrowserWindow): void 
     store.set('selectedDisplay', display.id)
     ctx.mainWindow?.webContents.send('subtitle-display-changed', display.id)
   }
+}
+
+export function resizeSubtitleWindow(ctx: AppContext): void {
+  const window = ctx.subtitleWindow
+  if (window) window.setBounds(getSavedSubtitleBounds(screen.getDisplayMatching(window.getBounds())))
 }
 
 export function resetSubtitlePosition(ctx: AppContext): void {

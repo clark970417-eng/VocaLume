@@ -1,4 +1,4 @@
-import { configureObsCaptions, configureObsCaptionTransport, obsCaptionStatus } from '../obs-captions'
+import { configureObsCaptions, configureObsCaptionTransport, obsCaptionStatus, setObsCaptionRecordMode } from '../obs-captions'
 import { app, ipcMain, dialog, shell } from 'electron'
 import { arch, platform, release, totalmem } from 'os'
 import { readFile, writeFile } from 'fs/promises'
@@ -7,7 +7,7 @@ import type { SubtitleSettings, CorrectionEntry } from '../store'
 import { validateSubtitleSettings } from '../ipc-validators'
 import type { AppContext } from '../app-context'
 import { createLogger } from '../logger'
-import { resetSubtitlePosition } from './display-ipc'
+import { resetSubtitlePosition, resizeSubtitleWindow } from './display-ipc'
 import { isSpeechToneMode } from '../../pipeline/SpeechTone'
 import { localizedWebsiteUrl } from '../../../../extension/website-language.mjs'
 import {
@@ -132,11 +132,17 @@ export function registerSettingsIpc(ctx: AppContext): void {
     if (validationError) {
       throw new Error(`Invalid subtitle settings: ${validationError}`)
     }
-    const validated = settings as unknown as SubtitleSettings
-    const previousAnchor = store.get('subtitleSettings')?.position
+    const validated = { ...settings } as unknown as SubtitleSettings
+    validated.hideOnHover ??= store.get('subtitleSettings').hideOnHover ?? false
+    validated.captionMode ??= store.get('subtitleSettings').captionMode ?? 'realtime'
+    const previous = store.get('subtitleSettings')
     store.set('subtitleSettings', validated)
     ctx.subtitleWindow?.webContents.send('subtitle-settings-changed', validated)
-    if (validated.position !== previousAnchor) resetSubtitlePosition(ctx)
+    if (validated.position !== previous?.position) resetSubtitlePosition(ctx)
+    if (process.platform === 'win32' && (validated.captionMode === 'record') !== (previous?.captionMode === 'record')) {
+      if (validated.position === previous?.position) resizeSubtitleWindow(ctx)
+      setObsCaptionRecordMode(validated.captionMode === 'record')
+    }
   })
 
   ipcMain.handle('save-settings', (_event, settings: Record<string, unknown>) => {
