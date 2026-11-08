@@ -29,3 +29,74 @@ test('identical ASR does not extend expiry; later utterance can repeat; native e
  await call({type:'native-caption',cue:null},sender);finish();await flush();
  assert.equal((await current()).some(item=>item.source==='native'),false,'late translation cannot resurrect ended native cue');
 });
+
+test('browser token drafts do not compete with finals, including an identical promoted cue',async()=>{
+ let listener,session;const requests=[],updates=[],deadlines=[];
+ const signalTools={any:signals=>AbortSignal.any(signals),timeout:ms=>{
+  const controller=new AbortController();
+  deadlines.push({ms,controller});
+  return controller.signal;
+ }};
+ const chrome={
+  storage:{local:{set:async()=>{},get:async()=>({subtitleSettings:{captionMode:'realtime'}})}},
+  tabs:{sendMessage:async(_id,message)=>updates.push(message),onRemoved:{addListener(){}}},
+  offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},
+  runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},
+   sendMessage:async m=>{if(m.type==='offscreen-start')session=m.session;return{ok:true};}},
+ };
+ const fetch=async(_url,{signal})=>new Promise((resolve,reject)=>{
+  requests.push({signal,complete:()=>resolve({ok:true,json:async()=>[[['今天下雨了']]]})});
+  signal.addEventListener('abort',()=>reject(signal.reason),{once:true});
+ });
+ const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ vm.runInNewContext(source,{...cloudApi,...taiwanChinese,RecordingQueue,chrome,ResultGate,CueCursor,NativeCueTimeline,
+  ...policy,URLSearchParams,AbortSignal:signalTools,AbortController,Date,console,fetch});
+ const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
+ const tick=()=>new Promise(resolve=>setImmediate(resolve));
+ const cue=(id,text,extra)=>call({type:'speech-result',session,id,text,audioEndAt:Date.now()-10,
+  speechEndAt:Date.now()-500,...extra},{url:'chrome-extension://test/offscreen.html'});
+ await call({type:'subtitle-control',action:'start',tabId:7});
+ const draft='今日は雨が降っていました。';
+ await cue(1,draft,{partial:true,provisional:true});await tick();
+ assert.equal(requests.length,0);
+ assert.equal(updates.at(-1).item.original,draft);
+ await cue(1,draft,{final:true});await tick();
+ assert.equal(requests.length,1);
+ requests[0].complete();await tick();
+ const health=(await call({type:'health'})).text.diagnostics;
+ assert.equal(health.browserFinals.received,1);
+ assert.equal(health.browserFinals.translated,1);
+ assert.equal(health.deliveryMetrics.speechEndToTranslationMs.count,1);
+ assert.equal(updates.at(-1).item.translated,'今天下雨了');
+
+ for(const [id,text] of [[2,'明日の東京は晴れるでしょう。'],[3,'今夜は雪が降るでしょう。'],[4,'今日は夕方に雨が降っていました。']]){
+  await cue(id,text,{provisional:true,stableText:text});await tick();
+ }
+ assert.equal(requests.length,3,'the third preview is waiting');
+ await cue(4,'今日は夕方に雨が降っていました。',{final:true});await tick();
+ assert.equal(requests[1].signal.aborted,true);
+ assert.equal(requests[2].signal.aborted,true);
+ assert.equal(requests.length,4,'the promoted final bypasses the waiting preview');
+ requests[3].complete();await tick();
+ assert.equal(updates.at(-1).item.speechId,4);
+
+ await cue(5,'今朝は大雨でした。',{final:true});await tick();
+ assert.equal(requests.length,5);
+ deadlines.findLast(d=>d.ms===3000).controller.abort(new DOMException('Deadline reached','TimeoutError'));
+ await tick();assert.equal(requests.length,6,'a timed-out final gets one independent attempt');
+ assert.equal(requests[5].signal.aborted,false);
+ requests[5].complete();await tick();
+ assert.equal(updates.at(-1).item.speechId,5);
+ assert.equal((await call({type:'health'})).text.diagnostics.browserFinals.failed,0);
+
+ await cue(6,'山の近くは雨です。',{final:true});await tick();
+ await cue(7,'海の近くは雨でした。',{final:true});await tick();
+ assert.equal(requests.length,8,'both final requests run concurrently');
+ requests[7].complete();await tick();
+ assert.equal(updates.at(-1).item.speechId,5,'a faster reply waits for the preceding final');
+ const beforeOrderedDelivery=updates.length;
+ requests[6].complete();await tick();
+ assert.deepEqual(updates.slice(beforeOrderedDelivery).map(message=>message.item.speechId),[6,7]);
+ assert.equal((await call({type:'health'})).text.diagnostics.browserFinals.superseded,0);
+ await call({type:'subtitle-control',action:'stop'});
+});

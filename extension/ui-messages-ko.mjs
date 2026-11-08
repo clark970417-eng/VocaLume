@@ -224,7 +224,7 @@ export const UI_KO = {
   "First segment completion P50/P95": "첫 구간 처리 완료 P50/P95",
   "Segment processing P50/P95": "구간 처리 P50/P95",
   "Segment end to processing start P50/P95": "구간 종료부터 처리 시작까지 P50/P95",
-  "Desktop mode, last 120 captions, P50/P95/P99": "데스크톱 모드 최근 자막 120개, P50/P95/P99",
+  "Last 120 final captions, P50/P95/P99": "최근 확정 자막 120개, P50/P95/P99",
   "Segment end to final transcript": "구간 종료부터 최종 원문까지",
   "Final transcript to translation (including queue)": "최종 원문부터 번역까지 (대기 포함)",
   "Segment end to final translation": "구간 종료부터 최종 번역까지",

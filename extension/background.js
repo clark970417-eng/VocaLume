@@ -70,7 +70,10 @@ async function freeTranslate(text,direction,signal,protectedText=protectNames(te
  const budget=deadline(signal,4000);
  const translated=await retryTranslationRequest(async()=>{
   const response=await fetch(`https://translate.googleapis.com/translate_a/single?${q}`,{signal:budget})
-   .catch(()=>{throw new RetryableTranslationError('暫時無法連線到翻譯服務');});
+   .catch(()=>{
+    budget.throwIfAborted();
+    throw new RetryableTranslationError('暫時無法連線到翻譯服務');
+   });
   if(!response.ok)throw translationHttpError(response,`翻譯服務 ${response.status}`);
   const data=await response.json().catch(()=>{throw new RetryableTranslationError('翻譯服務回傳格式不正確');});
   if(!Array.isArray(data?.[0]))throw new RetryableTranslationError('翻譯服務回傳格式不正確');
@@ -321,7 +324,7 @@ function presentDesktopCaption(segment){
  },Math.max(0,hold-(Date.now()-desktopSettledAt)));
 }
 function cancelTranslations(){translationPending=null;publishedId=-1;for(const controller of captionRequests.values())controller.abort();captionRequests.clear();}
-async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),configured,reference){
+async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),configured,reference,final=false){
  const phrase=phraseTranslation(text,direction);if(phrase)return phrase;
  if(direction==='ja-zh')text=normalizeGreetingSource(text);
  parseDirection(direction);
@@ -330,7 +333,17 @@ async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),
  if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,signal,configured,reference);
  const publicRoute=activeSignal=>freeTranslate(text,direction,activeSignal,undefined,reference);
  try{
-  if(!apiProfile(configured,'nvidia').apiKey&&!apiProfile(configured,'openrouter').apiKey)return await publicRoute(deadline(signal,3000));
+  if(!apiProfile(configured,'nvidia').apiKey&&!apiProfile(configured,'openrouter').apiKey){
+   try{return await publicRoute(deadline(signal,3000));}
+   catch(error){
+    signal?.throwIfAborted();
+    // An isolated browser session can recover one slow final without waiting
+    // for a desktop engine. Keep the normal deadline and do not retry a 429
+    // or an invalid translation here.
+    if(!final||coordinatedCapture||error.name!=='TimeoutError')throw error;
+    return await publicRoute(deadline(signal,2000));
+   }
+  }
   const contextualRoute=s=>styledTranslation(text,direction,s,configured,reference);
   return reference
    ? await firstTranslation(contextualRoute,publicRoute,deadline(signal,3000),400)
@@ -456,9 +469,29 @@ function sharedEvent(event){
 function pushSubtitle(item){
  if(captureTabId)chrome.tabs.sendMessage(captureTabId,{type:'subtitle-update',item,running,nativeCaptions:running&&captureRole!=='shared'},{frameId:0}).catch(()=>{});
 }
+function markBrowserFinal(item,m){
+ if(captureRole!=='browser'||m.source==='native'||!m.final||item.finalSourceAt)return;
+ item.finalSourceAt=Date.now();
+ item.audioEndAt=m.audioEndAt;item.speechEndAt=m.speechEndAt;
+ diagnostics.browserFinals??={received:0,translated:0,failed:0,superseded:0};
+ diagnostics.browserFinals.received++;
+ recordDeliveryTime('endToSourceMs',item.finalSourceAt-item.audioEndAt);
+}
+function settleBrowserFinal(item,outcome){
+ if(!item.finalSourceAt||item.finalOutcome)return;
+ item.finalOutcome=outcome;
+ diagnostics.browserFinals[outcome]++;
+ if(outcome!=='translated')return;
+ const completed=Date.now();
+ recordDeliveryTime('sourceToTranslationMs',completed-item.finalSourceAt);
+ recordDeliveryTime('endToTranslationMs',completed-item.audioEndAt);
+ recordDeliveryTime('speechEndToTranslationMs',completed-item.speechEndAt);
+}
 function failCaptionTranslation(job,error){
  const {item,session}=job;
- if(gate.session!==session||gate.latest!==item||item.expired)return;
+ if(gate.session!==session)return;
+ settleBrowserFinal(item,'failed');
+ if(gate.latest!==item||item.expired)return;
  lastError='翻譯失敗：'+error.message;
  if(!item.pending)return;
  item.pending=false;item.error=lastError;item.expiresAt=Date.now()/1000+captionHold;
@@ -469,23 +502,46 @@ async function translateItem(job){
  // aborting the oldest request starves subtitles on slower connections.
  if(job.item.expired)return;
  if(Date.now()-job.started>=MAX_CAPTION_TRANSLATION_MS){failCaptionTranslation(job,new Error('翻譯等待逾時'));return;}
- if(captionRequests.size>=2){translationPending=job;return;}
- const controller=new AbortController();captionRequests.set(job,controller);
+ if(job.item.final){
+  for(const [active,controller] of captionRequests){
+   if(active.item.final||active.item.source==='native')continue;
+   captionRequests.delete(active);controller.abort();
+  }
+ }else if([...captionRequests.keys()].some(active=>active.item.final))return;
+ if(captionRequests.size>=2){
+  if(translationPending?.item.final&&!job.item.final)return;
+  if(translationPending)settleBrowserFinal(translationPending.item,'superseded');
+  translationPending=job;return;
+ }
+ job.item.translationAttempted=job.item.final?'final':'preview';
+ const controller=new AbortController();
+ let finish;
+ job.finished=new Promise(resolve=>{finish=resolve;});
+ captionRequests.set(job,controller);
  try {
   const configured=await settings(),direction=pair(speechFrom,speechTo);
+  controller.signal.throwIfAborted();
   const key=JSON.stringify([apiCacheScope(configured),configured.speechMode||'browser',engineMode,direction,job.item.original,job.reference]);
-  const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,direction,configured,job.reference);
+  const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,direction,configured,job.reference,job.item.final);
   if(controller.signal.aborted)return;
   translationCache.set(key,result);if(translationCache.size>200)translationCache.delete(translationCache.keys().next().value);
+  if(job.item.finalSourceAt){
+   // Network requests can overlap, but a faster newer reply must not discard
+   // an earlier final. No hold timer is added when the earlier cue is ready.
+   const earlier=[...captionRequests.keys()].filter(active=>active.item.finalSourceAt&&active.item.id<job.item.id);
+   if(earlier.length)await Promise.all(earlier.map(active=>active.finished));
+   if(controller.signal.aborted)return;
+  }
   if(Date.now()-job.started>=MAX_CAPTION_TRANSLATION_MS){failCaptionTranslation(job,new Error('翻譯等待逾時'));return;}
   if(gate.session===job.session&&job.item.id>publishedId&&!job.item.expired&&
      (job.item.source!=='native'||gate.latest===job.item)){
    publishedId=job.item.id;job.item.translated=result;job.item.pending=false;job.item.error='';job.item.expiresAt=Date.now()/1000+captionHold;items.length=0;items.push(job.item);
    if(job.item.source!=='native')cueCursor.markDelivered(job.item.speechId,job.fullSpeechText,job.item.original);
-   lastError='';diagnostics.translationMs=Date.now()-job.started;diagnostics.chineseLagMs=job.item.audioEndAt?Date.now()-job.item.audioEndAt:diagnostics.translationMs;pushSubtitle(job.item);
-  }
+   lastError='';diagnostics.translationMs=Date.now()-job.started;diagnostics.chineseLagMs=job.item.audioEndAt?Date.now()-job.item.audioEndAt:diagnostics.translationMs;
+   settleBrowserFinal(job.item,'translated');pushSubtitle(job.item);
+  }else if(gate.session===job.session)settleBrowserFinal(job.item,'superseded');
  } catch(error){if(!controller.signal.aborted)failCaptionTranslation(job,error);}
- finally{captionRequests.delete(job);if(translationPending&&captionRequests.size<2){const next=translationPending;translationPending=null;if(next.session===gate.session)translateItem(next);}}
+ finally{captionRequests.delete(job);finish();if(translationPending&&captionRequests.size<2){const next=translationPending;translationPending=null;if(next.session===gate.session)translateItem(next);}}
 }
 const cueReferences=new WeakMap();
 function captionReference(message){
@@ -514,27 +570,41 @@ function addTranscript(m){
  if(m.source!=='native'){
   lastSpeechId=m.id;
  }
+ // Show raw token revisions as source text and leave the network free for
+ // finals and rolling hypotheses confirmed by two recognition passes.
+ const shouldTranslate=m.source==='native'||m.final||(!m.partial&&(!m.provisional||m.stableText===fullSpeechText));
+ const schedule=item=>{
+  if(!shouldTranslate||item.translated||item.finalOutcome||item.translationAttempted===(item.final?'final':'preview')||
+     [...captionRequests.keys()].some(job=>job.item===item))return;
+  if(translationPending?.item===item){
+   if(!item.final)return;
+   translationPending=null;
+  }
+  translateItem({session:m.session,item,fullSpeechText,reference:cueReferences.get(item),started:Date.now()});
+ };
  if(gate.latest?.original===m.text && gate.latest.speechId===m.id && gate.latest.source===m.source){
   const item=gate.latest;
   item.provisional=Boolean(m.provisional);
   if(m.source!=='native'&&m.final&&!item.final){
    item.final=true;
-   if(!item.translated){
-    item.pending=true;item.error='';item.expiresAt=Date.now()/1000+MAX_CAPTION_TRANSLATION_MS/1000;
-    if(items[0]===item)pushSubtitle(item);
-    const scheduled=translationPending?.item===item||[...captionRequests.keys()].some(job=>job.item===item);
-    if(!scheduled)translateItem({session:m.session,item,fullSpeechText,reference:cueReferences.get(item),started:Date.now()});
-   }
+   markBrowserFinal(item,m);
+   if(item.translated){
+    item.expiresAt=Date.now()/1000+captionHold;
+    settleBrowserFinal(item,'translated');
+   }else {item.pending=true;item.error='';item.expiresAt=Date.now()/1000+MAX_CAPTION_TRANSLATION_MS/1000;}
+   if(items[0]===item)pushSubtitle(item);
   }
+  schedule(item);
   return;
  }
  const reference=captionReference(m);
  const item=gate.accept(m.session,++outputSequence,m.text);if(!item)return;
  if(reference)cueReferences.set(item,reference);
  item.source=m.source;item.speechId=m.id;item.final=Boolean(m.final);item.pending=m.source!=='native'&&item.final;item.expiresAt=Date.now()/1000+(item.pending?MAX_CAPTION_TRANSLATION_MS/1000:captionHold);item.provisional=Boolean(m.provisional);item.audioEndAt=m.audioEndAt;item.stableText=m.stableText||'';
+ markBrowserFinal(item,m);
  if(!items[0]?.translated||!fresh(items[0])){items.length=0;items.push(item);pushSubtitle(item);}
  diagnostics.lastRecognition=Date.now();diagnostics.decodeMs=m.decodeMs;modelStatus='已辨識語音';
- translateItem({session:m.session,item,fullSpeechText,reference,started:Date.now()});
+ schedule(item);
 }
 function scheduleNativeIdle(){
  if(!desktopClient?.port||running||captureRole||drainingSession||nativeRequests||nativeIdleTimer!==null||typeof setTimeout!=='function')return;

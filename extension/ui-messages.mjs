@@ -584,7 +584,7 @@ Object.assign(UI_EN, {
   "首段處理完成 P50/P95": "First segment completion P50/P95",
   "單段處理 P50/P95": "Segment processing P50/P95",
   "片段結束至開始處理 P50/P95": "Segment end to processing start P50/P95",
-  "桌面模式最近 120 句，P50/P95/P99": "Desktop mode, last 120 captions, P50/P95/P99",
+  "最近 120 句正式字幕，P50/P95/P99": "Last 120 final captions, P50/P95/P99",
   "片段結束至最終原文": "Segment end to final transcript",
   "最終原文至譯文（含排隊）": "Final transcript to translation (including queue)",
   "片段結束至最終譯文": "Segment end to final translation",

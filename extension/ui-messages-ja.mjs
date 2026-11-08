@@ -224,7 +224,7 @@ export const UI_JA = {
   "First segment completion P50/P95": "最初の区間の処理完了 P50/P95",
   "Segment processing P50/P95": "区間の処理時間 P50/P95",
   "Segment end to processing start P50/P95": "区間の終了から処理開始まで P50/P95",
-  "Desktop mode, last 120 captions, P50/P95/P99": "デスクトップモード、直近120件、P50/P95/P99",
+  "Last 120 final captions, P50/P95/P99": "確定字幕の直近120件、P50/P95/P99",
   "Segment end to final transcript": "区間の終了から確定した原文まで",
   "Final transcript to translation (including queue)": "確定した原文から翻訳まで（待ち時間込み）",
   "Segment end to final translation": "区間の終了から確定した翻訳まで",
