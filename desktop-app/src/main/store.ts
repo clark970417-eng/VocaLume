@@ -31,6 +31,7 @@ export interface SubtitleSettings {
   position: 'top' | 'bottom'
   lowPowerRendering?: boolean
   hideOnHover?: boolean
+  captionMode?: 'realtime' | 'record'
   accessibility: AccessibilitySettings
 }
 

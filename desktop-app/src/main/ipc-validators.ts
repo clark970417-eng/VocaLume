@@ -80,6 +80,10 @@ export function validateSubtitleSettings(data: unknown): string | null {
   if (obj.lowPowerRendering !== undefined && typeof obj.lowPowerRendering !== 'boolean') return 'lowPowerRendering must be a boolean'
   if (obj.hideOnHover !== undefined && typeof obj.hideOnHover !== 'boolean') return 'hideOnHover must be a boolean'
 
+  if (obj.captionMode !== undefined && obj.captionMode !== 'realtime' && obj.captionMode !== 'record') {
+    return 'captionMode must be realtime or record'
+  }
+
   // Accessibility settings are optional — validate only if present
   if (obj.accessibility != null) {
     if (typeof obj.accessibility !== 'object') return 'accessibility must be an object'

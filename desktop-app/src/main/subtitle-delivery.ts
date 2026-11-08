@@ -9,7 +9,8 @@ export function sendOverlayCaption(ctx: AppContext, channel: Channel, result: Tr
   const window = ctx.subtitleWindow
   if (!window || window.isDestroyed() || ctx.extensionConnected || !result.sourceText?.trim()) return
   const key = JSON.stringify([
-    channel, result.confirmedText ?? result.sourceText, result.interimText ?? '',
+    channel, process.platform === 'win32' && channel === 'translation-result' ? result.timestamp : null,
+    result.confirmedText ?? result.sourceText, result.interimText ?? '',
     result.translatedText, result.translationFailed, result.confidence,
     result.tokenConfidences, result.speakerLabel, result.speakerIndex
   ])
