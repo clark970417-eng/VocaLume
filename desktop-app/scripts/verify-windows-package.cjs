@@ -53,6 +53,15 @@ for (const entry of entries) {
   if (llama) assert(/^win-x64(?:-|$)/.test(llama[1]), 'Foreign llama file: ' + entry)
 }
 
+const haas = path.join(resources, 'haas-ja')
+for (const name of ['speech.exe', 'speech.dll', 'haas-q8.gguf', 'HAAS-APACHE-2.0.txt', 'SPEECH-CPP-MIT.txt']) {
+  assert(fs.statSync(path.join(haas, name)).size > 0, 'Missing bundled Haas-ja asset: ' + name)
+}
+assert.equal(fs.statSync(path.join(haas, 'haas-q8.gguf')).size, 656381472, 'Unexpected Haas-ja model size')
+execFileSync(path.join(haas, 'speech.exe'), ['info', '--json', path.join(haas, 'haas-q8.gguf')], {
+  cwd: haas, timeout: 45_000, windowsHide: true, stdio: 'inherit'
+})
+
 const bridges = path.join(resources, 'bridge-scripts')
 for (const file of ['ane-translate-bridge.py', 'mlx-whisper-bridge.py', 'bin/fluid-audio-bridge', 'bin/voice-tone-helper', 'bin/capture-claim-helper']) {
   assert(!fs.existsSync(path.join(bridges, file)), 'Apple-only bridge in Windows payload: ' + file)
