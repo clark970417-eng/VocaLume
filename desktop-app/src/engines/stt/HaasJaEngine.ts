@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { access } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { endianness, homedir } from 'node:os'
 import { join } from 'node:path'
 import type { SpeechEvidence, STTEngine, STTResult } from '../types'
@@ -12,7 +13,9 @@ const LITTLE_ENDIAN = endianness() === 'LE'
 export function haasPaths() {
   const windows=process.platform==='win32'
   const root=windows ? process.env.LOCALAPPDATA || join(homedir(),'AppData','Local') : join(homedir(),'Library','Application Support')
-  const directory=join(root,'VocaLume','haas-ja')
+  const bundled = windows && process.resourcesPath ? join(process.resourcesPath, 'haas-ja') : undefined
+  const directory = bundled && existsSync(join(bundled, 'speech.exe')) &&
+    existsSync(join(bundled, 'haas-q8.gguf')) ? bundled : join(root, 'VocaLume', 'haas-ja')
   return {directory,binary:join(directory,windows?'speech.exe':'speech'),model:join(directory,'haas-q8.gguf')}
 }
 export async function isHaasAvailable(): Promise<boolean> {
@@ -82,7 +85,7 @@ export class HaasJaEngine implements STTEngine {
     const args=['serve',model,'--host','127.0.0.1','--port','0','--device',this.device || (windows?'auto':'gpu')]
     if(windows)args.push('--threads',String(windowsInferenceThreads().whisper))
     else if (process.platform === 'darwin') args.push('--threads', String(macInferenceThreads().speech))
-    const child=spawn(binary,args,{windowsHide:true})
+    const child=spawn(binary,args,{cwd: directory, windowsHide:true})
     this.process=child
     child.once('spawn',()=>{if(windows&&child.pid)lowerInferencePriority(child.pid)})
     try {
