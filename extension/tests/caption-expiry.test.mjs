@@ -31,7 +31,12 @@ test('identical ASR does not extend expiry; later utterance can repeat; native e
 });
 
 test('browser token drafts do not compete with finals, including an identical promoted cue',async()=>{
- let listener,session;const requests=[],updates=[];
+ let listener,session;const requests=[],updates=[],deadlines=[];
+ const signalTools={any:signals=>AbortSignal.any(signals),timeout:ms=>{
+  const controller=new AbortController();
+  deadlines.push({ms,controller});
+  return controller.signal;
+ }};
  const chrome={
   storage:{local:{set:async()=>{},get:async()=>({subtitleSettings:{captionMode:'realtime'}})}},
   tabs:{sendMessage:async(_id,message)=>updates.push(message),onRemoved:{addListener(){}}},
@@ -45,7 +50,7 @@ test('browser token drafts do not compete with finals, including an identical pr
  });
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
  vm.runInNewContext(source,{...cloudApi,...taiwanChinese,RecordingQueue,chrome,ResultGate,CueCursor,NativeCueTimeline,
-  ...policy,URLSearchParams,AbortSignal,AbortController,Date,console,fetch});
+  ...policy,URLSearchParams,AbortSignal:signalTools,AbortController,Date,console,fetch});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  const tick=()=>new Promise(resolve=>setImmediate(resolve));
  const cue=(id,text,extra)=>call({type:'speech-result',session,id,text,audioEndAt:Date.now()-10,
@@ -74,5 +79,14 @@ test('browser token drafts do not compete with finals, including an identical pr
  assert.equal(requests.length,4,'the promoted final bypasses the waiting preview');
  requests[3].complete();await tick();
  assert.equal(updates.at(-1).item.speechId,4);
+
+ await cue(5,'今朝は大雨でした。',{final:true});await tick();
+ assert.equal(requests.length,5);
+ deadlines.findLast(d=>d.ms===3000).controller.abort(new DOMException('Deadline reached','TimeoutError'));
+ await tick();assert.equal(requests.length,6,'a timed-out final gets one independent attempt');
+ assert.equal(requests[5].signal.aborted,false);
+ requests[5].complete();await tick();
+ assert.equal(updates.at(-1).item.speechId,5);
+ assert.equal((await call({type:'health'})).text.diagnostics.browserFinals.failed,0);
  await call({type:'subtitle-control',action:'stop'});
 });
