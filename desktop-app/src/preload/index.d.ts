@@ -162,8 +162,9 @@ export interface ElectronAPI {
   // Subtitle drag mode (#509)
   toggleSubtitleDragMode: (enabled: boolean) => Promise<void>
   getSubtitleInteractionMode: () => Promise<'view' | 'drag' | 'edit'>
-  setSubtitleCaptionArea: (area: { x: number; y: number; width: number; height: number } | null) => void
+  setSubtitleCaptionArea: (area: { x: number; y: number; width: number; height: number } | null, hideOnHover: boolean) => void
   setSubtitleCaptionHover: (hovered: boolean) => void
+  onSubtitleHoverHidden: (callback: (hidden: boolean) => void) => (() => void)
   subtitlePointerDrag: (phase: 'start' | 'move' | 'end', x: number, y: number) => void
   onSubtitleDisplayChanged: (callback: (displayId: number) => void) => (() => void)
   resetSubtitlePosition: () => Promise<void>

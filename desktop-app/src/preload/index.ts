@@ -171,10 +171,15 @@ contextBridge.exposeInMainWorld('api', {
   getCorrectionHistory: () => ipcRenderer.invoke('get-correction-history'),
   clearCorrectionHistory: () => ipcRenderer.invoke('clear-correction-history'),
   getSubtitleInteractionMode: () => ipcRenderer.invoke('get-subtitle-interaction-mode'),
-  setSubtitleCaptionArea: (area: Electron.Rectangle | null) =>
-    ipcRenderer.send('set-subtitle-caption-area', area),
+  setSubtitleCaptionArea: (area: Electron.Rectangle | null, hideOnHover: boolean) =>
+    ipcRenderer.send('set-subtitle-caption-area', area, hideOnHover),
   setSubtitleCaptionHover: (hovered: boolean) =>
     ipcRenderer.send('set-subtitle-caption-hover', hovered),
+  onSubtitleHoverHidden: (callback: (hidden: boolean) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, hidden: boolean): void => callback(hidden)
+    ipcRenderer.on('subtitle-hover-hidden', handler)
+    return () => ipcRenderer.off('subtitle-hover-hidden', handler)
+  },
   subtitlePointerDrag: (phase: 'start' | 'move' | 'end', x: number, y: number) =>
     ipcRenderer.send('subtitle-pointer-drag', phase, x, y),
   onSubtitleDisplayChanged: (callback: (displayId: number) => void) => {
