@@ -565,8 +565,10 @@ function addTranscript(m){
   if(m.source!=='native'&&m.final&&!item.final){
    item.final=true;
    markBrowserFinal(item,m);
-   if(item.translated){settleBrowserFinal(item,'translated');}
-   else {item.pending=true;item.error='';item.expiresAt=Date.now()/1000+MAX_CAPTION_TRANSLATION_MS/1000;}
+   if(item.translated){
+    item.expiresAt=Date.now()/1000+captionHold;
+    settleBrowserFinal(item,'translated');
+   }else {item.pending=true;item.error='';item.expiresAt=Date.now()/1000+MAX_CAPTION_TRANSLATION_MS/1000;}
    if(items[0]===item)pushSubtitle(item);
   }
   schedule(item);
