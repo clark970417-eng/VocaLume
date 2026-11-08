@@ -68,7 +68,9 @@ it('disabled/thermal modes skip acoustic work, while a late classifier cannot st
     expect(off.detectLaughter).not.toHaveBeenCalled()
   } finally { off.processor.reset() }
   const hot = fixture()
-  const policy = vi.spyOn(pressure, 'performanceState').mockReturnValue({ thermalState:'fair', speedLimit:100, previewFloorMs:0, previewDutyCycle:.65, previewsPaused:false, coolingDown:false, optionalAnalysisAllowed:false })
+  const monitor = new pressure.PerformanceMonitor()
+  monitor.update({ thermalState: 'fair' })
+  const policy = vi.spyOn(pressure, 'performanceState').mockImplementation(() => monitor.snapshot())
   try {
     expect((await hot.processor.finalizeStreaming(new Float32Array(16000), 16000))?.translatedText).toBe('真的嗎！')
     expect(hot.detectLaughter).not.toHaveBeenCalled()

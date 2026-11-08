@@ -152,7 +152,7 @@ export class Qwen3ASREngine implements STTEngine {
 }
 
 /** Find the speech-swift `audio` binary */
-function findSpeechSwiftBinary(): string | null {
+export function findSpeechSwiftBinary(): string | null {
   for (const p of SPEECH_SWIFT_PATHS) {
     if (existsSync(p)) return p
   }

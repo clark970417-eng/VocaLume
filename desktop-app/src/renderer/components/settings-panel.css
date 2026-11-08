@@ -12,7 +12,7 @@
 .settings-header .interface-language { order: 1; }
 .interface-language select { min-height: 36px; max-width: 100%; border: 1px solid #475569; border-radius: 7px; padding: 5px 8px; color: #e2e8f0; background: #1b283b; font: inherit; }
 .settings-intro { margin: 4px 0 0; font-size: 12px; color: #b5c4d8; }
-.settings-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0 24px; padding: 4px; background: #1b283b; border: 1px solid var(--settings-line); border-radius: 10px; }
+.settings-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin: 0 24px; padding: 4px; background: #1b283b; border: 1px solid var(--settings-line); border-radius: 10px; }
 .settings-tabs button { min-width: 0; border: 0; background: transparent; color: #d3dce8; padding: 10px 6px; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
 .settings-tabs button[aria-selected=true] { background: #8ce4d4; color: #101827; }
 .settings-content { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px; scrollbar-width: thin; scrollbar-color: #475569 transparent; }
@@ -45,6 +45,14 @@
 }
 .file-transcript { overflow-wrap: anywhere; }
 .file-transcript textarea { resize: vertical; min-height: 64px; }
+.text-translation { display: grid; gap: 14px; }
+.text-translation-languages { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; }
+.text-translation-message { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.text-translation textarea { grid-column: 1 / -1; min-height: 88px; resize: vertical; }
+.text-translation button { min-height: 40px; border: 1px solid #475569; border-radius: 7px; padding: 6px 12px; color: #e2e8f0; background: #1b283b; font: inherit; cursor: pointer; }
+.text-translation .text-translation-primary { justify-self: start; color: #101827; background: #8ce4d4; border-color: #8ce4d4; font-weight: 600; }
+.text-translation button:disabled { opacity: .5; cursor: default; }
+.text-translation [role=status]:empty { display: none; }
 .settings-glossary-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; }
 .settings-glossary-fields input { min-width: 0; }
 .settings-content code, .settings-content output, .settings-footer [aria-live] { overflow-wrap: anywhere; }

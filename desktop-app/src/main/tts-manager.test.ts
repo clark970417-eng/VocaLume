@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import type { BrowserWindow, WebContents } from 'electron'
 import { expect, it, vi } from 'vitest'
 import { TTSManager } from './tts-manager'
+import { updatePerformanceState } from './performance-state'
 import type { Language, TranslationResult, TTSResult } from '../engines/types'
 
 vi.mock('./store', () => ({ store: { get: () => '' } }))
@@ -89,4 +90,41 @@ it('stops active playback, discards late synthesis, and unloads after disabling'
   expect(target.send).toHaveBeenCalledTimes(1)
   expect(engine.dispose).toHaveBeenCalledOnce()
   await manager.dispose()
+})
+
+
+it('cancels optional speech under serious pressure and accepts new captions after cooling', async () => {
+  vi.useFakeTimers({ toFake: ['performance', 'setTimeout', 'clearTimeout'] })
+  const { manager, engine, target, window, listen } = setup()
+  const staleAudio = { audio: new Float32Array([.9]), sampleRate: 24000 }
+  let finish: ((result: TTSResult) => void) | undefined
+  try {
+    listen()
+    await manager.setEnabled(true)
+    await manager.handleTranslationResult(caption('正常'), window)
+    engine.synthesize.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const active = manager.handleTranslationResult(caption('收音中'), window)
+    await vi.waitFor(() => expect(engine.synthesize).toHaveBeenCalledTimes(2))
+
+    updatePerformanceState({ thermalState: 'serious' })
+    expect(engine.synthesize.mock.calls[1][2]?.aborted).toBe(true)
+    const hot = manager.handleTranslationResult(caption('過熱'), window)
+    finish?.(staleAudio)
+    await Promise.all([active, hot])
+    expect(engine.synthesize.mock.calls.map(call => call[0])).toEqual(['正常', '收音中'])
+    expect(target.send.mock.calls.map(call => call[0])).toEqual(['tts-audio', 'tts-stop'])
+
+    updatePerformanceState({ thermalState: 'nominal' })
+    await manager.handleTranslationResult(caption('降溫中'), window)
+    await vi.advanceTimersByTimeAsync(60_000)
+    await manager.handleTranslationResult(caption('恢復'), window)
+    expect(engine.synthesize.mock.calls.map(call => call[0])).toEqual(['正常', '收音中', '恢復'])
+    expect(target.send.mock.calls.map(call => call[0])).toEqual(['tts-audio', 'tts-stop', 'tts-audio'])
+  } finally {
+    finish?.(staleAudio)
+    await manager.dispose()
+    updatePerformanceState({ thermalState: 'nominal' })
+    await vi.advanceTimersByTimeAsync(60_000)
+    vi.useRealTimers()
+  }
 })

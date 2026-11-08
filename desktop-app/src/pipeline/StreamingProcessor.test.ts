@@ -209,7 +209,9 @@ it.each([false,true])('uses visible source context for final captions, including
 
 it('leaves idle time after slow previews while final sentences bypass thermal admission', async () => {
   vi.useFakeTimers()
-  const policy = vi.spyOn(pressure, 'performanceState').mockReturnValue({thermalState:'serious',speedLimit:100,previewFloorMs:1500,previewDutyCycle:.4,previewsPaused:false,coolingDown:false,optionalAnalysisAllowed:false})
+  const monitor = new pressure.PerformanceMonitor()
+  monitor.update({ thermalState: 'serious' })
+  const policy = vi.spyOn(pressure, 'performanceState').mockImplementation(() => monitor.snapshot())
   const stt = vi.fn(async () => {await new Promise(resolve=>setTimeout(resolve,2000));return {text:'今日は配信しません。',language:'ja'}})
   const extraDraft = vi.fn()
   const processor = new StreamingProcessor({
@@ -223,12 +225,40 @@ it('leaves idle time after slow previews while final sentences bypass thermal ad
     await vi.advanceTimersByTimeAsync(2000);expect((await first)?.sourceText).toBe('今日は配信しません。')
     expect(await processor.processStreaming(new Float32Array(32000),16000)).toBeNull()
     expect(stt).toHaveBeenCalledOnce();expect(extraDraft).not.toHaveBeenCalled()
-    policy.mockReturnValue({thermalState:'critical',speedLimit:100,previewFloorMs:2500,previewDutyCycle:.25,previewsPaused:true,coolingDown:false,optionalAnalysisAllowed:false})
+    monitor.update({ thermalState: 'critical' })
     expect(await processor.processStreaming(new Float32Array(48000),16000)).toBeNull()
     const final=processor.finalizeStreaming(new Float32Array(64000),16000)
     await vi.advanceTimersByTimeAsync(2000)
     expect((await final)?.translatedText).toBe('今天不直播。');expect(stt).toHaveBeenCalledTimes(2)
   } finally {processor.reset();policy.mockRestore();vi.useRealTimers()}
+})
+
+it.each([false, true])('stops optional translation while keeping final output under serious pressure (SimulMT=%s)', async (simul) => {
+  vi.useFakeTimers()
+  const monitor = new pressure.PerformanceMonitor()
+  monitor.update({ thermalState: 'serious' })
+  const policy = vi.spyOn(pressure, 'performanceState').mockImplementation(() => monitor.snapshot())
+  const translate = vi.fn(async () => '今天不直播。')
+  const translateSimulMt = vi.fn(async () => '今天不直播。')
+  const translator = { id: 'test', translate, translateSimulMt }
+  const processor = new StreamingProcessor({
+    emitter: new EventEmitter(), agreement: new LocalAgreement(), contextBuffer: new ContextBuffer(),
+    getSTTEngine: () => ({ processAudio: async () => ({ text: '今日は配信しません。', language: 'ja' }) }),
+    getTranslator: () => translator, getGlossary: () => [],
+    getSimulMtConfig: () => ({ enabled: simul, waitK: 1 }), resolveTargetLanguage: () => 'zh',
+    incrementProcessing() {}, decrementProcessing() {}
+  } as unknown as StreamingDeps)
+  try {
+    const source = await processor.processStreaming(new Float32Array(16000), 16000)
+    expect(source).toMatchObject({ sourceText: '今日は配信しません。', translatedText: '' })
+    await vi.runOnlyPendingTimersAsync()
+    expect(translate).not.toHaveBeenCalled()
+    expect(translateSimulMt).not.toHaveBeenCalled()
+    await expect(processor.finalizeStreaming(new Float32Array(32000), 16000))
+      .resolves.toMatchObject({ translatedText: '今天不直播。' })
+    expect(translate).toHaveBeenCalledTimes(simul ? 0 : 1)
+    expect(translateSimulMt).toHaveBeenCalledTimes(simul ? 1 : 0)
+  } finally { processor.reset(); policy.mockRestore(); vi.useRealTimers() }
 })
 
 it('does not publish an old interim translation after the segment is finalized', async () => {
@@ -654,4 +684,38 @@ it('passes each chunk\'s speech evidence to recognition with that chunk only', a
   await serial.finalizeStreaming(new Float32Array(16000), 16000, { speechSeconds: 2 })
   expect(seen).toEqual([{ speechSeconds: 0.5 }, undefined, { speechSeconds: 1.5 }, undefined, { speechSeconds: 2 }])
   processor.reset(); serial.reset()
+})
+
+it('aborts an obsolete native translation when recognition revises the spoken prefix', async () => {
+  vi.useFakeTimers()
+  let source = '公園には行きません'
+  let cancelled: AbortSignal | undefined
+  const translate = vi.fn(async (text: string, _from: string, _to: string, context: { signal: AbortSignal }) => {
+    if (text === '公園には行きません') {
+      cancelled = context.signal
+      return new Promise<string>((_resolve, reject) => context.signal.addEventListener('abort', () => reject(context.signal.reason), { once: true }))
+    }
+    return '今天要去書店'
+  })
+  const emitter = new EventEmitter()
+  const updates: Array<{translatedText:string}> = []
+  emitter.on('interim-result', result => updates.push(result))
+  const p = new StreamingProcessor({
+    emitter, agreement: new LocalAgreement(), contextBuffer: new ContextBuffer(),
+    getSTTEngine: () => ({ processAudio: async () => ({ text: source, language: 'ja' }) }),
+    getTranslator: () => ({ translate }), getGlossary: () => [],
+    getSimulMtConfig: () => ({ enabled: false, waitK: 3 }), resolveTargetLanguage: () => 'zh',
+    incrementProcessing() {}, decrementProcessing() {}
+  } as unknown as StreamingDeps)
+  try {
+    await p.processStreaming(new Float32Array(16000),16000)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(cancelled?.aborted).toBe(false)
+    source = '今日は本屋に行きます'
+    await p.processStreaming(new Float32Array(16000),16000)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(cancelled?.aborted).toBe(true)
+    expect(updates.at(-1)?.translatedText).toBe('今天要去書店')
+    expect(translate).toHaveBeenCalledTimes(2)
+  } finally { p.reset(); vi.useRealTimers() }
 })

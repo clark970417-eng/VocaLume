@@ -16,47 +16,59 @@ test('drag and edge resize stay within viewport and save proportional position',
 });
 
 test('hover hiding tracks the full caption rectangle and releases it on exit', async () => {
- const listeners = new Map();
- const classes = new Set();
+ const listeners = new Map(), classes = new Set();
  const window = {
-  addEventListener: (name, listener) => listeners.set(name, listener),
-  removeEventListener: name => listeners.delete(name),
+  addEventListener(name, listener, {signal}) {
+   listeners.set(name, listener);
+   signal.addEventListener('abort', () => listeners.delete(name), {once:true});
+  },
   requestAnimationFrame: queueMicrotask
  };
- const node = () => ({style: {setProperty() {}}, dataset: {}, append() {}, replaceChildren() {}});
+ const node = () => ({
+  children: [], style: {setProperty() {}}, dataset: {},
+  append(...children) { this.children.push(...children); },
+  replaceChildren() { this.children.length = 0; },
+  insertBefore(child, reference) {
+   const index = reference ? this.children.indexOf(reference) : this.children.length;
+   this.children.splice(index, 0, child);
+  },
+  removeChild(child) { this.children.splice(this.children.indexOf(child),1); }
+ });
  const root = {
-  ...node(),
+  ...node(), isConnected: true, matches: () => false,
   addEventListener() {},
-  getBoundingClientRect: () => ({left: 100, top: 50, right: 400, bottom: 250}),
-  classList: {
-   add: name => classes.add(name),
-   remove: name => classes.delete(name),
-   toggle: (name, active) => active ? classes.add(name) : classes.delete(name)
-  }
+  getBoundingClientRect: () => ({left:100,top:50,right:400,bottom:250,width:300,height:200}),
+  classList: {add: name => classes.add(name), toggle: (name, active) => active ? classes.add(name) : classes.delete(name)}
  };
  const chrome = {storage: {local: {get: async () => ({captionStyleV34: true}), set: async () => {}}}};
- vm.runInNewContext(fs.readFileSync(new URL('../caption-window.js',import.meta.url),'utf8'), {window, chrome, document: {createElement: node}});
+ const Observer=class{observe(){}disconnect(){}};
+ vm.runInNewContext(fs.readFileSync(new URL('../caption-window.js',import.meta.url),'utf8'), {
+  window, chrome, document: {createElement:node, addEventListener(){}}, AbortController, ResizeObserver:Observer, MutationObserver:Observer
+ });
  const panel = new window.JtlCaptionWindow(root, 'rect');
  await Promise.resolve();
- panel.render([{original: '字幕', translated: '測試'}]);
- assert.equal(listeners.has('pointermove'), false);
- panel.apply({hideOnHover: true});
- assert.equal(classes.has('jtl-hover-through'), true);
- const move = (clientX, clientY) => listeners.get('pointermove')({clientX, clientY, pointerType: 'mouse'});
- move(390, 240); // Empty corner of the box, away from the caption text.
- assert.equal(classes.has('jtl-hover-hidden'), true);
- panel.render([{original: '次の文', translated: '下一句'}]);
- assert.equal(classes.has('jtl-hover-hidden'), true, 'new captions stay hidden under a stationary pointer');
- move(401, 240);
- assert.equal(classes.has('jtl-hover-hidden'), false);
- move(100, 50);
- assert.equal(classes.has('jtl-hover-hidden'), true);
- listeners.get('pointerout')({relatedTarget: null, pointerType: 'mouse'});
- assert.equal(classes.has('jtl-hover-hidden'), false);
- move(390, 240);
+ panel.render([{original:'字幕', translated:'測試'}]);
+ assert.equal(listeners.has('pointermove'),false);
+ panel.apply({hideOnHover:true});
+ await Promise.resolve();
+ const move = (clientX, clientY, altKey=false) => listeners.get('pointermove')({clientX,clientY,altKey,pointerType:'mouse'});
+ move(410,240); // Near an empty corner of the box, away from its text.
+ assert.equal(classes.has('jtl-pointer-hidden'),true);
+ panel.render([{original:'次の文',translated:'下一句'}]);
+ assert.equal(classes.has('jtl-pointer-hidden'),true,'new captions stay hidden under a stationary pointer');
+ move(415,240);
+ assert.equal(classes.has('jtl-pointer-hidden'),true,'movement within the exit margin does not flicker');
+ move(419,240);
+ assert.equal(classes.has('jtl-pointer-hidden'),false);
+ move(100,50,true);
+ assert.equal(classes.has('jtl-pointer-hidden'),false,'Alt allows dragging near the box');
+ move(100,50);
+ assert.equal(classes.has('jtl-pointer-hidden'),true);
+ listeners.get('pointerout')({relatedTarget:null,pointerType:'mouse'});
+ assert.equal(classes.has('jtl-pointer-hidden'),false);
+ move(390,240);
  panel.render([]);
- assert.equal(classes.has('jtl-hover-hidden'), false);
+ assert.equal(classes.has('jtl-pointer-hidden'),false);
  panel.dispose();
- assert.equal(classes.has('jtl-hover-through'), false);
- assert.equal(listeners.size, 0);
+ assert.equal(listeners.size,0);
 });

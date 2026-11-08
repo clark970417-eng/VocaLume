@@ -1,5 +1,6 @@
 import { dialog, ipcMain } from 'electron'
 import { spawn, type ChildProcess } from 'node:child_process'
+import { watch, type FSWatcher, type Stats } from 'node:fs'
 import { resolve } from 'node:path'
 import { readdir, lstat, stat, writeFile } from 'node:fs/promises'
 import ffmpegPath from 'ffmpeg-static'
@@ -9,11 +10,15 @@ import { lowerInferencePriority } from '../../engines/inference-resources'
 import { addJapaneseCaptionBoundaries } from '../../engines/translator/japanese-caption-boundaries'
 import type { MediaFileCue } from '../../media-transcript'
 import type { AppContext } from '../app-context'
+import { liveWork } from '../live-work'
 import { performanceState } from '../performance-state'
 import {
   chooseMediaCut, compactDigitalSilence, findOpeningSegmentEnd, hasAudibleMediaFrame, mediaOverlapPrefix,
   OPENING_SEGMENT_SECONDS, stitchMediaText
 } from '../media-segmentation'
+import { setTimeout as wait } from 'node:timers/promises'
+import { translateUiText } from '../../../../extension/ui-language.mjs'
+import { getUiLanguageState } from '../interface-language'
 const MAX_PCM_BYTES = 16_000 * 4 * 60 * 60 * 6 // Six hours of mono float32 PCM.
 const SAMPLE_RATE = 16_000
 // The compatibility IPC returns one complete PCM array, with additional IPC copies.
@@ -35,34 +40,72 @@ function cancelMediaJob(job: MediaJob): void {
   job.cancel.abort()
   job.decoder?.kill('SIGKILL')
 }
+const mediaRevision = (info: Stats): string => `${info.ino}:${info.size}:${info.mtimeMs}`
 
 export function registerMediaFileIpc(ctx: AppContext): void {
   ipcMain.handle('export-file-transcript', async (_event, contents: unknown) => {
     if (typeof contents !== 'string') throw new Error('Invalid transcript.')
     const { canceled, filePath } = await dialog.showSaveDialog({
+      title: translateUiText('Export text file', getUiLanguageState().locale),
       defaultPath: 'VocaLume-transcript.txt',
-      filters: [{ name: 'Text', extensions: ['txt'] }]
+      filters: [{ name: 'TXT', extensions: ['txt'] }]
     })
     if (!canceled && filePath) await writeFile(filePath, contents, 'utf8')
   })
-  let watchedFolder: string | undefined
-  ipcMain.handle('choose-media-folder', async () => {
+  let watched: { path: string; owner: Electron.WebContents; native?: FSWatcher; close: () => void } | undefined
+  ipcMain.handle('choose-media-folder', async ({ sender }) => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] })
-    if (result.canceled) return null
-    watchedFolder = result.filePaths[0]
-    return watchedFolder
-  })
-  ipcMain.handle('scan-media-folder', async () => {
-    const folder = watchedFolder
-    if (!folder) return []
-    const files: { path: string; name: string; revision: string }[] = []
-    for (const entry of await readdir(folder, { withFileTypes: true })) {
-      if (!entry.isFile() || entry.name.startsWith('.') || !isSupportedMediaFile(entry.name)) continue
-      const path = resolve(folder, entry.name)
-      const info = await lstat(path).catch(() => null)
-      if (info?.isFile() && info.size) files.push({ path, name: entry.name, revision: `${info.ino}:${info.size}:${info.mtimeMs}` })
+    const folder = result.filePaths[0]
+    if (result.canceled || !folder || sender.isDestroyed()) return null
+    watched?.close()
+    let notification: ReturnType<typeof setTimeout> | undefined
+    const notify = (): void => {
+      clearTimeout(notification)
+      notification = setTimeout(() => {
+        if (watched === selection && !sender.isDestroyed()) sender.send('media-folder-changed')
+      }, 250)
+      notification.unref()
     }
-    return files.sort((a, b) => a.name.localeCompare(b.name))
+    const close = (): void => {
+      if (watched === selection) watched = undefined
+      clearTimeout(notification)
+      selection.native?.close()
+      sender.off('destroyed', close)
+    }
+    const selection: NonNullable<typeof watched> = { path: folder, owner: sender, close }
+    watched = selection
+    sender.once('destroyed', close)
+    try {
+      selection.native = watch(folder, { persistent: false }, notify)
+      selection.native.on('error', () => {
+        selection.native?.close()
+        selection.native = undefined
+        notify()
+      })
+      selection.native.on('close', () => {
+        if (watched !== selection || !selection.native) return
+        selection.native = undefined
+        notify()
+      })
+    } catch { /* Remote and removable folders can fall back to periodic scans. */ }
+    return folder
+  })
+  ipcMain.handle('stop-media-folder-watch', ({ sender }) => {
+    if (watched?.owner === sender) watched.close()
+  })
+  ipcMain.handle('scan-media-folder', async ({ sender }) => {
+    const selection = watched
+    if (!selection || selection.owner !== sender || ctx.pipeline?.active ||
+        ctx.pipeline?.state === 'initializing' || performanceState().auxiliaryWorkPaused) return null
+    const files: { path: string; name: string; revision: string }[] = []
+    for (const entry of await readdir(selection.path, { withFileTypes: true })) {
+      if (!entry.isFile() || entry.name.startsWith('.') || !isSupportedMediaFile(entry.name)) continue
+      const path = resolve(selection.path, entry.name)
+      const info = await lstat(path).catch(() => null)
+      if (info?.isFile() && info.size) files.push({ path, name: entry.name, revision: mediaRevision(info) })
+    }
+    if (watched !== selection) return null
+    return { files: files.sort((a, b) => a.name.localeCompare(b.name)), eventDriven: Boolean(selection.native) }
   })
   ipcMain.handle('decode-media-file', async (event, requestedPath: string) => {
     const inputPath = await validatedMediaPath(requestedPath)
@@ -74,7 +117,7 @@ export function registerMediaFileIpc(ctx: AppContext): void {
     finally { legacyDecodeActive = false }
   })
 
-  ipcMain.handle('process-media-file', async (event, requestedPath: string, jobId: string, review?: boolean) => {
+  ipcMain.handle('process-media-file', async (event, requestedPath: string, jobId: string, review = false, expectedRevision?: string) => {
     const pipeline = ctx.pipeline
     if (!pipeline?.running) throw new Error('Start the translation engine before importing a media file.')
     if (ctx.pipelineStarting || ctx.pipelineInputOwner !== 'file') throw new Error('Start a file translation session before importing media.')
@@ -90,10 +133,15 @@ export function registerMediaFileIpc(ctx: AppContext): void {
     }
     job.sender.once('destroyed', stop)
     pipeline.on('state-change', pipelineStateChanged)
+    const work = liveWork(ctx)
+    const session = work.mediaSession
     try {
-      const inputPath = await validatedMediaPath(requestedPath)
+      const inputPath = await validatedMediaPath(requestedPath, expectedRevision)
       if (job.cancel.signal.aborted) return { processedSeconds: 0, cancelled: true }
-      return await processMediaWithFfmpeg(pipeline, job, inputPath, jobId, review === true)
+      if (work.mediaSession !== session || ctx.pipeline !== pipeline || !pipeline.running || ctx.pipelineInputOwner !== 'file') {
+        throw new Error('The file translation session ended.')
+      }
+      return await processMediaWithFfmpeg(ctx, pipeline, job, inputPath, jobId, review === true)
     } catch (error) {
       if (job.cancel.signal.aborted && !job.decoder) return { processedSeconds: 0, cancelled: true }
       throw error
@@ -112,12 +160,13 @@ export function registerMediaFileIpc(ctx: AppContext): void {
   })
 }
 
-async function validatedMediaPath(requestedPath: string): Promise<string> {
+async function validatedMediaPath(requestedPath: string, expectedRevision?: string): Promise<string> {
   if (typeof requestedPath !== 'string' || requestedPath.length === 0) throw new Error('No media file was selected.')
   const inputPath = resolve(requestedPath)
   if (!isSupportedMediaFile(inputPath)) throw new Error('Unsupported media file type.')
-  const info = await stat(inputPath)
+  const info = await (expectedRevision === undefined ? stat(inputPath) : lstat(inputPath))
   if (!info.isFile()) throw new Error('The selected media path is not a file.')
+  if (expectedRevision !== undefined && expectedRevision !== mediaRevision(info)) throw new Error('The watched file changed before translation started.')
   return inputPath
 }
 
@@ -173,6 +222,7 @@ async function decodeWithFfmpeg(inputPath: string, sender: Electron.WebContents)
 }
 
 async function processMediaWithFfmpeg(
+  ctx: AppContext,
   pipeline: NonNullable<AppContext['pipeline']>,
   job: MediaJob,
   inputPath: string,
@@ -201,6 +251,29 @@ async function processMediaWithFfmpeg(
   const timeout = setTimeout(() => { timedOut = true; stop() }, 6 * 60 * 60_000)
   const sendCue = (cue: MediaFileCue): void => {
     if (!cancel.signal.aborted && !sender.isDestroyed()) sender.send('media-file-cue', cue)
+  }
+
+  const work = liveWork(ctx)
+  const session = work.mediaSession
+  async function processWhenReady(operation: () => Promise<void>): Promise<boolean> {
+    while (!cancel.signal.aborted) {
+      try {
+        const completed = await work.run('background', async signal => {
+          if (work.mediaSession !== session || !pipeline.running) { stop(); return false }
+          if (performanceState().speculativeTranslationPaused) return false
+          signal.addEventListener('abort', stop, { once: true })
+          try {
+            await operation()
+            return !cancel.signal.aborted
+          } finally { signal.removeEventListener('abort', stop) }
+        }, cancel.signal)
+        if (completed) return true
+        if (!cancel.signal.aborted) await wait(1000, undefined, { signal: cancel.signal })
+      } catch (error) {
+        if (!cancel.signal.aborted) throw error
+      }
+    }
+    return false
   }
 
   const nextSampleThreshold = (): number => checkedOpening ? MAX_SEGMENT_SAMPLES : OPENING_SEGMENT_SAMPLES
@@ -234,79 +307,82 @@ async function processMediaWithFfmpeg(
       const previous = prior
       prior = undefined
       if (speech.length) {
-        const prefix = mediaOverlapPrefix(previous?.tail, audio, SAMPLE_RATE)
-        // Some recognizers transfer their input to a worker. Keep the original
-        // decoder buffer available for timestamps, overlap and optional review.
-        const input = prefix ? joinMediaAudio(prefix, speech) : speech === audio ? audio.slice() : speech
-        let recognized: STTResult | undefined
-        let failed: TranslationResult | undefined
-        let location = originalCue
-        let deduplicated: string | undefined
-        let merged = false
-        const result = await pipeline.process(input, SAMPLE_RATE, {
-          signal: cancel.signal,
-          publish: () => !merged,
-          onTranslationFailure: value => { failed = value },
-          prepareSource: value => {
-            const text = fileSourceText(value)
-            recognized = { ...value, text }
-            if (!prefix || !previous || previous.language !== value.language) return text
-            const joined = stitchMediaText(previous.cue.sourceText, text)
-            if (!joined) return text
-            deduplicated = joined.appended
-            if (previous.merged || previous.cue.status !== 'translated' ||
-                /[.!?。！？]["'」』）)]?\s*$/u.test(previous.cue.sourceText) || joined.merged.length > 240) return joined.appended
-            merged = true
-            location = { ...originalCue, cueId: previous.cue.cueId, revision: previous.cue.revision + 1,
-              startSeconds: previous.cue.startSeconds }
-            return joined.merged
-          }
-        })
-        if (cancel.signal.aborted) break
-        if (!pipeline.running) throw new Error('The translation engine stopped during file import.')
-        let cue: MediaFileCue | undefined
-        if (result?.translatedText.trim()) {
-          cue = { ...location, sourceText: result.sourceText, translatedText: result.translatedText, status: 'translated' }
-        } else if (failed || recognized || result) {
-          // Preserve the earlier completed row if re-translating its stitch failed.
-          cue = { ...originalCue, sourceText: deduplicated ?? failed?.sourceText ?? recognized?.text ?? result?.sourceText ?? '',
-            translatedText: '', status: 'translation-failed' }
-          merged = false
-        } else if (hasAudibleMediaFrame(audio, SAMPLE_RATE)) {
-          cue = { ...originalCue, sourceText: '', translatedText: '', status: 'unrecognized' }
-        }
-        if (cue) sendCue(cue)
-        const alternateInput = speech !== audio || !!prefix
-        const uncertain = cue && (cue.status === 'unrecognized' ||
-          (recognized?.confidence !== undefined && recognized.confidence < .72) || (prefix && !deduplicated))
-        if (review && cue && !merged && performanceState().previewDutyCycle >= .85 &&
-            (cue.status === 'translation-failed' || alternateInput && uncertain)) {
-          const oldCue = cue
-          let reviewedLanguage: Language | undefined
-          const refined = await pipeline.process(audio.slice(), SAMPLE_RATE, {
+        const completed = await processWhenReady(async () => {
+          const prefix = mediaOverlapPrefix(previous?.tail, audio, SAMPLE_RATE)
+          // Some recognizers transfer their input to a worker. Keep the original
+          // decoder buffer available for timestamps, overlap and optional review.
+          const input = prefix ? joinMediaAudio(prefix, speech) : speech === audio ? audio.slice() : speech
+          let recognized: STTResult | undefined
+          let failed: TranslationResult | undefined
+          let location = originalCue
+          let deduplicated: string | undefined
+          let merged = false
+          const result = await pipeline.process(input, SAMPLE_RATE, {
             signal: cancel.signal,
-            publish: () => false,
-            onTranslationFailure: () => {},
-            prepareSource: candidate => {
-              if (recognized && candidate.language !== recognized.language) return null
-              const borrowedSource = prefix && !deduplicated ? previous?.cue.sourceText : undefined
-              if (!acceptMediaReview(oldCue, candidate, recognized, borrowedSource)) return null
-              reviewedLanguage = candidate.language
-              return fileSourceText(candidate)
+            publish: () => !merged,
+            onTranslationFailure: value => { failed = value },
+            prepareSource: value => {
+              const text = fileSourceText(value)
+              recognized = { ...value, text }
+              if (!prefix || !previous || previous.language !== value.language) return text
+              const joined = stitchMediaText(previous.cue.sourceText, text)
+              if (!joined) return text
+              deduplicated = joined.appended
+              if (previous.merged || previous.cue.status !== 'translated' ||
+                  /[.!?。！？]["'」』）)]?\s*$/u.test(previous.cue.sourceText) || joined.merged.length > 240) return joined.appended
+              merged = true
+              location = { ...originalCue, cueId: previous.cue.cueId, revision: previous.cue.revision + 1,
+                startSeconds: previous.cue.startSeconds }
+              return joined.merged
             }
           })
-          if (cancel.signal.aborted) break
-          if (reviewedLanguage && refined?.translatedText.trim()) {
-            cue = { ...oldCue, revision: oldCue.revision + 1, sourceText: refined.sourceText,
-              translatedText: refined.translatedText, status: 'translated' }
-            sendCue(cue)
-            if (cut.hard) prior = { tail: audio.slice(-OVERLAP_SAMPLES), cue, language: reviewedLanguage, merged: false }
+          if (cancel.signal.aborted) return
+          if (!pipeline.running) throw new Error('The translation engine stopped during file import.')
+          let cue: MediaFileCue | undefined
+          if (result?.translatedText.trim()) {
+            cue = { ...location, sourceText: result.sourceText, translatedText: result.translatedText, status: 'translated' }
+          } else if (failed || recognized || result) {
+            // Preserve the earlier completed row if re-translating its stitch failed.
+            cue = { ...originalCue, sourceText: deduplicated ?? failed?.sourceText ?? recognized?.text ?? result?.sourceText ?? '',
+              translatedText: '', status: 'translation-failed' }
+            merged = false
+          } else if (hasAudibleMediaFrame(audio, SAMPLE_RATE)) {
+            cue = { ...originalCue, sourceText: '', translatedText: '', status: 'unrecognized' }
           }
-        }
-        const language = result?.sourceLanguage ?? failed?.sourceLanguage ?? recognized?.language
-        if (!prior && cue?.sourceText && cut.hard && language) {
-          prior = { tail: audio.slice(-OVERLAP_SAMPLES), cue, language, merged }
-        }
+          if (cue) sendCue(cue)
+          const alternateInput = speech !== audio || !!prefix
+          const uncertain = cue && (cue.status === 'unrecognized' ||
+            (recognized?.confidence !== undefined && recognized.confidence < .72) || (prefix && !deduplicated))
+          if (review && cue && !merged && performanceState().previewDutyCycle >= .85 &&
+              (cue.status === 'translation-failed' || alternateInput && uncertain)) {
+            const oldCue = cue
+            let reviewedLanguage: Language | undefined
+            const refined = await pipeline.process(audio.slice(), SAMPLE_RATE, {
+              signal: cancel.signal,
+              publish: () => false,
+              onTranslationFailure: () => {},
+              prepareSource: candidate => {
+                if (recognized && candidate.language !== recognized.language) return null
+                const borrowedSource = prefix && !deduplicated ? previous?.cue.sourceText : undefined
+                if (!acceptMediaReview(oldCue, candidate, recognized, borrowedSource)) return null
+                reviewedLanguage = candidate.language
+                return fileSourceText(candidate)
+              }
+            })
+            if (cancel.signal.aborted) return
+            if (reviewedLanguage && refined?.translatedText.trim()) {
+              cue = { ...oldCue, revision: oldCue.revision + 1, sourceText: refined.sourceText,
+                translatedText: refined.translatedText, status: 'translated' }
+              sendCue(cue)
+              if (cut.hard) prior = { tail: audio.slice(-OVERLAP_SAMPLES), cue, language: reviewedLanguage, merged: false }
+            }
+          }
+          const language = result?.sourceLanguage ?? failed?.sourceLanguage ?? recognized?.language
+          if (!prior && cue?.sourceText && cut.hard && language) {
+            prior = { tail: audio.slice(-OVERLAP_SAMPLES), cue, language, merged }
+          }
+        })
+        if (!completed) break
       }
       processedSamples += segmentSamples
       if (!sender.isDestroyed()) sender.send('media-file-progress', { jobId, processedSeconds: processedSamples / SAMPLE_RATE })
@@ -331,18 +407,19 @@ async function processMediaWithFfmpeg(
     }
   })
   decoder.once('error', () => {})
-  const exitCode = await new Promise<number | null>((accept) => decoder.once('close', accept))
-  clearTimeout(timeout)
-  await processing
-  if (processingError) throw processingError
-  if (timedOut) throw new Error('The media file import timed out.')
-  if (!cancel.signal.aborted && totalBytes <= MAX_PCM_BYTES && exitCode === 0) await processAvailable(true)
-  const cancelled = cancel.signal.aborted
-  if (totalBytes > MAX_PCM_BYTES) throw new Error('The media file is longer than the six-hour import limit.')
-  if (!cancelled && exitCode !== 0) {
-    throw new Error(readErrors() || 'FFmpeg could not decode this media file.')
-  }
-  return { processedSeconds: processedSamples / SAMPLE_RATE, cancelled }
+  try {
+    const exitCode = await new Promise<number | null>((accept) => decoder.once('close', accept))
+    await processing
+    if (processingError) throw processingError
+    if (!cancel.signal.aborted && totalBytes <= MAX_PCM_BYTES && exitCode === 0) await processAvailable(true)
+    if (timedOut) throw new Error('The media file import timed out.')
+    const cancelled = cancel.signal.aborted
+    if (totalBytes > MAX_PCM_BYTES) throw new Error('The media file is longer than the six-hour import limit.')
+    if (!cancelled && exitCode !== 0) {
+      throw new Error(readErrors() || 'FFmpeg could not decode this media file.')
+    }
+    return { processedSeconds: processedSamples / SAMPLE_RATE, cancelled }
+  } finally { clearTimeout(timeout) }
 }
 
 function fileSourceText(result: STTResult): string {

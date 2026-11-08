@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const source = readFileSync(new URL('../social-content.js', import.meta.url), 'utf8');
 const helpers = source.slice(source.indexOf('  function editableText'), source.indexOf('  function installComposer'));
+const config = source.slice(source.indexOf('  const host'), source.indexOf('  let translated'));
 class Event {
   constructor(type, options = {}) { this.type = type; Object.assign(this, options); this.defaultPrevented = false; }
   preventDefault() { if (this.cancelable) this.defaultPrevented = true; }
@@ -27,7 +28,9 @@ function editor(site = 'discord', handler = 'beforeinput') {
     createRange:() => ({selectNodeContents(box){this.startContainer = this.endContainer = box; this.startOffset = 0; this.endOffset = 1;}}),
     execCommand(){nativeCalls++; visible = 'view-only mutation'; return true;}, body:{append(node){node.isConnected = true;}}};
   const box = {ownerDocument:document, isConnected:true, focus(){}, querySelectorAll:()=>[], querySelector:()=>null,
-    matches:selector => site === 'discord' && selector.includes('data-slate-editor'), closest:()=>null, getBoundingClientRect:()=>({top:300,bottom:340,left:250,width:400,height:40}),
+    matches:selector => selector.includes('textarea,') || (site === 'discord' && selector.includes('data-slate-editor')),
+    getAttribute:name=>name === 'aria-label' ? 'Chat message' : null,
+    closest:()=>null, getBoundingClientRect:()=>({top:300,bottom:340,left:250,width:400,height:40}),
     get innerText(){return visible;}, get textContent(){return visible;}, set textContent(value){directWrites++;visible = value;},
     dispatchEvent(event){
       events.push(event);
@@ -46,8 +49,8 @@ function editor(site = 'discord', handler = 'beforeinput') {
       }
       return !event.defaultPrevented;
     }};
-  const api = vm.runInNewContext('let composerPosition;\n' + helpers + '\n({replaceEditable,editableText,mountComposerControls,positionComposerControls,isUsableComposer})',
-    {site,window:view,document,InputEvent,Event,ClipboardEvent,DataTransfer,setTimeout});
+  const api = vm.runInNewContext(config + '\nlet composerPosition;\nconst clean = value => String(value || "").trim();\n' + helpers + '\n({replaceEditable,editableText,mountComposerControls,positionComposerControls,isUsableComposer})',
+    {location:{hostname:{discord:'discord.com',twitch:'www.twitch.tv'}[site] || 'example.org'},window:view,document,InputEvent,Event,ClipboardEvent,DataTransfer,setTimeout});
   return {...api,box,view,document,events,ranges,submittedValue:()=>model,directWrites:()=>directWrites,nativeCalls:()=>nativeCalls};
 }
 
@@ -60,6 +63,7 @@ for (const site of ['discord','twitch']) {
     assert.equal(t.box.innerText,draft);
     assert.equal(t.directWrites(),0);
     assert.equal(t.nativeCalls(),0);
+    assert.equal(t.events[0].dataTransfer.getData('text/plain'),draft);
     assert.equal(t.ranges.length,1);
     assert.ok(t.events.every(event=>!['keydown','keyup','submit','click'].includes(event.type)));
   });
@@ -133,7 +137,10 @@ for (const site of ['discord','twitch']) {
 
 test('floating fallback stays outside the whole composer, including its Send row', () => {
   const t = editor('generic');
-  t.box.closest = ()=>({getBoundingClientRect:()=>({top:10,bottom:100,left:250,width:400,height:90})});
+  t.box.closest = ()=>({
+    getBoundingClientRect:()=>({top:10,bottom:100,left:250,width:400,height:90}),
+    querySelectorAll:()=>[]
+  });
   t.box.getBoundingClientRect = ()=>({top:10,bottom:50,left:250,width:400,height:40});
   const controls = {dataset:{placement:'floating'},style:{},isConnected:true,getBoundingClientRect:()=>({height:36,width:220})};
   t.positionComposerControls(t.box,controls);

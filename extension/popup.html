@@ -11,7 +11,7 @@
   <header class="app-header">
     <img src="icons/icon-128.png" width="32" height="32" alt="">
     <div class="app-title"><h1>VocaLume</h1><span id="extensionVersion" class="version"></span></div>
-    <label class="interface-language" for="uiLanguage"><span>介面語言</span><select id="uiLanguage" aria-label="介面語言"><option value="auto">跟隨系統</option><option value="zh-TW" lang="zh-Hant">繁體中文</option><option value="zh-CN" lang="zh-Hans">简体中文</option><option value="en" lang="en">English</option><option value="ja" lang="ja">日本語</option><option value="ko" lang="ko">한국어</option></select></label>
+    <label class="interface-language" for="uiLanguage"><span>介面語言</span><select id="uiLanguage" aria-label="介面語言"><option value="auto">自動（依 IP 地區）</option><option value="zh-TW" lang="zh-Hant">繁體中文</option><option value="zh-CN" lang="zh-Hans">简体中文</option><option value="en" lang="en">English</option><option value="ja" lang="ja">日本語</option><option value="ko" lang="ko">한국어</option></select></label>
   </header>
   <nav class="task-tabs" role="tablist" aria-label="選擇翻譯功能">
     <button id="tab-text" type="button" role="tab" aria-controls="panel-text" aria-selected="true" data-panel="text">文字翻譯</button>
@@ -97,13 +97,12 @@
           <div class="color-row"><label for="japaneseColor">原文顏色<input id="japaneseColor" type="color" value="#ffffff"></label><label for="chineseColor">譯文顏色<input id="chineseColor" type="color" value="#ffffff"></label></div>
           <label class="switch outline-switch" for="showOutline"><span><strong>文字描邊</strong></span><input id="showOutline" type="checkbox" role="switch" checked><span class="switch-track" aria-hidden="true"></span></label>
           <div class="outline-row"><label for="outlineColor">描邊顏色<input id="outlineColor" type="color" value="#000000"></label><label for="outlineWidth">粗細 <output id="outlineWidthValue">1 px</output><input id="outlineWidth" type="range" min="0" max="4" step="0.5" value="1"></label></div>
-          <label class="switch outline-switch" for="hideOnHover"><span><strong>游標移入時隱藏字幕</strong></span><input id="hideOnHover" type="checkbox" role="switch" aria-describedby="hideOnHoverHint"><span class="switch-track" aria-hidden="true"></span></label>
-          <p id="hideOnHoverHint" class="hint">游標離開字幕框後會重新顯示。關閉此設定即可拖曳或縮放字幕框。</p>
           <details class="nested"><summary>背景與透明度</summary>
             <label for="backgroundColor">字幕背景顏色<input id="backgroundColor" type="color" value="#000000"></label>
             <label for="backgroundOpacity">背景不透明度 <output id="backgroundOpacityValue">60%</output><input id="backgroundOpacity" type="range" min="0" max="100" step="5" value="60"></label>
             <label for="captionOpacity">整體不透明度 <output id="captionOpacityValue">100%</output><input id="captionOpacity" type="range" min="0" max="100" step="5" value="100"></label>
           </details>
+          <label class="switch outline-switch" for="hideOnHover" title="按住 Alt／Option 可拖曳或調整大小"><span><strong>滑鼠靠近時隱藏字幕</strong></span><input id="hideOnHover" type="checkbox" role="switch"><span class="switch-track" aria-hidden="true"></span></label>
           <button id="reset" class="secondary full-width" type="button">恢復預設字幕設定</button>
         </section>
         <details id="apiSettings"><summary>網路翻譯服務（選用）</summary>

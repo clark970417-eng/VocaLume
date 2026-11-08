@@ -1,7 +1,7 @@
 import { test, expect, type ElectronApplication, type Page } from '@playwright/test'
 import { _electron as electron } from 'playwright'
 import { resolve } from 'path'
-import { mkdtempSync, symlinkSync } from 'fs'
+import { mkdtempSync, readFileSync, symlinkSync } from 'fs'
 import { tmpdir } from 'os'
 
 let app: ElectronApplication
@@ -46,6 +46,11 @@ test.beforeAll(async () => {
   if (!settingsWindow) {
     settingsWindow = firstWin
   }
+
+  // The product may choose a different locale from the machine or IP region.
+  // These settings tests use English labels. Language selection has its own spec.
+  await settingsWindow.locator('.interface-language select').selectOption('en')
+  await expect(settingsWindow.locator('html')).toHaveAttribute('lang', 'en')
 })
 
 test.afterAll(async () => {
@@ -75,6 +80,39 @@ test.describe('App launch', () => {
 })
 
 test.describe('Engine selection', () => {
+  test('only shows Mac recognition and translation options when their resources are available', async () => {
+    test.skip(process.platform !== 'darwin')
+    await openSection('Live translation')
+    await settingsWindow.getByRole('combobox', { name: 'Source language' }).selectOption('auto')
+    await openSection('Models')
+    const macEngines = await settingsWindow.evaluate(async () => {
+      return (await window.api.getSettings()).macEngines as {
+        appleSilicon: boolean
+        appleSpeech: boolean
+        appleTranslate: boolean
+        qwenAsr: boolean
+        speakerIdentification: boolean
+        haasJa: boolean
+      }
+    })
+    const speech = settingsWindow.getByRole('combobox', { name: 'STT engine' })
+    await expect(speech.locator('option[value="mlx-whisper"]')).toHaveCount(Number(macEngines.appleSilicon))
+    await expect(speech.locator('option[value="kotoba-whisper"]')).toHaveCount(Number(macEngines.appleSilicon))
+    await expect(speech.locator('option[value="apple-speech-transcriber"]')).toHaveCount(Number(macEngines.appleSpeech))
+    await expect(speech.locator('option[value="qwen3-asr"]')).toHaveCount(Number(macEngines.qwenAsr))
+    await expect(settingsWindow.getByText('Apple Translate', { exact: true })).toHaveCount(Number(macEngines.appleTranslate))
+    await settingsWindow.getByText('Recognition corrections & speakers', { exact: true }).click()
+    await expect(settingsWindow.getByRole('checkbox', { name: 'Enable speaker identification' })).toHaveCount(Number(macEngines.speakerIdentification))
+
+    await openSection('Live translation')
+    await settingsWindow.getByRole('combobox', { name: 'Source language' }).selectOption('ja')
+    await openSection('Models')
+    await expect(speech.locator('option[value="haas-ja-fast"]')).toHaveCount(Number(macEngines.haasJa))
+    if (macEngines.appleSilicon) await expect(speech).toHaveValue(macEngines.haasJa ? 'haas-ja-fast' : 'kotoba-whisper')
+    await openSection('Live translation')
+    await settingsWindow.getByRole('combobox', { name: 'Source language' }).selectOption('auto')
+  })
+
   test('should display translation engine radio options', async () => {
     await openSection('Models')
 
@@ -209,6 +247,84 @@ test.describe('Window management', () => {
     expect(appPath).toBeTruthy()
     expect(typeof appPath).toBe('string')
   })
+
+  test('OBS-only keeps the caption file and releases the floating window', async () => {
+    const hasOverlay = () => app.windows().some(window => window.url().endsWith('#/subtitle'))
+    await openSection('Subtitles & OBS')
+    await settingsWindow.getByText('OBS live captions', { exact: true }).click()
+    const output = settingsWindow.getByRole('combobox', { name: 'OBS caption output', exact: true })
+    await output.selectOption('bilingual')
+    const path = await settingsWindow.getByLabel('OBS caption file path').inputValue()
+    expect(readFileSync(path, 'utf8')).toBe('')
+
+    const hide = settingsWindow.getByRole('checkbox', { name: 'Hide desktop subtitles while using OBS' })
+    await hide.check()
+    await expect.poll(hasOverlay).toBe(false)
+    await expect(output).toHaveValue('bilingual')
+    expect(readFileSync(path, 'utf8')).toBe('')
+
+    await output.selectOption('off')
+    await expect.poll(hasOverlay).toBe(true)
+  })
+
+  test('optionally hides floating captions near the pointer and restores the latest text', async () => {
+    await openSection('Subtitles & OBS')
+    const toggle = settingsWindow.getByRole('checkbox', { name: 'Hide subtitles when the pointer is nearby' })
+    await expect(toggle).not.toBeChecked()
+    await toggle.check()
+
+    const overlay = app.windows().find(window => window.url().endsWith('#/subtitle'))!
+    const card = overlay.locator('[aria-live="polite"]').locator('..')
+    await expect(card).toBeAttached()
+    const restorePointer = await app.evaluateHandle(({ BrowserWindow, screen }) => {
+      const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
+      const origin = win.getContentBounds()
+      const getCursorScreenPoint = screen.getCursorScreenPoint
+      const isVisible = win.isVisible
+      screen.getCursorScreenPoint = () => ({ x: origin.x, y: origin.y })
+      // Keep the isolated overlay off the user's display.
+      win.isVisible = () => true
+      win.webContents.send('translation-result', { sourceText: 'こんにちは', translatedText: '你好' })
+      return () => {
+        screen.getCursorScreenPoint = getCursorScreenPoint
+        win.isVisible = isVisible
+      }
+    })
+    try {
+      await expect(card).toHaveCSS('opacity', '1')
+      const bounds = (await card.boundingBox())!
+      const point = { x: bounds.x + bounds.width / 2, y: bounds.y + (process.platform === 'win32' ? 5 : -5) }
+      const movePointer = (position: { x: number; y: number }) => app.evaluate(({ BrowserWindow, screen }, pos) => {
+        const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
+        const origin = win.getContentBounds()
+        const zoom = win.webContents.getZoomFactor()
+        screen.getCursorScreenPoint = () => ({ x: origin.x + pos.x * zoom, y: origin.y + pos.y * zoom })
+      }, position)
+
+      await movePointer(point)
+      await expect(card).toHaveCSS('visibility', 'hidden')
+      await expect(card).toHaveCSS('pointer-events', 'none')
+      await app.evaluate(({ BrowserWindow }) => {
+        const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
+        win.webContents.send('translation-result', { sourceText: 'こんばんは', translatedText: '晚上好' })
+      })
+      await expect(card).toContainText('晚上好')
+      await expect(card).toHaveCSS('visibility', 'hidden')
+      await movePointer({ x: 0, y: 0 })
+      await expect(card).toHaveCSS('visibility', 'visible')
+      await movePointer(point)
+      await expect(card).toHaveCSS('visibility', 'hidden')
+      await overlay.evaluate(() => window.api.toggleSubtitleEditMode(true))
+      await expect(card).toHaveCSS('visibility', 'visible')
+      await overlay.evaluate(() => window.api.toggleSubtitleEditMode(false))
+      await expect(card).toHaveCSS('visibility', 'hidden')
+      await toggle.uncheck()
+      await expect(card).toHaveCSS('visibility', 'visible')
+    } finally {
+      await restorePointer.evaluate(restore => restore())
+      await restorePointer.dispose()
+    }
+  })
 })
 
 
@@ -247,6 +363,9 @@ test.describe('Simple navigation', () => {
   test('section tabs support keyboard navigation', async () => {
     await openSection('Live translation')
     await settingsWindow.getByRole('tab', {name: 'Live translation', exact: true}).press('ArrowRight')
+    const textTab = settingsWindow.getByRole('tab', {name: 'Text translation', exact: true})
+    await expect(textTab).toBeFocused()
+    await textTab.press('ArrowRight')
     const filesTab = settingsWindow.getByRole('tab', {name: 'File translation', exact: true})
     await expect(filesTab).toBeFocused()
     await filesTab.press('End')

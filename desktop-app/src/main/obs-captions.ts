@@ -90,11 +90,13 @@ function pushCaption(text: string, queuedAt?: number): Promise<void> {
 }
 
 function write(text: string, queuedAt?: number): Promise<void> {
-  return transport === 'push' ? pushCaption(text, queuedAt) : writeFileCaption(text, queuedAt)
+  const caption = wrapObsText(text)
+  return transport === 'push' ? pushCaption(caption, queuedAt) : writeFileCaption(caption, queuedAt)
 }
 
 export function obsCaptionStatus() {
-  return { mode, transport, source, pushAvailable, path: outputPath(), error }
+  return { mode, transport, source, pushAvailable, path: outputPath(), error,
+    hideDesktopOverlay: Boolean(store.get('obsHideDesktopOverlay')) }
 }
 
 export function clearObsCaption(): Promise<void> {
@@ -196,5 +198,5 @@ export function publishObsCaption(result: { sourceText: string; translatedText: 
   const text = mode === 'bilingual'
     ? [result.sourceText.trim(), translation].filter(Boolean).join('\n')
     : translation
-  void write(wrapObsText(text), process.env.VOCALUME_CAPTION_TIMING === '1' ? performance.now() : undefined)
+  void write(text, process.env.VOCALUME_CAPTION_TIMING === '1' ? performance.now() : undefined)
 }

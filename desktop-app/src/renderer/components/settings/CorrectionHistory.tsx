@@ -33,9 +33,7 @@ export function CorrectionHistory(): React.JSX.Element {
   }, [loadHistory])
 
   const handleToggleEditMode = useCallback(() => {
-    const next = !isEditMode
-    setIsEditMode(next)
-    window.api.toggleSubtitleEditMode?.(next)
+    void window.api.toggleSubtitleEditMode?.(!isEditMode).then(setIsEditMode)
   }, [isEditMode])
 
   const handleClearHistory = useCallback(() => {

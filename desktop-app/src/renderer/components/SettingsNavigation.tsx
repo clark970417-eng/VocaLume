@@ -3,6 +3,7 @@ import React from 'react'
 
 export const SETTINGS_TABS = [
   { id: 'translate', label: 'Live translation' },
+  { id: 'text', label: 'Text translation' },
   { id: 'files', label: 'File translation' },
   { id: 'subtitles', label: 'Subtitles & OBS' },
   { id: 'models', label: 'Models' },

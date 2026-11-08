@@ -75,6 +75,35 @@ test('a desktop worker terminated for restart ignores its late reply',async()=>{
  }finally{delete globalThis.chrome;}
 });
 
+test('the desktop worker preserves exact PCM bytes with both base64 paths', async () => {
+ const original = Object.getOwnPropertyDescriptor(Uint8Array.prototype, 'toBase64');
+ const capture = [];
+ let fastPathCalls = 0;
+ globalThis.chrome = {runtime: {
+  onMessage: {addListener() {}, removeListener() {}},
+  sendMessage: async message => {capture.push(message.audio); return {ok: true, text: {text: ''}};}
+ }};
+ try {
+  const worker = new DesktopWorker();
+  const audio = new Float32Array([77, .1, -.25, 42]).subarray(1, 3);
+  const expected = Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength).toString('base64');
+  Object.defineProperty(Uint8Array.prototype, 'toBase64', {configurable: true, value() {
+   fastPathCalls++;
+   return Buffer.from(this).toString('base64');
+  }});
+  worker.postMessage({type: 'decode', id: 1, audio});
+  delete Uint8Array.prototype.toBase64;
+  worker.postMessage({type: 'decode', id: 2, audio});
+  worker.terminate();
+  assert.equal(fastPathCalls, 1);
+  assert.deepEqual(capture, [expected, expected]);
+ } finally {
+  if (original) Object.defineProperty(Uint8Array.prototype, 'toBase64', original);
+  else delete Uint8Array.prototype.toBase64;
+  delete globalThis.chrome;
+ }
+});
+
 test('one timed out request does not disconnect chat and later work',async()=>{
  const {runtime,ports}=fakeRuntime();const client=new NativeClient(runtime);
  const slow=client.request('decode',{segment:'slow'},5);

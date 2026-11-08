@@ -6,9 +6,27 @@ import { mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { companionEndpoint, startExtensionCompanion } from './extension-companion'
+import { updateUiLanguageChoice } from './interface-language'
 import type { AppContext } from './app-context'
 
 vi.mock('./store', () => ({ store: { get: vi.fn() } }))
+vi.mock('./interface-language', () => {
+  let choice = { preference: 'auto', changedAt: 0 }
+  const listeners = new Set<(next: typeof choice) => void>()
+  return {
+    getUiLanguageChoice: () => choice,
+    updateUiLanguageChoice: (next: typeof choice) => {
+      if (next.preference !== 'ja' && next.preference !== 'ko') throw new Error('Invalid interface language choice')
+      choice = next
+      for (const notify of listeners) notify(next)
+      return choice
+    },
+    onUiLanguageChoiceChanged: (notify: (next: typeof choice) => void) => {
+      listeners.add(notify)
+      return () => { listeners.delete(notify) }
+    }
+  }
+})
 vi.mock('./ipc/pipeline-ipc', () => ({ startPipeline: vi.fn(async (ctx: { pipeline: { active: boolean } }) => {
   ctx.pipeline.active = true
   return { success: true }
@@ -22,9 +40,9 @@ vi.mock('../engines/translator/HunyuanMT2Translator', () => ({ HunyuanMT2Transla
 
 interface Client { socket: Socket, messages: Array<Record<string, unknown>>, closed: boolean, request: (message: Record<string, unknown>) => number }
 
-function client(directory: string): Promise<Client> {
+function client(directory: string, languageOnly = false): Promise<Client> {
   return new Promise(resolve => {
-    const socket = connect(companionEndpoint(directory))
+    const socket = connect(companionEndpoint(directory, process.platform, languageOnly))
     const state: Client = { socket, messages: [], closed: false, request: () => 0 }
     let buffer = '', id = 0
     socket.setEncoding('utf8')
@@ -63,6 +81,58 @@ function companion() {
   return { directory, pipeline, release: () => releaseSlowDecode?.() }
 }
 const audio = Buffer.from(new Float32Array([.1, .2]).buffer).toString('base64')
+
+it('syncs interface language across connected browsers without taking or stopping the caption session', async () => {
+  const c = companion()
+  const server = await startExtensionCompanion({ pipeline: c.pipeline } as unknown as AppContext, c.directory)
+  const sockets: Socket[] = []
+  async function openClient(languageOnly = false): Promise<Client> {
+    const connected = await client(c.directory, languageOnly)
+    sockets.push(connected.socket)
+    return connected
+  }
+  try {
+    const first = await openClient(true)
+    const second = await openClient(true)
+    const watching = first.request({ op: 'watch-ui-language' })
+    const alsoWatching = second.request({ op: 'watch-ui-language' })
+    await vi.waitFor(() => {
+      expect(first.messages).toContainEqual({ id: watching, ok: true, result: { preference: 'auto', changedAt: 0 } })
+      expect(second.messages).toContainEqual({ id: alsoWatching, ok: true, result: { preference: 'auto', changedAt: 0 } })
+    })
+
+    const inference = await openClient()
+    const init = inference.request({ op: 'init' })
+    await vi.waitFor(() => expect(inference.messages.some(m => m.id === init && m.ok)).toBe(true))
+    const japanese = { preference: 'ja', changedAt: 1 } as const
+    const korean = { preference: 'ko', changedAt: 2 } as const
+    const select = first.request({ op: 'set-ui-language', choice: japanese })
+    await vi.waitFor(() => {
+      expect(first.messages).toContainEqual({ id: select, ok: true, result: japanese })
+      expect(second.messages).toContainEqual({ event: 'ui-language', result: japanese })
+    })
+    const wrongOp = second.request({ op: 'init' })
+    const invalidChoice = second.request({ op: 'set-ui-language', choice: { preference: 'fr', changedAt: 3 } })
+    await vi.waitFor(() => {
+      expect(second.messages.find(m => m.id === wrongOp)?.ok).toBe(false)
+      expect(second.messages.find(m => m.id === invalidChoice)?.ok).toBe(false)
+    })
+    updateUiLanguageChoice(korean)
+    await vi.waitFor(() => expect(first.messages).toContainEqual({ event: 'ui-language', result: korean }))
+    first.socket.destroy()
+
+    const decode = inference.request({ op: 'decode', audio, segment: 'still-capturing', final: false })
+    await vi.waitFor(() => expect(inference.messages.some(m => m.id === decode && m.ok)).toBe(true))
+    expect(c.pipeline.stop).not.toHaveBeenCalled()
+    inference.socket.destroy()
+    await new Promise<void>(r => server.close(() => r()))
+    await vi.waitFor(() => expect(second.closed).toBe(true))
+  } finally {
+    for (const socket of sockets) socket.destroy()
+    if (server.listening) await new Promise<void>(r => server.close(() => r()))
+    rmSync(c.directory, { recursive: true, force: true })
+  }
+})
 
 it('still refuses a second client while the first is connected', async () => {
   const c = companion()

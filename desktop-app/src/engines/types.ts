@@ -88,6 +88,8 @@ export interface SpeechEvidence {
   /** Capture cue identity and end of the last VAD speech frame in this PCM window. */
   segment?: string
   speechEndSample?: number
+  /** Desktop capture metadata is for matching PCM; do not change decoder guards. */
+  checkpointOnly?: true
   /** Monotonic capture positions used only to join adjacent Japanese clauses. */
   captureStartSample?: number
   captureEndSample?: number
@@ -116,7 +118,7 @@ export interface STTEngine {
    * Returns null if no speech detected in the chunk.
    * `evidence` describes this chunk only and must not be kept for another one.
    */
-  processAudio(audioChunk: Float32Array, sampleRate: number, evidence?: SpeechEvidence): Promise<STTResult | null>
+  processAudio(audioChunk: Float32Array, sampleRate: number, evidence?: SpeechEvidence, signal?: AbortSignal): Promise<STTResult | null>
 
   /** Release resources */
   dispose(): Promise<void>

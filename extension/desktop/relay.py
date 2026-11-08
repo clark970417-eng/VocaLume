@@ -1,5 +1,6 @@
 """Native messaging transport only. Inference runs in the full Electron app."""
 import json
+import os
 import socket
 import struct
 import subprocess
@@ -16,6 +17,13 @@ except ImportError:
 
 SUPPORT = Path.home() / 'Library/Application Support/JapaneseLiveCaption'
 
+def desktop_frame(message, payload):
+    # Chromium native messaging already supplies compact JSON. Avoid copying
+    # large PCM base64 strings through another JSON serialization on every cue.
+    if message.get('op') == 'decode' and payload.isascii() and b'\n' not in payload:
+        return payload + b'\n'
+    return json.dumps(message).encode() + b'\n'
+
 def app_executable():
     """Recover a stale registration after an app rename or reinstall."""
     candidates = []
@@ -31,12 +39,16 @@ def app_executable():
     raise RuntimeError('VocaLume app was moved or removed. Install VocaLume in Applications and open it once.')
 
 def main():
-    traditional = OpenCC('s2twp') if OpenCC else None
+    language_only = '--ui-language' in sys.argv[1:]
+    traditional = OpenCC('s2twp') if OpenCC and not language_only else None
     connection = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    path = str(SUPPORT / 'desktop.sock')
+    path = str(SUPPORT / ('ui.sock' if language_only else 'desktop.sock'))
     try:
         connection.connect(path)
     except OSError:
+        if language_only:
+            connection.close()
+            raise RuntimeError('VocaLume language connection is unavailable') from None
         executable = app_executable()
         with (SUPPORT / 'app.log').open('ab') as log:
             subprocess.Popen([executable, '--jtl-companion'], stdin=subprocess.DEVNULL,
@@ -52,37 +64,59 @@ def main():
                 time.sleep(.2)
     output = sys.stdout.buffer
     directions = {}
+    frame_limit = 8192 if language_only else 2_000_000
+
+    def read_exact(size):
+        if not language_only:
+            return sys.stdin.buffer.read(size)
+        # The browser may still have stdin open when the app closes its socket.
+        # Avoid locking a Python buffered stream on the daemon reader thread.
+        data = bytearray()
+        while len(data) < size:
+            chunk = os.read(0, size - len(data))
+            if not chunk:
+                break
+            data.extend(chunk)
+        return data
+
     def requests():
         try:
             while True:
-                header = sys.stdin.buffer.read(4)
+                header = read_exact(4)
                 if not header:
                     break
                 if len(header) != 4:
                     raise ValueError('Truncated native header')
                 size = struct.unpack('<I', header)[0]
-                if size > 2_000_000:
+                if size > frame_limit:
                     raise ValueError('Native request too large')
-                payload = sys.stdin.buffer.read(size)
+                payload = read_exact(size)
                 if len(payload) != size:
                     raise ValueError('Truncated native request')
                 message = json.loads(payload)
-                directions[message['id']] = message.get('direction', 'ja-zh')
-                connection.sendall(json.dumps(message).encode() + b'\n')
+                if language_only:
+                    if message.get('op') not in ('watch-ui-language', 'set-ui-language'):
+                        raise ValueError('Unsupported language operation')
+                else:
+                    directions[message['id']] = message.get('direction', 'ja-zh')
+                connection.sendall(desktop_frame(message, payload))
         finally:
-            connection.shutdown(socket.SHUT_RDWR)
+            try:
+                connection.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
     threading.Thread(target=requests, daemon=True).start()
     try:
         with connection.makefile('rb') as stream:
             while True:
-                line = stream.readline(2_000_001)
+                line = stream.readline(frame_limit + 1)
                 if not line:
                     break
-                if len(line) > 2_000_000:
+                if len(line) > frame_limit:
                     raise ValueError('Desktop response too large')
                 reply = json.loads(line)
                 result = reply.get('result')
-                if isinstance(result, dict):
+                if not language_only and isinstance(result, dict):
                     if isinstance(result.get('translated'), str):
                         result['translated'] = traditional.convert(result['translated']) if traditional else result['translated']
                     if not reply.get('event') and directions.get(reply.get('id')) == 'ja-zh' and isinstance(result.get('text'), str) and 'translated' not in result:

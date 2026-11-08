@@ -1,5 +1,6 @@
 import type { SpeechEvidence, TTSPlaybackData, TtsVoiceOption } from '../engines/types'
 import type { MediaFileCue } from '../media-transcript'
+import type { UiLanguageChoice, UiLanguageState } from './ui-language'
 
 export interface ElectronAPI {
   pipelineStart: (config: unknown, captureAudio?: boolean) => Promise<{ success?: boolean; error?: string }>
@@ -7,14 +8,17 @@ export interface ElectronAPI {
   processAudio: (audioData: number[]) => Promise<unknown>
   processAudioStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) => Promise<unknown>
   getAudioPreviewDelay: () => Promise<number>
-  processAudioPreview: (audioData: Float32Array, evidence: SpeechEvidence) => Promise<number>
+  processAudioPreview: (audioData: Float32Array, evidence?: SpeechEvidence) => Promise<number>
   finalizeStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) => Promise<unknown>
   getPathForFile: (file: File) => string
   decodeMediaFile: (path: string) => Promise<Uint8Array>
   exportFileTranscript: (contents: string) => Promise<void>
+  translateText: (text: string, sourceLanguage: string, targetLanguage: string) => Promise<string>
   chooseMediaFolder: () => Promise<string | null>
-  scanMediaFolder: () => Promise<{ path: string; name: string; revision: string }[]>
-  processMediaFile: (path: string, jobId: string, review?: boolean) => Promise<{ processedSeconds: number; cancelled: boolean }>
+  scanMediaFolder: () => Promise<{ files: { path: string; name: string; revision: string }[]; eventDriven: boolean } | null>
+  stopMediaFolderWatch: () => Promise<void>
+  onMediaFolderChanged: (callback: () => void) => (() => void)
+  processMediaFile: (path: string, jobId: string, review?: boolean, expectedRevision?: string) => Promise<{ processedSeconds: number; cancelled: boolean }>
   cancelMediaFile: (jobId: string) => Promise<{ cancelled: boolean }>
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => (() => void)
   onMediaFileCue: (callback: (cue: MediaFileCue) => void) => (() => void)
@@ -22,6 +26,7 @@ export interface ElectronAPI {
   speechBoundary: (boundary: 'start' | 'end') => Promise<unknown>
   onTranslationResult: (callback: (data: unknown) => void) => (() => void)
   onInterimResult: (callback: (data: unknown) => void) => (() => void)
+  onSubtitleActivity: (callback: (at: number) => void) => (() => void)
   onDraftResult: (callback: (data: unknown) => void) => (() => void)
   onStatusUpdate: (callback: (message: string) => void) => (() => void)
   getSessionStartTime: () => Promise<number | null>
@@ -33,6 +38,9 @@ export interface ElectronAPI {
     }>
   >
   moveSubtitleToDisplay: (displayId: number) => void
+  getUiLanguage: (legacyPreference: UiLanguageChoice['preference']) => Promise<UiLanguageState>
+  setUiLanguage: (preference: UiLanguageChoice['preference']) => Promise<UiLanguageState>
+  onUiLanguageChanged: (callback: (state: UiLanguageState) => void) => (() => void)
   getSettings: () => Promise<Record<string, unknown>>
   saveSettings: (settings: Record<string, unknown>) => Promise<void>
   getCrashedSession: () => Promise<{ config: Record<string, unknown>; startedAt: number } | null>
@@ -47,6 +55,8 @@ export interface ElectronAPI {
   generateSummary: (transcriptPath: string) => Promise<{ summary?: string; error?: string }>
   detectGpu: () => Promise<{ hasGpu: boolean; gpuNames: string[] }>
   saveSubtitleSettings: (settings: Record<string, unknown>) => Promise<void>
+  setSubtitleHoverRegion: (region: Electron.Rectangle | null) => void
+  onSubtitlePointerNear: (callback: (near: boolean) => void) => (() => void)
   onSubtitleSettingsChanged: (callback: (settings: unknown) => void) => (() => void)
   onDisplaysChanged: (callback: () => void) => (() => void)
   getWhisperVariants: () => Promise<Array<{ key: string; label: string; description: string; filename: string; sizeMB: number; downloaded: boolean }>>
@@ -171,7 +181,7 @@ export interface ElectronAPI {
   onDragModeChanged: (callback: (enabled: boolean) => void) => (() => void)
 
   // Subtitle edit mode (#590)
-  toggleSubtitleEditMode: (enabled: boolean) => Promise<void>
+  toggleSubtitleEditMode: (enabled: boolean) => Promise<boolean>
   onEditModeChanged: (callback: (enabled: boolean) => void) => (() => void)
   saveCorrection: (correction: {
     sourceText: string
@@ -225,9 +235,10 @@ export interface ElectronAPI {
   updateSetChannel: (channel: 'stable' | 'beta') => Promise<{ success?: boolean; error?: string }>
   updateGetStatus: () => Promise<{ state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string; managedDisabled?: boolean }>
   obsCaptionStatus: () => Promise<{ mode: 'off' | 'translation' | 'bilingual'; transport: 'file' | 'push';
-    source: string; pushAvailable: boolean; path: string; error: string }>
+    source: string; pushAvailable: boolean; path: string; error: string; hideDesktopOverlay: boolean }>
   configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ReturnType<ElectronAPI['obsCaptionStatus']>
   configureObsCaptionTransport: (transport: 'file' | 'push', source: string) => ReturnType<ElectronAPI['obsCaptionStatus']>
+  setObsOnly: (enabled: boolean) => ReturnType<ElectronAPI['obsCaptionStatus']>
   exportDiagnostics: () => Promise<{ success?: boolean; canceled?: boolean; path?: string; error?: string }>
   openSupportUrl: (url: string) => Promise<{ success?: boolean; error?: string }>
   onUpdateStatus: (callback: (status: { state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }) => void) => (() => void)

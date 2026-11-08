@@ -37,6 +37,24 @@ test('continuous speech bounded with real overlapping samples and increasing tim
  assert.ok(next.overlap);assert.ok(next.startSample<final.endSample);
  assert.equal(next.audio[0],final.audio[final.audio.length-16384]);
 });
+test('rolling admission skips busy and unchanged speech windows while final PCM keeps leading and trailing samples',()=>{
+ const windows=new SpeechWindows({shortCues:true});
+ const reused=new Float32Array(512);
+ const feed=(value,probability,allowPreview=true)=>windows.push(reused.fill(value),probability,.5,allowPreview);
+ for(let i=1;i<=18;i++)assert.equal(feed(-i,0,false),null);
+ for(let i=0;i<24;i++)assert.equal(feed(.25,.9,false),null);
+ const preview=feed(.25,.9);
+ assert.ok(preview&&!preview.final);
+ assert.equal(preview.audio[0],-5);
+ for(let i=0;i<19;i++)assert.equal(feed(0,0),null);
+ assert.equal(feed(.125,.9),null,'one new frame should not cause a second snapshot');
+ let final;
+ for(let i=0;i<44&&!final;i++)final=feed(0,0,false);
+ assert.ok(final?.final);
+ assert.equal(final.audio[0],-5);
+ assert.equal(final.audio[(14+25+19)*512],.125);
+ assert.equal(preview.audio.at(-1),.25,'an already transferred preview owns its PCM');
+});
 test('local agreement confirms prefixes and rejects out-of-order revisions',()=>{
  assert.equal(trimOverlap('ありがとうございます。','ありがとうございます、またね'),'またね');
  const a=new Agreement();

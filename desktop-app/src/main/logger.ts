@@ -14,7 +14,9 @@ const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
   error: 3
 }
 
-let globalLevel: LogLevel = 'info'
+const requestedLevel = process.env.JTL_LOG_LEVEL
+let globalLevel: LogLevel = requestedLevel === 'debug' || requestedLevel === 'warn' || requestedLevel === 'error'
+  ? requestedLevel : 'info'
 
 /** Set the minimum log level for all loggers */
 export function setLogLevel(level: LogLevel): void {

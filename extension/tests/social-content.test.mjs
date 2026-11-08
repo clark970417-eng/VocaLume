@@ -4,10 +4,10 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {isStandaloneGreeting} from '../streamer-vocabulary.mjs';
 
-const source=(fs.readFileSync(new URL('../translation-guards.js',import.meta.url),'utf8')+'\n'+fs.readFileSync(new URL('../social-content.js',import.meta.url),'utf8'));
+const source=['translation-guards.js','dom-changes.js','social-content.js'].map(file=>fs.readFileSync(new URL(`../${file}`,import.meta.url),'utf8')).join('\n');
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
-function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={},wrappedComposer=false){
+function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={},wrappedComposer=false,bilibiliPanelOnly=false){
  const requests=[], statusRequests=[], selectors=[], documentEvents={}, storageListeners=[], rendered=[];
  let now=0, runtimeListener;
  const translationLines=[];
@@ -20,7 +20,7 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
  const composerHost={append(node){node.isConnected=true;controls.push(node);}};
  const box={value:'今天也很可愛',isConnected:true,focus(){},dispatchEvent(){},addEventListener(){},
   matches(selector){return /textarea|textbox|contenteditable|comment|message|chat|reply/.test(selector);},
-  getAttribute(name){return name==='role'?'textbox':name==='placeholder'?'Write a comment':'';},
+  getAttribute(name){return name==='role'?'textbox':name==='placeholder'&&!bilibiliPanelOnly?'Write a comment':'';},
   getBoundingClientRect(){return {width:300,height:40};},
   closest(selector){return selector.includes('.jtl-social-controls')?null:composerHost;},parentElement:composerHost};
  const shell={textContent:'今天也很可愛',isConnected:true,readOnly:false,closest:()=>null,
@@ -38,7 +38,9 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
    if(!semanticOnly&&(selector.includes('danmaku-content')||selector.includes('chat-message')||selector.includes('chat-line-message-body')||
       ((hostname.includes('facebook')||hostname.includes('instagram'))&&selector.includes('[dir="auto"]'))||
       (hostname==='example.com'&&(selector.includes('comment')||selector.includes('role="article"')))))return Array.isArray(japanese)?japanese:[japanese];
+   if(semanticOnly&&selector.startsWith(':is([role="log"]'))return Array.isArray(japanese)?japanese:[japanese];
    if(semanticOnly&&selector.includes('[role="log"]'))return [{querySelectorAll:()=>Array.isArray(japanese)?japanese:[japanese]}];
+   if(bilibiliPanelOnly)return selector==='#chat-control-panel-vm textarea'?[box]:[];
    if(selector.includes('chat-input textarea')||selector.includes('comment-input"] textarea')||selector.includes('data-a-target="chat-input"')||
       ((hostname.includes('facebook')||hostname.includes('instagram')||hostname==='example.com')&&(selector.includes('comment')||selector.includes('role="textbox"'))))return [box];
    if(composerDistractor&&selector.includes('textarea:not([disabled])'))return [composerDistractor];
@@ -48,30 +50,48 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
  const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(rows){rendered.push(rows);} apply(){}}};window.top=window;
  const chrome={runtime:{lastError:null,onMessage:{addListener(fn){runtimeListener=fn;}},sendMessage(message,reply){(message.type==='subtitles'?statusRequests:requests).push({message,reply});}},
   storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(fn){storageListeners.push(fn);}}}};
- let scan,intervals=0,disconnected=false;
- vm.runInNewContext(source,{Date:{now:()=>now},VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout:fn=>{fn();return 1;},clearTimeout(){},setInterval(){intervals++;return 42;},clearInterval(){},Event:class{},InputEvent:class{}});
- return {requests,statusRequests,translationLines,controls,box,shell,selectors,rendered,node:japanese,scan:()=>scan(),intervals:()=>intervals,runtime:chrome.runtime,stopped:()=>disconnected&&intervals===0,
-  advance:ms=>now+=ms, visibility:hidden=>{document.hidden=hidden;documentEvents.visibilitychange();}, push:item=>runtimeListener({type:'subtitle-update',item}),
+ let scan,disconnected=false,expiry,intervalCount=0;
+ const root={nodeType:1,isConnected:true,closest:()=>null,matches:()=>false,querySelectorAll:document.querySelectorAll};
+ vm.runInNewContext(source,{Date:{now:()=>now},VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout(fn,delay){if(delay===250||delay===350||delay===0)fn();else expiry=fn;return delay;},clearTimeout(){},setInterval(){intervalCount++;},Event:class{},InputEvent:class{}});
+ return {requests,statusRequests,translationLines,controls,box,shell,selectors,rendered,node:japanese,
+  scan:()=>scan([{type:'childList',target:root,addedNodes:[root],removedNodes:[]}]),
+  poll:()=>documentEvents.visibilitychange(), runtime:chrome.runtime,stopped:()=>disconnected,
+  intervalCount:()=>intervalCount,expire:()=>expiry(),
+  edit(value){box.value=value;documentEvents.input({composedPath:()=>[box]});},
+  advance:ms=>now+=ms, visibility:hidden=>{document.hidden=hidden;documentEvents.visibilitychange();}, push:(item,running)=>runtimeListener({type:'subtitle-update',item,running}),
   languages:value=>storageListeners.forEach(fn=>fn({languageSettings:{newValue:value}},'local')),
   provider:()=>storageListeners.forEach(fn=>fn({cloudTranslation:{newValue:{}}},'local'))};
 }
 
-test('social tabs request initial and visibility status once, and live captions arrive by push',async()=>{
+test('a translation cannot overwrite a new draft that repeats the earlier text',async()=>{
+ const t=setup('www.instagram.com');await settle();
+ const [button,status]=t.controls[0].children;
+ const original=t.box.value;
+ void button.onclick({preventDefault(){},stopPropagation(){}});
+ const request=t.requests.find(r=>r.message.type==='make-draft');
+ t.edit('');
+ t.edit(original);
+ request.reply({ok:true,text:{draft:'前の下書き'}});await settle();
+ assert.equal(t.box.value,original);
+ assert.match(status.textContent,/原文已修改/);
+});
+
+test('idle social tabs do not poll, and pushed captions still expire',async()=>{
  const t=setup('example.com');await settle();
+ assert.equal(t.intervalCount(),0);
+ assert.equal(t.statusRequests.length,0);
+ t.visibility(true);t.advance(20_000);assert.equal(t.statusRequests.length,0);
+ t.visibility(false);assert.equal(t.statusRequests.length,1,'returning to the tab refreshes immediately');
  t.statusRequests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
- t.advance(20000);assert.equal(t.intervals(),0,'idle tabs never schedule a background heartbeat');
- t.visibility(true);t.advance(20000);assert.equal(t.statusRequests.length,1);
- t.visibility(false);assert.equal(t.statusRequests.length,2,'returning to the tab refreshes immediately');
- t.statusRequests[1].reply({ok:true,text:{running:false,items:[]}});await settle();
- t.push({original:'こんにちは',translated:'你好',expiresAt:100});
+ t.push({original:'こんにちは',translated:'你好',expiresAt:22},true);
  assert.equal(t.rendered.at(-1)[0].translated,'你好');
- t.push(null);
+ t.advance(2005);t.expire();
  assert.equal(t.rendered.at(-1).length,0);
- assert.equal(t.statusRequests.length,2,'capture pushes do not trigger background polling');
+ assert.equal(t.statusRequests.length,1,'display and expiry do not query the background worker');
 });
 
 test('an older idle status response cannot erase a pushed caption',async()=>{
- const t=setup('example.com');await settle();
+ const t=setup('example.com');await settle();void t.poll();
  t.push({original:'こんにちは',translated:'你好',expiresAt:20});
  assert.equal(t.rendered.at(-1)[0].translated,'你好');
  t.statusRequests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
@@ -371,4 +391,18 @@ test('holding the reply button drags it without translating or modifying the dra
  assert.equal(controls.style.top,'250px');
  assert.equal(t.requests.length,before);
  assert.equal(t.box.value,'今天也很可愛');
+});
+
+
+test('Bilibili live finds the danmaku editor inside its chat panel without a placeholder',async()=>{
+ const t=setup('live.bilibili.com',null,null,false,false,{},false,true);
+ await settle();
+ assert.equal(t.controls.length,1);
+ t.controls[0].children[0].onclick({preventDefault(){},stopPropagation(){}});
+ await settle();
+ const draft=t.requests.find(x=>x.message.type==='make-draft');
+ assert.equal(draft.message.text,'今天也很可愛');
+ draft.reply({ok:true,text:{draft:'今日もとても可愛いですね！'}});
+ await settle();
+ assert.equal(t.box.value,'今日もとても可愛いですね！');
 });

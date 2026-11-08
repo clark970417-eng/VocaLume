@@ -26,11 +26,11 @@ export function ObsCaptionSettings() {
     return () => clearInterval(refresh)
   }, [status?.transport, status?.mode])
 
-  async function changeMode(mode: Status['mode']) {
+  async function update(request: () => Promise<Status>) {
     setBusy(true)
     setActionError('')
     try {
-      setStatus(await window.api.configureObsCaptions(mode))
+      setStatus(await request())
     } catch {
       setActionError('Could not configure OBS caption output.')
     } finally {
@@ -59,7 +59,10 @@ export function ObsCaptionSettings() {
       <label className="settings-field">
         {t('OBS caption output')}
         <select disabled={!status || busy} value={status?.mode ?? 'off'}
-          onChange={event => void changeMode(event.target.value as Status['mode'])}>
+          onChange={event => {
+            const mode = event.target.value as Status['mode']
+            void update(() => window.api.configureObsCaptions(mode))
+          }}>
           <option value="off">{t('Off')}</option>
           <option value="translation">{t('Translation only')}</option>
           <option value="bilingual">{t('Original and translation')}</option>
@@ -67,6 +70,14 @@ export function ObsCaptionSettings() {
       </label>
       {status && status.mode !== 'off' && (
         <>
+          <label>
+            <input type="checkbox" checked={status.hideDesktopOverlay} disabled={busy}
+              onChange={event => {
+                const enabled = event.target.checked
+                void update(() => window.api.setObsOnly(enabled))
+              }} />
+            {t('Hide desktop subtitles while using OBS')}
+          </label>
           {status.pushAvailable && (
             <>
               <div className="settings-field">

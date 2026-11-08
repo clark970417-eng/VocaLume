@@ -6,8 +6,11 @@ export class DesktopWorker {
   const fields={segment:data.segment,utterance:data.utterance,final:data.final,speechSeconds:data.speechSeconds,speechEndSample:data.speechEndSample,captureStartSample:data.captureStartSample,captureEndSample:data.captureEndSample,continuationExpected:data.continuationExpected,speechAt:data.speechAt,audioEndAt:data.audioEndAt};
   if(data.type==='decode'){
    const bytes=new Uint8Array(data.audio.buffer,data.audio.byteOffset,data.audio.byteLength);
-   let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
-   fields.audio=btoa(binary);
+   if(typeof bytes.toBase64==='function')fields.audio=bytes.toBase64();
+   else {
+    let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));
+    fields.audio=btoa(binary);
+   }
   }
   chrome.runtime.sendMessage({type:'desktop-request',op:data.type,decodeId:data.id,workerToken:this.token,...fields}).then(reply=>{
    if(this.closed)return;

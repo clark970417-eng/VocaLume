@@ -1,9 +1,9 @@
 import { t } from '../../ui-language'
-import React, { useSyncExternalStore } from 'react'
+import React, { useEffect, useRef, useSyncExternalStore } from 'react'
 import { Section } from './Section'
 import { selectStyle, sliderLabelStyle } from './shared'
 import type { UseAudioCaptureReturn, AudioSource } from '../../hooks/useAudioCapture'
-import type { AudioLevel } from '../../hooks/audioLevel'
+import type { InputLevel } from '../../hooks/input-level'
 
 /** Audio source display labels */
 const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string }> = [
@@ -26,27 +26,47 @@ interface AudioSettingsProps {
   onStreamingIntervalChange: (ms: number) => void
 }
 
-function AudioLevelMeter({ level }: { level: AudioLevel }): React.JSX.Element {
-  const percent = useSyncExternalStore(level.subscribe, level.read)
-  return <>
-    <div style={{ marginTop: '6px', height: '4px', background: '#1e293b', borderRadius: '2px' }}>
-      <div
-        role="progressbar"
-        aria-label={t('Volume level')}
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        style={{
-          height: '100%',
-          width: `${percent}%`,
-          background: percent > 70 ? '#ef4444' : '#22c55e',
-          borderRadius: '2px',
-          transition: 'width 0.1s'
-        }}
-      />
+function InputLevelMeter({ level }: { level: InputLevel }): React.JSX.Element {
+  const element = useRef<HTMLDivElement>(null)
+  const percent = useSyncExternalStore(level.subscribe, level.getSnapshot)
+  useEffect(() => {
+    if (!element.current) return
+    let intersects = false
+    const update = () => level.setVisible(intersects && document.visibilityState === 'visible')
+    const observer = new IntersectionObserver(([entry]) => {
+      intersects = entry.isIntersecting
+      update()
+    })
+    observer.observe(element.current)
+    document.addEventListener('visibilitychange', update)
+    return () => {
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', update)
+      level.setVisible(false)
+    }
+  }, [level])
+
+  return (
+    <div ref={element}>
+      <div style={{ marginTop: '6px', height: '4px', background: '#1e293b', borderRadius: '2px' }}>
+        <div
+          role="progressbar"
+          aria-label={t('Volume level')}
+          aria-valuenow={percent}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          style={{
+            height: '100%',
+            width: `${percent}%`,
+            background: percent > 70 ? '#ef4444' : '#22c55e',
+            borderRadius: '2px',
+            transition: 'width 0.1s'
+          }}
+        />
+      </div>
+      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{t('Input level:')} {percent}%</div>
     </div>
-    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>{t('Input level:')} {percent}%</div>
-  </>
+  )
 }
 
 export function AudioSettings({ audio, showLevel, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange }: AudioSettingsProps): React.JSX.Element {
@@ -105,13 +125,13 @@ export function AudioSettings({ audio, showLevel, disabled, noiseSuppressionEnab
           ) : (
             audio.devices.map((d) => (
               <option key={d.deviceId} value={d.deviceId}>
-                {d.label}
+                {d.label || `${t('Microphone')} ${d.deviceId.slice(0, 6)}`.trim()}
               </option>
             ))
           )}
         </select>
       )}
-      {showLevel ? <AudioLevelMeter level={audio.level} /> : null}
+      {showLevel && <InputLevelMeter level={audio.inputLevel} />}
       <details className="settings-disclosure"><summary>{t("Audio options")}</summary>
       {/* #313: Noise suppression toggle — only relevant when microphone is active */}
       {showMicSelector && (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { windowsInferenceThreads, windowsVramPadding } from './inference-resources'
+import { macInferenceThreads, windowsInferenceThreads, windowsVramPadding } from './inference-resources'
 
 describe('Windows inference resource budget', () => {
   it.each([
@@ -16,4 +16,13 @@ describe('Windows inference resource budget', () => {
     expect(windowsVramPadding(6*gib)).toBeCloseTo(1.2*gib)
     expect(windowsVramPadding(24*gib)).toBe(2*gib)
   })
+})
+
+describe('macOS inference resource budget', () => {
+  it.each([[1, 1, 1], [4, 2, 2], [8, 2, 4], [10, 2, 4], [32, 2, 4], [NaN, 1, 1]])(
+    'reserves CPU capacity while keeping an executable cap for %i available cores',
+    (cpus, speech, llama) => {
+      expect(macInferenceThreads(cpus)).toEqual({ speech, llama })
+    }
+  )
 })

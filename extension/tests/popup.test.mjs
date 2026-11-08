@@ -100,6 +100,7 @@ test('new popup keeps opt-in off, all languages, saved captions and engine setti
   assert.equal(h.get('#engineMode').value, 'desktop');
   assert.equal(h.get('#writingStyle').value, 'polite');
   assert.equal(h.get('#showOutline').checked, false);
+  assert.equal(h.get('#hideOnHover').checked, false);
   assert.equal(h.get('#captionPreview').style.textShadow, 'none');
   assert.match(h.get('#captionPreview').style.backgroundColor, /^#aabbcc/);
   assert.equal(h.writes.length, 0, 'opening the redesigned popup must not rewrite existing settings');
@@ -115,6 +116,18 @@ test('caption hover hiding defaults off, persists as a boolean, and resets with 
   await reopened.click('#reset');
   assert.equal(reopened.get('#hideOnHover').checked, false);
   assert.equal(reopened.state.saved.subtitleSettings.hideOnHover, false);
+});
+
+test('the caption hover option persists as a boolean and resets to off', async () => {
+  const h = await harness({ saved: { subtitleSettings: { hideOnHover: true, captionMode: 'record' } } });
+  assert.equal(h.get('#hideOnHover').checked, true);
+  await h.change('hideOnHover', false, 'input');
+  assert.equal(h.writes.at(-1).subtitleSettings.hideOnHover, false);
+  await h.change('hideOnHover', true, 'input');
+  assert.equal(h.writes.at(-1).subtitleSettings.hideOnHover, true);
+  await h.click('#reset');
+  assert.equal(h.get('#hideOnHover').checked, false);
+  assert.equal(h.writes.at(-1).subtitleSettings.captionMode, 'record');
 });
 
 test('diagnostics distinguish missing timing data from a real zero and label the queue interval', async () => {

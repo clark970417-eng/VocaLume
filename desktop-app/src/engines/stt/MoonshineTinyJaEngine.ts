@@ -1,7 +1,8 @@
-import { execSync } from 'child_process'
+import { execFile } from 'child_process'
 import { join } from 'path'
 import { writeFileSync, unlinkSync, existsSync } from 'fs'
 import { tmpdir, homedir } from 'os'
+import { promisify } from 'util'
 import type { STTEngine, STTResult } from '../types'
 import { SubprocessBridge, resolveBridgeScript, type SpawnConfig, type InitResult } from '../SubprocessBridge'
 import {
@@ -30,6 +31,8 @@ export class MoonshineTinyJaEngine extends SubprocessBridge implements STTEngine
 
   private model: string
   private onProgress?: (message: string) => void
+  private pythonCommand?: string
+  private startup?: { controller: AbortController; promise: Promise<void> }
 
   constructor(options?: {
     model?: string
@@ -52,9 +55,31 @@ export class MoonshineTinyJaEngine extends SubprocessBridge implements STTEngine
     return MOONSHINE_TINY_JA_TRANSCRIBE_TIMEOUT_MS
   }
 
+  override initialize(): Promise<void> {
+    if (this.startup) return this.startup.promise
+    if (this.pythonCommand) return super.initialize()
+    const controller = new AbortController()
+    const promise = findPython3WithTransformers(controller.signal).then(python => {
+      controller.signal.throwIfAborted()
+      this.pythonCommand = python
+      return super.initialize()
+    }).finally(() => {
+      if (this.startup?.controller === controller) this.startup = undefined
+    })
+    this.startup = { controller, promise }
+    return promise
+  }
+
+  override async dispose(): Promise<void> {
+    this.startup?.controller.abort()
+    this.pythonCommand = undefined
+    await super.dispose()
+  }
+
   protected getSpawnConfig(): SpawnConfig {
     this.onProgress?.('Starting Moonshine Tiny JA bridge...')
-    const python3 = findPython3WithTransformers()
+    const python3 = this.pythonCommand
+    if (!python3) throw this.getSpawnError()
     this.onProgress?.(`Using Python: ${python3}`)
     return {
       command: python3,
@@ -136,7 +161,7 @@ function stripJapaneseSpaces(text: string): string {
  * Find a python3 binary that has transformers and torch installed.
  * Prefers Python 3.12 (3.14 has segfault issues with torch on Apple Silicon).
  */
-function findPython3WithTransformers(): string {
+async function findPython3WithTransformers(signal: AbortSignal): Promise<string> {
   // Check common venv locations first
   const venvPaths = [
     join(homedir(), 'mlx-env', 'bin', 'python3'),
@@ -144,20 +169,16 @@ function findPython3WithTransformers(): string {
     join(homedir(), 'venv', 'bin', 'python3')
   ]
 
-  for (const p of venvPaths) {
-    if (!existsSync(p)) continue
+  const candidates = [...venvPaths.filter(existsSync), 'python3.12', 'python3.13', 'python3']
+  const probe = promisify(execFile)
+  for (const bin of candidates) {
+    signal.throwIfAborted()
     try {
-      execSync(`${p} -c "import transformers; import torch"`, { stdio: 'ignore', timeout: PYTHON_IMPORT_CHECK_TIMEOUT_MS })
-      return p
-    } catch { /* transformers not installed in this venv */ }
-  }
-
-  // Try versioned python binaries (prefer 3.12 over 3.14 due to torch segfault)
-  for (const bin of ['python3.12', 'python3.13', 'python3']) {
-    try {
-      execSync(`${bin} -c "import transformers; import torch"`, { stdio: 'ignore', timeout: PYTHON_IMPORT_CHECK_TIMEOUT_MS })
+      await probe(bin, ['-c', 'import transformers; import torch'], { signal, timeout: PYTHON_IMPORT_CHECK_TIMEOUT_MS })
       return bin
-    } catch { /* not available or deps not installed */ }
+    } catch {
+      signal.throwIfAborted()
+    }
   }
 
   throw new Error('Python 3 with transformers and torch not found')

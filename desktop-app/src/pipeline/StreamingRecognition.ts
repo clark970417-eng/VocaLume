@@ -34,11 +34,11 @@ export class StreamingRecognition {
 
   clearPreviews(): void { this.previews = undefined }
 
-  async process(engine: STTEngine, audio: Float32Array, sampleRate: number, evidence?: SpeechEvidence, final = false) {
+  async process(engine: STTEngine, audio: Float32Array, sampleRate: number, evidence?: SpeechEvidence, final = false, signal?: AbortSignal) {
     const started = performance.now()
     try {
       const boundary = final ? this.boundary.prepare(audio, sampleRate, evidence, this.sourceLanguage()) : undefined
-      const result = await engine.processAudio(boundary ? boundary.audio : audio, sampleRate, boundary ? boundary.evidence : evidence)
+      const result = await engine.processAudio(boundary ? boundary.audio : audio, sampleRate, boundary ? boundary.evidence : evidence, signal)
       if (final && !boundary && evidence?.segment && !evidence.continuationExpected &&
           result?.language === 'ja' && isDetachedJapaneseParticle(result.text)) return null
       if (!result || boundary || result.language !== 'ja' || !evidence?.segment ||
@@ -57,8 +57,10 @@ export class StreamingRecognition {
       }
       return result
     } finally {
-      const finished = performance.now()
-      this.budget.complete(finished - started, finished)
+      if (!signal?.aborted) {
+        const finished = performance.now()
+        this.budget.complete(finished - started, finished)
+      }
     }
   }
 }

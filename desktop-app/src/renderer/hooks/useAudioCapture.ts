@@ -6,12 +6,17 @@ import {
 } from './captureAcquisition'
 import { firstCloudFollowUpRetry, getAdaptiveStreamingDelay } from './adaptiveStreamingCadence'
 import { CapturePreviewAdmission } from './CapturePreviewAdmission'
-import { createAudioLevel, type AudioLevel } from './audioLevel'
+import { CascadeCaptureBuffer, CAPTURE_CUT_SAMPLES, PRE_SPEECH_PAD_MS } from './cascadeCaptureBuffer'
+import { releaseAcceptedVadAudio } from './vadAcceptedAudio'
+import { createInputLevel, type InputLevel } from './input-level'
 import {
   CascadeCapture, CLOUD_PREVIEW_PAUSE_MS, CLOUD_SPEECH_END_MS,
   SPEECH_ONSET_PROBABILITY, SPEECH_END_PROBABILITY
 } from './captureSegmentation'
 import type { SpeechEvidence } from '../../engines/types'
+
+type PreviewDelivery = (buffer: Float32Array, evidence?: SpeechEvidence) => Promise<number>
+type FinalDelivery = (buffer: Float32Array, evidence?: SpeechEvidence) => void
 
 export interface AudioDevice {
   deviceId: string
@@ -44,15 +49,15 @@ export interface UseAudioCaptureReturn {
   audioSource: AudioSource
   setAudioSource: (source: AudioSource) => void
   isCapturing: boolean
-  level: AudioLevel
+  inputLevel: InputLevel
   permissionError: string | null // #48: mic permission error
   hasVirtualAudioDevice: boolean // #125: BlackHole/Soundflower detected
   start: (options?: { captureMode?: CaptureMode; preferPauseBoundaries?: boolean }) => Promise<void>
   stop: () => void
   /** Callback for periodic rolling buffer during speech (streaming mode). Returns unsubscribe function. */
-  onStreamingChunk: (callback: (buffer: Float32Array, evidence: SpeechEvidence) => Promise<number>) => () => void
+  onStreamingChunk: (callback: PreviewDelivery, canSend: () => boolean) => () => void
   /** Callback when speech segment ends (streaming mode finalization). Returns unsubscribe function. */
-  onSpeechSegmentEnd: (callback: (finalBuffer: Float32Array, evidence: SpeechEvidence) => void) => () => void
+  onSpeechSegmentEnd: (callback: FinalDelivery) => () => void
   /** Callback for continuous ~100ms PCM chunks in realtime mode (#721). Returns unsubscribe function. */
   onRealtimeChunk: (callback: (chunk: Float32Array) => void) => () => void
   /** Callback for VAD turn-boundary hints in realtime mode (#721). Returns unsubscribe function. */
@@ -85,13 +90,13 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
   const [systemLoopbackDeviceId, setSystemLoopbackDeviceId] = useState('')
   const [audioSource, setAudioSource] = useState<AudioSource>('microphone')
   const [isCapturing, setIsCapturing] = useState(false)
-  const [level] = useState(createAudioLevel)
+  const [inputLevel] = useState(createInputLevel)
   const [permissionError, setPermissionError] = useState<string | null>(null) // #48
   const [hasVirtualAudioDevice, setHasVirtualAudioDevice] = useState(false) // #125
 
   const vadRef = useRef<MicVAD | null>(null)
-  const streamingCallbackRef = useRef<((buffer: Float32Array, evidence: SpeechEvidence) => Promise<number>) | null>(null)
-  const speechEndCallbackRef = useRef<((finalBuffer: Float32Array, evidence: SpeechEvidence) => void) | null>(null)
+  const streamingCallbackRef = useRef<{ send: PreviewDelivery; canSend: () => boolean } | null>(null)
+  const speechEndCallbackRef = useRef<FinalDelivery | null>(null)
 
   // #721: Realtime cloud streaming mode state
   const cloudCaptureRef = useRef(false)
@@ -106,9 +111,10 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
   const audioContextRef = useRef<AudioContext | null>(null)
   const refreshDevicesRef = useRef<(() => Promise<void>) | null>(null)
 
-  // Cascade previews share the captured window used for final speech.
+  // Windows and cloud translation retain the pause-aware capture path.
   const isSpeakingRef = useRef(false)
   const cascadeCaptureRef = useRef<CascadeCapture | null>(null)
+  const cascadeBufferRef = useRef<CascadeCaptureBuffer | null>(null)
   const [previewAdmission] = useState(() => new CapturePreviewAdmission())
   const streamingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const speechStartedAtRef = useRef(0)
@@ -124,7 +130,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         if (disposed) return
         const audioInputs = allDevices
           .filter((d) => d.kind === 'audioinput')
-          .map((d) => ({ deviceId: d.deviceId, label: d.label || `Microphone ${d.deviceId.slice(0, 6)}` }))
+          .map((d) => ({ deviceId: d.deviceId, label: d.label }))
         setDevices(audioInputs)
         if (navigator.userAgent.includes('Windows')) {
           setSystemLoopbackInputs(allDevices.filter(isWindowsLoopbackInput)
@@ -190,16 +196,18 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         streamingTimerRef.current = setTimeout(tick, followUp)
         return
       }
-      const send = streamingCallbackRef.current
-      if (cascade && send) {
+      const buffer = cascadeBufferRef.current
+      const delivery = streamingCallbackRef.current
+      if (delivery && (cascade || buffer)) {
         void admission.submit(
           () => {
             // A small async admission check may finish after a pause or stop.
-            if (!isSpeakingRef.current || cascadeCaptureRef.current !== cascade ||
-                cloudCaptureRef.current && cascade.quietSamples >= SAMPLE_RATE * CLOUD_PREVIEW_PAUSE_MS / 1000) return null
-            return cascade.preview()
+            if (!isSpeakingRef.current || cascadeCaptureRef.current !== cascade || cascadeBufferRef.current !== buffer ||
+                (buffer && !delivery.canSend()) ||
+                (cloudCaptureRef.current && cascade && cascade.quietSamples >= SAMPLE_RATE * CLOUD_PREVIEW_PAUSE_MS / 1000)) return null
+            return buffer ? buffer.preview() : cascade?.preview() ?? null
           },
-          preview => send(preview.audio, preview.evidence),
+          preview => delivery.send(preview.audio, preview.evidence),
           () => window.api.getAudioPreviewDelay()
         )
       }
@@ -240,6 +248,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
     }
     isSpeakingRef.current = false
     cascadeCaptureRef.current = null
+    cascadeBufferRef.current = null
     previewAdmission.resetSession()
     // #721: drop any buffered realtime remainder
     realtimeChunkerRef.current?.reset()
@@ -271,6 +280,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
   }, [])
 
   const processNoiseSuppression = noiseSuppression?.processStream
+  const destroyNoiseSuppression = noiseSuppression?.destroy
 
   const start = useCallback(async (options?: { captureMode?: CaptureMode; preferPauseBoundaries?: boolean }) => {
     if (isCapturing) return
@@ -281,6 +291,9 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       const captureMode = options?.captureMode ?? 'cascade'
       const preferPauses = options?.preferPauseBoundaries ?? false
       cloudCaptureRef.current = preferPauses
+      const boundedCapture = /Macintosh/i.test(navigator.userAgent)
+      const cascadeBuffer = captureMode === 'cascade' && boundedCapture && !preferPauses ? new CascadeCaptureBuffer() : null
+      cascadeBufferRef.current = cascadeBuffer
       // #721: build the 100ms chunker only for realtime mode
       realtimeChunkerRef.current = captureMode === 'realtime'
         ? new RealtimeChunker(REALTIME_CHUNK_SAMPLES, (chunk) => realtimeChunkCallbackRef.current?.(chunk))
@@ -289,10 +302,12 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       vadAudioContextRef.current = vadContext
       let markFirstFrame: (() => void) | undefined
       const firstFrame = new Promise<void>(resolve => { markFirstFrame = resolve })
-      const cascade = captureMode === 'cascade' ? new CascadeCapture(crypto.randomUUID(), preferPauses, SAMPLE_RATE) : null
+      const cascade = captureMode === 'cascade' && !cascadeBuffer ? new CascadeCapture(crypto.randomUUID(), preferPauses, SAMPLE_RATE) : null
       cascadeCaptureRef.current = cascade
+      let realtimeAcceptedSamples = 0
       let nextMeterUpdate = 0
       const vad = await MicVAD.new({
+        model: 'legacy',
         audioContext: vadContext,
         getStream: async () => {
           // #501: Get the appropriate stream based on audio source setting
@@ -329,6 +344,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
         // Override with more sensitive thresholds for real-time translation
         positiveSpeechThreshold: SPEECH_ONSET_PROBABILITY,
         negativeSpeechThreshold: SPEECH_END_PROBABILITY,
+        ...(cascadeBuffer && { preSpeechPadMs: PRE_SPEECH_PAD_MS }),
         redemptionMs: preferPauses ? CLOUD_SPEECH_END_MS : 1400,
         minSpeechMs: 250,
         // AudioWorklet runs audio processing off the main thread (replaces deprecated ScriptProcessor)
@@ -344,22 +360,32 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           markFirstFrame = undefined
           // Limit display updates without changing which audio frames enter the pipeline.
           const now = performance.now()
-          if (now >= nextMeterUpdate && frame.length > 0 && level.hasListeners() && !document.hidden) {
+          if (inputLevel.needsSample && now >= nextMeterUpdate && frame.length > 0) {
             nextMeterUpdate = now + 100
-            let sum = 0
-            for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i]
-            level.update(Math.round(Math.min(1, Math.sqrt(sum / frame.length) * 5) * 100))
+            inputLevel.measure(frame)
           }
 
-          // #721: In realtime mode, forward every frame as continuous 100ms PCM
-          // chunks regardless of speech state — do not gate on VAD or accumulate
-          // the cascade rolling buffer. Copy the frame: the VAD reuses the same
-          // backing buffer across callbacks, so
-          // frames the chunker holds until a full chunk would otherwise be
-          // overwritten before they are consumed.
+          // The chunker copies each sample into its own storage. VAD only
+          // supplies turn-boundary hints in this mode.
           if (captureMode === 'realtime') {
-            realtimeChunkerRef.current?.push(new Float32Array(frame))
+            realtimeChunkerRef.current?.push(frame)
+            if (boundedCapture && isSpeakingRef.current) {
+              realtimeAcceptedSamples += frame.length
+              if (realtimeAcceptedSamples >= CAPTURE_CUT_SAMPLES) {
+                releaseAcceptedVadAudio(vadRef.current)
+                realtimeAcceptedSamples = 0
+              }
+            }
             return
+          }
+
+          if (cascadeBuffer?.push(frame, isSpeakingRef.current, probabilities.isSpeech)) {
+            const send = speechEndCallbackRef.current
+            const segment = cascadeBuffer.takeCut()
+            if (send) {
+              send(segment.audio, segment.evidence)
+              releaseAcceptedVadAudio(vadRef.current)
+            }
           }
 
           const final = cascade?.push(frame, probabilities.isSpeech)
@@ -378,9 +404,8 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
             return
           }
 
-          const final = cascade?.end(audio)
+          const final = cascadeBuffer?.finish(audio) ?? cascade?.end(audio)
           if (final) speechEndCallbackRef.current?.(final.audio, final.evidence)
-
         },
         onSpeechStart: () => {
           if (vadAudioContextRef.current !== vadContext) return
@@ -388,11 +413,13 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
 
           // #721: realtime mode — forward speech start as a turn-boundary hint only.
           if (captureMode === 'realtime') {
+            realtimeAcceptedSamples = 0
             speechBoundaryCallbackRef.current?.('start')
             return
           }
 
           cascade?.start()
+          cascadeBuffer?.startSpeech()
           speechStartedAtRef.current = performance.now()
           startStreamingTimer()
         },
@@ -400,6 +427,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
           if (vadAudioContextRef.current !== vadContext) return
           isSpeakingRef.current = false
           stopStreamingTimer()
+          cascadeBuffer?.clear()
           const reply = cascade?.recoverShortReply()
           if (reply) speechEndCallbackRef.current?.(reply.audio, reply.evidence)
         }
@@ -432,10 +460,11 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
       }
       // #501: Clean up loopback resources on failed start
       cleanupResources()
+      await destroyNoiseSuppression?.().catch(error => console.warn('[audio-capture] Noise suppression cleanup error:', error))
       setIsCapturing(false)
       throw err
     }
-  }, [selectedDevice, audioSource, isCapturing, startStreamingTimer, stopStreamingTimer, getLoopbackStream, mixStreams, cleanupResources, processNoiseSuppression, level])
+  }, [selectedDevice, audioSource, isCapturing, startStreamingTimer, stopStreamingTimer, getLoopbackStream, mixStreams, cleanupResources, processNoiseSuppression, destroyNoiseSuppression, inputLevel])
 
   const stop = useCallback(() => {
     stopStreamingTimer()
@@ -446,11 +475,11 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
     // #501: Release loopback stream and audio mixer resources
     cleanupResources()
     // #313: Release DeepFilterNet3 resources
-    noiseSuppression?.destroy().catch((err) => console.warn('[audio-capture] Noise suppression cleanup error:', err))
+    void destroyNoiseSuppression?.().catch(error => console.warn('[audio-capture] Noise suppression cleanup error:', error))
     setIsCapturing(false)
-    level.update(0)
+    inputLevel.reset()
     console.log('[audio-capture] VAD stopped')
-  }, [stopStreamingTimer, noiseSuppression, cleanupResources, level])
+  }, [stopStreamingTimer, destroyNoiseSuppression, cleanupResources, inputLevel])
 
   // #443: Safety net — clear streaming timer, VAD, and loopback on unmount if stop() was not called
   useEffect(() => {
@@ -468,12 +497,12 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
     }
   }, [cleanupResources])
 
-  const onStreamingChunk = useCallback((callback: (buffer: Float32Array, evidence: SpeechEvidence) => Promise<number>) => {
-    streamingCallbackRef.current = callback
+  const onStreamingChunk = useCallback((send: PreviewDelivery, canSend: () => boolean) => {
+    streamingCallbackRef.current = { send, canSend }
     return () => { streamingCallbackRef.current = null }
   }, [])
 
-  const onSpeechSegmentEnd = useCallback((callback: (finalBuffer: Float32Array, evidence: SpeechEvidence) => void) => {
+  const onSpeechSegmentEnd = useCallback((callback: FinalDelivery) => {
     speechEndCallbackRef.current = callback
     return () => { speechEndCallbackRef.current = null }
   }, [])
@@ -498,7 +527,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
     audioSource,
     setAudioSource,
     isCapturing,
-    level,
+    inputLevel,
     permissionError,
     hasVirtualAudioDevice,
     start,

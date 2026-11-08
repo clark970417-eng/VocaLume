@@ -163,7 +163,7 @@ export class AppleTranslator extends SubprocessBridge implements TranslatorEngin
 }
 
 /** Find the apple-translate binary in well-known paths */
-function findAppleTranslateBinary(): string | null {
+export function findAppleTranslateBinary(): string | null {
   for (const p of APPLE_TRANSLATE_PATHS) {
     if (existsSync(p)) return p
   }

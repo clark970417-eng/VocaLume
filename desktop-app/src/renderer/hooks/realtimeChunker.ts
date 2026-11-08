@@ -9,51 +9,35 @@
  * count, never by a timer, to keep the stream continuous and gap-free.
  */
 export class RealtimeChunker {
-  private pending: Float32Array[] = []
-  private pendingLength = 0
+  private pending: Float32Array
+  private filled = 0
 
   constructor(
     private readonly chunkSamples: number,
     private readonly onChunk: (chunk: Float32Array) => void
   ) {
     if (chunkSamples <= 0) throw new Error('chunkSamples must be positive')
+    this.pending = new Float32Array(chunkSamples)
   }
 
   /** Append a frame; emits zero or more fixed-size chunks as capacity fills. */
   push(frame: Float32Array): void {
-    if (frame.length === 0) return
-    this.pending.push(frame)
-    this.pendingLength += frame.length
-
-    while (this.pendingLength >= this.chunkSamples) {
-      this.onChunk(this.take(this.chunkSamples))
+    for (let offset = 0; offset < frame.length;) {
+      const count = Math.min(this.chunkSamples - this.filled, frame.length - offset)
+      this.pending.set(frame.subarray(offset, offset + count), this.filled)
+      offset += count
+      this.filled += count
+      if (this.filled === this.chunkSamples) {
+        const chunk = this.pending
+        this.pending = new Float32Array(this.chunkSamples)
+        this.filled = 0
+        this.onChunk(chunk)
+      }
     }
   }
 
   /** Drop any buffered partial samples without emitting (e.g. on stop/reset). */
   reset(): void {
-    this.pending = []
-    this.pendingLength = 0
-  }
-
-  /** Consume exactly `count` samples from the front of the pending buffers. */
-  private take(count: number): Float32Array {
-    const out = new Float32Array(count)
-    let filled = 0
-    while (filled < count) {
-      const head = this.pending[0]
-      const remaining = count - filled
-      if (head.length <= remaining) {
-        out.set(head, filled)
-        filled += head.length
-        this.pending.shift()
-      } else {
-        out.set(head.subarray(0, remaining), filled)
-        this.pending[0] = head.subarray(remaining)
-        filled += remaining
-      }
-    }
-    this.pendingLength -= count
-    return out
+    this.filled = 0
   }
 }

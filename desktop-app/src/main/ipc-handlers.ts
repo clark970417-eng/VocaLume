@@ -12,6 +12,7 @@ import { registerEnterpriseIpc } from './ipc/enterprise-ipc'
 import { registerShortcutIpc } from './ipc/shortcut-ipc'
 import { registerOnboardingIpc } from './ipc/onboarding-ipc'
 import { registerMediaFileIpc } from './ipc/media-file-ipc'
+import { registerTextTranslationIpc } from './ipc/text-translation-ipc'
 
 /** Register all IPC handlers (pipeline, settings, session, display, model, ws-audio, tts) */
 export function registerIpcHandlers(ctx: AppContext): void {
@@ -28,4 +29,5 @@ export function registerIpcHandlers(ctx: AppContext): void {
   registerShortcutIpc()
   registerOnboardingIpc(ctx)
   registerMediaFileIpc(ctx)
+  registerTextTranslationIpc(ctx)
 }

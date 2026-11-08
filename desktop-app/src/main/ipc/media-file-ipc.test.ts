@@ -14,6 +14,7 @@ const { handlers, spawn, fileStat } = vi.hoisted(() => ({
 vi.mock('electron', () => ({ ipcMain: { handle: (name: string, fn: (...args: unknown[]) => unknown) => handlers.set(name, fn) } }))
 vi.mock('node:child_process', () => ({ spawn }))
 vi.mock('ffmpeg-static', () => ({ default: 'ffmpeg' }))
+vi.mock('../interface-language', () => ({ getUiLanguageState: () => ({ locale: 'en' }) }))
 vi.mock('node:fs/promises', () => ({ stat: fileStat }))
 
 const rate = 16_000
