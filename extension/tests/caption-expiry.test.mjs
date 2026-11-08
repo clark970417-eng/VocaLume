@@ -88,5 +88,15 @@ test('browser token drafts do not compete with finals, including an identical pr
  requests[5].complete();await tick();
  assert.equal(updates.at(-1).item.speechId,5);
  assert.equal((await call({type:'health'})).text.diagnostics.browserFinals.failed,0);
+
+ await cue(6,'山の近くは雨です。',{final:true});await tick();
+ await cue(7,'海の近くは雨でした。',{final:true});await tick();
+ assert.equal(requests.length,8,'both final requests run concurrently');
+ requests[7].complete();await tick();
+ assert.equal(updates.at(-1).item.speechId,5,'a faster reply waits for the preceding final');
+ const beforeOrderedDelivery=updates.length;
+ requests[6].complete();await tick();
+ assert.deepEqual(updates.slice(beforeOrderedDelivery).map(message=>message.item.speechId),[6,7]);
+ assert.equal((await call({type:'health'})).text.diagnostics.browserFinals.superseded,0);
  await call({type:'subtitle-control',action:'stop'});
 });
