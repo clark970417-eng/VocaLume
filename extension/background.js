@@ -70,7 +70,10 @@ async function freeTranslate(text,direction,signal,protectedText=protectNames(te
  const budget=deadline(signal,4000);
  const translated=await retryTranslationRequest(async()=>{
   const response=await fetch(`https://translate.googleapis.com/translate_a/single?${q}`,{signal:budget})
-   .catch(()=>{throw new RetryableTranslationError('暫時無法連線到翻譯服務');});
+   .catch(()=>{
+    budget.throwIfAborted();
+    throw new RetryableTranslationError('暫時無法連線到翻譯服務');
+   });
   if(!response.ok)throw translationHttpError(response,`翻譯服務 ${response.status}`);
   const data=await response.json().catch(()=>{throw new RetryableTranslationError('翻譯服務回傳格式不正確');});
   if(!Array.isArray(data?.[0]))throw new RetryableTranslationError('翻譯服務回傳格式不正確');
@@ -321,7 +324,7 @@ function presentDesktopCaption(segment){
  },Math.max(0,hold-(Date.now()-desktopSettledAt)));
 }
 function cancelTranslations(){translationPending=null;publishedId=-1;for(const controller of captionRequests.values())controller.abort();captionRequests.clear();}
-async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),configured,reference){
+async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),configured,reference,final=false){
  const phrase=phraseTranslation(text,direction);if(phrase)return phrase;
  if(direction==='ja-zh')text=normalizeGreetingSource(text);
  parseDirection(direction);
@@ -330,7 +333,17 @@ async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),
  if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,signal,configured,reference);
  const publicRoute=activeSignal=>freeTranslate(text,direction,activeSignal,undefined,reference);
  try{
-  if(!apiProfile(configured,'nvidia').apiKey&&!apiProfile(configured,'openrouter').apiKey)return await publicRoute(deadline(signal,3000));
+  if(!apiProfile(configured,'nvidia').apiKey&&!apiProfile(configured,'openrouter').apiKey){
+   try{return await publicRoute(deadline(signal,3000));}
+   catch(error){
+    signal?.throwIfAborted();
+    // An isolated browser session can recover one slow final without waiting
+    // for a desktop engine. Keep the normal deadline and do not retry a 429
+    // or an invalid translation here.
+    if(!final||coordinatedCapture||error.name!=='TimeoutError')throw error;
+    return await publicRoute(deadline(signal,2000));
+   }
+  }
   const contextualRoute=s=>styledTranslation(text,direction,s,configured,reference);
   return reference
    ? await firstTranslation(contextualRoute,publicRoute,deadline(signal,3000),400)
@@ -506,7 +519,7 @@ async function translateItem(job){
   const configured=await settings(),direction=pair(speechFrom,speechTo);
   controller.signal.throwIfAborted();
   const key=JSON.stringify([apiCacheScope(configured),configured.speechMode||'browser',engineMode,direction,job.item.original,job.reference]);
-  const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,direction,configured,job.reference);
+  const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,direction,configured,job.reference,job.item.final);
   if(controller.signal.aborted)return;
   translationCache.set(key,result);if(translationCache.size>200)translationCache.delete(translationCache.keys().next().value);
   if(Date.now()-job.started>=MAX_CAPTION_TRANSLATION_MS){failCaptionTranslation(job,new Error('翻譯等待逾時'));return;}
