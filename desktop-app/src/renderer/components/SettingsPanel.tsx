@@ -97,6 +97,24 @@ function SettingsPanel(): React.JSX.Element {
     )
   }
 
+  const captionModeControl = (
+    <>
+          {(s.platform === 'win32' || s.platform === 'darwin') && (
+            <label>
+              {t('字幕顯示')}{' '}
+              <select value={s.captionMode} onChange={event => {
+                const mode = event.target.value === 'record' ? 'record' : 'realtime'
+                s.setCaptionMode(mode)
+                s.pushSubtitleSettings({ captionMode: mode })
+              }}>
+                <option value="realtime">{t('單組字幕 · 等待完整譯文')}</option>
+                <option value="record">{t('四組字幕 · 保留完整記錄')}</option>
+              </select>
+            </label>
+          )}
+    </>
+  )
+
   return (
     <div className="settings-shell">
       <header className="settings-header">
@@ -120,6 +138,7 @@ function SettingsPanel(): React.JSX.Element {
 
         <section id="settings-panel-translate" role="tabpanel" aria-labelledby="settings-tab-translate" tabIndex={0} hidden={selectedTab !== 'translate'}>
           <h2>{t("What would you like to translate?")}</h2>
+          {captionModeControl}
           <LanguageSettings
             sourceLanguage={s.sourceLanguage}
             onSourceLanguageChange={s.setSourceLanguage}
@@ -168,6 +187,7 @@ function SettingsPanel(): React.JSX.Element {
         <section id="settings-panel-subtitles" role="tabpanel" aria-labelledby="settings-tab-subtitles" tabIndex={0} hidden={selectedTab !== 'subtitles'}>
           {visited.subtitles && <>
             <h2>{t("Subtitles & OBS")}</h2>
+          {captionModeControl}
           <SubtitleSettings
             fontSize={s.subtitleFontSize}
             onFontSizeChange={(v) => { s.setSubtitleFontSize(v); s.pushSubtitleSettings({ fontSize: v }) }}
@@ -181,8 +201,6 @@ function SettingsPanel(): React.JSX.Element {
             onPositionChange={(v) => { s.setSubtitlePosition(v); s.pushSubtitleSettings({ position: v }) }}
             lowPowerRendering={s.lowPowerRendering}
             onLowPowerRenderingChange={(v) => { s.setLowPowerRendering(v); s.pushSubtitleSettings({ lowPowerRendering: v }) }}
-            captionMode={s.platform === 'win32' || s.platform === 'darwin' ? s.captionMode : undefined}
-            onCaptionModeChange={(mode) => { s.setCaptionMode(mode); s.pushSubtitleSettings({ captionMode: mode }) }}
             supportsHideOnHover={s.platform === 'win32' || s.platform === 'darwin'}
             hideOnHover={s.hideOnHover}
             onHideOnHoverChange={(v) => { s.setHideOnHover(v); s.pushSubtitleSettings({ hideOnHover: v }) }}
