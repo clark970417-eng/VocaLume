@@ -1,0 +1,71 @@
+name: Update 4.6.6 Mac release packages
+
+on:
+  push:
+    branches: [codex/publish-mac-haas-466]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish-mac:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN: '42491442280'
+      RELEASE_TAG: beta-v4.6.6
+    steps:
+      - name: Wait for the Apple Silicon build and checks
+        run: gh run watch "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --exit-status --interval 15
+      - name: Download verified build and existing release metadata
+        run: |
+          gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --name desktop-macOS-Apple-Silicon --dir packages
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS.txt --pattern release-manifest.json --dir packages
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          gh run view "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --json headSha,url > build.json
+      - name: Refresh Apple Silicon package provenance and English release notes
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+
+          packages = Path('packages')
+          build = json.loads(Path('build.json').read_text())
+          manifest_path = packages / 'release-manifest.json'
+          manifest = json.loads(manifest_path.read_text())
+          mac_assets = ['VocaLume-4.6.6-arm64.dmg', 'VocaLume-4.6.6-arm64-mac.zip']
+          checksums = packages / 'SHA256SUMS.txt'
+          entries = {name: digest for digest, name in map(str.split, checksums.read_text().splitlines())}
+          for name in [*mac_assets, manifest_path.name]:
+              assert name in entries
+          assert all(name in manifest['assets'] for name in mac_assets)
+          overrides = manifest.setdefault('assetBuilds', {})
+          for name in mac_assets:
+              assert (packages / name).stat().st_size > 650_000_000
+              overrides[name] = {'commit': build['headSha'], 'workflow': build['url']}
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+          for name in [*mac_assets, manifest_path.name]:
+              with (packages / name).open('rb') as file:
+                  entries[name] = hashlib.file_digest(file, 'sha256').hexdigest()
+          checksums.write_text(''.join(f'{digest}  {name}\n' for name, digest in entries.items()))
+
+          notes = Path('notes.md')
+          body = notes.read_text()
+          mac_heading = '### Mac\n\n'
+          assert body.count(mac_heading) == 1
+          body = body.replace(mac_heading, mac_heading + '- The Apple Silicon installer includes the Haas-ja Q8_0 model and speech.cpp runtime for local Japanese speech recognition. There is no separate Haas-ja download or setup. The Intel installer uses the existing compatible Japanese recognition engine. Translation models may still need to be downloaded separately.\n')
+          body = body.replace('The refreshed assets on this page were built from', f"The Apple Silicon DMG and ZIP with bundled Haas-ja were built and tested in [this macOS build]({build['url']}). The other refreshed packages were built from", 1)
+          notes.write_text(body)
+          PY
+      - name: Publish updated Apple Silicon assets and verify checksums
+        run: |
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            packages/VocaLume-4.6.6-arm64.dmg packages/VocaLume-4.6.6-arm64-mac.zip \
+            packages/release-manifest.json packages/SHA256SUMS.txt
+          for name in VocaLume-4.6.6-arm64.dmg VocaLume-4.6.6-arm64-mac.zip release-manifest.json SHA256SUMS.txt; do
+            expected="sha256:$(sha256sum "packages/$name" | cut -d ' ' -f 1)"
+            actual=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq ".assets[] | select(.name == \"$name\") | .digest")
+            test "$expected" = "$actual"
+          done
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
