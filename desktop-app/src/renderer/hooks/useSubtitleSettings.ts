@@ -28,6 +28,8 @@ export interface SubtitleSettingsState {
   setSubtitlePosition: (v: SubtitlePositionType) => void
   lowPowerRendering: boolean
   setLowPowerRendering: (v: boolean) => void
+  captionMode: 'realtime' | 'record'
+  setCaptionMode: (mode: 'realtime' | 'record') => void
   hideOnHover: boolean
   setHideOnHover: (v: boolean) => void
   showConfidenceIndicator: boolean
@@ -43,6 +45,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
   const [subtitleBgOpacity, setSubtitleBgOpacity] = useState(78)
   const [subtitlePosition, setSubtitlePosition] = useState<SubtitlePositionType>('bottom')
   const [lowPowerRendering, setLowPowerRendering] = useState(false)
+  const [captionMode, setCaptionMode] = useState<'realtime' | 'record'>('realtime')
   const [hideOnHover, setHideOnHover] = useState(false)
   const [showConfidenceIndicator, setShowConfidenceIndicator] = useState(true)
 
@@ -64,6 +67,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
         if (sub.backgroundOpacity !== undefined) setSubtitleBgOpacity(num(sub.backgroundOpacity, 78))
         if (sub.position) setSubtitlePosition(str(sub.position, 'bottom') as SubtitlePositionType)
         setLowPowerRendering(bool(sub.lowPowerRendering, /Windows/i.test(navigator.userAgent)))
+        setCaptionMode(sub.captionMode === 'record' ? 'record' : 'realtime')
         setHideOnHover(bool(sub.hideOnHover, false))
 
         // Load accessibility settings
@@ -90,6 +94,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
       backgroundOpacity: subtitleBgOpacity,
       position: subtitlePosition,
       lowPowerRendering,
+      captionMode,
       hideOnHover,
       accessibility: {
         highContrast,
@@ -110,6 +115,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
     subtitleBgOpacity, setSubtitleBgOpacity,
     subtitlePosition, setSubtitlePosition,
     lowPowerRendering, setLowPowerRendering,
+    captionMode, setCaptionMode,
     hideOnHover, setHideOnHover,
     showConfidenceIndicator, setShowConfidenceIndicator,
     accessibility: {
