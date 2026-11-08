@@ -1,5 +1,11 @@
 # Third-party runtime and design references
 
+The Windows installer includes the Haas-ja-v1.0 Q8_0 GGUF model from Third Intelligence, converted by Sakasegawa, under Apache-2.0. It also includes speech.cpp v0.10.1 by Sakasegawa under MIT. The license texts are installed beside the model and runtime.
+
+- [Haas-ja Q8_0 model and license](https://huggingface.co/sakasegawa/Haas-ja-v1.0-GGUF)
+- [speech.cpp runtime license](https://github.com/nyosegawa/speech.cpp/blob/v0.10.1/LICENSE)
+
+
 The existing bundled Transformers.js / ONNX Runtime code is preserved in whisper-runtime.js. ONNX Runtime Web is Copyright Microsoft Corporation, licensed under MIT. Transformers.js is licensed under Apache-2.0. Embedded notices remain in the bundle.
 
 Design references (no third-party source copied for the new orchestration):
