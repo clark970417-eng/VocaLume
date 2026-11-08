@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { access } from 'node:fs/promises'
 import { endianness, homedir } from 'node:os'
 import { join } from 'node:path'
@@ -10,6 +11,12 @@ const log = createLogger('haas-ja')
 const LITTLE_ENDIAN = endianness() === 'LE'
 
 export function haasPaths() {
+  if (process.platform === 'darwin' && process.arch === 'arm64' && process.resourcesPath) {
+    const directory = join(process.resourcesPath, 'haas-ja')
+    const binary = join(directory, 'speech')
+    const model = join(directory, 'haas-q8.gguf')
+    if (existsSync(binary) && existsSync(model)) return { directory, binary, model }
+  }
   const windows=process.platform==='win32'
   const root=windows ? process.env.LOCALAPPDATA || join(homedir(),'AppData','Local') : join(homedir(),'Library','Application Support')
   const directory=join(root,'VocaLume','haas-ja')
