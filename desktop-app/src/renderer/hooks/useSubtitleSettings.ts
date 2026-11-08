@@ -28,6 +28,8 @@ export interface SubtitleSettingsState {
   setSubtitlePosition: (v: SubtitlePositionType) => void
   lowPowerRendering: boolean
   setLowPowerRendering: (v: boolean) => void
+  hideOnHover: boolean
+  setHideOnHover: (v: boolean) => void
   showConfidenceIndicator: boolean
   setShowConfidenceIndicator: (v: boolean) => void
   accessibility: AccessibilityState
@@ -41,6 +43,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
   const [subtitleBgOpacity, setSubtitleBgOpacity] = useState(78)
   const [subtitlePosition, setSubtitlePosition] = useState<SubtitlePositionType>('bottom')
   const [lowPowerRendering, setLowPowerRendering] = useState(false)
+  const [hideOnHover, setHideOnHover] = useState(false)
   const [showConfidenceIndicator, setShowConfidenceIndicator] = useState(true)
 
   // Accessibility state
@@ -61,6 +64,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
         if (sub.backgroundOpacity !== undefined) setSubtitleBgOpacity(num(sub.backgroundOpacity, 78))
         if (sub.position) setSubtitlePosition(str(sub.position, 'bottom') as SubtitlePositionType)
         setLowPowerRendering(bool(sub.lowPowerRendering, /Windows/i.test(navigator.userAgent)))
+        setHideOnHover(bool(sub.hideOnHover, false))
 
         // Load accessibility settings
         const a11y = rec(sub.accessibility)
@@ -86,6 +90,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
       backgroundOpacity: subtitleBgOpacity,
       position: subtitlePosition,
       lowPowerRendering,
+      hideOnHover,
       accessibility: {
         highContrast,
         dyslexiaFont,
@@ -105,6 +110,7 @@ export function useSubtitleSettings(): SubtitleSettingsState {
     subtitleBgOpacity, setSubtitleBgOpacity,
     subtitlePosition, setSubtitlePosition,
     lowPowerRendering, setLowPowerRendering,
+    hideOnHover, setHideOnHover,
     showConfidenceIndicator, setShowConfidenceIndicator,
     accessibility: {
       highContrast, setHighContrast,

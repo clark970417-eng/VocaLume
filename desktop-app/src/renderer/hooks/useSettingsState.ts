@@ -100,6 +100,8 @@ export interface SettingsState {
   subtitleSourceColor: string
   lowPowerRendering: boolean
   setLowPowerRendering: (v: boolean) => void
+  hideOnHover: boolean
+  setHideOnHover: (v: boolean) => void
   setSubtitleSourceColor: (v: string) => void
   subtitleTranslatedColor: string
   setSubtitleTranslatedColor: (v: string) => void
@@ -397,6 +399,7 @@ export function useSettingsState(): SettingsState {
     subtitleFontSize: subtitle.subtitleFontSize, setSubtitleFontSize: subtitle.setSubtitleFontSize,
     subtitleSourceColor: subtitle.subtitleSourceColor, setSubtitleSourceColor: subtitle.setSubtitleSourceColor,
     lowPowerRendering: subtitle.lowPowerRendering, setLowPowerRendering: subtitle.setLowPowerRendering,
+    hideOnHover: subtitle.hideOnHover, setHideOnHover: subtitle.setHideOnHover,
     subtitleTranslatedColor: subtitle.subtitleTranslatedColor, setSubtitleTranslatedColor: subtitle.setSubtitleTranslatedColor,
     subtitleBgOpacity: subtitle.subtitleBgOpacity, setSubtitleBgOpacity: subtitle.setSubtitleBgOpacity,
     subtitlePosition: subtitle.subtitlePosition, setSubtitlePosition: subtitle.setSubtitlePosition,
