@@ -514,7 +514,10 @@ async function translateItem(job){
   translationPending=job;return;
  }
  job.item.translationAttempted=job.item.final?'final':'preview';
- const controller=new AbortController();captionRequests.set(job,controller);
+ const controller=new AbortController();
+ let finish;
+ job.finished=new Promise(resolve=>{finish=resolve;});
+ captionRequests.set(job,controller);
  try {
   const configured=await settings(),direction=pair(speechFrom,speechTo);
   controller.signal.throwIfAborted();
@@ -522,6 +525,13 @@ async function translateItem(job){
   const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,direction,configured,job.reference,job.item.final);
   if(controller.signal.aborted)return;
   translationCache.set(key,result);if(translationCache.size>200)translationCache.delete(translationCache.keys().next().value);
+  if(job.item.finalSourceAt){
+   // Network requests can overlap, but a faster newer reply must not discard
+   // an earlier final. No hold timer is added when the earlier cue is ready.
+   const earlier=[...captionRequests.keys()].filter(active=>active.item.finalSourceAt&&active.item.id<job.item.id);
+   if(earlier.length)await Promise.all(earlier.map(active=>active.finished));
+   if(controller.signal.aborted)return;
+  }
   if(Date.now()-job.started>=MAX_CAPTION_TRANSLATION_MS){failCaptionTranslation(job,new Error('翻譯等待逾時'));return;}
   if(gate.session===job.session&&job.item.id>publishedId&&!job.item.expired&&
      (job.item.source!=='native'||gate.latest===job.item)){
@@ -531,7 +541,7 @@ async function translateItem(job){
    settleBrowserFinal(job.item,'translated');pushSubtitle(job.item);
   }else if(gate.session===job.session)settleBrowserFinal(job.item,'superseded');
  } catch(error){if(!controller.signal.aborted)failCaptionTranslation(job,error);}
- finally{captionRequests.delete(job);if(translationPending&&captionRequests.size<2){const next=translationPending;translationPending=null;if(next.session===gate.session)translateItem(next);}}
+ finally{captionRequests.delete(job);finish();if(translationPending&&captionRequests.size<2){const next=translationPending;translationPending=null;if(next.session===gate.session)translateItem(next);}}
 }
 const cueReferences=new WeakMap();
 function captionReference(message){
