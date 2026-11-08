@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
-      BUILD_RUN: '42491442280'
+      BUILD_RUN: '42491650269'
       RELEASE_TAG: beta-v4.6.6
     steps:
       - name: Wait for the Apple Silicon build and checks
