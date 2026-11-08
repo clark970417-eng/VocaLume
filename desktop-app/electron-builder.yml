@@ -39,6 +39,10 @@ mac:
         - 'ane-translate-bridge.py'
         - 'mlx-whisper-bridge.py'
         - 'bin/{fluid-audio-bridge,voice-tone-helper,capture-claim-helper}'
+    - from: 'resources/haas-ja-${arch}/'
+      to: 'haas-ja/'
+      filter:
+        - '**/*'
   files:
     # Keep the application allowlist in the same matcher as native exclusions.
     # A separate exclusions-only matcher implicitly includes the workspace.

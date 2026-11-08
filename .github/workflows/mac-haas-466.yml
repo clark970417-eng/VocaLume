@@ -1,0 +1,54 @@
+name: Build Mac 4.6.6 with Haas-ja
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/mac-bundled-haas-466]
+
+permissions:
+  contents: read
+
+jobs:
+  apple-silicon:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: desktop-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop-app/package-lock.json
+      - run: npm ci
+      # Install Electron once before parallel tests can trigger its lazy download.
+      - name: Install Electron binary
+        run: node node_modules/electron/install.js
+      - name: Reject vulnerable dependency lockfiles
+        run: npm audit --audit-level=moderate
+      - name: Verify patched packaging dependencies
+        run: node scripts/verify-packaging-toolchain.cjs
+      - run: npm run typecheck
+      - run: npm test -- --run
+      - run: npm run build
+      - name: Stage bundled Haas-ja for Apple Silicon
+        run: bash scripts/stage-haas-mac.sh
+      - name: Build unsigned beta package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --mac dmg zip --arm64 --publish never --config.mac.identity=-
+      - name: Verify Mac package contents and native browser transport
+        env:
+          MAC_APP: dist/mac-arm64/VocaLume.app
+        run: |
+          node scripts/verify-mac-package.cjs "$MAC_APP"
+          node scripts/verify-mac-companion.cjs "$MAC_APP"
+          if [[ "macOS-Apple-Silicon" == macOS-Apple-Silicon ]]; then
+            bash scripts/verify-bundled-haas-mac.sh "$MAC_APP"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macOS-Apple-Silicon
+          path: desktop-app/dist/VocaLume-4.6.6-arm64*
+          if-no-files-found: error
