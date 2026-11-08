@@ -14,7 +14,9 @@
    & ./desktop/install-windows.ps1 -ExtensionId YOUR_EXTENSION_ID -App 'C:\path\VocaLume.exe'
    ```
 
-The installer uses the App’s bundled runtime. Reload the extension and your video tab. In VocaLume's speech panel, select the desktop engine for local subtitles. You can also use the browser engine with a compatible WebGPU adapter and network text translation.
+4. Reload the extension and your video tab. In VocaLume’s speech panel, select the desktop engine for local subtitles.
+
+The installer uses the App’s bundled runtime. You can also use the browser engine with a compatible WebGPU adapter and network text translation.
 
 To update, keep the extracted folder and extension ID. Stop capture, remove the previous extension files, then extract the new ZIP to that same folder. Reload the extension and refresh any open video tabs. Run the connection command again when upgrading from an older companion or if the extension ID changes.
 

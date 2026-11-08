@@ -51,7 +51,7 @@ Not sure which Mac you have? Open ** → About This Mac** and check the chip 
 - **This is a public beta.** Recognition and translation can fail or be inaccurate. Check important content against the original.
 - **macOS and Windows desktop apps are available; Linux is experimental.** The Mac browser connection has been tested with Chrome and Opera GX. On Windows, the local connection has been tested with Chrome and Edge. See the [Windows acceptance report](docs/reports/windows-acceptance-2026-11-06.md) for the coverage. Browser-only captions need WebGPU and network translation.
 - **Installers are unsigned previews.** Follow the installation guide if your system displays a warning.
-- **Interface languages:** The app and extension offer English, Traditional Chinese, Simplified Chinese, Japanese and Korean. After connecting them on Windows or Mac, you can sync their interface language. Choose your translation languages separately.
+- **Interface languages:** The app and extension offer English, Traditional Chinese, Simplified Chinese, Japanese and Korean. Connect the App and extension on Windows or Mac to share the same setting. The official website can also sync when the extension is active there. Choose your translation languages separately.
 
 ## Help shape the next version
 
