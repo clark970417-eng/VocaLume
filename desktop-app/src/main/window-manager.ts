@@ -7,9 +7,9 @@ import { obsCaptionStatus } from './obs-captions'
 import type { AppContext } from './app-context'
 
 /** Calculate subtitle window height based on display scale factor */
-export function getSubtitleHeight(display: Electron.Display): number {
+export function getSubtitleHeight(display: Electron.Display, record = false): number {
   // Base height for 3 subtitle lines at default font size (30px)
-  const baseHeight = 200
+  const baseHeight = record ? 480 : 200
   const scaleFactor = display.scaleFactor ?? 1
   // Scale for HiDPI displays but cap at 2x to avoid excessively tall windows
   return Math.round(baseHeight * Math.min(scaleFactor, 2))
@@ -17,10 +17,10 @@ export function getSubtitleHeight(display: Electron.Display): number {
 
 /** Keep the entire overlay above taskbars and inside the selected monitor. */
 export function getSubtitleBounds(
-  display: Electron.Display, saved?: { x: number; y: number }, anchor = 'bottom'
+  display: Electron.Display, saved?: { x: number; y: number }, anchor = 'bottom', record = false
 ): Electron.Rectangle {
   const area = display.workArea ?? display.bounds
-  const height = Math.min(getSubtitleHeight(display), area.height)
+  const height = Math.min(getSubtitleHeight(display, record), area.height)
   const width = Math.min(area.width, Math.max(540, Math.round(area.width * 0.84)))
   const maxX = area.x + area.width - width
   const maxY = area.y + area.height - height
@@ -35,7 +35,14 @@ export function getSubtitleBounds(
 }
 
 export function getSavedSubtitleBounds(display: Electron.Display): Electron.Rectangle {
-  return getSubtitleBounds(display, store.get('subtitlePositions')?.[String(display.id)], store.get('subtitleSettings')?.position)
+  const settings = store.get('subtitleSettings')
+  return getSubtitleBounds(display, store.get('subtitlePositions')?.[String(display.id)], settings?.position,
+    process.platform === 'win32' && settings?.captionMode === 'record')
+}
+
+export function resizeSubtitleWindow(ctx: AppContext): void {
+  const window = ctx.subtitleWindow
+  if (window) window.setBounds(getSavedSubtitleBounds(screen.getDisplayMatching(window.getBounds())))
 }
 
 function prioritizeWindowsControls(ctx: AppContext): void {

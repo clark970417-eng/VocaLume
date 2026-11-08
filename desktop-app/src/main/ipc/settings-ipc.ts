@@ -9,6 +9,7 @@ import type { AppContext } from '../app-context'
 import { syncDesktopSubtitleWindow } from '../window-manager'
 import { createLogger } from '../logger'
 import { resetSubtitlePosition } from './display-ipc'
+import { resizeSubtitleWindow } from '../window-manager'
 import { isSpeechToneMode } from '../../pipeline/SpeechTone'
 import { normalizeMacSttEngine, type SttEngineType } from '../../engine-selection'
 import { getMacEngineAvailability } from '../mac-engine-availability'
@@ -167,10 +168,14 @@ export function registerSettingsIpc(ctx: AppContext): void {
     }
     const validated = { ...settings } as unknown as SubtitleSettings
     validated.hideOnHover ??= store.get('subtitleSettings').hideOnHover ?? false
-    const previousAnchor = store.get('subtitleSettings')?.position
+    validated.captionMode ??= store.get('subtitleSettings').captionMode ?? 'realtime'
+    const previous = store.get('subtitleSettings')
     store.set('subtitleSettings', validated)
     ctx.subtitleWindow?.webContents.send('subtitle-settings-changed', validated)
-    if (validated.position !== previousAnchor) resetSubtitlePosition(ctx)
+    if (validated.position !== previous?.position) resetSubtitlePosition(ctx)
+    else if (process.platform === 'win32' && (validated.captionMode === 'record') !== (previous?.captionMode === 'record')) {
+      resizeSubtitleWindow(ctx)
+    }
   })
 
   ipcMain.handle('save-settings', (_event, settings: Record<string, unknown>) => {
