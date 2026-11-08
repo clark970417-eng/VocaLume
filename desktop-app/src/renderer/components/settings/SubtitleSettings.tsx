@@ -17,6 +17,8 @@ interface SubtitleSettingsProps {
   onPositionChange: (v: SubtitlePositionType) => void
   lowPowerRendering: boolean
   onLowPowerRenderingChange: (v: boolean) => void
+  captionMode?: 'realtime' | 'record'
+  onCaptionModeChange: (mode: 'realtime' | 'record') => void
   supportsHideOnHover: boolean
   hideOnHover: boolean
   onHideOnHoverChange: (v: boolean) => void
@@ -40,6 +42,8 @@ export function SubtitleSettings({
   onPositionChange,
   lowPowerRendering,
   onLowPowerRenderingChange,
+  captionMode,
+  onCaptionModeChange,
   supportsHideOnHover,
   hideOnHover,
   onHideOnHoverChange,
@@ -74,6 +78,15 @@ export function SubtitleSettings({
             <input type="checkbox" checked={lowPowerRendering} onChange={event => onLowPowerRenderingChange(event.target.checked)} />
             {' '}{t('Low-power subtitle display')}
           </label>
+          {captionMode && (
+            <label>
+              {t('字幕顯示')}{' '}
+              <select value={captionMode} onChange={event => onCaptionModeChange(event.target.value === 'record' ? 'record' : 'realtime')}>
+                <option value="realtime">{t('單組字幕 · 等待完整譯文')}</option>
+                <option value="record">{t('四組字幕 · 保留完整記錄')}</option>
+              </select>
+            </label>
+          )}
           {supportsHideOnHover && (
             <label>
               <input type="checkbox" checked={hideOnHover} onChange={event => onHideOnHoverChange(event.target.checked)} />
