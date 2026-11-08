@@ -105,6 +105,18 @@ test('new popup keeps opt-in off, all languages, saved captions and engine setti
   assert.equal(h.writes.length, 0, 'opening the redesigned popup must not rewrite existing settings');
 });
 
+test('caption hover hiding defaults off, persists as a boolean, and resets with appearance', async () => {
+  const popup = await harness();
+  assert.equal(popup.get('#hideOnHover').checked, false);
+  await popup.change('hideOnHover', true, 'input');
+  assert.equal(popup.state.saved.subtitleSettings.hideOnHover, true);
+  const reopened = await harness({saved: popup.state.saved});
+  assert.equal(reopened.get('#hideOnHover').checked, true);
+  await reopened.click('#reset');
+  assert.equal(reopened.get('#hideOnHover').checked, false);
+  assert.equal(reopened.state.saved.subtitleSettings.hideOnHover, false);
+});
+
 test('diagnostics distinguish missing timing data from a real zero and label the queue interval', async () => {
  const empty=await harness();
  assert.match(empty.get('#diagnostics').textContent,/最近翻譯：尚無資料/);
