@@ -126,6 +126,10 @@ jobs:
         if: matrix.os == 'macos-15-intel'
         run: node scripts/rebuild-whisper-mac-x64.cjs
       - run: npm run build
+      - name: Prepare bundled Haas-ja Q8_0 for Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/prepare-haas-windows.ps1
       - name: Build unsigned beta package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -192,3 +196,67 @@ jobs:
               --title "VocaLume ${VERSION} — Public Beta" \
               --notes-file beta-notes.md
           fi
+
+
+  refresh-windows-haas:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/windows-4.6.6-haas'
+    needs: [desktop]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-Windows
+          path: refresh
+      - name: Refresh the Windows 4.6.6 installer and release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd refresh
+          tag=beta-v4.6.6
+          installer=VocaLume.Setup.4.6.6.exe
+          mv 'VocaLume Setup 4.6.6.exe' "$installer"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json body,isDraft,isPrerelease > release.json
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" -p release-manifest.json -p SHA256SUMS.txt
+          python3 - <<'PYTHON'
+          import hashlib, json, os, re
+          from datetime import datetime, timezone
+          from pathlib import Path
+          def sha256(path):
+              with open(path, 'rb') as file:
+                  return hashlib.file_digest(file, 'sha256').hexdigest()
+          installer = 'VocaLume.Setup.4.6.6.exe'
+          release = json.loads(Path('release.json').read_text())
+          if release['isDraft'] or not release['isPrerelease']:
+              raise SystemExit('Expected the public 4.6.6 beta release')
+          manifest_file = Path('release-manifest.json')
+          manifest = json.loads(manifest_file.read_text())
+          if manifest['version'] != '4.6.6' or installer not in manifest['assets']:
+              raise SystemExit('Unexpected Windows release manifest')
+          checksums_file = Path('SHA256SUMS.txt')
+          checksums = dict(line.split('  ', 1)[::-1] for line in checksums_file.read_text().splitlines() if line)
+          if checksums.get('release-manifest.json') != sha256(manifest_file):
+              raise SystemExit('Existing release manifest checksum mismatch')
+          commit = os.environ['GITHUB_SHA']
+          workflow = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
+          manifest.setdefault('assetBuilds', {})[installer] = {
+              'commit': commit, 'workflow': workflow,
+              'builtAt': datetime.now(timezone.utc).isoformat(), 'haasJa': 'Q8_0',
+          }
+          manifest_file.write_text(json.dumps(manifest, indent=2) + '\n')
+          for name in (installer, 'release-manifest.json'):
+              checksums[name] = sha256(name)
+          checksums_file.write_text(''.join(f'{digest}  {name}\n' for name, digest in sorted(checksums.items())))
+          replacement = ('- The Windows x64 installer includes Haas-ja Q8_0 and its runtime. '
+                         'The app uses Haas-ja by default for Japanese speech recognition, with no separate installation. '
+                         'SenseVoice remains available as a manual choice.')
+          body, replacements = re.subn(r'^- Windows x64 supports Haas-ja Q8_0[^\r\n]*', replacement, release['body'], flags=re.M)
+          if replacements != 1 and replacement not in body:
+              raise SystemExit('Review the current English Haas-ja paragraph before updating the release')
+          note = f'[Windows installer build]({workflow})'
+          if note not in body:
+              body = body.rstrip() + '\n\n' + note + '\n'
+          Path('notes.md').write_text(body, encoding='utf-8')
+          PYTHON
+          gh release upload "$tag" --repo "$GITHUB_REPOSITORY" --clobber "$installer" release-manifest.json SHA256SUMS.txt
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
