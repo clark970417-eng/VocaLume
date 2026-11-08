@@ -110,7 +110,8 @@ export function toggleSubtitleEditMode(ctx: AppContext): boolean {
 function rememberSubtitlePosition(ctx: AppContext, window: BrowserWindow): void {
   const current = window.getBounds()
   const display = screen.getDisplayMatching(current)
-  const bounds = getSubtitleBounds(display, current)
+  const record = process.platform === 'win32' && store.get('subtitleSettings')?.captionMode === 'record'
+  const bounds = getSubtitleBounds(display, current, undefined, record)
   if (bounds.x !== current.x || bounds.y !== current.y || bounds.width !== current.width || bounds.height !== current.height) {
     window.setBounds(bounds)
   }
