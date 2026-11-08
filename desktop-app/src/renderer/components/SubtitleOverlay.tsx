@@ -24,6 +24,7 @@ interface SubtitleConfig {
   backgroundOpacity: number
   position: 'top' | 'bottom'
   lowPowerRendering: boolean
+  hideOnHover: boolean
   accessibility: AccessibilityConfig
   showConfidenceIndicator: boolean
 }
@@ -35,6 +36,7 @@ const DEFAULT_CONFIG: SubtitleConfig = {
   backgroundOpacity: 78,
   position: 'bottom',
   lowPowerRendering: /Windows/i.test(navigator.userAgent),
+  hideOnHover: false,
   accessibility: DEFAULT_ACCESSIBILITY,
   showConfidenceIndicator: true
 }
@@ -217,6 +219,7 @@ function SubtitleOverlay(): React.JSX.Element {
   const [config, setConfig] = useState<SubtitleConfig>(DEFAULT_CONFIG)
   const [isDragMode, setIsDragMode] = useState(false)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [hoverHidden, setHoverHidden] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
   const [editSaving, setEditSaving] = useState(false)
@@ -344,6 +347,7 @@ function SubtitleOverlay(): React.JSX.Element {
         setEditValue('')
       }
     })
+    const unsubHover = window.api.onSubtitleHoverHidden?.(setHoverHidden)
     let active = true
     void window.api.getSubtitleInteractionMode?.().then(mode => {
       if (active) { setIsDragMode(mode === 'drag'); setIsEditMode(mode === 'edit') }
@@ -354,6 +358,7 @@ function SubtitleOverlay(): React.JSX.Element {
       unsubscribe?.()
       unsubDrag?.()
       unsubEdit?.()
+      unsubHover?.()
     }
   }, [])
 
@@ -420,17 +425,18 @@ function SubtitleOverlay(): React.JSX.Element {
   const translatedFontSize = Math.max(effectiveFontSize - 2, 16)
   const hasContent = confirmedText || interimText
   const captionVisible = visible && !!hasContent
+  const captionHoverHidden = config.hideOnHover && hoverHidden && !isDragMode && !isEditMode
   useEffect(() => {
     const caption = captionRef.current
     if (!caption || !captionVisible) {
-      window.api.setSubtitleCaptionArea?.(null)
+      window.api.setSubtitleCaptionArea?.(null, config.hideOnHover)
       window.api.setSubtitleCaptionHover?.(false)
       return
     }
     if (!navigator.userAgent.includes('Windows')) return
     const updateArea = (): void => {
       const { x, y, width, height } = caption.getBoundingClientRect()
-      window.api.setSubtitleCaptionArea({ x, y, width, height })
+      window.api.setSubtitleCaptionArea({ x, y, width, height }, config.hideOnHover)
     }
     updateArea()
     const observer = new ResizeObserver(updateArea)
@@ -440,7 +446,7 @@ function SubtitleOverlay(): React.JSX.Element {
       observer.disconnect()
       window.removeEventListener('resize', updateArea)
     }
-  }, [captionVisible, config.position])
+  }, [captionVisible, config.position, config.hideOnHover])
 
   const effectiveSourceColor = a11y.highContrast ? '#ffffff' : config.sourceTextColor
   const effectiveTranslatedColor = a11y.highContrast ? '#ffff00' : config.translatedTextColor
@@ -543,8 +549,9 @@ function SubtitleOverlay(): React.JSX.Element {
           backdropFilter: a11y.highContrast || config.lowPowerRendering ? 'none' : 'blur(8px)',
           WebkitBackdropFilter: a11y.highContrast || config.lowPowerRendering ? 'none' : 'blur(8px)',
           opacity: captionVisible ? 1 : 0,
+          visibility: captionHoverHidden ? 'hidden' : 'visible',
           transition: visible ? fadeInTransition : fadeOutTransition,
-          pointerEvents: captionVisible ? 'auto' : 'none',
+          pointerEvents: captionVisible && !captionHoverHidden ? 'auto' : 'none',
           cursor: isEditMode ? 'auto' : 'move',
           touchAction: isEditMode ? 'auto' : 'none',
           textAlign: 'center'

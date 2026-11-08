@@ -179,6 +179,9 @@ function SettingsPanel(): React.JSX.Element {
             onPositionChange={(v) => { s.setSubtitlePosition(v); s.pushSubtitleSettings({ position: v }) }}
             lowPowerRendering={s.lowPowerRendering}
             onLowPowerRenderingChange={(v) => { s.setLowPowerRendering(v); s.pushSubtitleSettings({ lowPowerRendering: v }) }}
+            supportsHideOnHover={s.platform === 'win32'}
+            hideOnHover={s.hideOnHover}
+            onHideOnHoverChange={(v) => { s.setHideOnHover(v); s.pushSubtitleSettings({ hideOnHover: v }) }}
             showConfidenceIndicator={s.showConfidenceIndicator}
             onShowConfidenceIndicatorChange={(v) => {
               s.setShowConfidenceIndicator(v)
