@@ -11,36 +11,74 @@ interface Interaction {
   mode: SubtitleInteractionMode
   area: Electron.Rectangle | null
   hovered: boolean
+  hideOnHover: boolean
+  hoverHidden: boolean
+  hoverTimer?: NodeJS.Timeout
   ignore?: boolean
   shape?: string
+  prioritizeSubtitle?: boolean
   drag?: { x: number; y: number; bounds: Electron.Rectangle }
 }
 const interactions = new WeakMap<BrowserWindow, Interaction>()
 function interactionFor(window: BrowserWindow): Interaction {
-  let interaction = interactions.get(window)
-  if (!interaction) {
-    interaction = { mode: 'view', area: null, hovered: false }
-    interactions.set(window, interaction)
+  const existing = interactions.get(window)
+  if (existing) return existing
+  const interaction: Interaction = {
+    mode: 'view', area: null, hovered: false, hideOnHover: false, hoverHidden: false
+  }
+  interactions.set(window, interaction)
+  if (process.platform === 'win32') {
+    window.on('show', () => updateSubtitleHover(window, interaction))
+    window.on('hide', () => updateSubtitleHover(window, interaction))
+    window.once('closed', () => clearInterval(interaction.hoverTimer))
   }
   return interaction
+}
+
+function updateSubtitleHover(window: BrowserWindow, interaction: Interaction): void {
+  const area = interaction.area
+  let hidden = false
+  if (interaction.hideOnHover && interaction.mode === 'view' && !interaction.drag && area && window.isVisible()) {
+    const cursor = screen.getCursorScreenPoint()
+    const bounds = window.getContentBounds()
+    const x = cursor.x - bounds.x
+    const y = cursor.y - bounds.y
+    hidden = x >= area.x && x < area.x + area.width && y >= area.y && y < area.y + area.height
+    // Read the OS cursor even when the overlay passes mouse events to the window below.
+    interaction.hoverTimer ??= setInterval(() => updateSubtitleHover(window, interaction), 40).unref()
+  } else {
+    clearInterval(interaction.hoverTimer)
+    interaction.hoverTimer = undefined
+  }
+  if (interaction.hoverHidden !== hidden) {
+    interaction.hoverHidden = hidden
+    window.webContents.send('subtitle-hover-hidden', hidden)
+  }
 }
 
 function updateSubtitleInput(ctx: AppContext, window: BrowserWindow, interaction: Interaction): void {
   const explicit = interaction.mode !== 'view'
   const windows = process.platform === 'win32'
   const area = windows && !explicit ? interaction.area : null
-  const ignore = !(explicit || interaction.drag || (windows ? area : interaction.hovered))
+  const ignore = !(explicit || interaction.drag || (!interaction.hideOnHover && (windows ? area : interaction.hovered)))
   const shape = area ? `${area.x},${area.y},${area.width},${area.height}` : ''
+  // Changing the Win32 region can interrupt a captured pointer while a caption reflows.
+  const changeShape = windows && !interaction.drag && interaction.shape !== shape
+  const prioritizeSubtitle = interaction.mode === 'drag' || !!interaction.drag
   if (ignore && interaction.ignore !== true) {
     window.setIgnoreMouseEvents(true, { forward: process.platform === 'darwin' })
   }
-  if (windows && interaction.shape !== shape) window.setShape(area ? [area] : [])
+  if (changeShape) {
+    window.setShape(area ? [area] : [])
+    interaction.shape = shape
+  }
   if (!ignore && interaction.ignore !== false) window.setIgnoreMouseEvents(false)
-  if (windows && (interaction.ignore !== ignore || interaction.shape !== shape)) {
-    raiseSubtitleWindow(ctx)
+  if (windows && (interaction.ignore !== ignore || changeShape || interaction.prioritizeSubtitle !== prioritizeSubtitle)) {
+    raiseSubtitleWindow(ctx, prioritizeSubtitle)
   }
   interaction.ignore = ignore
-  interaction.shape = shape
+  interaction.prioritizeSubtitle = prioritizeSubtitle
+  if (windows) updateSubtitleHover(window, interaction)
 }
 
 export function setSubtitleInteractionMode(ctx: AppContext, mode: SubtitleInteractionMode, enabled: boolean): boolean {
@@ -128,20 +166,22 @@ export function registerDisplayIpc(ctx: AppContext): void {
   ipcMain.handle('get-subtitle-interaction-mode', () =>
     ctx.subtitleWindow ? interactionFor(ctx.subtitleWindow).mode : 'view')
 
-  ipcMain.on('set-subtitle-caption-area', (event, requested: Electron.Rectangle | null) => {
+  ipcMain.on('set-subtitle-caption-area', (event, requested: Electron.Rectangle | null, hideOnHover: boolean) => {
     const window = ctx.subtitleWindow
     if (!window || event.sender !== window.webContents || process.platform !== 'win32') return
     const interaction = interactionFor(window)
     let area: Electron.Rectangle | null = null
     if (requested && [requested.x, requested.y, requested.width, requested.height].every(Number.isFinite)) {
       const [width, height] = window.getContentSize()
-      const x = Math.max(0, Math.floor(requested.x))
-      const y = Math.max(0, Math.floor(requested.y))
-      const right = Math.min(width, Math.ceil(requested.x + requested.width))
-      const bottom = Math.min(height, Math.ceil(requested.y + requested.height))
+      const zoom = window.webContents.getZoomFactor()
+      const x = Math.max(0, Math.floor(requested.x * zoom))
+      const y = Math.max(0, Math.floor(requested.y * zoom))
+      const right = Math.min(width, Math.ceil((requested.x + requested.width) * zoom))
+      const bottom = Math.min(height, Math.ceil((requested.y + requested.height) * zoom))
       if (right > x && bottom > y) area = { x, y, width: right - x, height: bottom - y }
     }
     interaction.area = area
+    interaction.hideOnHover = hideOnHover === true
     updateSubtitleInput(ctx, window, interaction)
   })
 
@@ -159,7 +199,10 @@ export function registerDisplayIpc(ctx: AppContext): void {
         Math.abs(x) > 100_000 || Math.abs(y) > 100_000) return
     const interaction = interactionFor(window)
     if (phase === 'start') {
-      if (interaction.mode !== 'edit') interaction.drag = { x, y, bounds: window.getBounds() }
+      if (interaction.mode !== 'edit') {
+        interaction.drag = { x, y, bounds: window.getBounds() }
+        if (process.platform === 'win32') updateSubtitleInput(ctx, window, interaction)
+      }
       return
     }
     const drag = interaction.drag
