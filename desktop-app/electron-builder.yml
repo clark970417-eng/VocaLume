@@ -90,6 +90,14 @@ mac:
     NSMicrophoneUsageDescription: "VocaLume needs microphone access for real-time speech recognition and translation."
     NSAudioCaptureUsageDescription: "VocaLume needs system audio access when you choose to translate computer audio."
 win:
+  extraResources:
+    - from: 'build/haas-ja-win'
+      to: 'haas-ja'
+      filter:
+        - 'speech.exe'
+        - 'speech.dll'
+        - 'haas-q8.gguf'
+        - '*.txt'
   target:
     - target: nsis
       arch:

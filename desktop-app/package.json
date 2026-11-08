@@ -12,7 +12,7 @@
     "preview": "electron-vite preview",
     "package": "npm run build && electron-builder",
     "package:dmg": "npm run build && electron-builder --mac dmg",
-    "package:win": "npm run build && electron-builder --win nsis",
+    "package:win": "powershell -NoProfile -File scripts/prepare-haas-windows.ps1 && npm run build && electron-builder --win nsis",
     "typecheck": "tsc --noEmit -p tsconfig.node.json --tsBuildInfoFile node_modules/.cache/typecheck-node.tsbuildinfo && tsc --noEmit -p tsconfig.web.json --tsBuildInfoFile node_modules/.cache/typecheck-web.tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest",
