@@ -1,5 +1,6 @@
 // Browser extension interface strings.
 export const UI_JA = {
+  "Captions reappear when the pointer leaves the box. Turn this setting off to drag or resize the box.": "ポインターが字幕枠から離れると、字幕が再表示されます。字幕枠を移動またはリサイズするには、この設定をオフにします。",
   "Interface language": "表示言語",
   "Follow system": "システム設定に従う",
   "Text translation": "テキスト翻訳",

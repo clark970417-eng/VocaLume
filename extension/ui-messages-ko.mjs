@@ -1,5 +1,6 @@
 // Browser extension interface strings.
 export const UI_KO = {
+  "Captions reappear when the pointer leaves the box. Turn this setting off to drag or resize the box.": "포인터가 자막 상자를 벗어나면 자막이 다시 표시됩니다. 자막 상자를 이동하거나 크기를 조정하려면 이 설정을 끄세요.",
   "Interface language": "인터페이스 언어",
   "Follow system": "시스템 설정 따르기",
   "Text translation": "텍스트 번역",

@@ -242,7 +242,7 @@
     if (host) {
       if (!panel?.isConnected) installPanel();
     } else if (panel?.isConnected) {
-      panel.remove();captionBox?.remove();captionBox=null;
+      panel.remove();captionBox?.controller.dispose();captionBox?.remove();captionBox=null;
       panel = null;subtitleSignature=undefined;
       clearTimeout(subtitleExpiry);
       if (listening) {
