@@ -267,6 +267,39 @@ test.describe('Window management', () => {
     await expect.poll(hasOverlay).toBe(true)
   })
 
+  test('Windows caption modes hold one or rotate four completed translations', async () => {
+    test.skip(process.platform !== 'win32', 'Windows caption modes')
+    await openSection('Subtitles & OBS')
+    const mode = settingsWindow.getByRole('combobox', { name: 'Caption mode' })
+    await expect(mode).toHaveValue('realtime')
+    const overlay = app.windows().find(window => window.url().endsWith('#/subtitle'))!
+    await expect(overlay.getByRole('region', { name: 'Subtitles' })).toBeAttached()
+    const send = async (number: number, channel = 'translation-result'): Promise<void> => {
+      await app.evaluate(({ BrowserWindow }, { number, channel }) => {
+        const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
+        win.webContents.send(channel, { sourceText: 'Source ' + number, translatedText: 'Translation ' + number, timestamp: number })
+      }, { number, channel })
+    }
+    const card = overlay.locator('[aria-live="polite"]').locator('..')
+    await send(1)
+    await expect(card.getByText('Translation 1', { exact: true })).toBeAttached()
+    await send(2, 'draft-result')
+    await expect(card.getByText('Translation 2', { exact: true })).toHaveCount(0)
+    await expect(card).toHaveCSS('opacity', '0', { timeout: 5000 })
+
+    await mode.selectOption('record')
+    await expect.poll(() => settingsWindow.evaluate(async () =>
+      (await window.api.getSettings()).subtitleSettings
+    )).toMatchObject({ captionMode: 'record' })
+    await expect(card).toHaveCSS('opacity', '1')
+    for (let number = 2; number <= 5; number++) await send(number)
+    await expect(card.getByText(/^Translation [2-5]$/)).toHaveCount(4)
+    await expect(card.getByText('Translation 1', { exact: true })).toHaveCount(0)
+    await mode.selectOption('realtime')
+    await expect(card.getByText(/^Translation [1-5]$/)).toHaveCount(1)
+    await expect(card.getByText('Translation 5', { exact: true })).toBeAttached()
+  })
+
   test('optionally hides floating captions near the pointer and restores the latest text', async () => {
     await openSection('Subtitles & OBS')
     const toggle = settingsWindow.getByRole('checkbox', { name: 'Hide subtitles when the pointer is nearby' })
