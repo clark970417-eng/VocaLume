@@ -267,35 +267,53 @@ test.describe('Window management', () => {
     await expect.poll(hasOverlay).toBe(true)
   })
 
-  test('Windows caption modes hold one or rotate four completed translations', async () => {
-    test.skip(process.platform !== 'win32', 'Windows caption modes')
+  test('caption modes hold one or rotate four completed translations', async () => {
+    test.skip(process.platform !== 'win32' && process.platform !== 'darwin', 'Desktop caption modes on Windows and macOS')
     await openSection('Subtitles & OBS')
     const mode = settingsWindow.getByRole('combobox', { name: 'Caption mode' })
     await expect(mode).toHaveValue('realtime')
     const overlay = app.windows().find(window => window.url().endsWith('#/subtitle'))!
     await expect(overlay.getByRole('region', { name: 'Subtitles' })).toBeAttached()
-    const send = async (number: number, channel = 'translation-result'): Promise<void> => {
-      await app.evaluate(({ BrowserWindow }, { number, channel }) => {
+    const overlayHeight = () => app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!.getBounds().height
+    )
+    const singleHeight = await overlayHeight()
+    const send = async (number: number, channel = 'translation-result', complete = true): Promise<void> => {
+      await app.evaluate(({ BrowserWindow }, { number, channel, complete }) => {
         const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
-        win.webContents.send(channel, { sourceText: 'Source ' + number, translatedText: 'Translation ' + number, timestamp: number })
-      }, { number, channel })
+        win.webContents.send(channel, { sourceText: 'Source ' + number, translatedText: complete ? 'Translation ' + number : '', timestamp: number })
+      }, { number, channel, complete })
     }
     const card = overlay.locator('[aria-live="polite"]').locator('..')
     await send(1)
     await expect(card.getByText('Translation 1', { exact: true })).toBeAttached()
     await send(2, 'draft-result')
+    await send(2, 'interim-result', false)
+    await send(2, 'translation-result', false)
+    await expect(card.getByText('Source 2', { exact: true })).toHaveCount(0)
     await expect(card.getByText('Translation 2', { exact: true })).toHaveCount(0)
-    await expect(card).toHaveCSS('opacity', '0', { timeout: 5000 })
+    await expect(card.getByText('Translation 1', { exact: true })).toBeAttached()
+    await expect(card).toHaveCSS('opacity', '0', { timeout: 6500 })
 
     await mode.selectOption('record')
     await expect.poll(() => settingsWindow.evaluate(async () =>
       (await window.api.getSettings()).subtitleSettings
     )).toMatchObject({ captionMode: 'record' })
+    await expect.poll(overlayHeight).toBeGreaterThan(singleHeight)
     await expect(card).toHaveCSS('opacity', '1')
     for (let number = 2; number <= 5; number++) await send(number)
+    await expect(card.getByText(/^Source [2-5]$/)).toHaveCount(4)
     await expect(card.getByText(/^Translation [2-5]$/)).toHaveCount(4)
     await expect(card.getByText('Translation 1', { exact: true })).toHaveCount(0)
+    if (process.platform === 'darwin') {
+      // No engine is needed to exercise the real desktop stop IPC.
+      await settingsWindow.evaluate(() => window.api.pipelineStop())
+      await expect(card.getByText(/^Translation [2-5]$/)).toHaveCount(0)
+      await send(5)
+      await expect(card.getByText(/^Translation [2-5]$/)).toHaveCount(1)
+    }
     await mode.selectOption('realtime')
+    await expect.poll(overlayHeight).toBe(singleHeight)
     await expect(card.getByText(/^Translation [1-5]$/)).toHaveCount(1)
     await expect(card.getByText('Translation 5', { exact: true })).toBeAttached()
   })
@@ -317,7 +335,8 @@ test.describe('Window management', () => {
       screen.getCursorScreenPoint = () => ({ x: origin.x, y: origin.y })
       // Keep the isolated overlay off the user's display.
       win.isVisible = () => true
-      win.webContents.send('translation-result', { sourceText: 'こんにちは', translatedText: '你好' })
+      win.emit('show')
+      win.webContents.send('translation-result', { sourceText: 'こんにちは', translatedText: '你好', timestamp: 100 })
       return () => {
         screen.getCursorScreenPoint = getCursorScreenPoint
         win.isVisible = isVisible
@@ -339,7 +358,7 @@ test.describe('Window management', () => {
       await expect(card).toHaveCSS('pointer-events', 'none')
       await app.evaluate(({ BrowserWindow }) => {
         const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
-        win.webContents.send('translation-result', { sourceText: 'こんばんは', translatedText: '晚上好' })
+        win.webContents.send('translation-result', { sourceText: 'こんばんは', translatedText: '晚上好', timestamp: 101 })
       })
       await expect(card).toContainText('晚上好')
       await expect(card).toHaveCSS('visibility', 'hidden')

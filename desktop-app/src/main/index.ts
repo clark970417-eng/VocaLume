@@ -48,7 +48,7 @@ import {
 } from './store-migrations'
 import { sanitizeErrorMessage, getErrorHint } from './error-utils'
 import { ensureDesktopWindows, registerDisplayHandlers } from './window-manager'
-import { sendOverlayCaption } from './subtitle-delivery'
+import { clearOverlayCaptions, sendOverlayCaption } from './subtitle-delivery'
 import { registerAudioHandlers } from './audio-handlers'
 import { registerIpcHandlers } from './ipc-handlers'
 import { createLogger } from './logger'
@@ -279,7 +279,11 @@ async function initPipeline(): Promise<void> {
       liveRevisions.clear()
       if (ctx.ttsManager?.isEnabled()) ctx.ttsManager.stopPlayback()
     }
-    if (state === PipelineState.IDLE) void clearObsCaption()
+    if (state === PipelineState.IDLE) {
+      void clearObsCaption()
+      // Recovery briefly enters idle without ending the current session.
+      if (process.platform === 'darwin' && ctx.pipeline?.sessionStartTime === null) clearOverlayCaptions(ctx)
+    }
   })
 
   // Forward results to subtitle window and logger

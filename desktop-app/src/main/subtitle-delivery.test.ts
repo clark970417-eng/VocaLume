@@ -49,3 +49,12 @@ it('does not deliver to the old desktop overlay during browser capture or after 
     vi.useRealTimers()
   }
 })
+
+it.skipIf(process.platform !== 'win32' && process.platform !== 'darwin')('delivers repeated words as separate completed cues', () => {
+  const send = vi.fn()
+  const ctx = { subtitleWindow: { isDestroyed: () => false, webContents: { send } } } as unknown as AppContext
+  const repeated = { ...caption, timestamp: 2 }
+  sendOverlayCaption(ctx, 'translation-result', caption)
+  sendOverlayCaption(ctx, 'translation-result', repeated)
+  expect(send.mock.calls).toEqual([['translation-result', caption], ['translation-result', repeated]])
+})

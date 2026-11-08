@@ -37,7 +37,7 @@ export function getSubtitleBounds(
 export function getSavedSubtitleBounds(display: Electron.Display): Electron.Rectangle {
   const settings = store.get('subtitleSettings')
   return getSubtitleBounds(display, store.get('subtitlePositions')?.[String(display.id)], settings?.position,
-    process.platform === 'win32' && settings?.captionMode === 'record')
+    (process.platform === 'win32' || process.platform === 'darwin') && settings?.captionMode === 'record')
 }
 
 export function resizeSubtitleWindow(ctx: AppContext): void {
