@@ -96,3 +96,18 @@
 @media (max-width: 760px) {
   .hero-copy > .hero-art { margin: 26px 4px 52px; }
 }
+
+/* Keep all six localized destinations visible without horizontal scrolling. */
+.nav { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px 16px; }
+.nav > .brand { grid-column:1; grid-row:1; min-width:0; }
+.nav > .language-picker { grid-column:2; grid-row:1; margin:0; }
+.nav > .nav-github { grid-column:3; grid-row:1; display:inline-flex; }
+.nav nav { grid-column:1 / -1; grid-row:2; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; overflow:visible; padding-top:8px; border-top:1px solid #e8edf3; }
+.nav nav a { display:flex; align-items:center; justify-content:center; min-width:0; min-height:44px; padding:8px 5px; border-radius:12px; font-size:14px; line-height:1.4; text-align:center; white-space:normal; overflow-wrap:anywhere; }
+.nav nav a:hover,.nav nav a[aria-current="location"] { background:#f2f7fb; color:#ca7d9a; }
+html { scroll-padding-top:180px; }
+@media(max-width:760px) {
+ .nav nav { grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px 5px; padding-top:6px; }
+ .nav nav a { min-height:44px; padding:7px 3px; font-size:13px; }
+ html { scroll-padding-top:200px; }
+}
