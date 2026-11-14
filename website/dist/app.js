@@ -20,3 +20,15 @@ if (heroExample && heroCopy && heroActions) {
   arrangeHero();
   phoneLayout.addEventListener('change', arrangeHero);
 }
+
+// Highlight the selected destination without changing keyboard focus.
+const sectionLinks = [...document.querySelectorAll('.nav nav a')];
+function updateNavigation() {
+ const selected = location.hash || '#demo';
+ sectionLinks.forEach(link => {
+  if (link.getAttribute('href') === selected) link.setAttribute('aria-current', 'location');
+  else link.removeAttribute('aria-current');
+ });
+}
+updateNavigation();
+window.addEventListener('hashchange', updateNavigation);
