@@ -89,7 +89,7 @@ export function useEngineSettings(init: EngineSettingsInit): EngineSettingsState
       // The main process also migrates the persisted value on startup.
       if (s.translationEngine) {
         const raw = str(s.translationEngine, 'auto')
-        const valid: EngineMode[] = ['auto', 'rotation', 'online', 'online-deepl', 'online-gemini', 'online-microsoft', 'offline-hymt15', 'offline-hymt2', 'offline-hunyuan-mt', 'offline-apple']
+        const valid: EngineMode[] = ['auto', 'rotation', 'online', 'online-deepl', 'online-gemini', 'online-microsoft', 'offline-hymt2', 'offline-hunyuan-mt', 'offline-apple', 'offline-plamo3']
         setEngineMode((valid.includes(raw as EngineMode) ? raw : 'auto') as EngineMode)
       }
       if (s.googleApiKey) setApiKey(str(s.googleApiKey, ''))
@@ -121,14 +121,14 @@ export function useEngineSettings(init: EngineSettingsInit): EngineSettingsState
     })
   }, [])
 
-  // Detect GPU — fall back to HY-MT1.5 if no GPU
+  // Detect GPU — show CPU-only status if no GPU
   useEffect(() => {
     window.api.detectGpu().then((info) => {
       setGpuInfo(info)
       if (!info.hasGpu) {
         window.api.getSettings().then((s) => {
           if (!s.translationEngine) {
-            setEngineMode('offline-hymt15')
+            setEngineMode('offline-plamo3')
           }
         })
       }

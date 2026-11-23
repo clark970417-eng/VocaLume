@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { ALL_LANGUAGES, type Language } from '../../engines/types'
-import { HunyuanMT15Translator } from '../../engines/translator/HunyuanMT15Translator'
+import { PLaMo3Translator } from '../../engines/translator/PLaMo3Translator'
 import { mergeGlossaries } from '../../engines/translator/glossary-manager'
 import { phraseTranslation, splitTranslationText } from '../../../../extension/translation-policy.mjs'
 import { selectDraftTerminology } from '../draft-glossary'
@@ -18,9 +18,15 @@ function isLanguage(value: unknown): value is Language {
   return typeof value === 'string' && ALL_LANGUAGES.includes(value as Language)
 }
 
-export function registerTextTranslationIpc(ctx: AppContext): void {
+type TextModel = Pick<PLaMo3Translator, 'downloadModel' | 'initialize' | 'translate' | 'dispose'>
+
+export function createTextTranslator(ctx: AppContext, createOwnedTranslator: () => TextModel = () =>
+  new PLaMo3Translator({
+    kvCacheQuant: store.get('slmKvCacheQuant')
+  })) {
   let translating = false
-  ipcMain.handle('translate-text', async (_event, input: unknown, from: unknown, to: unknown) => {
+
+  return async (input: unknown, from: unknown, to: unknown): Promise<string> => {
     if (typeof input !== 'string' || !input.trim() || input.length > MAX_INPUT_LENGTH) throw new Error('Invalid text length')
     if (!isLanguage(from) || !isLanguage(to) || from === to) throw new Error('Invalid translation languages')
     if (translating) throw new Error('A text translation is already running')
@@ -34,7 +40,7 @@ export function registerTextTranslationIpc(ctx: AppContext): void {
     }
 
     translating = true
-    let ownedTranslator: HunyuanMT15Translator | undefined
+    let ownedTranslator: TextModel | undefined
     let ownedTranslatorReady = false
     let remainingRetries = MAX_LIVE_PREEMPTION_RETRIES
     try {
@@ -74,10 +80,7 @@ export function registerTextTranslationIpc(ctx: AppContext): void {
             remainingRetries--
             continue // Rejoin at background priority so the waiting caption runs first.
           }
-          ownedTranslator = new HunyuanMT15Translator({
-            kvCacheQuant: store.get('slmKvCacheQuant'),
-            speculativeDecoding: store.get('slmSpeculativeDecoding')
-          })
+          ownedTranslator = createOwnedTranslator()
           // A first-time download must not keep live capture waiting in this queue.
           await ownedTranslator.downloadModel()
         }
@@ -98,5 +101,10 @@ export function registerTextTranslationIpc(ctx: AppContext): void {
         translating = false
       }
     }
-  })
+  }
+}
+
+export function registerTextTranslationIpc(ctx: AppContext): void {
+  const translate = createTextTranslator(ctx)
+  ipcMain.handle('translate-text', (_event, input: unknown, from: unknown, to: unknown) => translate(input, from, to))
 }

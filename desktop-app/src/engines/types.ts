@@ -88,6 +88,8 @@ export interface SpeechEvidence {
   speechEndSample?: number
   /** Desktop capture metadata is for matching PCM; do not change decoder guards. */
   checkpointOnly?: true
+  /** Complete desktop cue sent during a pause for translation preparation. */
+  preparationOnly?: true
   /** Monotonic capture positions used only to join adjacent Japanese clauses. */
   captureStartSample?: number
   captureEndSample?: number

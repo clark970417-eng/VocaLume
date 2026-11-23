@@ -212,7 +212,7 @@ export class TranslationPipeline extends EventEmitter {
   getTranslatorForBackgroundText(): TranslatorEngine | null {
     const translator = this.getTranslator()
     const completeSentencePair = ['ja', 'zh'].includes(this.sourceLanguage) && ['ja', 'zh'].includes(this.targetLanguage)
-    return this.running && translator?.id === 'hunyuan-mt-15' && (!this.simulMtEnabled || completeSentencePair) ? translator : null
+    return this.running && translator && ['plamo-3'].includes(translator.id) && (!this.simulMtEnabled || completeSentencePair) ? translator : null
   }
 
   get sessionStartTime(): number | null {

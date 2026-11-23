@@ -1,3 +1,4 @@
+import * as youtubeGlossary from '../youtube-glossary.mjs';
 import * as cloudApi from '../cloud-api.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,7 +24,7 @@ test('pending desktop acknowledgements keep Japanese open for late Chinese and r
  }
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'record'},recordedCaptions:[]}),set:async()=>{}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloudApi,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date});
+ vm.runInNewContext(source,{...cloudApi,...youtubeGlossary,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
  for(let i=1;i<=5;i++)await call({type:'desktop-request',op:'decode',segment:String(i),utterance:'one-continuous-speech',final:true,audio:'test',speechAt:Date.now()+i,audioEndAt:Date.now()},{url:'chrome-extension://test/offscreen.html'});
@@ -53,7 +54,7 @@ test('single-pair mode waits for Chinese even when the next sentence has already
   async request(op,fields){if(op!=='decode')return {};segments.push(fields.segment);this.onEvent({event:'source',segment:fields.segment,text:'日本語'+segments.length});return {text:'日本語'+segments.length,pending:true};}
  }
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'realtime'}}),set:async()=>{}}},tabs:{sendMessage:async(_,m)=>updates.push(m),onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=>'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
- vm.runInNewContext(fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),{...cloudApi,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,setTimeout:fn=>{timers.set(++sequence,fn);return sequence;},clearTimeout:id=>timers.delete(id)});
+ vm.runInNewContext(fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,''),{...cloudApi,...youtubeGlossary,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date,setTimeout:fn=>{timers.set(++sequence,fn);return sequence;},clearTimeout:id=>timers.delete(id)});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
  for(let i=0;i<2;i++)await call({type:'desktop-request',op:'decode',segment:String(i),utterance:String(i),audio:'test',speechAt:Date.now()+i,audioEndAt:Date.now(),final:true},{url:'chrome-extension://test/offscreen.html'});
@@ -84,7 +85,7 @@ test('desktop diagnostics measure final-source and final-translation delivery on
  }
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop',subtitleSettings:{captionMode:'record'},recordedCaptions:[]}),set:async()=>{}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async()=>({ok:true})}};
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloudApi,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock});
+ vm.runInNewContext(source,{...cloudApi,...youtubeGlossary,chrome,NativeClient,RecordingQueue,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
  await call({type:'desktop-request',op:'decode',segment:'1',final:true,audio:'test',speechAt:500,audioEndAt:1000},{url:'chrome-extension://test/offscreen.html'});

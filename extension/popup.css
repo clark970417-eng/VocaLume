@@ -120,3 +120,5 @@ button:disabled, select:disabled, input:disabled { opacity: .5; cursor: default;
 /* Keep the interface language one click away, independent of translation pairs. */
 .interface-language { display: grid; gap: 3px; font-size: 12px; }
 .interface-language select { width: auto; max-width: 156px; min-height: 32px; padding: 4px 8px; margin: 0; }
+
+#youtubeGlossaryTerms { display: block; width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--ink); color: var(--text); font: inherit; }

@@ -1,3 +1,4 @@
+import { plamoTraditionalCaptionTerms } from '../../main/plamo-3-prompt'
 import { join } from 'path'
 import { TranslationRequestCache } from './translation-request-cache'
 import { translationContextForModel } from '../../main/translation-session'
@@ -143,7 +144,12 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     this.interruption.signal.throwIfAborted()
     const hasGlossary = context?.glossary?.some(entry => entry.source?.trim() && text.includes(entry.source))
     if (isNonLinguisticText(text) && !hasGlossary) return text
-    const protectedSource = protectNames(text, context?.glossary)
+    const personalGlossary = context?.glossary ?? []
+    const plamoTerms = this.id === 'plamo-3'
+      ? plamoTraditionalCaptionTerms(text, from, to).filter(term => !personalGlossary.some(entry => entry.source === term.source))
+      : []
+    const namingGlossary = plamoTerms.length ? [...personalGlossary, ...plamoTerms] : context?.glossary
+    const protectedSource = protectNames(text, namingGlossary)
     if (alreadyTargetLanguage(text, from, to) && !hasGlossary) return text
     if (protectedSource.entries.length && !/[\p{L}\p{N}]/u.test(protectedSource.body)) return protectedSource.restore(protectedSource.text)
     if (!hasGlossary) {
@@ -175,7 +181,7 @@ export abstract class LlamaWorkerTranslator implements TranslatorEngine {
     // were already excluded by selectGameTerminology. Keep display source intact.
     const lockedTerms = [...selectGameTerminology(text, from, to, context?.glossary), ...(context?.glossary || [])]
       .filter(entry => from === 'ja' && to === 'zh' && ['ポケカ', 'ポケモンカード', 'ポケモン'].includes(entry.source))
-    const protectedText = protectNames(text, context?.glossary, lockedTerms)
+    const protectedText = protectNames(text, namingGlossary, lockedTerms)
     // Exact text, direction, model options, register and terminology all belong
     // to the key. Nothing is normalized away from what the model sees.
     const key = JSON.stringify([this.workerOptions, text, from, to, serialContext])

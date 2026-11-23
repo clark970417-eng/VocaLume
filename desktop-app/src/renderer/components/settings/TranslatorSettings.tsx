@@ -1,7 +1,7 @@
 import { t } from '../../ui-language'
 import React from 'react'
 import { Section } from './Section'
-import { LLM_ENGINE_MODES, disclosureArrowStyle, disclosureToggleStyle, inputStyle, radioLabelStyle, selectStyle } from './shared'
+import { LLM_ENGINE_MODES, disclosureArrowStyle, disclosureToggleStyle, getEngineDisplayName, inputStyle, radioLabelStyle, selectStyle } from './shared'
 import type { EngineMode } from './shared'
 
 interface TranslatorSettingsProps {
@@ -116,7 +116,7 @@ export function TranslatorSettings({
 
   return (
     <>
-      <Section label={t("Translation Engine")} helpText={t("Auto picks the best engine for your setup. HY-MT 1.5 is the recommended offline default.")}>
+      <Section label={t("Translation Engine")} helpText={t("Auto picks the best engine for your setup. PLaMo 3 Translate 0.8B is the recommended offline default.")}>
         <fieldset role="radiogroup" aria-label={t("Translation Engine")} style={{ border: 'none', margin: 0, padding: 0, minInlineSize: 0 }}>
         <legend style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>{t("Translation Engine")}</legend>
         <label style={radioLabelStyle}>
@@ -132,22 +132,18 @@ export function TranslatorSettings({
           </div>
         </label>
         <label style={radioLabelStyle}>
-          <input
-            type="radio"
-            name="engine"
-            checked={engineMode === 'offline-hymt15'}
-            onChange={() => onEngineModeChange('offline-hymt15')}
-            disabled={disabled}
-          />
-          <div>
-            <div style={{ fontWeight: 500 }}>{t("HY-MT 1.5 (Offline default)")}</div>
-          </div>
-        </label>
-        <label style={radioLabelStyle}>
           <input type="radio" name="engine" checked={engineMode === 'offline-hymt2'}
             onChange={() => onEngineModeChange('offline-hymt2')} disabled={disabled} />
           <div>
             <div style={{ fontWeight: 500 }}>{t("Hy-MT2 7B (Offline)")}</div>
+          </div>
+        </label>
+        <label style={radioLabelStyle}>
+          <input type="radio" name="engine" checked={engineMode === 'offline-plamo3'}
+            onChange={() => onEngineModeChange('offline-plamo3')} disabled={disabled} />
+          <div>
+            <div style={{ fontWeight: 500 }}>{t(getEngineDisplayName('offline-plamo3'))}</div>
+            <div>{t("Downloads on first use (~573 MB)")}</div>
           </div>
         </label>
         <label style={radioLabelStyle}>
@@ -190,7 +186,7 @@ export function TranslatorSettings({
           </div>
         </label>
 
-        {/* LLM sub-options for HY-MT 1.5 and Hunyuan-MT 7B */}
+        {/* Local translation options */}
         {showLlmOptions && (
           <>
             {gpuInfo && !gpuInfo.hasGpu && (
@@ -208,7 +204,7 @@ export function TranslatorSettings({
                 <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t("Reduces VRAM ~50%")}</div>
               </div>
             </label>
-            {(engineMode === 'offline-hymt15' || engineMode === 'offline-hymt2' || engineMode === 'offline-hunyuan-mt') && (
+            {(engineMode === 'offline-hymt2' || engineMode === 'offline-hunyuan-mt') && (
               <label style={{ ...radioLabelStyle, paddingLeft: '24px' }}>
                 <input
                   type="checkbox"

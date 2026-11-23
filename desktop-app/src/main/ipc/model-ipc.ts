@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { isGGUFDownloaded, getGGUFVariants, getHunyuanMTVariants, getHunyuanMT15Variants, getWhisperVariants, isModelDownloaded as isWhisperModelDownloaded } from '../../engines/model-downloader'
+import { isGGUFDownloaded, getGGUFVariants, getHunyuanMTVariants, getWhisperVariants, isModelDownloaded as isWhisperModelDownloaded } from '../../engines/model-downloader'
 import type { SLMModelSize, WhisperVariant } from '../../engines/model-downloader'
 import { detectGpu } from '../../engines/gpu-detector'
 import { listPlugins } from '../../engines/plugin-loader'
@@ -27,17 +27,6 @@ export function registerModelIpc(): void {
 
   ipcMain.handle('get-hunyuan-mt-variants', () => {
     const variants = getHunyuanMTVariants()
-    return Object.entries(variants).map(([key, v]) => ({
-      key,
-      label: v.label,
-      filename: v.filename,
-      sizeMB: v.sizeMB,
-      downloaded: isGGUFDownloaded(v.filename)
-    }))
-  })
-
-  ipcMain.handle('get-hunyuan-mt-15-variants', () => {
-    const variants = getHunyuanMT15Variants()
     return Object.entries(variants).map(([key, v]) => ({
       key,
       label: v.label,

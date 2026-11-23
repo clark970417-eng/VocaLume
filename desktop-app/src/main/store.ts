@@ -245,7 +245,7 @@ export const store = new Store<AppSettings>({
     isFirstRun: true,
     onboardingModelStatus: 'idle',
     onboardingDownloadProgress: 0,
-    preferredLocalEngine: 'offline-hymt15',
+    preferredLocalEngine: 'offline-plamo3',
     activeModelTier: null,
     updateChannel: 'beta'
   }

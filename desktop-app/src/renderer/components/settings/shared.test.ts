@@ -15,8 +15,8 @@ describe('EngineMode catalog (#702)', () => {
     expect(LEGACY_TRANSLATION_ENGINES).toHaveLength(4)
   })
 
-  it('LLM_ENGINE_MODES only retains the two supported LLM engines', () => {
-    expect(LLM_ENGINE_MODES).toEqual(['offline-hymt15', 'offline-hymt2', 'offline-hunyuan-mt'])
+  it('LLM_ENGINE_MODES lists the supported LLM engines', () => {
+    expect(LLM_ENGINE_MODES).toEqual(['offline-plamo3', 'offline-hymt2', 'offline-hunyuan-mt'])
   })
 
   it('API_ENGINE_MODES still lists every online provider mode', () => {
@@ -33,12 +33,22 @@ describe('EngineMode catalog (#702)', () => {
 })
 
 describe('buildEngineConfig (#702)', () => {
-  it('returns HY-MT 1.5 config for the default offline mode', () => {
+  it('migrates the legacy HY-MT 1.5 choice to PLaMo', () => {
     expect(buildEngineConfig('offline-hymt15', STT, NO_KEYS)).toEqual({
       mode: 'cascade',
       sttEngineId: STT,
-      translatorEngineId: 'hunyuan-mt-15'
+      translatorEngineId: 'plamo-3'
     })
+  })
+
+  it('routes an explicit PLaMo 3 choice to the standalone local engine', () => {
+    const selected = resolveEngineMode('offline-plamo3', ALL_KEYS, { hasGpu: true }, 'darwin')
+    expect(buildEngineConfig(selected, STT, ALL_KEYS)).toEqual({
+      mode: 'cascade',
+      sttEngineId: STT,
+      translatorEngineId: 'plamo-3'
+    })
+    expect(getEngineDisplayName(selected)).toBe('PLaMo 3 Translate 0.8B (Offline)')
   })
 
   it('returns Hunyuan-MT 7B config for offline-hunyuan-mt', () => {
@@ -92,7 +102,7 @@ describe('buildEngineConfig (#702)', () => {
   })
 
   it.each(['offline-lfm2', 'offline-plamo', 'offline-hybrid', 'offline-opus'])(
-    'falls back to HY-MT 1.5 for removed legacy engine "%s"',
+    'falls back to PLaMo for removed legacy engine "%s"',
     (legacy) => {
       // Callers may still hold a stale EngineMode string before migration runs;
       // buildEngineConfig must safely fall through to the default case.
@@ -100,7 +110,7 @@ describe('buildEngineConfig (#702)', () => {
       expect(cfg).toEqual({
         mode: 'cascade',
         sttEngineId: STT,
-        translatorEngineId: 'hunyuan-mt-15'
+        translatorEngineId: 'plamo-3'
       })
     }
   )
@@ -108,21 +118,21 @@ describe('buildEngineConfig (#702)', () => {
 
 describe('resolveEngineMode (#702)', () => {
   it('keeps Windows automatic local translation compact while preserving explicit quality choices', () => {
-    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-hymt15')
+    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-plamo3')
     expect(resolveEngineMode('offline-hunyuan-mt', NO_KEYS, { hasGpu: true }, 'win32')).toBe('offline-hunyuan-mt')
     expect(resolveEngineMode('auto', ALL_KEYS, { hasGpu: true }, 'win32')).toBe('rotation')
-    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'darwin')).toBe('offline-hymt15')
+    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true }, 'darwin')).toBe('offline-plamo3')
   })
   it('resolves auto → rotation when at least one API key is configured', () => {
     expect(resolveEngineMode('auto', ALL_KEYS, { hasGpu: false })).toBe('rotation')
   })
 
   it('resolves auto → offline-hunyuan-mt when GPU is present and no API keys', () => {
-    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true })).toBe('offline-hunyuan-mt')
+    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: true })).toBe('offline-plamo3')
   })
 
   it('resolves auto → offline-hymt15 when no GPU and no API keys', () => {
-    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: false })).toBe('offline-hymt15')
+    expect(resolveEngineMode('auto', NO_KEYS, { hasGpu: false })).toBe('offline-plamo3')
   })
 
   it('returns the mode unchanged when not auto', () => {
@@ -132,7 +142,7 @@ describe('resolveEngineMode (#702)', () => {
 
   it('treats Azure as a valid key only when both key and region are present', () => {
     const onlyKey = { ...NO_KEYS, microsoftApiKey: 'm' }
-    expect(resolveEngineMode('auto', onlyKey, { hasGpu: false })).toBe('offline-hymt15')
+    expect(resolveEngineMode('auto', onlyKey, { hasGpu: false })).toBe('offline-plamo3')
     const withRegion = { ...NO_KEYS, microsoftApiKey: 'm', microsoftRegion: 'eastus' }
     expect(resolveEngineMode('auto', withRegion, { hasGpu: false })).toBe('rotation')
   })
@@ -142,7 +152,7 @@ describe('buildEngineConfig realtime e2e precedence (#723)', () => {
   const OPENAI_KEYS = { ...NO_KEYS, openaiApiKey: 'sk-test' }
   const GEMINI_LIVE_KEYS = { ...NO_KEYS, geminiLiveApiKey: 'AIza-test' }
   const BOTH_KEYS = { ...NO_KEYS, openaiApiKey: 'sk-test', geminiLiveApiKey: 'AIza-test' }
-  const CASCADE = { mode: 'cascade', sttEngineId: STT, translatorEngineId: 'hunyuan-mt-15' }
+  const CASCADE = { mode: 'cascade', sttEngineId: STT, translatorEngineId: 'plamo-3' }
 
   it('selects the OpenAI realtime path when only cloud realtime is enabled', () => {
     expect(

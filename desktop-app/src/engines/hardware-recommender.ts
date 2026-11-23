@@ -2,7 +2,7 @@ import type { GpuInfo } from './gpu-detector'
 import { isMacAppleSpeechAvailable } from '../main/mac-engine-availability'
 import {
   WHISPER_VARIANTS,
-  HUNYUAN_MT_15_VARIANTS,
+  PLAMO_3_VARIANTS,
   LFM2_VARIANTS,
   isModelDownloaded,
   isGGUFDownloaded
@@ -55,7 +55,7 @@ function hasNvidiaCuda(platform: string, gpuInfo: GpuInfo): boolean {
  *
  * Priority:
  * 0. macOS 26+ with Apple Silicon and the SpeechTranscriber helper installed
- * 1. Apple Silicon M1+ with >=16GB: MLX Whisper (or Kotoba-Whisper for JA) + HY-MT1.5-1.8B
+ * 1. Apple Silicon M1+ with >=16GB: MLX Whisper (or Kotoba-Whisper for JA) + PLaMo 3 Translate 0.8B-1.8B
  * 2. Apple Silicon M1+ with >=8GB: MLX Whisper (or Kotoba-Whisper for JA) + LFM2 (lighter)
  * 3. Apple Silicon M1+ with <8GB: MLX Whisper (or Kotoba-Whisper for JA) + API fallback
  * 4. Intel Mac / other: Whisper Local (base) + API fallback
@@ -81,19 +81,19 @@ export function recommendEngines(
     // Choose translator based on memory (same logic as other Apple Silicon tiers)
     if (totalMemoryMB >= 16384) {
       const whisperVariant: WhisperVariant = 'kotoba-v2.0'
-      const gguf = HUNYUAN_MT_15_VARIANTS['Q4_K_M']
+      const gguf = PLAMO_3_VARIANTS['Q4_K_M']
       if (!isGGUFDownloaded(gguf.filename)) {
         downloads.push({ type: 'gguf', key: gguf.filename, filename: gguf.filename, url: gguf.url, sizeMB: gguf.sizeMB, label: gguf.label })
       }
       return {
         sttEngine,
-        translationEngine: 'offline-hymt15',
+        translationEngine: 'offline-plamo3',
         whisperVariant,
         downloads,
         totalDownloadMB: downloads.reduce((sum, d) => sum + d.sizeMB, 0),
         needsDownload: downloads.length > 0,
         fallbackEngine: downloads.length > 0 ? 'offline-opus' : null,
-        reason: 'macOS 26+ — using Apple SpeechTranscriber (zero setup, ANE) + HY-MT 1.5 for best offline quality'
+        reason: 'macOS 26+ — using Apple SpeechTranscriber (zero setup, ANE) + PLaMo 3 Translate 0.8B for best offline quality'
       }
     }
     if (totalMemoryMB >= 8192) {
@@ -127,9 +127,9 @@ export function recommendEngines(
   }
 
   if (appleSilicon && totalMemoryMB >= 16384) {
-    // Best experience: MLX Whisper (or Kotoba-Whisper for JA) + HY-MT1.5
+    // Best experience: MLX Whisper (or Kotoba-Whisper for JA) + PLaMo 3 Translate 0.8B
     const sttEngine = preferKotoba ? 'kotoba-whisper' as const : 'mlx-whisper' as const
-    const translationEngine = 'offline-hymt15'
+    const translationEngine = 'offline-plamo3'
     const whisperVariant: WhisperVariant = 'kotoba-v2.0'
 
     // Check which models need downloading
@@ -137,7 +137,7 @@ export function recommendEngines(
       const v = WHISPER_VARIANTS[whisperVariant]
       downloads.push({ type: 'whisper', key: whisperVariant, filename: v.filename, url: v.url, sizeMB: v.sizeMB, label: v.label })
     }
-    const gguf = HUNYUAN_MT_15_VARIANTS['Q4_K_M']
+    const gguf = PLAMO_3_VARIANTS['Q4_K_M']
     if (!isGGUFDownloaded(gguf.filename)) {
       downloads.push({ type: 'gguf', key: gguf.filename, filename: gguf.filename, url: gguf.url, sizeMB: gguf.sizeMB, label: gguf.label })
     }
@@ -150,7 +150,7 @@ export function recommendEngines(
       totalDownloadMB: downloads.reduce((sum, d) => sum + d.sizeMB, 0),
       needsDownload: downloads.length > 0,
       fallbackEngine: downloads.length > 0 ? 'offline-opus' : null,
-      reason: 'Apple Silicon with 16GB+ RAM — using MLX Whisper + HY-MT 1.5 for best offline quality'
+      reason: 'Apple Silicon with 16GB+ RAM — using MLX Whisper + PLaMo 3 Translate 0.8B for best offline quality'
     }
   }
 
@@ -208,26 +208,26 @@ export function recommendEngines(
   const nvidiaCuda = hasNvidiaCuda(platform, gpuInfo)
 
   if (nvidiaCuda && totalMemoryMB >= 16384) {
-    // Windows + NVIDIA + 16GB+: Whisper Local (CUDA) + HY-MT1.5
+    // Windows + NVIDIA + 16GB+: Whisper Local (CUDA) + PLaMo 3 Translate 0.8B
     const whisperVariant: WhisperVariant = 'base'
     if (!isModelDownloaded(whisperVariant)) {
       const v = WHISPER_VARIANTS[whisperVariant]
       downloads.push({ type: 'whisper', key: whisperVariant, filename: v.filename, url: v.url, sizeMB: v.sizeMB, label: v.label })
     }
-    const gguf = HUNYUAN_MT_15_VARIANTS['Q4_K_M']
+    const gguf = PLAMO_3_VARIANTS['Q4_K_M']
     if (!isGGUFDownloaded(gguf.filename)) {
       downloads.push({ type: 'gguf', key: gguf.filename, filename: gguf.filename, url: gguf.url, sizeMB: gguf.sizeMB, label: gguf.label })
     }
 
     return {
       sttEngine: 'whisper-local' as const,
-      translationEngine: 'offline-hymt15',
+      translationEngine: 'offline-plamo3',
       whisperVariant,
       downloads,
       totalDownloadMB: downloads.reduce((sum, d) => sum + d.sizeMB, 0),
       needsDownload: downloads.length > 0,
       fallbackEngine: downloads.length > 0 ? 'offline-opus' : null,
-      reason: 'Windows with NVIDIA GPU + 16GB+ RAM — using CUDA Whisper + HY-MT 1.5 for best offline quality'
+      reason: 'Windows with NVIDIA GPU + 16GB+ RAM — using CUDA Whisper + PLaMo 3 Translate 0.8B for best offline quality'
     }
   }
 

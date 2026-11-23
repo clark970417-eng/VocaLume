@@ -15,16 +15,31 @@ export class CompanionScheduler {
   private high: Array<(preempt: AbortSignal) => Promise<void>> = []
   private normal: Array<(preempt: AbortSignal) => Promise<void>> = []
   private active = false
+  private activeTask: ((preempt: AbortSignal) => Promise<void>) | null = null
   /** Preemption handle for the active page-text operation; null while audio runs. */
   private activePreemption: AbortController | null = null
   private highStreak = 0
   private idleWaiters: Array<() => void> = []
 
-  run<T>(audioPriority: boolean, operation: (preempt: AbortSignal) => Promise<T>): Promise<T> {
+  run<T>(audioPriority: boolean, operation: (preempt: AbortSignal) => Promise<T>, promoteSignal?: AbortSignal): Promise<T> {
+    audioPriority ||= !!promoteSignal?.aborted
     const result = new Promise<T>((resolve, reject) => {
       const task = async (preempt: AbortSignal): Promise<void> => {
         try { resolve(await operation(preempt)) } catch (error) { reject(error) }
+        finally { promoteSignal?.removeEventListener('abort', promote) }
       }
+      const promote = (): void => {
+        if (this.activeTask === task) {
+          this.activePreemption = null
+          return
+        }
+        const index = this.normal.indexOf(task)
+        if (index < 0) return
+        this.normal.splice(index, 1)
+        this.high.push(task)
+        this.preemptActive(new Error('Preempted by live audio'))
+      }
+      if (!audioPriority) promoteSignal?.addEventListener('abort', promote, { once: true })
       ;(audioPriority ? this.high : this.normal).push(task)
     })
     if (audioPriority) this.activePreemption?.abort(new Error('Preempted by live audio'))
@@ -52,8 +67,13 @@ export class CompanionScheduler {
         const task = (useHigh ? this.high : this.normal).shift()!
         this.highStreak = useHigh ? this.highStreak + 1 : 0
         const preemption = new AbortController()
+        this.activeTask = task
         this.activePreemption = useHigh ? null : preemption
-        try { await task(preemption.signal) } finally { this.activePreemption = null }
+        try { await task(preemption.signal) }
+        finally {
+          this.activePreemption = null
+          this.activeTask = null
+        }
       }
     } finally {
       this.active = false

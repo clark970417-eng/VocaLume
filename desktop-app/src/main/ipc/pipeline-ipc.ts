@@ -8,7 +8,7 @@ import { GeminiTranslator } from '../../engines/translator/GeminiTranslator'
 import { MicrosoftTranslator } from '../../engines/translator/MicrosoftTranslator'
 import { ApiRotationController } from '../../engines/translator/ApiRotationController'
 import type { ProviderConfig, QuotaStore } from '../../engines/translator/ApiRotationController'
-import { HunyuanMT15Translator } from '../../engines/translator/HunyuanMT15Translator'
+import { PLaMo3Translator } from '../../engines/translator/PLaMo3Translator'
 import { CloudRealtimeE2E } from '../../engines/e2e/CloudRealtimeE2E'
 import { GeminiLiveE2E } from '../../engines/e2e/GeminiLiveE2E'
 import { TranscriptLogger } from '../../logger/TranscriptLogger'
@@ -76,7 +76,7 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
         log.info(`MDM: Overriding translator engine from ${config.translatorEngineId} to ${mdm.lockedEngine}`)
         config.translatorEngineId = mdm.lockedEngine
       } else if (macEngines && !macEngines.appleTranslate && config.translatorEngineId === 'apple-translate') {
-        config.translatorEngineId = 'hunyuan-mt-15'
+        config.translatorEngineId = 'plamo-3'
       }
       if (config.sttEngineId && !mdm.lockedSttEngine) {
         const sourceLanguage = store.get('sourceLanguage')
@@ -216,9 +216,9 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
         ctx.pipeline.registerTranslator('rotation-controller', () =>
           new ApiRotationController(rotationProviders!, persistence, statusFn, {
             // #703: local fallback so exhausted cloud quotas never silently
-            // stop the subtitle stream. HunyuanMT15 is lazy-initialized inside
+            // stop the subtitle stream. PLaMo is lazy-initialized inside
             // the controller (only loaded on first exhaustion).
-            fallbackEngine: new HunyuanMT15Translator({
+            fallbackEngine: new PLaMo3Translator({
               onProgress: (msg) =>
                 ctx.mainWindow?.webContents.send('status-update', msg)
             })
@@ -313,7 +313,11 @@ export async function startPipeline(ctx: AppContext, config: PipelineStartConfig
         targetLanguage: String(store.get('targetLanguage') || 'en')
       }
 
-      return { success: true }
+      return {
+        success: true,
+        prepareTranslation: config.mode !== 'e2e' && config.translatorEngineId === 'plamo-3' &&
+          store.get('sourceLanguage') === 'ja' && store.get('targetLanguage') === 'zh'
+      }
     } catch (err) {
       return { error: sanitizeErrorMessage(String(err)) }
     }

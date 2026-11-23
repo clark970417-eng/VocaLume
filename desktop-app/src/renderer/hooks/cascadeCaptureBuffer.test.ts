@@ -104,3 +104,23 @@ it('leaves unverified MicVAD versions untouched', () => {
   releaseAcceptedVadAudio({ frameProcessor: { audioBuffer, minSpeechFrames: 2 } }, '0.0.31')
   expect(audioBuffer[0].frame.length).toBe(FRAME_SAMPLES)
 })
+
+it('provides one full PLaMo pause preview without moving the final cut', () => {
+  const buffer = new CascadeCaptureBuffer()
+  buffer.push(frame(0.1), false, 0.9)
+  buffer.startSpeech()
+  for (let i = 0; i < 41; i++) buffer.push(frame(0.2), true, 0.9)
+  expect(buffer.preview()?.audio.length).toBe(31 * FRAME_SAMPLES)
+  for (let i = 0; i < 4; i++) buffer.push(frame(0), true, 0)
+  expect(buffer.preview()).toBeNull()
+  const prepared = buffer.previewForTranslation()!
+  expect(prepared.audio.length).toBe(46 * FRAME_SAMPLES)
+  expect(prepared.evidence?.speechEndSample).toBe(42 * FRAME_SAMPLES)
+  expect(buffer.previewForTranslation()).toBeNull()
+  const finalAudio = new Float32Array(56 * FRAME_SAMPLES)
+  finalAudio.set(prepared.audio)
+  for (let i = 0; i < 10; i++) buffer.push(frame(0), true, 0)
+  const final = buffer.finish(finalAudio)
+  expect(final?.audio).toBe(finalAudio)
+  expect(final?.evidence?.captureStartSample).toBe(prepared.evidence?.captureStartSample)
+})

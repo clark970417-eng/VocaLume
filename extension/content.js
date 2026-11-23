@@ -7,6 +7,45 @@ let websiteTextOptInEnabled=false, textEpoch=0, contextInvalid=false;
 let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
 const pageUi = globalThis.VocaLumePageLanguage;
 const domChanges = globalThis.VocaLumeDomChanges;
+const youtubeChannel = globalThis.VocaLumeYoutubeChannel;
+const channelIdsByHandle = new Map();
+let pendingChannel;
+function currentYoutubeChannelId() {
+  const owner = youtubeChannel?.youtubeOwner(document, new URL(location.href));
+  return owner?.channelId || channelIdsByHandle.get(owner?.handle);
+}
+async function getCurrentYoutubeChannel() {
+  const owner = youtubeChannel?.youtubeOwner(document, new URL(location.href));
+  if (!owner) return null;
+  const known = owner.channelId || channelIdsByHandle.get(owner.handle);
+  if (known) return {channelId: known, label: owner.label};
+  if (pendingChannel?.handle !== owner.handle) {
+    const handle = owner.handle;
+    const request = fetch(new URL('/@' + handle, location.origin), {signal: AbortSignal.timeout(4000)})
+      .then(response => response.ok ? response.text() : '')
+      .then(html => {
+        const channelId = youtubeChannel.channelIdFromProfile(html);
+        if (channelId) {
+          channelIdsByHandle.set(handle, channelId);
+          if (channelIdsByHandle.size > 40) channelIdsByHandle.delete(channelIdsByHandle.keys().next().value);
+        }
+        return channelId;
+      }).catch(() => undefined).finally(() => {
+        if (pendingChannel?.request === request) pendingChannel = undefined;
+      });
+    pendingChannel = {handle, request};
+  }
+  const channelId = await pendingChannel.request;
+  const current = youtubeChannel.youtubeOwner(document, new URL(location.href));
+  return channelId && current?.videoId === owner.videoId && current.handle === owner.handle
+    ? {channelId, label: owner.label} : null;
+}
+if (window.top === window) chrome.runtime.onMessage.addListener((message, sender, send) => {
+  if (message.type !== 'youtube-channel-context' || sender.id !== chrome.runtime.id) return;
+  getCurrentYoutubeChannel().then(send, () => send(null));
+  return true;
+});
+
 const uiText = value => pageUi?.text(value) ?? value;
 function setUi(element, value, property = 'textContent') {
   if (pageUi) { pageUi.bind(element, value, property); return; }
@@ -68,7 +107,12 @@ function smallestJapaneseLeaves(nodes) {
 }
 
 function requestTranslation(text, direction, priority = false, queueOrder, isValid, livestreamChat = false) {
-  const key = `${livestreamChat}:${direction}:${text}`;
+  // A YouTube tab survives navigation. Include its current video so a
+  // translation from one channel cannot answer a repeat on the next one.
+  let scope = window.location?.href || '';
+  try { scope = window.top?.location?.href || scope; }
+  catch { /* An embedded player may have a cross-origin top document. */ }
+  const key = JSON.stringify([scope, livestreamChat, direction, text]);
   if (cache.has(key)) {
     const result = cache.get(key);
     cache.delete(key);
@@ -263,7 +307,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     setWebsiteText(websiteTextOptInEnabled);
   }
   if (area === "local" && changes.subtitleSettings) applySubtitleSettings(changes.subtitleSettings.newValue);
-  if (area === "local" && (changes.languageSettings || changes.speechMode || changes.cloudTranslation || changes.nvidiaKey || changes.openrouterKey)) {
+  if (area === "local" && (changes.languageSettings || changes.speechMode || changes.cloudTranslation || changes.nvidiaKey || changes.openrouterKey || Object.keys(changes).some(key => key.startsWith("youtubeGlossary:")))) {
     if (changes.languageSettings) languageSettings = {...languageSettings, ...changes.languageSettings.newValue};
     textEpoch++;
     translated = new WeakMap();
@@ -277,45 +321,109 @@ let lastSubtitleKey = "", subtitleExpiryTimer;
 let pollEpoch=0;
 let polling=false,pollTimer,nativeTimer;
 let lastNativeCaption = "", nativeNotifiedAt=0, captionRunning=false;
-function readNativeCaption(){
+let activeCaptionInput='auto';
+let nativeRevision=0, nativeResetPending=false, nativeNavigating=false;
+let nativePlayerVideo=null, nativeVideoKey='', blockedNativeCaption='', nativeChannelAttempted=false;
+let subtitleVisible=false;
+function updateNativeVisibility() {
+ const language=languageSettings.speechSource||'ja';
+ const hide=subtitleVisible&&Boolean(lastNativeCaption)&&activeCaptionInput!=='audio'&&
+  (activeCaptionInput==='youtube'||matchesLanguage(lastNativeCaption,language));
+ document.querySelector('#movie_player')?.classList.toggle('jtl-native-active',hide);
+}
+function currentNativeVideoKey(){
+ const url=window.location;
+ return url ? url.pathname+(url.search.match(/(?:^|[?&])v=([^&]+)/)?.[1]||'') : '';
+}
+function resetCaptionTimeline(){
+ pollEpoch++;
+ blockedNativeCaption=lastNativeCaption||blockedNativeCaption;
+ lastNativeCaption='';nativeNotifiedAt=0;
+ nativePlayerVideo=null;nativeVideoKey='';nativeChannelAttempted=false;
+ document.querySelector('#movie_player')?.classList.remove('jtl-native-active');
+ renderSubtitle(null);
  if(!captionRunning)return;
+ const revision=++nativeRevision;
+ nativeResetPending=true;
+ void runtimeMessage({type:'subtitle-reset',nativeRevision:revision}).then(result=>{
+  if(revision!==nativeRevision)return;
+  nativeResetPending=false;
+  if(result?.running===false)setCaptionRunning(false);
+  else readNativeCaption();
+ }).catch(()=>{
+  if(revision===nativeRevision)nativeResetPending=false;
+ });
+}
+function readNativeCaption(){
+ if(!captionRunning||nativeResetPending||nativeNavigating)return;
  const video=document.querySelector('#movie_player video');
+ const videoKey=currentNativeVideoKey();
+ if((video&&nativePlayerVideo&&nativePlayerVideo!==video)||(nativeVideoKey&&nativeVideoKey!==videoKey)){
+  resetCaptionTimeline();
+  return;
+ }
+ nativePlayerVideo=video;nativeVideoKey=videoKey;
+ if(activeCaptionInput==='audio'||video?.seeking){document.querySelector('#movie_player')?.classList.remove('jtl-native-active');return;}
  const text=video&&!video.paused ? [...document.querySelectorAll('#movie_player .ytp-caption-window-container .ytp-caption-segment')].map(el=>el.textContent).join(' ').replace(/\s+/g,' ').trim() : '';
+ if(text&&text===blockedNativeCaption)return;
+ blockedNativeCaption='';
  const changed=text!==lastNativeCaption, now=Date.now();
  // A visible cue can outlive its 1.8-second lease. Renew it before expiry,
  // but send changes and the cue's disappearance immediately.
  if(changed || (text && now-nativeNotifiedAt>=650)){
   lastNativeCaption=text;nativeNotifiedAt=now;
-  runtimeMessage({type:'native-caption',text}).catch(()=>{});
+  const youtubeChannelId=currentYoutubeChannelId();
+  if(text&&youtubeChannel&&!youtubeChannelId&&!nativeChannelAttempted){
+   nativeChannelAttempted=true;
+   const revision=nativeRevision;
+   void getCurrentYoutubeChannel().then(result=>{
+    if(result&&captionRunning&&revision===nativeRevision&&videoKey===currentNativeVideoKey()){
+     nativeNotifiedAt=-Infinity;
+     readNativeCaption();
+    }
+   }).catch(()=>{});
+  }
+  runtimeMessage({type:'native-caption',text,rolling:true,nativeRevision,youtubeChannelId}).catch(()=>{});
  }
- document.querySelector('#movie_player')?.classList.toggle('jtl-native-active',matchesLanguage(text,languageSettings.speechSource||'ja'));
+ updateNativeVisibility();
 }
-function setCaptionRunning(running){
+function setCaptionRunning(running,readImmediately=true){
  if(captionRunning===running)return;
  captionRunning=running;
  if(running){
-  readNativeCaption();
+  if(readImmediately)readNativeCaption();
   pollTimer=setInterval(pollSubtitles,700);
   nativeTimer=setInterval(readNativeCaption,350);
  }else{
   clearInterval(pollTimer);clearInterval(nativeTimer);
-  lastNativeCaption='';nativeNotifiedAt=0;
+  lastNativeCaption='';nativeNotifiedAt=0;nativePlayerVideo=null;nativeVideoKey='';blockedNativeCaption='';nativeResetPending=false;nativeChannelAttempted=false;
   document.querySelector('#movie_player')?.classList.remove('jtl-native-active');
  }
 }
 function renderSubtitle(item) {
-  if(item?.recordingRows){clearTimeout(subtitleExpiryTimer);installSubtitleOverlay();const overlay=document.querySelector('#jtl-subtitles');if(overlay){overlay.captionWindow.render(item.recordingRows);overlay.classList.toggle('jtl-visible',item.recordingRows.length>0);}return;}
+  if(item?.recordingRows){
+    clearTimeout(subtitleExpiryTimer);installSubtitleOverlay();
+    const overlay=document.querySelector('#jtl-subtitles');
+    subtitleVisible=Boolean(overlay&&item.recordingRows.length);
+    if(overlay){overlay.captionWindow.render(item.recordingRows);overlay.classList.toggle('jtl-visible',subtitleVisible);}
+    updateNativeVisibility();
+    return;
+  }
   clearTimeout(subtitleExpiryTimer);
   const expiresAt=item?.expiresAt??(item?.updatedAt+3);
   if (!item || item.expired || Date.now()/1000 >= expiresAt) {
     document.querySelector("#jtl-subtitles")?.classList.remove("jtl-visible");
     document.querySelector('#jtl-subtitles')?.captionWindow?.render([]);
     lastSubtitleKey = "";
+    subtitleVisible=false;
+    updateNativeVisibility();
     return;
   }
   installSubtitleOverlay();
   const overlay = document.querySelector("#jtl-subtitles");
   if (!overlay) return;
+  subtitleVisible=Boolean(item.original);
+  updateNativeVisibility();
   overlay.dataset.expiresAt=expiresAt;
   subtitleExpiryTimer=setTimeout(()=>renderSubtitle(null),Math.max(0,expiresAt*1000-Date.now()));
   const key = `${item.id}:${item.original}:${item.translated}:${item.provisional}:${item.pending}:${item.error}`;
@@ -324,21 +432,39 @@ function renderSubtitle(item) {
   overlay.captionWindow.render([item]);
   overlay.dataset.state=item.provisional?'provisional':'final';
   setUi(overlay, item.provisional ? '暫定字幕，句尾會校正' : '已確認字幕', 'title');
-  overlay.classList.toggle("jtl-visible", Boolean(item.original));
+  overlay.classList.toggle("jtl-visible", subtitleVisible);
 }
 async function pollSubtitles() {
   if (window.top !== window || polling) return;
   polling=true;const epoch=pollEpoch;
   try {
     const data = await runtimeMessage({type: "subtitles"});
-    if (epoch !== pollEpoch) return;
+    if (epoch !== pollEpoch || !acceptSubtitleRevision(data,true)) return;
+    activeCaptionInput=data.captionInput||'auto';
+    // A reloaded page can attach to capture still running in the same tab.
+    // Invalidate captions from the old content document before displaying one.
+    if(data.running&&!captionRunning&&data.items?.some(item=>item.original||item.recordingRows?.length)){
+      setCaptionRunning(true,false);
+      resetCaptionTimeline();
+      return;
+    }
     setCaptionRunning(Boolean(data.running));
     renderSubtitle(data.running ? data.items?.at(-1) : null);
   } catch (error) {if(!chrome.runtime?.id){contextInvalid=true;setCaptionRunning(false);document.querySelector('#jtl-subtitles')?.remove();}} finally {polling=false;}
 }
+function acceptSubtitleRevision(message,fromPoll=false){
+ if(nativeResetPending||nativeNavigating)return false;
+ if(!Number.isSafeInteger(message.nativeRevision))return true;
+ if(!captionRunning||message.nativeRevision>nativeRevision||(fromPoll&&message.running===false)){
+  if(message.nativeRevision!==nativeRevision){lastNativeCaption='';nativeNotifiedAt=0;}
+  nativeRevision=message.nativeRevision;
+ }
+ return nativeRevision===message.nativeRevision;
+}
 chrome.runtime.onMessage.addListener(message => {
-  if (message.type === "subtitle-update" && window.top === window) {
+  if (message.type === "subtitle-update" && window.top === window && acceptSubtitleRevision(message)) {
     pollEpoch++;
+    activeCaptionInput=message.captionInput||'auto';
     if (typeof message.running === 'boolean') setCaptionRunning(message.running);
     renderSubtitle(message.item);
   }
@@ -461,10 +587,20 @@ document.addEventListener("focusin", event => {
   if(box)installComposerButton([box]);
 });
 if (window.top === window) {
- const reset=()=>{textEpoch++;translated=new WeakMap();currentTitle=undefined;document.querySelectorAll('.jtl-title').forEach(line=>line.remove());pollEpoch++;lastNativeCaption='';nativeNotifiedAt=0;lastSubtitleKey='';renderSubtitle(null);if(captionRunning)runtimeMessage({type:'subtitle-reset'}).catch(()=>{});};
- document.addEventListener('yt-navigate-start',reset);
- document.addEventListener('yt-navigate-finish',()=>scan());
- document.addEventListener('seeking',event=>{if(event.target.tagName==='VIDEO')reset();},true);
+ document.addEventListener('yt-navigate-start',()=>{
+  textEpoch++;translated=new WeakMap();currentTitle=undefined;
+  document.querySelectorAll('.jtl-title').forEach(line=>line.remove());
+  nativeNavigating=true;
+  resetCaptionTimeline();
+ });
+ document.addEventListener('yt-navigate-finish',()=>{
+  nativeNavigating=false;
+  readNativeCaption();
+  if(!captionRunning)void pollSubtitles();
+  scan();
+ });
+ document.addEventListener('seeking',event=>{if(event.target===document.querySelector('#movie_player video'))resetCaptionTimeline();},true);
+ document.addEventListener('seeked',event=>{if(event.target===document.querySelector('#movie_player video'))readNativeCaption();},true);
  document.addEventListener('fullscreenchange',()=>{if(document.querySelector('#jtl-subtitles'))installSubtitleOverlay();});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void pollSubtitles();});
 }

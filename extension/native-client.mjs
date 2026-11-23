@@ -37,7 +37,10 @@ export class NativeClient {
   }
  }
  requestOnce(op,fields={},timeout=60000,progress){
-  if(this.pending.size>=16)return Promise.reject(new Error('Desktop queue is full'));
+  // Match the companion's reserved slots so a burst of page translations
+  // cannot fill the transport ahead of a live subtitle or audio packet.
+  const backgroundText=op==='translate'&&fields.liveCaption!==true;
+  if(this.pending.size>=(backgroundText?12:16))return Promise.reject(new Error('Desktop queue is full'));
   this.connect();const id=++this.sequence;
   return new Promise((resolve,reject)=>{
    // A slow recognition request must not tear down the shared native port:

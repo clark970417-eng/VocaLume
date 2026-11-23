@@ -60,3 +60,16 @@ it('does not invent help in a welcome, but keeps explicitly spoken help', () => 
   expect(buildJaZhFidelityGuidance('しまいました来てくれてありがとうございます')).toBe('')
   expect(finishJaZhTranslation('手伝いに来てくれてありがとうございます。', '謝謝您能過來幫忙。')).toBe('謝謝您能過來幫忙。')
 })
+
+it('drops an incomplete trailing UTF-8 character from a live caption', () => {
+  expect(finishJaZhTranslation('パーティーはあと一枠です。', '派對還剩一個名額\uFFFD')).toBe('派對還剩一個名額')
+  expect(finishJaZhTranslation('これはテストです。', '這是測試。')).toBe('這是測試。')
+})
+
+it('normalizes Super Chat aliases only when the Japanese source mentions スパチャ', () => {
+  const source = 'さっきのスパチャ、名前を読み間違えたかも。'
+  expect(finishJaZhTranslation(source, '剛才那個 Spa-cha，我可能讀錯名字了')).toBe('剛才那個超級留言，我可能讀錯名字了')
+  expect(finishJaZhTranslation(source, '謝謝 Super Chat 和スパチャ！')).toBe('謝謝超級留言和超級留言！')
+  expect(finishJaZhTranslation(source, '謝謝你的超級留言！')).toBe('謝謝你的超級留言！')
+  expect(finishJaZhTranslation('さっきの名前を読み間違えたかも。', '我可能讀錯 Spa-cha 的名字了')).toBe('我可能讀錯 Spa-cha 的名字了')
+})

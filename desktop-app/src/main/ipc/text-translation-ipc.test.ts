@@ -20,8 +20,8 @@ vi.mock('../live-work', async (importOriginal) => ({
   ...await importOriginal<typeof import('../live-work')>(),
   liveWork: () => ({ run: mocks.run })
 }))
-vi.mock('../../engines/translator/HunyuanMT15Translator', () => ({
-  HunyuanMT15Translator: class {
+vi.mock('../../engines/translator/PLaMo3Translator', () => ({
+  PLaMo3Translator: class {
     constructor(options: unknown) { mocks.create(options) }
     downloadModel = mocks.downloadModel
     initialize = mocks.initialize
@@ -73,7 +73,7 @@ describe('desktop text translation', () => {
     mocks.settings.mockImplementation(key => settings[key])
     mocks.translate.mockResolvedValue('今日のライブ配信ありがとうございました！')
     await expect(translate(null, '謝謝今天的直播', 'zh', 'ja')).resolves.toBe('今日のライブ配信ありがとうございました！')
-    expect(mocks.create).toHaveBeenCalledWith({ kvCacheQuant: true, speculativeDecoding: false })
+    expect(mocks.create).toHaveBeenCalledWith({ kvCacheQuant: true })
     expect(mocks.translate).toHaveBeenCalledWith('謝謝今天的直播', 'zh', 'ja', expect.objectContaining({
       previousSegments: [],
       glossary: expect.arrayContaining([managed]),

@@ -21,7 +21,7 @@ it('uses a Windows named pipe instead of an unsupported Unix socket path', () =>
   expect(companionEndpoint('/tmp/caption', 'linux')).toBe('/tmp/caption/desktop.sock')
 })
 
-vi.mock('../engines/translator/HunyuanMT15Translator', () => ({ HunyuanMT15Translator: class {
+vi.mock('../engines/translator/PLaMo3Translator', () => ({ PLaMo3Translator: class {
   async initialize() {} async dispose() {}
   async translate(...args: unknown[]) { return textInference(...(args as [])) }
 } }))
@@ -169,6 +169,59 @@ it('rejects excess page translations without disconnecting audio and gives queue
     socket.destroy()
     await new Promise<void>(resolve => server.close(() => resolve()))
     textInference.mockReset().mockResolvedValue('こんにちは')
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+it('promotes a matching queued read, shares its result, and separates channel terminology', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'jtl-priority-'))
+  const order: string[] = []
+  let release!: () => void
+  let activeSignal: AbortSignal | undefined
+  const translation = vi.fn(async (source: string, _from: string, _to: string, context?: { signal?: AbortSignal }) => {
+    order.push(source)
+    if (source === '処理中' && !activeSignal) {
+      activeSignal = context?.signal
+      await new Promise<void>(resolve => { release = resolve })
+      activeSignal?.throwIfAborted()
+    }
+    return '字幕'
+  })
+  const pipeline = Object.assign(new EventEmitter(), {
+    active: false, running: false,
+    getTranslatorForBackgroundText: () => ({ translate: translation })
+  })
+  const server = await startExtensionCompanion({ pipeline } as unknown as AppContext, directory)
+  const socket = connect(companionEndpoint(directory))
+  const messages: Array<Record<string, unknown>> = []
+  let buffer = ''
+  socket.setEncoding('utf8')
+  socket.on('data', data => {
+    buffer += data
+    let newline: number
+    while ((newline = buffer.indexOf('\n')) >= 0) {
+      messages.push(JSON.parse(buffer.slice(0, newline)))
+      buffer = buffer.slice(newline + 1)
+    }
+  })
+  try {
+    const request = (id: number, text: string, options?: object) =>
+      JSON.stringify({ id, op: 'translate', direction: 'ja-zh', text, ...options }) + '\n'
+    socket.write(request(1, '処理中'))
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'))
+    socket.write(request(2, 'チャット') + request(3, '共有') + request(4, '共有', { liveCaption: true }) +
+      request(5, '共有', { youtubeGlossary: [{ source: '共有', target: '共用' }] }) + request(6, '先頭', { liveCaption: true }))
+    // Real native inference acknowledges this signal before releasing its slot.
+    await vi.waitFor(() => expect(activeSignal?.aborted).toBe(true))
+    release()
+    await vi.waitFor(() => expect(messages).toHaveLength(6))
+    expect(order).toEqual(['処理中', '共有', '先頭', 'チャット', '共有', '処理中'])
+    expect(messages.map(message => message.id)).toEqual([3, 4, 6, 2, 5, 1])
+    expect(messages.every(message => message.ok)).toBe(true)
+  } finally {
+    release?.()
+    socket.destroy()
+    await new Promise<void>(resolve => server.close(() => resolve()))
     rmSync(directory, { recursive: true, force: true })
   }
 })

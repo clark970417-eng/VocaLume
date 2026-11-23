@@ -21,10 +21,10 @@ describe('Onboarding step constants (#708)', () => {
     expect(AZURE_FREE_TIER_CHARS).toBe('2M chars/month')
   })
 
-  it('declares Tier 1 ~371MB and Tier 2 ~1.6GB to match onboarding-downloader.ts', () => {
+  it('declares Tier 1 ~371MB and Tier 2 ~1.1GB to match onboarding-downloader.ts', () => {
     expect(TIER1_TOTAL_MB).toBe(371)
-    expect(TIER2_TOTAL_MB).toBeGreaterThan(1500)
-    expect(TIER2_TOTAL_MB).toBeLessThan(1800)
+    expect(TIER2_TOTAL_MB).toBeGreaterThan(1050)
+    expect(TIER2_TOTAL_MB).toBeLessThan(1200)
   })
 })
 

@@ -1,5 +1,14 @@
 // Browser extension interface strings.
 export const UI_KO = {
+  "YouTube glossary": "YouTube 용어집",
+  "Apply to": "적용 범위",
+  "All YouTube channels": "모든 YouTube 채널",
+  "Open a YouTube video to edit terms for its channel.": "YouTube 동영상을 열면 해당 채널의 용어를 편집할 수 있습니다.",
+  "One original → translation pair per line": "한 줄에 ‘원문 → 번역문’ 한 쌍",
+  "Save glossary": "용어 저장",
+  "Use original → translation, with up to 80 characters per term.": "‘원문 → 번역문’ 형식으로 용어당 최대 80자까지 입력하세요.",
+  "Up to 200 terms per glossary.": "용어집 하나에 최대 200개를 등록할 수 있습니다.",
+  "Glossary saved.": "용어를 저장했습니다.",
   "Interface language": "인터페이스 언어",
   "Automatic (IP region)": "자동 (IP 주소 지역)",
   "Follow system": "시스템 설정 따르기",

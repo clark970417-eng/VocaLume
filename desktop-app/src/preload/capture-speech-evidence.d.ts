@@ -4,4 +4,5 @@ export interface CaptureSpeechEvidence {
   speechEndSample: number
   captureStartSample: number
   captureEndSample: number
+  preparationOnly?: true
 }

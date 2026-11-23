@@ -6,8 +6,9 @@ import fs from 'node:fs';
 /** Live chat and comment translation with a recyclable node, as a virtualized
  * list gives us: the same element object is reused for a different message. */
 function setup(semanticOnly=false,titleConfig=null){
- const chat=[], requests=[], rendered=[], intervals=new Map(), selectors=[], events={}; let change, navigate, receive;
- let now=Date.now(), nativeText='', paused=false;
+ const chat=[], requests=[], rendered=[], intervals=new Map(), selectors=[], events={}, listeners=[]; let change, navigate;
+ let now=Date.now(), nativeText='';
+ const video={tagName:'VIDEO',paused:false,seeking:false};
  const makeLine=()=>({className:'',textContent:'',dataset:{},children:[],isConnected:false,
   classList:{add(){},remove(){},toggle(){}},style:{setProperty(){}},
   setAttribute(){},append(...kids){this.children.push(...kids);},replaceChildren(...kids){this.children=kids;},
@@ -24,7 +25,7 @@ function setup(semanticOnly=false,titleConfig=null){
  const overlay={...makeLine(),captionWindow:{render:rows=>rendered.push(rows)}};
  const player={classList:{toggle(){},remove(){}}};
  const document={documentElement:{},
-  querySelector:selector=>selector==='#jtl-subtitles'?overlay:selector==='#movie_player'?player:selector==='#movie_player video'?{paused}:selector===titleConfig?.selector?title:null,
+  querySelector:selector=>selector==='#jtl-subtitles'?overlay:selector==='#movie_player'?player:selector==='#movie_player video'?video:selector===titleConfig?.selector?title:null,
   // Match the live-chat message selector only; the composer selector also
   // mentions yt-live-chat and must not receive these nodes.
   querySelectorAll:selector=>{
@@ -39,19 +40,23 @@ function setup(semanticOnly=false,titleConfig=null){
   },
   createElement:()=>makeLine(),
   addEventListener:(name,fn)=>{events[name]=fn;if(name==='yt-navigate-start')navigate=fn;}};
- const window={};window.top=window;
+ const location=new URL('https://www.youtube.com/watch?v=fixture');
+ const window={location};window.top=window;
  const chrome={storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true})},
    onChanged:{addListener:f=>change=f}},
-  runtime:{onMessage:{addListener:f=>receive=f},sendMessage:(message,reply)=>requests.push({message,reply})}};
+  runtime:{onMessage:{addListener:f=>listeners.push(f)},sendMessage:(message,reply)=>requests.push({message,reply})}};
  let scan;
  const root={nodeType:1,isConnected:true,closest:()=>null,matches:()=>false,querySelectorAll:document.querySelectorAll};
  vm.runInNewContext(['translation-guards.js','dom-changes.js','content.js'].map(file=>fs.readFileSync(new URL(`../${file}`,import.meta.url),'utf8')).join('\n'),
-  {chrome,window,document,Date:{now:()=>now},MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
+  {chrome,window,location,document,Date:{now:()=>now},MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
    setInterval(fn,delay){intervals.set(delay,fn);return delay;},clearInterval(id){intervals.delete(id);},setTimeout(fn,delay){if(delay===250)fn();return 0;},clearTimeout(){},console});
  return {chat,title,requests,makeNode,selectors,intervals,mutate:records=>scan(records),
-  scan:()=>scan([{type:'childList',target:root,addedNodes:[root],removedNodes:[]}]),navigate:()=>navigate?.(),runtime:chrome.runtime,
-  rendered,poll:()=>events.visibilitychange(),push:(item,running)=>receive({type:'subtitle-update',item,running}),
-  native(text,time,isPaused=false){nativeText=text;now+=time;paused=isPaused;intervals.get(350)?.();},
+  scan:()=>scan([{type:'childList',target:root,addedNodes:[root],removedNodes:[]}]),navigate:href=>{if(href)window.location.href=href;navigate?.();},runtime:chrome.runtime,
+  rendered,poll:()=>events.visibilitychange(),
+  changeVideo(id){location.searchParams.set('v',id);},
+  push:(item,running,nativeRevision)=>listeners.forEach(receive=>receive({type:'subtitle-update',item,running,nativeRevision},{})),
+  seek(seeking){video.seeking=seeking;events[seeking?'seeking':'seeked']?.({target:video});},
+  native(text,time,isPaused=false){nativeText=text;now+=time;video.paused=isPaused;intervals.get(350)?.();},
   toggle:v=>change({websiteTextOptInEnabled:{newValue:v}},'local')};
 }
 
@@ -227,6 +232,66 @@ test('YouTube native caption heartbeats are halved for an unchanged cue',async()
  t.push(null,false);
 });
 
+test('seeking clears the overlay immediately and rejects late pushes and stale player text',async()=>{
+ const t=setup();await settle();
+ const old={id:1,original:'前の動画です',translated:'上一部影片',expiresAt:Date.now()/1000+30};
+ const current={id:2,original:'次の動画です',translated:'下一部影片',expiresAt:Date.now()/1000+30};
+ t.push(old,true,0);
+ t.native(old.original,350);
+ t.seek(true);
+ assert.equal(t.rendered.at(-1).length,0);
+ const reset=t.requests.at(-1);
+ assert.equal(reset.message.type,'subtitle-reset');
+ assert.equal(reset.message.nativeRevision,1);
+ t.push(old,true,0);
+ assert.equal(t.rendered.at(-1).length,0);
+ reset.reply({ok:true,text:{running:true,nativeRevision:1}});
+ await settle();t.seek(false);
+ t.native(old.original,1200);
+ assert.equal(t.requests.at(-1),reset,'old DOM text was not submitted again');
+ t.push(old,true,0);
+ assert.equal(t.rendered.at(-1).length,0);
+ t.native(current.original,350);
+ assert.equal(t.requests.at(-1).message.nativeRevision,1);
+ assert.equal(t.requests.at(-1).message.text,current.original);
+ t.push(current,true,1);
+ assert.equal(t.rendered.at(-1)[0],current);
+ t.push(null,false,1);
+});
+
+test('a new video key within the same player invalidates old captions even without navigation events',async()=>{
+ const t=setup();await settle();
+ const old={id:1,original:'前の動画です',translated:'上一部影片',expiresAt:Date.now()/1000+30};
+ t.push(old,true,0);
+ t.native(old.original,350);
+ t.changeVideo('next');
+ t.native(old.original,350);
+ assert.equal(t.rendered.at(-1).length,0);
+ const reset=t.requests.at(-1);
+ assert.equal(reset.message.type,'subtitle-reset');
+ reset.reply({ok:true,text:{running:true,nativeRevision:1}});
+ await settle();
+ t.native('新しい字幕です。',350);
+ assert.equal(t.requests.at(-1).message.text,'新しい字幕です。');
+ assert.equal(t.requests.at(-1).message.nativeRevision,1);
+ t.push(null,false,1);
+});
+
+test('a new content document resets an old running capture before rendering its first poll',async()=>{
+ const t=setup();await settle();
+ const old={id:1,original:'前の動画です',translated:'上一部影片',expiresAt:Date.now()/1000+30};
+ t.poll();
+ t.requests[0].reply({ok:true,text:{running:true,nativeRevision:3,items:[old]}});
+ await settle();
+ assert.equal(t.rendered.at(-1).length,0);
+ const reset=t.requests.at(-1);
+ assert.equal(reset.message.type,'subtitle-reset');
+ assert.equal(reset.message.nativeRevision,4);
+ reset.reply({ok:true,text:{running:true,nativeRevision:4}});
+ await settle();
+ t.push(null,false,4);
+});
+
 test('a blank live-chat reply is not cached or rendered as a successful translation',async()=>{
  const t=setup();await settle();const node=t.makeNode('もう一度翻訳してください');
  t.chat.push(node);t.scan();await settle();
@@ -331,4 +396,19 @@ test('a title translated before a language change is restored when it returns',a
  t.title.textContent='日本語の配信です';t.scan();await settle();
  assert.equal(t.title.lines.find(l=>!l.removed).textContent,'中：日文直播');
  assert.equal(t.requests.length,1);
+});
+
+
+test('repeated chat on another YouTube video is translated in its channel context',async()=>{
+ const t=setup();await settle();
+ const text='こんばんは、カノです';
+ t.chat.push(t.makeNode(text));t.scan();await settle();
+ t.requests[0].reply({ok:true,text:'晚安，我是小鹿'});await settle();
+ t.navigate('https://www.youtube.com/watch?v=another');
+ const next=t.makeNode(text);
+ t.chat.splice(0,1,next);t.scan();await settle();
+ const latest=t.requests.filter(request=>request.message.type==='translate').at(-1);
+ assert.notEqual(latest,t.requests[0],'the first channel’s cached translation does not cross video navigation');
+ latest.reply({ok:true,text:'晚安，我是鹿乃'});await settle();
+ assert.equal(next.lines[0].textContent,'中：晚安，我是鹿乃');
 });

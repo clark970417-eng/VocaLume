@@ -14,9 +14,12 @@ import { buildEngineConfig, resolveEngineMode } from '../engine-selection'
 import type { EngineMode, SttEngineType } from '../engine-selection'
 import type { AppContext } from './app-context'
 import { HunyuanMT2Translator } from '../engines/translator/HunyuanMT2Translator'
-import { HunyuanMT15Translator } from '../engines/translator/HunyuanMT15Translator'
+import { PLaMo3Translator } from '../engines/translator/PLaMo3Translator'
 import { translateWrittenDraft } from './draft-fidelity'
 import { selectDraftTerminology } from './draft-glossary'
+import { mergeGlossaries } from '../engines/translator/glossary-manager'
+import { cleanYoutubeGlossary } from '../../../extension/youtube-glossary.mjs'
+import type { GlossaryEntry } from '../engines/types'
 import { CompanionScheduler } from './companion-scheduler'
 import { speechEvidenceFor } from '../engines/stt/transcript-guard'
 import type { SpeechEvidence } from '../engines/types'
@@ -140,7 +143,10 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
     socket.setEncoding('utf8')
     let buffer = '', pending = 0, closed = false
     const queue = new CompanionScheduler()
-    let translator: HunyuanMT2Translator | HunyuanMT15Translator | undefined
+    // Equivalent reads can share both a queue slot and a model result. Keep
+    // written drafts separate because their fallback and repair are per request.
+    const pendingReads = new Map<string, { ids: Array<number | undefined>; promote: AbortController }>()
+    let translator: HunyuanMT2Translator | PLaMo3Translator | undefined
     let translatorMode: string | undefined
     let translatorIdle: ReturnType<typeof setTimeout> | undefined
     const send = (value: unknown): void => { if (!closed) socket.write(JSON.stringify(value) + '\n') }
@@ -148,12 +154,12 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
       if (ownsSession) send({ event: 'performance', result: state })
       if (state.speculativeTranslationPaused && translator) scheduleTranslatorRelease(0)
     })
-    type LocalMode = 'offline-hymt2' | 'offline-hymt15'
-    const modeOf = (value: unknown): LocalMode => value === 'offline-hymt2' ? 'offline-hymt2' : 'offline-hymt15'
-    const translatorFor = async (mode: LocalMode): Promise<HunyuanMT2Translator | HunyuanMT15Translator> => {
+    type LocalMode = 'offline-hymt2' | 'offline-plamo3'
+    const modeOf = (value: unknown): LocalMode => value === 'offline-hymt2' ? 'offline-hymt2' : 'offline-plamo3'
+    const translatorFor = async (mode: LocalMode): Promise<HunyuanMT2Translator | PLaMo3Translator> => {
       if (!translator || translatorMode !== mode) {
         await translator?.dispose()
-        translator = mode === 'offline-hymt2' ? new HunyuanMT2Translator({ variant: '7B-Q4_K_M' }) : new HunyuanMT15Translator()
+        translator = mode === 'offline-hymt2' ? new HunyuanMT2Translator({ variant: '7B-Q4_K_M' }) : new PLaMo3Translator()
         translatorMode = mode
       }
       return translator
@@ -178,9 +184,9 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
     }
     const translatorForText = async (mode: LocalMode): Promise<TranslatorEngine> => {
       const pipeline = ctx.pipeline
-      const shared = mode === 'offline-hymt15' ? pipeline?.getTranslatorForBackgroundText?.() : null
+      const shared = mode !== 'offline-hymt2' ? pipeline?.getTranslatorForBackgroundText?.() : null
       if (shared) return shared
-      if (pipeline?.active && pipeline.currentConfig?.translatorEngineId === 'hunyuan-mt-15') {
+      if (pipeline?.active && pipeline.currentConfig?.translatorEngineId === 'plamo-3' && mode === 'offline-plamo3') {
         throw new Error('Pause live captions to translate text while simultaneous translation is enabled.')
       }
       const engine = await translatorFor(mode)
@@ -189,22 +195,22 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
     }
     /** Terminology is chosen from the whole comment, so a clause retranslated
      * during repair keeps the meaning the full sentence established. */
-    const draftWith = (engine: TranslatorEngine, comment: string, writingStyle?: 'general' | 'viewer' | 'polite') => {
-      const glossary = selectDraftTerminology(comment)
+    const draftWith = (engine: TranslatorEngine, comment: string, writingStyle?: 'general' | 'viewer' | 'polite', youtubeGlossary: GlossaryEntry[] = []) => {
+      const glossary = mergeGlossaries(selectDraftTerminology(comment) ?? [], youtubeGlossary)
       return (text: string, signal?: AbortSignal): Promise<string> =>
         engine.translate(text, 'zh', 'ja', { signal, previousSegments: [], glossary, writingStyle })
     }
     /** Answer a draft request later, on the caption model, behind any audio work
      * already queued. Scheduled as its own task: awaiting it from inside the
      * current task would deadlock the serial scheduler. */
-    const deferDraft = (id: number | undefined, text: string, mode: LocalMode, writingStyle?: 'general' | 'viewer' | 'polite'): void => {
+    const deferDraft = (id: number | undefined, text: string, mode: LocalMode, writingStyle?: 'general' | 'viewer' | 'polite', youtubeGlossary: GlossaryEntry[] = []): void => {
       pending++
       void queue.run(false, localPreempt => work.run('background', async globalPreempt => {
         const fallbackPreempt = AbortSignal.any([localPreempt, globalPreempt])
         try {
           if (closed) return
           const small = await translatorForText(mode)
-          const draft = await translateWrittenDraft(text, draftWith(small, text, writingStyle), fallbackPreempt)
+          const draft = await translateWrittenDraft(text, draftWith(small, text, writingStyle, youtubeGlossary), fallbackPreempt)
           send({ id, ok: true, result: { ...draft, fallbackModel: true } })
         } catch (error) {
           send({ id, ok: false, error: error instanceof Error ? error.message : String(error) })
@@ -271,13 +277,32 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
       for (;;) {
         const newline = buffer.indexOf('\n'); if (newline < 0) break
         const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1)
-        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; speechEndSample?: unknown; captureStartSample?: unknown; captureEndSample?: unknown; continuationExpected?: unknown; sourceLanguage?: string; targetLanguage?: string; speechToneMode?: unknown }
+        let m: { id?: number; op?: string; audio?: string; text?: string; direction?: string; writingStyle?: 'general' | 'viewer' | 'polite'; quality?: 'fast' | 'quality'; segment?: string; final?: boolean; speechSeconds?: unknown; speechEndSample?: unknown; captureStartSample?: unknown; captureEndSample?: unknown; continuationExpected?: unknown; sourceLanguage?: string; targetLanguage?: string; speechToneMode?: unknown; liveCaption?: unknown; youtubeGlossary?: unknown }
         try { m = JSON.parse(line) } catch { send({ ok: false, error: 'Invalid request' }); continue }
         if (!m || typeof m !== 'object') { send({ ok: false, error: 'Invalid request' }); continue }
-        const audioPriority = ['decode', 'init', 'stop'].includes(m.op || '')
+        const liveCaption = m.op === 'translate' && m.liveCaption === true
+        const audioPriority = liveCaption || ['decode', 'init', 'stop'].includes(m.op || '')
+        const direction = m.direction || 'ja-zh'
+        const [from, to] = typeof direction === 'string' ? direction.split('-') as [Language, Language] : []
+        const isDraft = !liveCaption && from === 'zh' && to === 'ja'
+        const youtubeTerms = m.op === 'translate' ? cleanYoutubeGlossary(m.youtubeGlossary) : []
+        const key = m.op === 'translate' && !isDraft && typeof m.text === 'string' && m.text.length <= 3000
+          ? JSON.stringify([m.text, from, to, store.get('translationEngine'), youtubeTerms])
+          : undefined
+        const existing = key === undefined ? undefined : pendingReads.get(key)
+        if (existing && existing.ids.length < 16) {
+          existing.ids.push(m.id)
+          if (liveCaption) existing.promote.abort()
+          continue
+        }
         // Reserve capacity for audio/control; excess page text must not disconnect capture.
-        if (pending >= (audioPriority ? 16 : 12)) {
+        if (existing || pending >= (audioPriority ? 16 : 12)) {
           send({ id: m.id, ok: false, error: 'Desktop queue is full; please retry' }); continue
+        }
+        const read = key === undefined ? undefined : { ids: [m.id], promote: new AbortController() }
+        if (key !== undefined && read) pendingReads.set(key, read)
+        const reply = (value: { ok: boolean; result?: unknown; error?: string }): void => {
+          for (const id of read?.ids ?? [m.id]) send({ id, ...value })
         }
         if (ownsSession && m.op === 'decode' && m.final === true) {
           const ending = typeof m.speechEndSample === 'number' && typeof m.speechSeconds === 'number'
@@ -286,12 +311,15 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
           ctx.pipeline?.interruptStreamingPreview?.(ending)
         }
         pending++
-        const priority = m.op === 'translate' ? 'background'
+        const priority = m.op === 'translate' && !liveCaption ? 'background'
           : m.op === 'decode' && !m.final && !!m.segment ? 'preview' : 'final'
-        void queue.run(audioPriority, async localPreempt => {
+        let retried = false
+        const run = async (localPreempt: AbortSignal): Promise<boolean> => {
           // Wait before reserving the shared slot: prior teardown may still
           // need that slot to finish draining its accepted messages.
           await previousTeardown
+          let retryRead = false
+          const canRetry = (signal: AbortSignal): boolean => !!read && !retried && !closed && signal.aborted
           const operate = async (globalPreempt: AbortSignal): Promise<void> => {
             const preempt = AbortSignal.any([localPreempt, globalPreempt])
             let deferred = false
@@ -380,14 +408,16 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                 } finally { pipeline.off('source-result', source) }
               } else if (m.op === 'translate') {
                 if (typeof m.text !== 'string' || !m.text.trim() || m.text.length > 3000) throw new Error('Invalid text')
-                const [from, to] = (m.direction || 'ja-zh').split('-') as [Language, Language]
-                if (!ALL_LANGUAGES.includes(from) || !ALL_LANGUAGES.includes(to) || from === to) throw new Error('Invalid language')
+                if (!from || !to || !ALL_LANGUAGES.includes(from) || !ALL_LANGUAGES.includes(to) || from === to) throw new Error('Invalid language')
                 // Drafts may use a more accurate model than the captions, but only
                 // while no caption session is running. The shared worker unloads
                 // one model to load another, and measuring that swap against live
                 // audio put caption round trips above 20 s.
                 const writingStyle = m.writingStyle === 'viewer' || m.writingStyle === 'polite' ? m.writingStyle : 'general'
-                const isDraft = from === 'zh' && to === 'ja'
+                const youtubeGlossary = youtubeTerms.length > 0 ? mergeGlossaries(
+                  mergeGlossaries(store.get('glossaryTerms') || [], store.get('orgGlossaryTerms') || []),
+                  youtubeTerms
+                ) : []
                 const captionMode = modeOf(store.get('translationEngine'))
                 // Fast drafts reuse the caption model, avoiding a cold 7B load.
                 // Clients without the new option keep their saved model preference.
@@ -404,12 +434,12 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                     // being released, before this listener existed.
                     if (preempt.aborted) interrupt()
                     await large.initialize()
-                    result = await translateWrittenDraft(m.text, draftWith(large, m.text, writingStyle), preempt)
+                    result = await translateWrittenDraft(m.text, draftWith(large, m.text, writingStyle, youtubeGlossary), preempt)
                   } catch (error) {
                     if (!preempt.aborted) throw error
                     // The large model produced nothing before captions needed the
                     // hardware. Finish this draft on the caption model after them.
-                    deferDraft(m.id, m.text, captionMode, writingStyle)
+                    deferDraft(m.id, m.text, captionMode, writingStyle, youtubeGlossary)
                     deferred = true
                   } finally {
                     preempt.removeEventListener('abort', interrupt)
@@ -419,17 +449,18 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
                 } else {
                   const active = await translatorForText(displacesCaptions ? captionMode : requestedMode)
                   result = isDraft
-                    ? await translateWrittenDraft(m.text, draftWith(active, m.text, writingStyle), preempt)
-                    : { text: await active.translate(m.text, from, to, { signal: preempt, previousSegments: [] }) }
+                    ? await translateWrittenDraft(m.text, draftWith(active, m.text, writingStyle, youtubeGlossary), preempt)
+                    : { text: await active.translate(m.text, from, to, { signal: preempt, previousSegments: [], ...(youtubeGlossary.length && { glossary: youtubeGlossary }) }) }
                 }
               } else throw new Error('Unsupported operation')
-              if (!deferred) send({ id: m.id, ok: true, result: m.op === 'decode' ? { ...(result as object), performance: performanceState() } : result })
+              if (!deferred) reply({ ok: true, result: m.op === 'decode' ? { ...(result as object), performance: performanceState() } : result })
             } catch (error) {
               if (m.op === 'init' && ownsSession) { ownsSession = false; ctx.extensionConnected = false }
-              send({ id: m.id, ok: false, error: error instanceof Error ? error.message : String(error) })
+              retryRead = canRetry(preempt)
+              if (!retryRead) reply({ ok: false, error: error instanceof Error ? error.message : String(error) })
             }
             finally {
-              pending--
+              if (!retryRead) pending--
               if (m.op === 'translate') scheduleTranslatorRelease()
             }
           }
@@ -437,13 +468,30 @@ export async function startExtensionCompanion(ctx: AppContext, directory?: strin
             await operate(localPreempt)
           } else {
             try {
-              await work.run(priority, operate, priority === 'background' && work.hasDetachedFinals ? localPreempt : undefined)
+              await work.run(priority, operate, priority === 'background' && work.hasDetachedFinals ? localPreempt : undefined, read?.promote.signal)
             } catch (error) {
-              pending--
-              send({ id: m.id, ok: false, error: error instanceof Error ? error.message : String(error) })
+              retryRead = canRetry(localPreempt)
+              if (!retryRead) {
+                pending--
+                reply({ ok: false, error: error instanceof Error ? error.message : String(error) })
+              }
             }
           }
-        }).catch(() => { socket.destroy() })
+          return retryRead
+        }
+        const schedule = (): void => {
+          void queue.run(audioPriority, run, read?.promote.signal).then(retryRead => {
+            // A caption may interrupt an unrelated read. Give its waiters one
+            // chance to finish after the caption, without reserving a second slot.
+            if (retryRead) {
+              retried = true
+              schedule()
+            } else if (key !== undefined) {
+              pendingReads.delete(key)
+            }
+          }, () => { socket.destroy() })
+        }
+        schedule()
       }
     })
     socket.on('error', () => socket.destroy())

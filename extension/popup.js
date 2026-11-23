@@ -1,3 +1,4 @@
+import {cleanYoutubeGlossary,isYoutubeChannelId,parseYoutubeGlossary,youtubeGlossaryKey} from './youtube-glossary.mjs';
 import {API_PROVIDERS,selectedApi,apiProfile,apiEndpoint,apiSettingsUpdate,validateApiProfile} from './cloud-api.mjs';
 import {captureStatus} from './capture-status.mjs';
 import {translateUiText} from './ui-language.mjs';
@@ -15,7 +16,7 @@ const languageOptions = [
 const languageLabel = value => languageOptions.find(([code]) => code === value)?.[1] || value;
 const languageDefaults = {readSource: 'ja', readTarget: 'zh', typeSource: 'zh', typeTarget: 'ja', speechSource: 'ja', speechTarget: 'zh', syncTextLanguages: true};
 const languageIds = Object.keys(languageDefaults);
-const defaults = {japaneseColor: '#ffffff', chineseColor: '#ffffff', fontSize: 22, showOutline: true, outlineColor: '#000000', outlineWidth: 1, captionOpacity: 100, backgroundColor: '#000000', backgroundOpacity: 60, position: 6, hideOnHover: false, holdSeconds: 3, captionMode: 'realtime', speechToneMode: 'off'};
+const defaults = {japaneseColor: '#ffffff', chineseColor: '#ffffff', fontSize: 22, showOutline: true, outlineColor: '#000000', outlineWidth: 1, captionOpacity: 100, backgroundColor: '#000000', backgroundOpacity: 60, position: 6, hideOnHover: false, holdSeconds: 3, captionMode: 'realtime', captionInput: 'auto', speechToneMode: 'off'};
 const controls = Object.keys(defaults);
 const appearanceControls = ['japaneseColor', 'chineseColor', 'fontSize', 'showOutline', 'outlineColor', 'outlineWidth', 'captionOpacity', 'backgroundColor', 'backgroundOpacity', 'position', 'hideOnHover'];
 const checkControls = new Set(['showOutline', 'hideOnHover']);
@@ -53,6 +54,70 @@ function send(message) {
     else resolve(reply.text);
   }));
 }
+
+
+const glossaryScope = $('#youtubeGlossaryScope');
+const glossaryEditor = $('#youtubeGlossaryTerms');
+const glossaryFrom = $('#youtubeGlossaryFrom');
+const glossaryTo = $('#youtubeGlossaryTo');
+for (const control of [glossaryFrom, glossaryTo]) {
+  for (const [value, label] of languageOptions) control.add(new Option(label, value));
+}
+const currentGlossaryKey = () => youtubeGlossaryKey(glossaryScope.value, glossaryFrom.value + '-' + glossaryTo.value);
+const glossarySave = $('#saveYoutubeGlossary');
+const glossaryStatus = $('#youtubeGlossaryStatus');
+async function loadYoutubeGlossary() {
+  const key = currentGlossaryKey();
+  glossaryEditor.disabled = glossarySave.disabled = true;
+  if (glossaryFrom.value === glossaryTo.value) {
+    glossaryEditor.value = '';
+    glossaryStatus.textContent = '請選擇兩種不同的語言。';
+    return;
+  }
+  const saved = await chrome.storage.local.get(key);
+  if (currentGlossaryKey() !== key) return;
+  glossaryEditor.value = cleanYoutubeGlossary(saved[key]).map(({source, target}) => source + ' → ' + target).join('\n');
+  glossaryEditor.disabled = glossarySave.disabled = false;
+  glossaryStatus.textContent = '';
+}
+let glossaryInitialized = false;
+listen('#youtubeGlossary', 'toggle', async () => {
+  if (!$('#youtubeGlossary').open || glossaryInitialized) return;
+  glossaryInitialized = true;
+  glossaryFrom.value = $('#speechSource').value || 'ja';
+  glossaryTo.value = $('#speechTarget').value || 'zh';
+  const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+  if (Number.isInteger(tab?.id) && /^https:\/\/www\.youtube\.com\//u.test(tab.url || '')) {
+    const owner = await chrome.tabs.sendMessage(tab.id, {type: 'youtube-channel-context'}, {frameId: 0}).catch(() => null);
+    if (isYoutubeChannelId(owner?.channelId)) {
+      glossaryScope.add(new Option(owner.label || owner.channelId, owner.channelId));
+      glossaryScope.value = owner.channelId;
+      $('#youtubeGlossaryChannel').hidden = true;
+    }
+  }
+  await loadYoutubeGlossary();
+});
+for (const control of ['#youtubeGlossaryScope', '#youtubeGlossaryFrom', '#youtubeGlossaryTo']) {
+  listen(control, 'change', loadYoutubeGlossary);
+}
+listen('#saveYoutubeGlossary', 'click', async () => {
+  let entries;
+  try { entries = parseYoutubeGlossary(glossaryEditor.value); }
+  catch (error) {
+    glossaryStatus.textContent = error.message === 'limit'
+      ? '每組詞彙表最多 200 個詞。' : '請用「原文 → 譯文」格式，每個詞最多 80 字。';
+    return;
+  }
+  const key = currentGlossaryKey();
+  glossarySave.disabled = glossaryScope.disabled = glossaryFrom.disabled = glossaryTo.disabled = true;
+  try {
+    if (entries.length) await chrome.storage.local.set({[key]: entries});
+    else await chrome.storage.local.remove(key);
+    glossaryStatus.textContent = '已儲存詞彙。';
+  } finally {
+    glossarySave.disabled = glossaryScope.disabled = glossaryFrom.disabled = glossaryTo.disabled = false;
+  }
+});
 
 function showPanel(name, {focus = false, remember = true} = {}) {
   const selected = panels.includes(name) ? name : 'text';

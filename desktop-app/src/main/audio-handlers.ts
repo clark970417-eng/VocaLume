@@ -71,7 +71,11 @@ function captureCheckpoint(value: unknown, audio: Float32Array): SpeechEvidence 
   const metadata = value as Record<string, unknown>
   const evidence = speechEvidenceFor(metadata.speechSeconds, audio.length / SAMPLE_RATE, metadata)
   if (evidence?.captureStartSample === undefined || evidence.captureEndSample === undefined) return undefined
-  return { ...evidence, checkpointOnly: true }
+  return {
+    ...evidence,
+    checkpointOnly: true,
+    ...(metadata.preparationOnly === true && { preparationOnly: true as const })
+  }
 }
 
 /** Register audio processing IPC handlers */

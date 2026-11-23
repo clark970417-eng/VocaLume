@@ -1,5 +1,14 @@
 // Browser extension interface strings.
 export const UI_JA = {
+  "YouTube glossary": "YouTube 用語集",
+  "Apply to": "適用範囲",
+  "All YouTube channels": "すべての YouTube チャンネル",
+  "Open a YouTube video to edit terms for its channel.": "YouTube 動画を開くとチャンネルの用語を編集できます。",
+  "One original → translation pair per line": "1 行に「原文 → 訳文」を 1 組入力",
+  "Save glossary": "用語を保存",
+  "Use original → translation, with up to 80 characters per term.": "「原文 → 訳文」の形式で、各用語は 80 文字以内で入力してください。",
+  "Up to 200 terms per glossary.": "用語集 1 つにつき 200 語まで登録できます。",
+  "Glossary saved.": "用語を保存しました。",
   "Interface language": "表示言語",
   "Automatic (IP region)": "自動（IP アドレスの地域）",
   "Follow system": "システム設定に従う",

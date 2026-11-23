@@ -148,8 +148,8 @@ export function normalizeLivestreamChat(text, direction) {
  return text;
 }
 
-export function protectDraftText(text,from,to){
+export function protectDraftText(text,from,to,glossary=[]){
  const laughter=[...new Set(text.match(/(?<![\p{Script=Latin}\d_])w{2,}(?![\p{Script=Latin}\d_]|\.[a-z0-9])/giu)||[])];
  const terms=selectGameTerminology(text,from,to);
- return protectNames(text,[],[...terms,...laughter.map(marker=>({source:marker,target:marker}))]);
+ return protectNames(text,glossary,[...glossary,...terms,...laughter.map(marker=>({source:marker,target:marker}))]);
 }

@@ -10,6 +10,7 @@ export const CAPTURE_CUT_SAMPLES = 8 * SAMPLE_RATE
 const PREVIEW_SAMPLES = 3 * SAMPLE_RATE
 const MIN_PREVIEW_SAMPLES = SAMPLE_RATE / 2
 const REPEAT_PREVIEW_SPEECH_SAMPLES = SAMPLE_RATE / 2
+const PREPARATION_PAUSE_SAMPLES = SAMPLE_RATE * .384
 type CaptureChunk = { audio: Float32Array; evidence?: CaptureSpeechEvidence }
 let nextCapture = 0
 
@@ -31,6 +32,7 @@ export class CascadeCaptureBuffer {
   private positiveSamplesSincePreview = 0
   private previewSent = false
   private sentCut = false
+  private preparationSent = false
 
   push(frame: Float32Array, speaking: boolean, speechProbability: number): boolean {
     this.lastFrameSamples = frame.length
@@ -59,6 +61,18 @@ export class CascadeCaptureBuffer {
     this.lastSpeechEnd = this.clock
     this.positiveCount = 0
     this.recordPositiveFrame()
+  }
+
+  previewForTranslation(): CaptureChunk | null {
+    if (this.preparationSent || this.pending < SAMPLE_RATE || this.lastSpeechEnd <= 0 ||
+        this.clock - this.lastSpeechEnd < PREPARATION_PAUSE_SAMPLES) return null
+    // Rolling previews retain only the last three seconds. Give translation one
+    // full, padded cue during the existing VAD wait, without changing the cut.
+    const audio = this.pcm.snapshot(this.pending + this.firstPadding)
+    const cue = this.chunk(audio, this.clock - audio.length)
+    if (!cue.evidence) return null
+    this.preparationSent = true
+    return { audio, evidence: { ...cue.evidence, preparationOnly: true } }
   }
 
   preview(): CaptureChunk | null {
@@ -107,6 +121,7 @@ export class CascadeCaptureBuffer {
   }
 
   private resetPreview(): void {
+    this.preparationSent = false
     this.previewSent = false
     this.positiveSamplesSincePreview = 0
   }

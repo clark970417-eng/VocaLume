@@ -48,6 +48,10 @@ export function ObsCaptionSettings() {
           }} />
         {t('Hide desktop subtitles while using OBS')}
       </label>
+      {status.browserUrl && <label className="settings-field">
+        {t('OBS Browser Source URL')}
+        <input className="settings-input" value={status.browserUrl} readOnly />
+      </label>}
       <p>{t('In OBS, add a Text source and enable Read from file. Select this file after enabling output.')}</p>
       <input className="settings-input" aria-label={t('OBS caption file path')} value={status.path} readOnly />
       </>}

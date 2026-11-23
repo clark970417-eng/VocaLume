@@ -1,5 +1,6 @@
 import { HaasJaEngine } from '../engines/stt/HaasJaEngine'
 import { clearObsCaption, publishObsCaption } from './obs-captions'
+import { publishMobileCaption, stopMobileCompanion } from './mobile-companion'
 import { updatePerformanceState } from './performance-state'
 import { startMacLowPowerMonitor } from './mac-low-power'
 import { bindMemoryPressure } from './memory-pressure'
@@ -27,9 +28,9 @@ import { OpusMTTranslator } from '../engines/translator/OpusMTTranslator'
 import { SLMTranslator } from '../engines/translator/SLMTranslator'
 import { HunyuanMTTranslator } from '../engines/translator/HunyuanMTTranslator'
 import { HunyuanMT2Translator } from '../engines/translator/HunyuanMT2Translator'
-import { HunyuanMT15Translator } from '../engines/translator/HunyuanMT15Translator'
 import { LFM2Translator } from '../engines/translator/LFM2Translator'
 import { PLaMoTranslator } from '../engines/translator/PLaMoTranslator'
+import { PLaMo3Translator } from '../engines/translator/PLaMo3Translator'
 import { ANETranslator } from '../engines/translator/ANETranslator'
 import { AppleTranslator } from '../engines/translator/AppleTranslator'
 import { OnnxWebTranslator } from '../engines/translator/OnnxWebTranslator'
@@ -187,11 +188,9 @@ async function initPipeline(): Promise<void> {
     onProgress: (msg) => ctx.mainWindow?.webContents.send('status-update', msg),
     kvCacheQuant: store.get('slmKvCacheQuant')
   }))
-  // HY-MT1.5-1.8B — fast default offline translator (#544), replaces OPUS-MT
-  ctx.pipeline.registerTranslator('hunyuan-mt-15', () => new HunyuanMT15Translator({
+  ctx.pipeline.registerTranslator('plamo-3', () => new PLaMo3Translator({
     onProgress: (msg) => ctx.mainWindow?.webContents.send('status-update', msg),
-    kvCacheQuant: store.get('slmKvCacheQuant'),
-    speculativeDecoding: store.get('slmSpeculativeDecoding')
+    kvCacheQuant: store.get('slmKvCacheQuant')
   }))
   ctx.pipeline.registerTranslator('hunyuan-mt-2', () => new HunyuanMT2Translator({
     variant: '7B-Q4_K_M',
@@ -226,13 +225,6 @@ async function initPipeline(): Promise<void> {
       speculativeDecoding: store.get('slmSpeculativeDecoding')
     })
   ))
-  // Speculative decoding: LFM2-350M draft + HY-MT1.5-1.8B verifier (#518)
-  // Token-level speculative decoding for 1.5-2x throughput improvement
-  ctx.pipeline.registerTranslator('speculative-hybrid', () => new HunyuanMT15Translator({
-    onProgress: (msg) => ctx.mainWindow?.webContents.send('status-update', msg),
-    kvCacheQuant: store.get('slmKvCacheQuant'),
-    speculativeDecoding: true
-  }))
   // Speaker identification requires the bundled Apple Silicon FluidAudio helper.
   if (process.platform === 'darwin' && process.arch === 'arm64') {
     ctx.pipeline.registerDiarizer('fluid-audio', () => new FluidAudioDiarizer({
@@ -261,12 +253,18 @@ async function initPipeline(): Promise<void> {
   }
 
   ctx.pipeline.on('state-change', state => {
-    if (state === PipelineState.IDLE) void clearObsCaption()
+    if (state === PipelineState.IDLE) {
+      void clearObsCaption()
+      publishMobileCaption(null)
+    }
   })
 
   // Forward results to subtitle window and logger
   ctx.pipeline.on('result', (result: TranslationResult) => {
     publishObsCaption(result)
+    if (!result.isInterim && result.translatedText.trim()) {
+      publishMobileCaption({ sourceText: result.sourceText, translatedText: result.translatedText })
+    }
     sendOverlayCaption(ctx, 'translation-result', result)
     ctx.mainWindow?.webContents.send('translation-result', result)
     ctx.logger?.log(result)
@@ -349,7 +347,7 @@ app.whenReady().then(async () => {
     store.set('isFirstRun', false)
     store.set('sourceLanguage', 'ja')
     store.set('targetLanguage', 'zh')
-    store.set('translationEngine', 'offline-hymt15')
+    store.set('translationEngine', 'offline-plamo3')
     store.set('hasCompletedSetup', true)
   }
   // Serve VAD assets (ONNX, WASM, worklet) from filesystem.
@@ -387,6 +385,7 @@ app.whenReady().then(async () => {
     get: (key: MigratableKey) => store.get(key),
     set: (key: MigratableKey, value: string) => store.set(key, value)
   }
+  if (store.get('translationEngine') === 'offline-hymt15') store.set('translationEngine', 'offline-plamo3')
   migrateLegacyTranslationEngine(migratableStore, log)
   migrateUnsupportedStt(migratableStore, process.platform, process.arch)
   migrateLegacyAdaptiveRoutingQualityEngine(migratableStore, log)
@@ -501,6 +500,7 @@ app.on('before-quit', (event) => {
       cleanupShortcuts?.()
       cleanupShortcuts = null
       disposeAutoUpdater()
+      stopMobileCompanion()
       ctx.logger?.endSession()
       ctx.logger = null
       store.set('activeSession', null)

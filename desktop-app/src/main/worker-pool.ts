@@ -2,7 +2,7 @@
  * Shared UtilityProcess pool for slm-worker.
  *
  * Ensures only ONE slm-worker UtilityProcess runs at a time.
- * Multiple engines (SLMTranslator, HunyuanMTTranslator, HunyuanMT15Translator)
+ * Multiple engines (SLMTranslator, HunyuanMTTranslator, PLaMo3Translator)
  * and the generate-summary handler all share this single worker.
  *
  * When a different model is needed, the pool sends a dispose+init sequence

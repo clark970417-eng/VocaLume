@@ -22,7 +22,7 @@ export class RecordingQueue {
     const entry=this.entries.find(e=>e.state==='pending');if(!entry)break;
     entry.state='working';this.onChange();
     let timer;
-    try{entry.translated=await Promise.race([this.translate(entry.original),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('翻譯逾時，可重試')),this.timeoutMs);})]);entry.state='done';delete entry.error;}
+    try{entry.translated=await Promise.race([this.translate(entry.original,entry),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('翻譯逾時，可重試')),this.timeoutMs);})]);entry.state='done';delete entry.error;}
     catch(error){entry.state='failed';entry.error=String(error.message||error);}
     finally{clearTimeout(timer);}
     try{await this.persist();}catch(error){this.onError(error);break;}

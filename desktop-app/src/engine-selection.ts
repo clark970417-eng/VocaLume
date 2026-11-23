@@ -1,4 +1,4 @@
-export type EngineMode = 'auto' | 'rotation' | 'online' | 'online-deepl' | 'online-gemini' | 'online-microsoft' | 'offline-hymt15' | 'offline-hymt2' | 'offline-hunyuan-mt' | 'offline-apple'
+export type EngineMode = 'auto' | 'rotation' | 'online' | 'online-deepl' | 'online-gemini' | 'online-microsoft' | 'offline-hymt15' | 'offline-hymt2' | 'offline-hunyuan-mt' | 'offline-apple' | 'offline-plamo3'
 export type SttEngineType = 'haas-ja-recommended' | 'haas-ja-fast' | 'whisper-local' | 'mlx-whisper' | 'kotoba-whisper' | 'qwen3-asr' | 'sensevoice-sherpa' | 'apple-speech-transcriber'
 
 export interface MacEngineAvailability {
@@ -57,9 +57,7 @@ export function resolveEngineMode(
   const hasKeys = !!(apiKeys.apiKey || apiKeys.deeplApiKey || apiKeys.geminiApiKey || (apiKeys.microsoftApiKey && apiKeys.microsoftRegion))
   if (hasKeys) return 'rotation'
   // Use the compact model for automatic live translation on known desktop platforms.
-  if (platform === 'win32' || platform === 'darwin') return 'offline-hymt15'
-  if (gpuInfo?.hasGpu) return 'offline-hunyuan-mt'
-  return 'offline-hymt15'
+  return 'offline-plamo3'
 }
 
 /** Build pipeline config from resolved engine mode and settings */
@@ -136,13 +134,14 @@ export function buildEngineConfig(
       }
     case 'offline-hymt2':
       return { ...base, translatorEngineId: 'hunyuan-mt-2' }
+    case 'offline-plamo3':
+      return { ...base, translatorEngineId: 'plamo-3' }
     case 'offline-hunyuan-mt':
       return { ...base, translatorEngineId: 'hunyuan-mt' }
     case 'offline-apple':
       return { ...base, translatorEngineId: 'apple-translate' }
     case 'offline-hymt15':
     default:
-      // 'offline-hymt15' is the fast offline default; any unknown legacy ID falls back here.
-      return { ...base, translatorEngineId: 'hunyuan-mt-15' }
+      return { ...base, translatorEngineId: 'plamo-3' }
   }
 }

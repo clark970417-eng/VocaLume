@@ -1,3 +1,4 @@
+import { pushObsBrowserCaption, startObsBrowserCaption } from './obs-browser-caption'
 import { app } from 'electron'
 import { rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -6,6 +7,7 @@ type Mode = 'off' | 'translation' | 'bilingual'
 let mode: Mode = 'off'
 let pending: Promise<void> = Promise.resolve()
 let error = ''
+let browserUrl = ''
 let lastPublished: { path: string; text: string } | undefined
 const outputPath = () => join(app.getPath('userData'), 'vocalume-obs-caption.txt')
 
@@ -28,10 +30,11 @@ function write(text: string, caption?: { queuedAt?: number }): Promise<void> {
 }
 
 export function obsCaptionStatus() {
-  return { mode, path: outputPath(), error }
+  return { mode, path: outputPath(), error, browserUrl }
 }
 
 export function clearObsCaption(): Promise<void> {
+  pushObsBrowserCaption('')
   return mode === 'off' ? pending : write('')
 }
 
@@ -41,6 +44,8 @@ export async function configureObsCaptions(value: unknown) {
   }
   const wasEnabled = mode !== 'off'
   mode = value
+  pushObsBrowserCaption('')
+  if (mode !== 'off') browserUrl = await startObsBrowserCaption()
   if (wasEnabled || mode !== 'off') await write('')
   if (error) mode = 'off'
   return obsCaptionStatus()
@@ -85,5 +90,6 @@ export function publishObsCaption(result: { sourceText: string; translatedText: 
   const text = mode === 'bilingual'
     ? [result.sourceText.trim(), translation].filter(Boolean).join('\n')
     : translation
+  pushObsBrowserCaption(text)
   void write(text, { queuedAt: process.env.VOCALUME_CAPTION_TIMING === '1' ? performance.now() : undefined })
 }

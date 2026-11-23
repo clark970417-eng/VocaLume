@@ -3,6 +3,7 @@ import { FileTranslationSettings } from './settings/FileTranslationSettings'
 import { TextTranslation } from './settings/TextTranslation'
 import { useFileTranslation } from '../hooks/useFileTranslation'
 import { ObsCaptionSettings } from './settings/ObsCaptionSettings'
+import { MobileCompanionSettings } from './settings/MobileCompanionSettings'
 import { t } from '../ui-language'
 import React, { useEffect, useRef, useState } from 'react'
 import { useSettingsState } from '../hooks/useSettingsState'
@@ -189,6 +190,7 @@ function SettingsPanel(): React.JSX.Element {
           />
 
             <ObsCaptionSettings />
+            <MobileCompanionSettings />
             <details className="settings-disclosure"><summary>{t("Reading & accessibility")}</summary>
           <AccessibilitySettings
             highContrast={s.accessibility.highContrast}

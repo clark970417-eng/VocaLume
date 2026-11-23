@@ -9,7 +9,7 @@ import * as pressure from '../main/performance-state'
 const evidence={segment:'1:1',speechSeconds:1,speechEndSample:16000}
 const audio=new Float32Array(24000);audio.fill(.1,0,16000)
 const finalAudio=new Float32Array(32000);finalAudio.set(audio)
-function fixture(from: 'ja' | 'zh' = 'ja', serial = false) {
+function fixture(from: 'ja' | 'zh' = 'ja', serial = false, engine = 'hunyuan-mt-15') {
  let source=from==='ja'?'今日は遊びません。':'今天不會玩遊戲。'
  let glossary: GlossaryEntry[]=[]
  let finish!: (text:string)=>void, signal: AbortSignal | undefined
@@ -20,12 +20,12 @@ function fixture(from: 'ja' | 'zh' = 'ja', serial = false) {
   signal=ctx?.signal
   return new Promise<string>(resolve=>{finish=resolve})
  })
- const translator={id:'hunyuan-mt-15',translate,...(serial && {translateSimulMt:translate})}
+ const translator={id:engine,translate,...(serial && {translateSimulMt:translate})}
  const translateFinal=vi.fn(async()=>from==='ja'?'今天不玩遊戲。':'今日はゲームをしません。')
  const processor=new StreamingProcessor({
   emitter,agreement:new LocalAgreement(),contextBuffer:new ContextBuffer(),getSTTEngine:()=>({processAudio:stt}),
   getTranslator:()=>translator,getGlossary:()=>glossary,translateFinal,getSimulMtConfig:()=>({enabled:serial,waitK:3}),
-  resolveTargetLanguage:()=>from==='ja'?'zh':'ja',incrementProcessing(){},decrementProcessing(){},getGeneration:()=>1
+  getSourceLanguage:()=>from,resolveTargetLanguage:()=>from==='ja'?'zh':'ja',incrementProcessing(){},decrementProcessing(){},getGeneration:()=>1
  } as unknown as StreamingDeps)
  return {processor,stt,translate,translateFinal,events,finish:(s:string)=>finish(s),signal:()=>signal,
   setSource:(s:string)=>{source=s},setGlossary:(g:GlossaryEntry[])=>{glossary=g}}
@@ -148,4 +148,38 @@ it('hanging clauses and thermal pressure never start optional preparation',async
    expect(f.translate).not.toHaveBeenCalled()
   } finally {policy.mockRestore()}
  } finally {f.processor.reset()}
+})
+
+it('prepares unpunctuated Japanese for PLaMo desktop and confirms the final text independently', async () => {
+ const f = fixture('ja', true, 'plamo-3')
+ const checkpoint = { ...evidence, checkpointOnly:true as const, captureStartSample:0 }
+ try {
+  f.setSource('今日は遊びません')
+  await f.processor.processStreaming(audio.subarray(0, 16000), 16000, { ...checkpoint, captureEndSample:16000 })
+  expect(f.translate).not.toHaveBeenCalled()
+  await f.processor.processStreaming(audio, 16000, { ...checkpoint, captureEndSample:audio.length, preparationOnly:true })
+  expect(f.translate).toHaveBeenCalledOnce()
+  expect(f.events.every(result => !result.translatedText)).toBe(true)
+  f.finish('今天不玩遊戲。')
+  const result = await f.processor.finalizeStreaming(finalAudio, 16000, { ...checkpoint, captureEndSample:finalAudio.length })
+  expect(result?.translatedText).toBe('今天不玩遊戲。')
+  expect(f.stt).toHaveBeenCalledTimes(3)
+  expect(f.translateFinal).not.toHaveBeenCalled()
+ } finally { f.processor.reset() }
+})
+
+it('discards a PLaMo desktop preparation when later speech changes the original', async () => {
+ const f = fixture('ja', false, 'plamo-3')
+ const checkpoint = { ...evidence, checkpointOnly:true as const, captureStartSample:0 }
+ try {
+  f.setSource('今日は遊びません')
+  await f.processor.processStreaming(audio, 16000, { ...checkpoint, captureEndSample:audio.length, preparationOnly:true })
+  expect(f.translate).toHaveBeenCalledOnce()
+  f.setSource('今日は遊びませんと言ったけど、少しだけ遊びます。')
+  await f.processor.finalizeStreaming(finalAudio, 16000, { ...checkpoint, captureEndSample:finalAudio.length })
+  expect(f.signal()?.aborted).toBe(true)
+  expect(f.translateFinal).toHaveBeenCalledWith('今日は遊びませんと言ったけど、少しだけ遊びます。','ja','zh',undefined,undefined)
+  f.finish('過期的候選譯文')
+  expect(f.events.some(result => result.translatedText === '過期的候選譯文')).toBe(false)
+ } finally { f.processor.reset() }
 })

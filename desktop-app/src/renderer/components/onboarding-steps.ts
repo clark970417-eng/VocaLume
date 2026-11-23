@@ -14,8 +14,8 @@ export const AZURE_TRANSLATOR_PORTAL_URL =
 /** Step 1 totals: Whisper Base (142MB) + LFM2 350M Q4_K_M (~229MB) ≈ 371MB. */
 export const TIER1_TOTAL_MB = 371
 
-/** Step 2 totals: Kotoba Whisper v2.0 (~540MB) + HY-MT1.5 1.8B Q4_K_M (~1.1GB) ≈ 1.6GB. */
-export const TIER2_TOTAL_MB = 1640
+/** Step 2 totals: Kotoba Whisper v2.0 (~540MB) + PLaMo 3 Translate 0.8B Q4_K_M (573MB) ≈ 1.1GB. */
+export const TIER2_TOTAL_MB = 1113
 
 /** Azure Translator F0 free tier quota — surfaced as user-facing copy. */
 export const AZURE_FREE_TIER_CHARS = '2M chars/month'

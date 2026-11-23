@@ -30,7 +30,7 @@ interface DownloadState {
  * Three-step first-run onboarding (#708):
  *  1. Quick Start         — Tier 1 (Whisper Base + LFM2 350M, ~371MB)
  *                           "Ready to translate in moments"
- *  2. Quality Upgrade     — Tier 2 (Kotoba Whisper + HY-MT1.5 1.8B, ~1.6GB)
+ *  2. Quality Upgrade     — Tier 2 (Kotoba Whisper + PLaMo 3 Translate 0.8B, ~1.1GB)
  *                           Downloads in background; auto-switches when ready
  *  3. Cloud Boost (opt.)  — Azure Translator F0 key for 2M chars/month free
  *
@@ -204,7 +204,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element |
         <StepCard
           number={2}
           title={t("Quality Upgrade")}
-          subtitle={`Kotoba Whisper + HY-MT1.5 1.8B (${formatSize(TIER2_TOTAL_MB)})`}
+          subtitle={`Kotoba Whisper + PLaMo 3 Translate 0.8B (${formatSize(TIER2_TOTAL_MB)})`}
           description="Higher-accuracy Japanese-optimized speech-to-text and translation. Downloads in the background — VocaLume switches to high-quality mode automatically when ready."
           status={download.status}
           progress={download.progress}

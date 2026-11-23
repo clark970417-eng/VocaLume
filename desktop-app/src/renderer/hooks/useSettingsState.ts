@@ -271,7 +271,7 @@ export function useSettingsState(): SettingsState {
       // #721: cloud e2e pipelines consume a continuous 100ms PCM stream; cascade
       // pipelines use the VAD-segmented rolling buffer.
       if (options?.captureAudio !== false) {
-        await session.audio.start({ captureMode: config.mode === 'e2e' ? 'realtime' : 'cascade' })
+        await session.audio.start({ captureMode: config.mode === 'e2e' ? 'realtime' : 'cascade', prepareTranslation: result.prepareTranslation })
       }
       session.setIsRunning(true)
       session.startSessionTimer()
@@ -322,7 +322,7 @@ export function useSettingsState(): SettingsState {
       pipelineStarted = true
       // #721: preserve the resumed session's capture mode
       const resumeMode = (session.crashedSession.config as { mode?: string }).mode === 'e2e' ? 'realtime' : 'cascade'
-      await session.audio.start({ captureMode: resumeMode })
+      await session.audio.start({ captureMode: resumeMode, prepareTranslation: result.prepareTranslation })
       session.setIsRunning(true)
       session.setCrashedSession(null)
       session.startSessionTimer()

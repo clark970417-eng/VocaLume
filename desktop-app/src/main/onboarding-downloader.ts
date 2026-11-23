@@ -5,7 +5,7 @@ import {
   downloadGGUF,
   isModelDownloaded,
   downloadModel,
-  getHunyuanMT15Variants,
+  PLAMO_3_VARIANTS,
   getLFM2Variants,
   WHISPER_VARIANTS
 } from '../engines/model-downloader'
@@ -92,20 +92,19 @@ function getTier2Models(): TierModel[] {
     }
   ]
 
-  // Full translator: HY-MT1.5-1.8B Q4_K_M (~1.1GB)
-  // Upgrades from LFM2 (Tier 1) for better translation quality
-  const hymt15 = getHunyuanMT15Variants()['Q4_K_M']
-  if (hymt15) {
+  const plamo = PLAMO_3_VARIANTS.Q4_K_M
+  if (plamo) {
     models.push({
       tier: 2,
       key: 'tier2-translator',
-      label: 'HY-MT1.5-1.8B (Quality Translation)',
-      sizeMB: hymt15.sizeMB,
+      label: 'PLaMo 3 Translate 0.8B',
+      sizeMB: plamo.sizeMB,
       type: 'gguf',
-      ggufFilename: hymt15.filename,
-      ggufUrl: hymt15.url,
-      translatorEngineId: 'hunyuan-mt-15',
-      engineMode: 'offline-hymt15'
+      ggufFilename: plamo.filename,
+      ggufUrl: plamo.url,
+      ggufSha256: plamo.sha256,
+      translatorEngineId: 'plamo-3',
+      engineMode: 'offline-plamo3'
     })
   }
 

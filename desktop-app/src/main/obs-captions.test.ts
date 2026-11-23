@@ -6,6 +6,7 @@ import { clearObsCaption, configureObsCaptions, obsCaptionStatus, publishObsCapt
 
 const profile = vi.hoisted(() => ({ path: '' }))
 vi.mock('electron', () => ({ app: { getPath: () => profile.path } }))
+vi.mock('./obs-browser-caption', () => ({ startObsBrowserCaption: async () => '', pushObsBrowserCaption: vi.fn() }))
 vi.mock('node:fs/promises', async (importOriginal) => {
   const fs = await importOriginal<typeof import('node:fs/promises')>()
   return { ...fs, rename: vi.fn(fs.rename) }

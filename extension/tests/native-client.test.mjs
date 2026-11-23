@@ -40,6 +40,20 @@ test('a text request retries once on a fresh host, but never retries a logical e
  await assert.rejects(logical,/Invalid text/);assert.equal(ports.length,2);client.close();
 });
 
+test('a page text burst cannot consume the slots reserved for CC and audio',async()=>{
+ const sent=[];
+ const port={onMessage:{addListener:f=>port.receive=f},onDisconnect:{addListener(){}},postMessage:m=>sent.push(m),disconnect(){}};
+ const client=new NativeClient({connectNative:()=>port});
+ const queued=Array.from({length:12},()=>client.requestOnce('translate',{},5000));
+ await assert.rejects(client.requestOnce('translate',{},5000),/queue is full/);
+ const caption=client.requestOnce('translate',{liveCaption:true},5000);
+ const audio=client.requestOnce('decode',{},5000);
+ assert.equal(sent.length,14);
+ for(const request of sent)port.receive({id:request.id,ok:true,result:'ok'});
+ assert.deepEqual(await Promise.all([...queued,caption,audio]),Array(14).fill('ok'));
+ client.close();
+});
+
 test('a busy text queue retries once on the same port and never replays audio',async()=>{
  let connects=0;const sent=[];
  const port={onMessage:{addListener:f=>port.receive=f},onDisconnect:{addListener(){}},disconnect(){},postMessage:m=>sent.push(m)};

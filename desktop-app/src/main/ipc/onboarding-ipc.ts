@@ -78,7 +78,7 @@ export function registerOnboardingIpc(ctx: AppContext): void {
 
   // Set preferred local engine for download
   ipcMain.handle('onboarding-set-preferred-engine', (_event, engine: string) => {
-    const validEngines = ['offline-hymt15', 'offline-lfm2']
+    const validEngines = ['offline-plamo3', 'offline-lfm2']
     if (!validEngines.includes(engine)) {
       return { error: `Invalid engine: ${engine}` }
     }

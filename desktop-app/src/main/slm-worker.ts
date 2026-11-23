@@ -1,9 +1,10 @@
 import { japaneseChineseInstruction, type WritingStyle } from './japanese-chinese-prompt'
 import { multilingualTranslationInstruction } from './multilingual-prompt'
 import { boundedTranslation, TranslationCancelledError } from './bounded-translation'
+import { buildPlamo3Prompt } from './plamo-3-prompt'
 /**
  * UtilityProcess worker for SLM inference via node-llama-cpp.
- * Supports TranslateGemma, Hunyuan-MT, LFM2, and PLaMo-2 models.
+ * Supports TranslateGemma, Hunyuan-MT, LFM2, and PLaMo models.
  * Runs in a separate process to avoid blocking the main process.
  *
  * IPC protocol:
@@ -20,7 +21,7 @@ import { boundedTranslation, TranslationCancelledError } from './bounded-transla
  *   Worker → Main: { type: 'error', id?: string, message: string }
  */
 
-import type { Llama, LlamaModel, LlamaContext, LlamaContextSequence, Token } from 'node-llama-cpp'
+import type { Llama, LlamaCompletion, LlamaModel, LlamaContext, LlamaContextSequence, Token } from 'node-llama-cpp'
 import { LANG_NAMES_EN, LANG_NAMES_ZH } from '../engines/language-names'
 import { formatGlossaryPrompt, selectApplicableGlossary } from '../engines/translator/glossary-utils'
 import { buildJaZhFidelityGuidance, finishJaZhTranslation } from '../engines/translator/ja-zh-fidelity'
@@ -53,7 +54,7 @@ function recordInferenceTiming(kind: string, total: number, inference: number): 
   if (stats.count >= 50) flushInferenceTiming()
 }
 
-type ModelType = 'translategemma' | 'hunyuan-mt' | 'hunyuan-mt-15' | 'hunyuan-mt-2' | 'lfm2' | 'plamo'
+type ModelType = 'translategemma' | 'hunyuan-mt' | 'hunyuan-mt-15' | 'hunyuan-mt-2' | 'lfm2' | 'plamo' | 'plamo-3'
 
 /** Messages sent from main process to this worker */
 let activeRequest: {id:string,controller:AbortController,streamOutput?:boolean} | null = null
@@ -151,6 +152,7 @@ let activeModelType: ModelType = 'translategemma'
 let prefixCacheSession: import('node-llama-cpp').LlamaChatSession | null = null
 let prefixCacheSequence: LlamaContextSequence | null = null
 let prefixCacheSystemPrompt: string | undefined = undefined
+let plamo3Completion: LlamaCompletion | null = null
 
 async function handleInit(
   modelPath: string,
@@ -227,7 +229,16 @@ async function handleInit(
 
   // Initialization owns the queue until warm-up finishes. Reporting ready first
   // allowed an immediate dispose to release the context while warm-up used it.
-  await warmPrefixCache()
+  if (activeModelType === 'plamo-3') {
+    // Warm the PFML3 completion without creating a chat wrapper on its sequence.
+    try {
+      await runPlamo3Inference('こんばんは。', 'ja', 'ko')
+    } catch (err) {
+      log.warn('PLaMo 3 warm-up failed:', err)
+    }
+  } else {
+    await warmPrefixCache()
+  }
   process.parentPort!.postMessage({ type: 'ready' })
 }
 
@@ -425,6 +436,43 @@ async function warmPrefixCache(): Promise<void> {
   }
 }
 
+function createPartialEmitter(): ((chunk: string) => void) | undefined {
+  const request = activeRequest
+  if (!request?.streamOutput) return undefined
+  let partial = '', lastPartialAt = 0
+  return (chunk: string) => {
+    partial += chunk
+    if (!request.controller.signal.aborted && partial.trim().length >= 4 && performance.now() - lastPartialAt >= 80) {
+      lastPartialAt = performance.now()
+      process.parentPort!.postMessage({ type: 'partial', id: request.id, text: partial.trim() })
+    }
+  }
+}
+
+async function runPlamo3Inference(text: string, from: string, to: string, translateContext?: TranslateContextPayload): Promise<string> {
+  if (!context || !model) throw new Error('Model not initialized')
+  const { LlamaCompletion } = await import('node-llama-cpp')
+  const completion = plamo3Completion ??= new LlamaCompletion({ contextSequence: context.getSequence(), autoDisposeSequence: true })
+  const prompt = await buildPlamo3Prompt(text, from, to, translateContext?.glossary)
+  const stop = [model.tokenize('<|plamo:tag|>', true), model.tokenize('<|plamo:bos|>', true)]
+
+  try {
+    const response = await boundedTranslation({
+      async promptWithMeta(input, options) {
+        const result = await completion.generateCompletionWithMeta(input, { ...options, customStopTriggers: stop })
+        return { responseText: result.response, stopReason: result.metadata.stopReason }
+      }
+    }, prompt, { temperature: 0, maxTokens: 512, onTextChunk: createPartialEmitter() }, text.length, 15_000, activeRequest?.controller.signal)
+    return finishTranslationResult(text, from, to, response)
+  } catch (err) {
+    if (!(err instanceof TranslationCancelledError)) {
+      completion.dispose()
+      plamo3Completion = null
+    }
+    throw err
+  }
+}
+
 /** Run translation inference and return the result */
 async function runInference(
   prompt: string,
@@ -451,16 +499,8 @@ async function runInference(
 
     const inferenceParams = getInferenceParams()
     const t1 = performance.now()
-    let partial = '', lastPartialAt = 0
-    const request = activeRequest
     const response = await boundedTranslation(session, prompt, {
-      ...(request?.streamOutput && {onTextChunk: (chunk: string) => {
-        partial += chunk
-        if (!request.controller.signal.aborted && partial.trim().length >= 4 && performance.now() - lastPartialAt >= 80) {
-          lastPartialAt = performance.now()
-          process.parentPort!.postMessage({type:'partial',id:request.id,text:partial.trim()})
-        }
-      }}),
+      onTextChunk: createPartialEmitter(),
       ...inferenceParams,
       ...(previousOutput?.trim() && { responsePrefix: previousOutput })
     }, sourceLength, 15_000, activeRequest?.controller.signal)
@@ -1046,6 +1086,8 @@ async function handleGERCorrect(
 async function handleDispose(): Promise<void> {
   try {
     flushInferenceTiming()
+    plamo3Completion?.dispose()
+    plamo3Completion = null
     // Clean up prefix cache session
     if (prefixCacheSession) {
       prefixCacheSequence?.dispose?.()
@@ -1099,6 +1141,22 @@ process.parentPort!.on('message', (e: { data: WorkerInboundMessage }) => {
   const handleMessage = async (): Promise<void> => {
     activeRequest = 'id' in msg ? {id:msg.id,controller:new AbortController(),streamOutput:'streamOutput' in msg && Boolean(msg.streamOutput)} : null
     try {
+      if (activeModelType === 'plamo-3') {
+        if (msg.type === 'translate' || msg.type === 'translate-incremental' || msg.type === 'translate-ssbd' || msg.type === 'translate-simulmt') {
+          // The translation-only template never forces a stale interim output as a prefix.
+          const t0 = performance.now()
+          const text = await runPlamo3Inference(msg.text, msg.from, msg.to, msg.context)
+          const ms = performance.now() - t0
+          recordInferenceTiming(msg.type, ms, ms)
+          process.parentPort!.postMessage({ type: 'result', id: msg.id, text })
+          return
+        }
+        if (msg.type === 'ger-correct') {
+          // This model only translates, so it cannot safely rewrite the ASR source text.
+          process.parentPort!.postMessage({ type: 'result', id: msg.id, text: msg.text })
+          return
+        }
+      }
       switch (msg.type) {
         case 'init':
           await handleInit(msg.modelPath, msg.kvCacheQuant, msg.modelType, msg.draftModelPath)

@@ -1,6 +1,6 @@
 import { FinalCaptionQueue } from './FinalCaptionQueue'
 import { performanceState } from '../main/performance-state'
-import { completeSentence } from '../../../extension/sentence-boundary.mjs'
+import { completeSentence, unfinishedSentence } from '../../../extension/sentence-boundary.mjs'
 import { RecognitionCheckpoint } from './RecognitionCheckpoint'
 import { StreamingRecognition } from './StreamingRecognition'
 import { recoverFinalTranslation } from './FinalTranslationRecovery'
@@ -32,6 +32,14 @@ const STREAMING_LOCK_TIMEOUT_MS = 10_000
 /** Debounce delay before translating interim text (ms) */
 const TRANSLATE_DEBOUNCE_MS = 250
 const MAX_SUPERSEDED_DRAFTS = 2
+function isPlamoJaToZh(engineId: string | undefined, from: Language, to: Language): boolean {
+  return engineId === 'plamo-3' && from === 'ja' && to === 'zh'
+}
+
+function prefersCompleteSentence(engineId: string | undefined, from: Language, to: Language): boolean {
+  return ['hunyuan-mt', 'hunyuan-mt-15', 'hunyuan-mt-2', 'plamo-3'].includes(engineId ?? '') &&
+    ['ja', 'zh'].includes(from) && ['ja', 'zh'].includes(to)
+}
 const emptyWorkStats = () => ({ previewDecodes: 0, previewCancellations: 0, reusedPreviews: 0, reusedFinals: 0, provisionalStarted: 0, provisionalPublished: 0, provisionalSuperseded: 0, sentencePreparations: 0, usedPreparations: 0 })
 
 export interface PreparedStreamingFinal {
@@ -392,10 +400,17 @@ export class StreamingProcessor {
     const recognitionContextRevision = this.recognitionContextRevision
     const checkpoint = this.recognitionCheckpoint.reuse(audioBuffer, sampleRate, evidence, recognitionKey)
     const captureEvidence = evidence
+    const acousticPause = !!captureEvidence?.speechEndSample &&
+      audioBuffer.length - captureEvidence.speechEndSample >= sampleRate * .192
+    const plamoDesktopPause = acousticPause && captureEvidence?.preparationOnly && captureEvidence.checkpointOnly &&
+      this.deps.getSourceLanguage?.() === 'ja' &&
+      isPlamoJaToZh(this.deps.getTranslator()?.id, 'ja', this.deps.resolveTargetLanguage('ja'))
+    if (captureEvidence?.preparationOnly && (!plamoDesktopPause || performanceState().speculativeTranslationPaused)) return null
     if (evidence?.checkpointOnly) evidence = undefined
     // A complete sentence waiting for translation has priority over another
     // speculative decode of the rolling buffer. Accepted finals are retained.
-    if (this.finalQueue.pending || (!checkpoint && this.recognition.budget.remainingMs(performance.now(), performanceState()) > 0)) return null
+    if (this.finalQueue.pending ||
+        (!checkpoint && !plamoDesktopPause && this.recognition.budget.remainingMs(performance.now(), performanceState()) > 0)) return null
 
     this.deps.incrementProcessing()
     const revision = ++this.recognitionRevision
@@ -433,8 +448,11 @@ export class StreamingProcessor {
         this.resetUtterance()
         return null
       }
-      if (recognitionContextRevision === this.recognitionContextRevision) {
-        if (!checkpoint) this.recognitionCheckpoint.remember(audioBuffer, sampleRate, captureEvidence, sttResult, recognitionKey)
+      // Keep the new pause decode speculative. The final must still confirm its text.
+      if (recognitionContextRevision === this.recognitionContextRevision && !plamoDesktopPause) {
+        if (!checkpoint) {
+          this.recognitionCheckpoint.remember(audioBuffer, sampleRate, captureEvidence, sttResult, recognitionKey)
+        }
         this.recognitionSource = sttResult.language === 'ja' ? sttResult.text.slice(-120) : ''
       }
       this.primaryRevision = revision
@@ -454,8 +472,7 @@ export class StreamingProcessor {
       const translator = this.deps.getTranslator()
       const useSimulMt = simulMtConfig.enabled && translator?.translateSimulMt
 
-      const completeSentenceOnly = ['hunyuan-mt', 'hunyuan-mt-15', 'hunyuan-mt-2'].includes(translator?.id || '') &&
-        ['ja', 'zh'].includes(sttResult.language) && ['ja', 'zh'].includes(targetLang)
+      const completeSentenceOnly = prefersCompleteSentence(translator?.id, sttResult.language, targetLang)
       if (sameLanguage) {
         // Keep text already in the selected target language verbatim and avoid
         // spending a model decode on a no-op translation.
@@ -473,12 +490,12 @@ export class StreamingProcessor {
         // Prepare at most one agreed, complete sentence. Never publish a
         // speculative Chinese/Japanese result before the final source agrees.
         if (!this.japaneseContext.referenceFor(fullSourceText, sttResult.language, targetLang, evidence, this.currentSpeaker()?.speakerIndex)) {
-          const acousticPause = !!captureEvidence?.speechEndSample &&
-            audioBuffer.length - captureEvidence.speechEndSample >= sampleRate * .192
           // Rolling desktop text can look complete halfway through a longer
           // utterance. Use captured silence to avoid translating it twice.
-          const ready = acousticPause || (!captureEvidence?.checkpointOnly && fullSourceText === agreement.confirmedText)
-          this.prepareSentence(fullSourceText, sttResult.language, targetLang, ready)
+          const ready = captureEvidence?.checkpointOnly && isPlamoJaToZh(translator?.id, sttResult.language, targetLang)
+            ? plamoDesktopPause === true
+            : acousticPause || (!captureEvidence?.checkpointOnly && fullSourceText === agreement.confirmedText)
+          this.prepareSentence(fullSourceText, sttResult.language, targetLang, ready, plamoDesktopPause === true)
         }
       } else if (this.supersededDrafts >= MAX_SUPERSEDED_DRAFTS) {
         // This cue keeps revising already translated words. Keep recognizing
@@ -770,16 +787,24 @@ export class StreamingProcessor {
     this.deps.emitter.emit('error', new Error(`Translation failed: ${message}`, { cause: error }))
   }
 
-  private prepareSentence(text: string, from: Language, to: Language, ready: boolean): void {
+  private prepareSentence(text: string, from: Language, to: Language, ready: boolean, preparingPlamoDesktop: boolean): void {
     if (this.preparation && (this.preparation.text !== text || this.preparation.from !== from || this.preparation.to !== to)) {
       this.preparation.controller.abort()
       this.preparation = undefined
     }
     const translator = this.deps.getTranslator()
     if (this.preparedThisCue || this.finalQueue.pending || !translator || from === to ||
-        !['hunyuan-mt-15', 'hunyuan-mt-2'].includes(translator.id) ||
-        this.deps.canReuseInterimTranslation?.() === false || performanceState().auxiliaryWorkPaused ||
-        !ready || text.length < 6 || !completeSentence(text, from)) return
+        this.deps.canReuseInterimTranslation?.() === false || !ready || text.length < 6) return
+    if (!['hunyuan-mt-15', 'hunyuan-mt-2', 'plamo-3'].includes(translator.id)) return
+    // On PLaMo this single call replaces ordinary speculative translation,
+    // so apply the same pause policy that governed those calls.
+    const preparationPaused = (): boolean => preparingPlamoDesktop
+      ? performanceState().speculativeTranslationPaused
+      : performanceState().auxiliaryWorkPaused
+    if (preparationPaused()) return
+    // Haas may leave off punctuation. A pause permits provisional work on a
+    // plausible clause, with the final transcript still required to match exactly.
+    if (!(preparingPlamoDesktop ? !unfinishedSentence(text) : completeSentence(text, from))) return
     this.preparedThisCue = true
     if (this.measureWork) this.workStats.sentencePreparations++
     const controller = new AbortController()
@@ -787,7 +812,7 @@ export class StreamingProcessor {
     this.preparations.add(controller)
     const completion = Promise.resolve().then(() => {
       controller.signal.throwIfAborted()
-      if (performanceState().auxiliaryWorkPaused) return ''
+      if (preparationPaused()) return ''
       return this.deps.getCachedTranslation?.(text, from, to) ?? translator.translate(text, from, to,
         { previousSegments: [], glossary, signal: controller.signal })
     }).then(value => value.trim() || null).catch(() => null).finally(() => {
@@ -862,8 +887,7 @@ export class StreamingProcessor {
 
       const simulMtConfig = this.deps.getSimulMtConfig()
       const useSimulMt = simulMtConfig.enabled && translator?.translateSimulMt &&
-        !(['hunyuan-mt', 'hunyuan-mt-15', 'hunyuan-mt-2'].includes(translator.id) &&
-          ['ja', 'zh'].includes(sttResult.language) && ['ja', 'zh'].includes(targetLang))
+        !prefersCompleteSentence(translator.id, sttResult.language, targetLang)
 
       let translatedText = ''
       let translationStage: 'simulmt-revised' | undefined

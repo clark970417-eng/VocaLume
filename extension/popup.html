@@ -73,6 +73,7 @@
           <button class="swap" type="button" data-swap="speech" aria-label="交換語音語言" title="交換語音語言">⇄</button>
           <label for="speechTarget">翻譯成<select id="speechTarget"></select></label>
         </div>
+        <label for="captionInput">字幕來源（下次開始時套用）<select id="captionInput"><option value="auto">自動</option><option value="audio">語音辨識</option><option value="youtube">YouTube CC</option></select></label>
         <label for="captionMode">字幕顯示<select id="captionMode"><option value="realtime">單組字幕 · 等待完整譯文</option><option value="record">四組字幕 · 保留完整記錄</option></select></label>
         <label for="holdSeconds">最後一組字幕停留時間 <output id="holdSecondsValue">3 秒</output><input id="holdSeconds" type="range" min="1" max="6" step="1" value="3"></label>
         <label for="position">顯示位置<select id="position"><option value="6">靠近底部</option><option value="12">稍微提高</option><option value="20">畫面中下方</option></select></label>
@@ -102,6 +103,19 @@
           <label class="switch outline-switch" for="hideOnHover" title="按住 Alt／Option 可拖曳或調整大小"><span><strong>滑鼠靠近時隱藏字幕</strong></span><input id="hideOnHover" type="checkbox" role="switch"><span class="switch-track" aria-hidden="true"></span></label>
           <button id="reset" class="secondary full-width" type="button">恢復預設字幕設定</button>
         </section>
+        <details id="youtubeGlossary"><summary>YouTube 詞彙表</summary>
+          <label for="youtubeGlossaryScope">套用範圍<select id="youtubeGlossaryScope"><option value="">所有 YouTube 頻道</option></select></label>
+          <p id="youtubeGlossaryChannel" class="feedback">開啟 YouTube 影片即可編輯該頻道的詞彙。</p>
+          <div class="color-row">
+            <label for="youtubeGlossaryFrom">原文語言<select id="youtubeGlossaryFrom"></select></label>
+            <label for="youtubeGlossaryTo">目標語言<select id="youtubeGlossaryTo"></select></label>
+          </div>
+          <label for="youtubeGlossaryTerms">每行一組「原文 → 譯文」
+            <textarea id="youtubeGlossaryTerms" rows="5" spellcheck="false" autocomplete="off" disabled></textarea>
+          </label>
+          <button id="saveYoutubeGlossary" type="button" class="secondary" disabled>儲存詞彙</button>
+          <p id="youtubeGlossaryStatus" class="feedback" role="status"></p>
+        </details>
         <details id="apiSettings"><summary>網路翻譯服務（選用）</summary>
           <label for="apiProvider">翻譯服務<select id="apiProvider"></select></label>
           <div id="apiFields" hidden>

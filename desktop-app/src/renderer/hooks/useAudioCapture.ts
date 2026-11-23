@@ -25,6 +25,7 @@ export class AudioCaptureStartError extends Error {}
  *   demoted to a turn-boundary hint and does not gate the stream.
  */
 export type CaptureMode = 'cascade' | 'realtime'
+type CaptureOptions = { captureMode?: CaptureMode; prepareTranslation?: boolean }
 
 /** Speech turn boundary hint emitted by VAD in realtime mode (#721) */
 export type SpeechBoundary = 'start' | 'end'
@@ -39,7 +40,7 @@ export interface UseAudioCaptureReturn {
   inputLevel: InputLevel
   permissionError: string | null // #48: mic permission error
   hasVirtualAudioDevice: boolean // #125: BlackHole/Soundflower detected
-  start: (options?: { captureMode?: CaptureMode }) => Promise<void>
+  start: (options?: CaptureOptions) => Promise<void>
   stop: () => void
   /** Callback for VAD-detected complete speech segments (legacy mode). Returns unsubscribe function. */
   /** Callback for periodic rolling buffer during speech (streaming mode). Returns unsubscribe function. */
@@ -250,7 +251,7 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
   const processNoiseSuppression = noiseSuppression?.processStream
   const destroyNoiseSuppression = noiseSuppression?.destroy
 
-  const start = useCallback(async (options?: { captureMode?: CaptureMode }) => {
+  const start = useCallback(async (options?: CaptureOptions) => {
     if (isCapturing) return
 
     try {
@@ -360,6 +361,12 @@ export function useAudioCapture(noiseSuppression?: NoiseSuppressionProcessor, st
             if (send) {
               send(segment.audio, segment.evidence)
               releaseAcceptedVadAudio(vadRef.current)
+            }
+          } else if (cascadeBuffer && isSpeakingRef.current && options?.prepareTranslation) {
+            const callback = streamingCallbackRef.current
+            if (callback?.canSend()) {
+              const chunk = cascadeBuffer.previewForTranslation()
+              if (chunk) callback.send(chunk.audio, chunk.evidence)
             }
           }
         },

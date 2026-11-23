@@ -126,33 +126,6 @@ export function getHunyuanMTVariants(): Record<string, GGUFVariant> {
   return HUNYUAN_MT_VARIANTS
 }
 
-/** HY-MT1.5-1.8B GGUF variants (official Tencent quantizations) */
-export const HUNYUAN_MT_15_VARIANTS: Record<string, GGUFVariant> = {
-  'Q4_K_M': {
-    filename: 'HY-MT1.5-1.8B-Q4_K_M.gguf',
-    url: 'https://huggingface.co/tencent/HY-MT1.5-1.8B-GGUF/resolve/main/HY-MT1.5-1.8B-Q4_K_M.gguf',
-    sizeMB: 1130,
-    label: 'Q4_K_M (Recommended, ~1.1GB)'
-  },
-  'Q6_K': {
-    filename: 'HY-MT1.5-1.8B-Q6_K.gguf',
-    url: 'https://huggingface.co/tencent/HY-MT1.5-1.8B-GGUF/resolve/main/HY-MT1.5-1.8B-Q6_K.gguf',
-    sizeMB: 1470,
-    label: 'Q6_K (Balanced, ~1.5GB)'
-  },
-  'Q8_0': {
-    filename: 'HY-MT1.5-1.8B-Q8_0.gguf',
-    url: 'https://huggingface.co/tencent/HY-MT1.5-1.8B-GGUF/resolve/main/HY-MT1.5-1.8B-Q8_0.gguf',
-    sizeMB: 1910,
-    label: 'Q8_0 (Best quality, ~1.9GB)'
-  }
-}
-
-/** Get HY-MT1.5-1.8B GGUF variants */
-export function getHunyuanMT15Variants(): Record<string, GGUFVariant> {
-  return HUNYUAN_MT_15_VARIANTS
-}
-
 /** LFM2-350M-ENJP-MT GGUF variants (official Liquid AI quantizations) */
 export const LFM2_VARIANTS: Record<string, GGUFVariant> = {
   'Q4_K_M': {
@@ -211,6 +184,17 @@ export const PLAMO_VARIANTS: Record<string, GGUFVariant> = {
 /** Get PLaMo-2-Translate GGUF variants */
 export function getPLaMoVariants(): Record<string, GGUFVariant> {
   return PLAMO_VARIANTS
+}
+
+/** Preferred Networks' official PLaMo 3 Translate 0.8B quantization. */
+export const PLAMO_3_VARIANTS: Record<string, GGUFVariant> = {
+  Q4_K_M: {
+    filename: 'plamo-3-translate-0.8b-Q4_K_M.gguf',
+    url: 'https://huggingface.co/pfnet/plamo-3-translate-0.8b-GGUF/resolve/7de4409f84a9d70e3a5e87b81e84883d49f77b58/plamo-3-translate-0.8b-Q4_K_M.gguf',
+    sha256: '70891ec70dc7ab4205745a38307867c2881b99239f20327927633abfe4bc9ec6',
+    sizeMB: 573,
+    label: 'Q4_K_M (~573 MB)'
+  }
 }
 
 export const GGUF_VARIANTS_4B: Record<string, GGUFVariant> = {

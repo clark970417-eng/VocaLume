@@ -1,6 +1,6 @@
 {
   "name": "live-translate",
-  "version": "4.6.6",
+  "version": "4.6.7",
   "description": "Local-first multilingual live captions and browser translation",
   "main": "./out/main/index.js",
   "scripts": {
@@ -38,7 +38,7 @@
     "electron-updater": "^6.3.0",
     "ffmpeg-static": "^5.2.0",
     "kokoro-js": "^1.2.1",
-    "node-llama-cpp": "^3.0.0",
+    "node-llama-cpp": "3.22.3",
     "ws": "^8.20.0"
   },
   "optionalDependencies": {

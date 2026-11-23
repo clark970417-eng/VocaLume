@@ -4,9 +4,9 @@ export class TranslationCancelledError extends Error {
 }
 
 /** A timeout must abort inference itself, not just abandon the waiting UI. */
-export async function boundedTranslation(
- session: { promptWithMeta(prompt: string, options: any): Promise<{responseText:string,stopReason:string}> },
- prompt: string,
+export async function boundedTranslation<Prompt>(
+ session: { promptWithMeta(prompt: Prompt, options: any): Promise<{responseText:string,stopReason:string}> },
+ prompt: Prompt,
  options: Record<string, unknown>,
  sourceLength?: number,
  timeoutMs = 15_000,

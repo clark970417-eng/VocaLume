@@ -22,7 +22,7 @@ import { E2EStreamingShadowPath } from '../../pipeline/shadow/paths/E2EStreaming
 import type { ShadowReport } from '../../pipeline/shadow/metrics'
 import { WhisperLocalEngine } from '../../engines/stt/WhisperLocalEngine'
 import type { WhisperVariant } from '../../engines/model-downloader'
-import { HunyuanMT15Translator } from '../../engines/translator/HunyuanMT15Translator'
+import { PLaMo3Translator } from '../../engines/translator/PLaMo3Translator'
 import { CloudRealtimeE2E } from '../../engines/e2e/CloudRealtimeE2E'
 import { GeminiLiveE2E } from '../../engines/e2e/GeminiLiveE2E'
 import type { Language } from '../../engines/types'
@@ -155,7 +155,7 @@ export async function runShadowJaEnHarness(options: ShadowHarnessOptions = {}): 
     onProgress: (msg) => log.info(msg),
     modelVariant: options.whisperVariant ?? DEFAULT_WHISPER_VARIANT
   })
-  const translator = new HunyuanMT15Translator({ onProgress: (msg) => log.info(msg) })
+  const translator = new PLaMo3Translator({ onProgress: (msg) => log.info(msg) })
   const cascade = new CascadeShadowPath({
     stt,
     translator,

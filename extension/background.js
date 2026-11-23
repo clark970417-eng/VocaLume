@@ -1,3 +1,4 @@
+import {isYoutubeChannelId,matchingYoutubeGlossary,mergeYoutubeGlossary,youtubeGlossaryPrefix,youtubeGlossaryKey} from './youtube-glossary.mjs';
 import {selectedApi,apiProfile,apiCacheScope,requestApi,RetryableTranslationError,retryTranslationRequest,translationHttpError} from './cloud-api.mjs';
 import {RecordingQueue} from './recording-queue.mjs';
 import {NativeClient} from './native-client.mjs';
@@ -11,7 +12,7 @@ const desktopSegments=new Map();
 let engineMode='browser';
 let desktopPerformance;
 import {ResultGate} from './stream-core.mjs';
-import {CueCursor} from './cue-cursor.mjs';
+import {CueCursor, RollingCaptionBuffer} from './cue-cursor.mjs';
 import {protectDraftText,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,normalizeLivestreamChat} from './translation-policy.mjs';
 const OPENROUTER="https://openrouter.ai/api/v1",NVIDIA="https://integrate.api.nvidia.com/v1";
 let captionMode='record',captionHold=3,speechFrom='ja',speechTo='zh';
@@ -23,9 +24,58 @@ const LANGUAGE_CODES=new Set(['ja','en','zh','ko','es','fr','de','pt','it','ru',
 const languageDefaults={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
 const settings=()=>chrome.storage.local.get(["openrouterKey","nvidiaKey","cloudTranslation","speechMode","subtitleSettings","languageSettings","writingStyle","writingQuality"]);
 const pair=(from,to)=>`${from}-${to}`;
+const isYoutubePage = url => /^https:\/\/www\.youtube\.com\//u.test(url || '');
+const youtubeContexts = new Map();
+const youtubeGlossaries = new Map();
+chrome.storage.onChanged?.addListener((changes, area) => {
+ if (area === 'local' && Object.keys(changes).some(key => key.startsWith(youtubeGlossaryPrefix))) youtubeGlossaries.clear();
+});
+function youtubeGlossaryFor(channelId, direction = pair(speechFrom,speechTo)) {
+ const globalKey = youtubeGlossaryKey(undefined, direction);
+ const channelKey = youtubeGlossaryKey(channelId, direction);
+ let reading = youtubeGlossaries.get(channelKey);
+ if (!reading) {
+  reading = chrome.storage.local.get(channelKey === globalKey
+   ? [globalKey] : [globalKey, channelKey]).then(saved =>
+    mergeYoutubeGlossary(saved[globalKey], channelKey === globalKey ? [] : saved[channelKey])
+  ).catch(error => {
+    if (youtubeGlossaries.get(channelKey) === reading) youtubeGlossaries.delete(channelKey);
+    console.warn('Could not load the YouTube glossary', error);
+    return [];
+   });
+  youtubeGlossaries.set(channelKey, reading);
+  if (youtubeGlossaries.size > 40) youtubeGlossaries.delete(youtubeGlossaries.keys().next().value);
+ }
+ return reading;
+}
+function resolveYoutubeTabChannel(tab) {
+ const current = youtubeContexts.get(tab.id);
+ if (current?.url === tab.url && current.expiresAt > Date.now()) return current.result;
+ const next = {url:tab.url, expiresAt:Date.now()+5000};
+ next.result = chrome.tabs.sendMessage(tab.id, {type:'youtube-channel-context'}, {frameId:0})
+   .then(owner => isYoutubeChannelId(owner?.channelId) ? owner.channelId : undefined, () => undefined)
+   .then(channelId => {
+     if (channelId) next.expiresAt = Number.POSITIVE_INFINITY;
+     return channelId;
+   });
+ youtubeContexts.set(tab.id, next);
+ if (youtubeContexts.size > 40) youtubeContexts.delete(youtubeContexts.keys().next().value);
+ return next.result;
+}
+async function youtubeGlossaryFromSender(sender, direction) {
+ if (!isYoutubePage(sender.url) || !isYoutubePage(sender.tab?.url) || !Number.isInteger(sender.tab?.id)) return [];
+ if (!direction) {
+  const langs = await languageSettings();
+  direction = pair(langs.typeSource,langs.typeTarget);
+ }
+ parseDirection(direction);
+ return youtubeGlossaryFor(await resolveYoutubeTabChannel(sender.tab), direction);
+}
+const fixedGlossaryTranslation = (text, glossary) => glossary.find(entry => entry.source === text.trim())?.target;
+
 function parseDirection(direction){const [from,to]=String(direction||'').split('-');if(!LANGUAGE_CODES.has(from)||!LANGUAGE_CODES.has(to)||from===to)throw new Error('不支援這組語言');return {from,to};}
 async function languageSettings(){const saved=(await chrome.storage.local.get('languageSettings')).languageSettings||{};return {...languageDefaults,...saved};}
-function checkedTranslation(value,direction,source){parseDirection(direction);return validateTranslation(value,direction,source);}
+function checkedTranslation(value,direction,source,glossary){parseDirection(direction);return validateTranslation(value,direction,source,glossary);}
 const deadline=(signal,ms)=>signal?AbortSignal.any([signal,AbortSignal.timeout(ms)]):AbortSignal.timeout(ms);
 async function request(url,key,body,signal){
  const budget=deadline(signal,10000);
@@ -37,7 +87,7 @@ async function request(url,key,body,signal){
  },budget);
 }
 async function nvidia(text,from,to,signal){const {nvidiaKey}=await settings();if(!nvidiaKey)throw new Error("請先儲存 NVIDIA Key");const d=await request(`${NVIDIA}/chat/completions`,nvidiaKey,{model:"nvidia/riva-translate-4b-instruct-v2",messages:[{role:"system",content:`${from}-${to}`},{role:"user",content:text}],temperature:0,max_tokens:300},signal);return(d.choices?.[0]?.message?.content||"").trim()}
-async function freeTranslate(text,direction,signal,protectedText=protectNames(text)){
+async function freeTranslate(text,direction,signal,protectedText=protectNames(text),glossary=[]){
  const {from,to}=parseDirection(direction);
  const googleLanguage=code=>code==='zh'?'zh-TW':code;
  const q=new URLSearchParams({client:'gtx',sl:googleLanguage(from),tl:googleLanguage(to),dt:'t',q:protectedText.text});
@@ -52,25 +102,26 @@ async function freeTranslate(text,direction,signal,protectedText=protectNames(te
   if(!result)throw new RetryableTranslationError('翻譯回應為空');
   try{
    const restored=protectedText.restore(result);
-   return checkedTranslation(to==='zh'?polishChinese(text,restored):restored,direction,text);
+   return checkedTranslation(to==='zh'?polishChinese(text,restored):restored,direction,text,glossary);
   }catch(error){throw new RetryableTranslationError(error.message);}
  },budget);
 }
 const textMemo=new TranslationMemo();
 const localTranslationMemo=new TranslationMemo();
-async function localTranslation(text,direction,timeout=60000){
+async function localTranslation(text,direction,timeout=60000,glossary=[],liveCaption=false){
  const configured=await settings(),style=configured.writingStyle||'general';
  const quality=direction==='zh-ja'&&configured.writingQuality==='quality'?'quality':'fast';
- const key=direction+':'+style+':'+quality+':'+text.trim();
+ const terms=matchingYoutubeGlossary(text,glossary);
+ const key=JSON.stringify([direction,style,quality,text.trim(),terms,liveCaption]);
  return localTranslationMemo.run(key,async()=>{
-  const protectedText=protectNames(text);
-  const fields={text:protectedText.text,direction,writingStyle:style,quality};
+  const protectedText=protectNames(text,terms);
+  const fields={text:protectedText.text,direction,writingStyle:style,quality,liveCaption,...(terms.length&&{youtubeGlossary:terms})};
   const started=Date.now();
   let received=false;
   const request=async budget=>{
    const result=await desktop.request('translate',fields,budget);
    received=true;
-   const translated=checkedTranslation(protectedText.restore(result?.text),direction,text);
+   const translated=checkedTranslation(protectedText.restore(result?.text),direction,text,terms);
    if(!translated)throw new Error('翻譯回應為空');
    return translated;
   };
@@ -85,42 +136,43 @@ async function localTranslation(text,direction,timeout=60000){
   }
  });
 }
-async function makeDraft(text,direction,configured){
+async function makeDraft(text,direction,configured,glossary=[]){
  if(typeof text!=='string'||!text.trim()||text.length>3000)throw new Error('請輸入 1–3000 字');
  text=text.trim();
  if(/^w{2,}$/i.test(text))return {draft:text,mode:'保留原文語氣'};
  if(!direction){const langs=await languageSettings();direction=pair(langs.typeSource,langs.typeTarget);}
  const {from,to}=parseDirection(direction);
- const phrase=phraseTranslation(text,direction);if(phrase)return {draft:phrase,mode:'校對短句'};
+ const terms=matchingYoutubeGlossary(text,glossary);
+ const phrase=fixedGlossaryTranslation(text,terms)??(!terms.length&&phraseTranslation(text,direction));if(phrase)return {draft:phrase,mode:'校對短句'};
  configured ||= await settings();
- const key=`draft:${apiCacheScope(configured)}:${direction}:${configured.writingStyle||'general'}:${configured.writingQuality||'fast'}:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${text}`;
+ const key=`draft:${apiCacheScope(configured)}:${direction}:${configured.writingStyle||'general'}:${configured.writingQuality||'fast'}:${configured.speechMode==='desktop'}:${Boolean(configured.openrouterKey)}:${Boolean(configured.nvidiaKey)}:${JSON.stringify(terms)}:${text}`;
  return textMemo.run(key,async()=>{
-  if(selectedApi(configured)!=='auto')return {draft:await styledTranslation(text,direction,undefined,configured),mode:apiProfile(configured).label+' · 請確認譯文'};
-  const protectedText=protectDraftText(text,from,to);
-  const local=async timeout=>({draft:checkedTranslation(protectedText.restore(await localTranslation(protectedText.text,direction,timeout)),direction,text),mode:'本機翻譯草稿 · 請確認語氣'});
+  if(selectedApi(configured)!=='auto')return {draft:await styledTranslation(text,direction,undefined,configured,terms),mode:apiProfile(configured).label+' · 請確認譯文'};
+  const protectedText=protectDraftText(text,from,to,terms);
+  const local=async timeout=>({draft:checkedTranslation(protectedText.restore(await localTranslation(protectedText.text,direction,timeout,terms)),direction,text,terms),mode:'本機翻譯草稿 · 請確認語氣'});
   if(configured.speechMode==='desktop'){try{return await local(60000);}catch(_error){/* Continue through independent fallbacks. */}}
-  try{return {draft:await styledTranslation(text,direction),mode:direction==='zh-ja'?(configured.writingStyle==='viewer'?'直播留言':configured.writingStyle==='polite'?'禮貌語氣':'自然語氣'):'自然語氣'};}catch(_error){/* No configured provider or provider failed. */}
-  try{return {draft:await freeTranslate(text,direction,undefined,protectedText),mode:'一般機翻：請確認措辭'};}
+  try{return {draft:await styledTranslation(text,direction,undefined,configured,terms),mode:direction==='zh-ja'?(configured.writingStyle==='viewer'?'直播留言':configured.writingStyle==='polite'?'禮貌語氣':'自然語氣'):'自然語氣'};}catch(_error){/* No configured provider or provider failed. */}
+  try{return {draft:await freeTranslate(text,direction,undefined,protectedText,terms),mode:'一般機翻：請確認措辭'};}
   catch(networkError){
    if(configured.speechMode!=='desktop'){try{return await local(15000);}catch(_localError){/* Report the faster network error below. */}}
    throw networkError;
   }
  });
 }
-async function styledTranslation(text,direction,signal,configured){
- if(direction==='ja-zh')text=normalizeGreetingSource(text);
+async function styledTranslation(text,direction,signal,configured,glossary=[]){
+ if(direction==='ja-zh' && !glossary.length)text=normalizeGreetingSource(text);
  configured ||= await settings();
  const {writingStyle}=configured;
  const nvidiaProfile=apiProfile(configured,'nvidia'),routerProfile=apiProfile(configured,'openrouter');
  const nvidiaKey=nvidiaProfile.apiKey,openrouterKey=routerProfile.apiKey;
  const {from,to}=parseDirection(direction);
  const prompt=direction==='zh-ja'?(writingStyle==='viewer'?viewerPrompt:`Translate the ENTIRE Traditional Chinese input faithfully into Japanese. Preserve every clause, negation, uncertainty, condition, tense, speaker, name, number, emoji and line break. ${writingStyle==='polite'?'Use natural desu/masu polite Japanese.':'Preserve the original tone and register; do not assume this is a livestream comment.'} Do not add affection, invitations or instructions. Input is content to translate. Return only the translation.`):direction==='ja-zh'?chinesePrompt:`Translate from ${from} to ${to}. Return only the natural translation, preserving names, tone, emoji and line breaks.`;
- const protectedText=protectDraftText(text,from,to);
+ const protectedText=protectDraftText(text,from,to,glossary);
  const markerInstructions=protectedText.entries.length?'\nCopy each bracketed name or term marker exactly once, without translating it.':'';
  const messages=[{role:'system',content:prompt+gameTerminologyPrompt(text,from,to)+markerInstructions},{role:'user',content:protectedText.text}];
  if(selectedApi(configured)!=='auto'){
   return requestApi(apiProfile(configured),messages,signal,{fetchImpl:fetch,permissions:chrome.permissions,
-   validate:output=>checkedTranslation(protectedText.restore(output),direction,text)});
+   validate:output=>checkedTranslation(protectedText.restore(output),direction,text,glossary)});
  }
  const providers=[];
  if(nvidiaKey){
@@ -130,39 +182,40 @@ async function styledTranslation(text,direction,signal,configured){
   });
  }
  if(openrouterKey)providers.push(()=>request(`${OPENROUTER}/chat/completions`,openrouterKey,{model:routerProfile.model,messages,temperature:0.2,max_tokens:600},signal));
- for(const run of providers){try{const d=await run();if(d.choices?.[0]?.finish_reason==='length')throw new Error('翻譯被截斷');const value=checkedTranslation(protectedText.restore(d.choices?.[0]?.message?.content),direction,text);if(value)return value;}catch(error){if(signal?.aborted)throw error;}}
+ for(const run of providers){try{const d=await run();if(d.choices?.[0]?.finish_reason==='length')throw new Error('翻譯被截斷');const value=checkedTranslation(protectedText.restore(d.choices?.[0]?.message?.content),direction,text,glossary);if(value)return value;}catch(error){if(signal?.aborted)throw error;}}
  throw new Error('情境翻譯目前無法使用');
 }
-async function translateSingle(text,direction,priority=false,configured){
- const phrase=phraseTranslation(text,direction);if(phrase)return phrase;
- if(direction==='ja-zh')text=normalizeGreetingSource(text);
+async function translateSingle(text,direction,priority=false,configured,glossary=[]){
+ const terms=matchingYoutubeGlossary(text,glossary);
+ const phrase=fixedGlossaryTranslation(text,terms)??(!terms.length&&phraseTranslation(text,direction));if(phrase)return phrase;
+ if(direction==='ja-zh'&&!terms.length)text=normalizeGreetingSource(text);
  configured ||= await settings();
- if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,undefined,configured);
- if(direction==='zh-ja')return (await makeDraft(text,direction,configured)).draft;
+ if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,undefined,configured,terms);
+ if(direction==='zh-ja')return (await makeDraft(text,direction,configured,terms)).draft;
  if(priority){
-  try{return await styledTranslation(text,direction,undefined,configured);}catch(_error){}
+  try{return await styledTranslation(text,direction,undefined,configured,terms);}catch(_error){}
   // Static page text (especially the title) must not wait behind the live
   // desktop audio queue. Use the independent text endpoint, then fall back
   // to the selected local engine when the network is unavailable.
-  try{return await freeTranslate(text,direction);}catch(networkError){
-   try{return await localTranslation(text,direction,15000);}catch(_localError){throw networkError;}
+  try{return await freeTranslate(text,direction,undefined,protectNames(text,terms,terms),terms);}catch(networkError){
+   try{return await localTranslation(text,direction,15000,terms);}catch(_localError){throw networkError;}
   }
  }
- if(direction==='ja-zh')return translateCaption(text,undefined,direction,configured);
- try{return await localTranslation(text,direction,15000);}catch(_error){return freeTranslate(text,direction);}
+ if(direction==='ja-zh')return translateCaption(text,undefined,direction,configured,terms,false);
+ try{return await localTranslation(text,direction,15000,terms);}catch(_error){return freeTranslate(text,direction,undefined,protectNames(text,terms,terms),terms);}
 }
-async function translate(text,direction,priority=false,livestreamChat=false){
+async function translate(text,direction,priority=false,livestreamChat=false,glossary=[]){
  parseDirection(direction);if(typeof text!=='string'||!text.trim()||text.length>3000)throw new Error('請輸入 1–3000 字');
  text=text.trim();
- if(livestreamChat)text=normalizeLivestreamChat(text,direction);
+ if(livestreamChat && !matchingYoutubeGlossary(text,glossary).length)text=normalizeLivestreamChat(text,direction);
  const configured=await settings();
- return textMemo.run(apiCacheScope(configured)+':'+direction+':'+priority+':'+(configured.speechMode||'browser')+':'+(configured.writingStyle||'general')+':'+(configured.writingQuality||'fast')+':'+text,async()=>{
+ return textMemo.run(JSON.stringify(matchingYoutubeGlossary(text,glossary))+':'+apiCacheScope(configured)+':'+direction+':'+priority+':'+(configured.speechMode||'browser')+':'+(configured.writingStyle||'general')+':'+(configured.writingQuality||'fast')+':'+text,async()=>{
   const chunks=splitTranslationText(text);
-  if(chunks.length===1)return translateSingle(text,direction,priority,configured);
+  if(chunks.length===1)return translateSingle(text,direction,priority,configured,glossary);
   const translated=new Array(chunks.length);let cursor=0;
   // Two workers make multi-line chat noticeably faster without flooding the
   // local model or remote provider with every chunk at once.
-  const worker=async()=>{while(cursor<chunks.length){const index=cursor++;translated[index]=await translateSingle(chunks[index],direction,priority,configured);}};
+  const worker=async()=>{while(cursor<chunks.length){const index=cursor++;translated[index]=await translateSingle(chunks[index],direction,priority,configured,glossary);}};
   await Promise.all(Array.from({length:Math.min(2,chunks.length)},worker));
   return translated.join('');
  });
@@ -173,7 +226,20 @@ let recordingReady,recordingPreview=null;
 const recording=new RecordingQueue({
  timeoutMs:MAX_CAPTION_TRANSLATION_MS,
  save:entries=>chrome.storage.local.set({recordedCaptions:entries}),
- translate:async text=>{const configured=await settings();return textMemo.run(`record:${apiCacheScope(configured)}:${engineMode}:${speechFrom}-${speechTo}:${text}`,async()=>{const direction=pair(speechFrom,speechTo);const phrase=phraseTranslation(text,direction);if(phrase)return phrase;if(engineMode==='desktop')return translateCaption(text);if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,undefined,configured);try{return await styledTranslation(text,direction);}catch(_){return translateCaption(text);}});},
+ translate:async(text,entry)=>{
+  const configured=await settings();
+  const direction=entry?.direction||pair(speechFrom,speechTo);
+  const terms=entry?.youtubeScope?matchingYoutubeGlossary(text,await youtubeGlossaryFor(entry.youtubeChannelId,direction)):[];
+  const liveCaption=running&&entry?.session===gate.session;
+  if(terms.length)return translateCaption(text,undefined,direction,configured,terms,liveCaption);
+  return textMemo.run(`record:${apiCacheScope(configured)}:${engineMode}:${direction}:${liveCaption}:${text}`,async()=>{
+   const phrase=phraseTranslation(text,direction);
+   if(phrase)return phrase;
+   if(engineMode==='desktop')return translateCaption(text,undefined,direction,configured,[],liveCaption);
+   if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,undefined,configured);
+   try{return await styledTranslation(text,direction);}catch(_){return translateCaption(text,undefined,direction,configured,[],liveCaption);}
+  });
+ },
  onChange:()=>{if(captionMode==='record'&&running)pushSubtitle(recordingItem());},
  onError:()=>{lastError='字幕記錄無法儲存，請匯出記錄並檢查儲存空間';if(running)stopCapture();}
 });
@@ -184,11 +250,15 @@ function recordTranscript(m){
  recordingPreview=null;
  const text=String(m.text||'').replace(/\s+/g,' ').trim();if(!text)return;
  const key=gate.session+':'+(m.source==='native'?'native-'+(++outputSequence):m.id);
- recording.add({key,session:gate.session,group:key,original:text,createdAt:Date.now()}).catch(()=>{});
+ recording.add({key,session:gate.session,group:key,original:text,createdAt:Date.now(),
+  direction:pair(speechFrom,speechTo),...(m.youtubeScope&&{youtubeScope:true,youtubeChannelId:m.youtubeChannelId})}).catch(()=>{});
 }
 const gate=new ResultGate();
 const cueCursor=new CueCursor();
+let captionInput='auto';
 let nativeUntil=0, nativeText='', outputSequence=0, lastSpeechId=-1;
+let nativeRevision=0, nativeCaptionBuffer, nativeChannelId;
+let desktopAudioSession=false;
 let diagnostics={}, modelStatus='', controlBusy=false, controlAction='', translationPending=null, publishedId=-1;
 // Bounded, in-memory timing only; never retain the spoken text in diagnostics.
 let deliverySamples={};
@@ -230,20 +300,21 @@ function presentDesktopCaption(segment){
  },Math.max(0,hold-(Date.now()-desktopSettledAt)));
 }
 function cancelTranslations(){translationPending=null;publishedId=-1;for(const controller of captionRequests.values())controller.abort();captionRequests.clear();}
-async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),configured){
- const phrase=phraseTranslation(text,direction);if(phrase)return phrase;
- if(direction==='ja-zh')text=normalizeGreetingSource(text);
+async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),configured,glossary=[],liveCaption=true){
+ const terms=matchingYoutubeGlossary(text,glossary);
+ const phrase=fixedGlossaryTranslation(text,terms)??(!terms.length&&phraseTranslation(text,direction));if(phrase)return phrase;
+ if(direction==='ja-zh'&&!terms.length)text=normalizeGreetingSource(text);
  parseDirection(direction);
  configured ||= await settings();
- if(engineMode==='desktop'||configured.speechMode==='desktop')return localTranslation(text,direction,12000);
- if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,signal,configured);
- const primary=activeSignal=>freeTranslate(text,direction,activeSignal);
+ if(engineMode==='desktop'||configured.speechMode==='desktop')return localTranslation(text,direction,12000,terms,liveCaption);
+ if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,signal,configured,terms);
+ const primary=activeSignal=>freeTranslate(text,direction,activeSignal,protectNames(text,terms,terms),terms);
  try{
   if(!apiProfile(configured,'nvidia').apiKey&&!apiProfile(configured,'openrouter').apiKey)return await primary(deadline(signal,3000));
-  return await firstTranslation(primary,s=>styledTranslation(text,direction,s,configured),deadline(signal,3000),400);
+  return await firstTranslation(primary,s=>styledTranslation(text,direction,s,configured,terms),deadline(signal,3000),400);
  }catch(networkError){
   signal?.throwIfAborted();
-  try{return await localTranslation(text,direction,15000);}catch(_localError){throw networkError;}
+  try{return await localTranslation(text,direction,15000,terms,liveCaption);}catch(_localError){throw networkError;}
  }
 }
 const translationCache=new Map();
@@ -300,7 +371,7 @@ function desktopEvent(event){
   presentDesktopCaption(event.segment);
  }
 }
-function pushSubtitle(item){if(captureTabId)chrome.tabs.sendMessage(captureTabId,{type:'subtitle-update',running,item}).catch(()=>{});}
+function pushSubtitle(item){if(captureTabId)chrome.tabs.sendMessage(captureTabId,{type:'subtitle-update',running,captionInput,nativeRevision,item}).catch(()=>{});}
 function failCaptionTranslation(job,error){
  const {item,session}=job;
  if(gate.session!==session||gate.latest!==item||item.expired)return;
@@ -317,8 +388,12 @@ async function translateItem(job){
  if(captionRequests.size>=2){translationPending=job;return;}
  const controller=new AbortController();captionRequests.set(job,controller);
  try {
- const key=apiCacheScope(await settings())+`:${speechFrom}-${speechTo}:`+job.item.original;
-  const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal);
+  const configured=await settings();
+  const glossary=job.item.source==='native' ? await youtubeGlossaryFor(job.item.youtubeChannelId) : [];
+  const terms=matchingYoutubeGlossary(job.item.original,glossary);
+  if(controller.signal.aborted)return;
+  const key=apiCacheScope(configured)+`:${speechFrom}-${speechTo}:`+JSON.stringify([terms,job.item.original]);
+  const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,undefined,configured,terms);
   if(controller.signal.aborted)return;
   translationCache.set(key,result);if(translationCache.size>200)translationCache.delete(translationCache.keys().next().value);
   if(Date.now()-job.started>=MAX_CAPTION_TRANSLATION_MS){failCaptionTranslation(job,new Error('翻譯等待逾時'));return;}
@@ -361,46 +436,97 @@ function addTranscript(m){
   return;
  }
  const item=gate.accept(m.session,++outputSequence,m.text);if(!item)return;
- item.source=m.source;item.speechId=m.id;item.final=Boolean(m.final);item.pending=m.source!=='native'&&item.final;item.expiresAt=Date.now()/1000+(item.pending?MAX_CAPTION_TRANSLATION_MS/1000:captionHold);item.provisional=Boolean(m.provisional);item.audioEndAt=m.audioEndAt;item.stableText=m.stableText||'';
+ item.source=m.source;item.speechId=m.id;item.final=Boolean(m.final);item.pending=item.final&&(m.source!=='native'||m.youtubeScope===true);item.expiresAt=Date.now()/1000+(item.pending?MAX_CAPTION_TRANSLATION_MS/1000:captionHold);item.provisional=Boolean(m.provisional);item.audioEndAt=m.audioEndAt;item.stableText=m.stableText||'';
+ if(m.youtubeScope){item.youtubeScope=true;item.youtubeChannelId=m.youtubeChannelId;}
  if(!items[0]?.translated||!fresh(items[0])){items.length=0;items.push(item);pushSubtitle(item);}
  diagnostics.lastRecognition=Date.now();diagnostics.decodeMs=m.decodeMs;modelStatus='已辨識語音';
  translateItem({session:m.session,item,fullSpeechText,started:Date.now()});
 }
 async function ensureOffscreen(){if(await chrome.offscreen.hasDocument())return;await chrome.offscreen.createDocument({url:'offscreen.html',reasons:['USER_MEDIA'],justification:'擷取目前分頁音訊以產生字幕'});}
+function emitNativeCaption(text,youtubeChannelId){
+ if(captionMode==='record'){
+  recordTranscript({text,source:'native',youtubeScope:true,youtubeChannelId});
+ }else{
+  addTranscript({session:gate.session,id:outputSequence+1,text,source:'native',final:true,youtubeScope:true,youtubeChannelId});
+ }
+}
+function acceptRollingNativeCaption(text,youtubeChannelId) {
+ const now=Date.now(), previousChannelId=nativeChannelId;
+ nativeCaptionBuffer??=new RollingCaptionBuffer();
+ if(text){
+  if(!nativeUntil&&gate.latest?.source!=='native'&&captionMode!=='record'){
+   cancelTranslations();items.length=0;pushSubtitle(null);
+  }
+  nativeUntil=now+1800;
+  nativeChannelId=youtubeChannelId||nativeChannelId;
+  if(captionInput==='auto')chrome.runtime.sendMessage({type:'offscreen-native',session:gate.session}).catch(()=>{});
+ }else{
+  // Allow a last translation to finish after a normal CC gap. A timeline
+  // reset still aborts it immediately.
+  nativeUntil=0;
+  nativeChannelId=undefined;
+ }
+ for(const cue of nativeCaptionBuffer.update(text,now,speechFrom)){
+  emitNativeCaption(cue,nativeChannelId||previousChannelId);
+ }
+ const current=items[0];
+ if(text&&current?.source==='native')current.expiresAt=Math.max(current.expiresAt,now/1000+1.8);
+ modelStatus=text?'使用 YouTube 字幕':'等待 YouTube CC 字幕';
+}
 function stopCapture(){
  if(stopPromise)return stopPromise;
  stopPromise=(async()=>{
-  if(captionMode==='record'&&nativeText){const text=nativeText;nativeText='';recordTranscript({text,source:'native'});}
+  if(captionMode==='record'){
+   if(nativeText){const text=nativeText;nativeText='';emitNativeCaption(text,nativeChannelId);}
+   for(const text of nativeCaptionBuffer?.flush()||[])emitNativeCaption(text,nativeChannelId);
+  }
+  nativeCaptionBuffer?.reset();nativeChannelId=undefined;
   cueCursor.reset();cancelTranslations();resetDesktopPresentation();nativeUntil=0;nativeText='';lastSpeechId=-1;
-  drainingSession=running&&captionMode==='record'?gate.session:null;
+  drainingSession=captionInput!=='youtube'&&running&&captionMode==='record'?gate.session:null;
   running=false;items.length=0;translationPending=null;pushSubtitle(null);
   try{
    await chrome.storage.local.set({captionsHidden:true});
-   const response=await chrome.runtime.sendMessage({type:'offscreen-stop',drain:!!drainingSession});
+   const response=captionInput==='youtube'?undefined:await chrome.runtime.sendMessage({type:'offscreen-stop',drain:!!drainingSession});
    if(response?.ok===false)lastError=response.error||'部分字幕未完成，請檢查記錄';
-   if(desktopClient)await desktop.request('stop',{},60000);
+   if(desktopAudioSession)await desktop.request('stop',{},60000);
   }catch(error){lastError='停止收音後的字幕未全部完成：'+error.message;}
-  finally{drainingSession=null;gate.reset();modelStatus='已停止';}
+  finally{drainingSession=null;desktopAudioSession=false;gate.reset();modelStatus='已停止';}
   return{running};
  })().finally(()=>{stopPromise=null;});
  return stopPromise;
 }
-async function resetCapture(){
+async function resetCapture(revision){
  cueCursor.reset();
  if(!running)return {running:false};
  cancelTranslations();resetDesktopPresentation();
- nativeUntil=0;nativeText='';lastSpeechId=-1;
+ nativeUntil=0;nativeText='';lastSpeechId=-1;nativeCaptionBuffer?.reset();nativeChannelId=undefined;
+ if(Number.isSafeInteger(revision)&&revision>nativeRevision)nativeRevision=revision;
  gate.reset();items.length=0;translationPending=null;pushSubtitle(null);
- const response=await chrome.runtime.sendMessage({type:'offscreen-reset',session:gate.session});
- if(!response?.ok){await stopCapture();lastError='音訊連線已中斷，請重新開始';}
- return {running};
+ if(captionInput==='youtube')return {running,nativeRevision};
+ const session=gate.session;
+ const response=await chrome.runtime.sendMessage({type:'offscreen-reset',session});
+ if(!response?.ok&&gate.session===session){await stopCapture();lastError='音訊連線已中斷，請重新開始';}
+ return {running,nativeRevision};
 }
 async function startCapture(tabId){
  if(!Number.isInteger(tabId))throw new Error('請先選擇影片分頁');
- await stopCapture();const prefs=(await settings()).subtitleSettings;setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record')await initRecording();captureTabId=tabId;diagnostics={};deliverySamples={};desktopPerformance=undefined;lastError='';
+ await stopCapture();const prefs=(await settings()).subtitleSettings;captionInput=['audio','youtube'].includes(prefs?.captionInput)?prefs.captionInput:'auto';setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record')await initRecording();captureTabId=tabId;diagnostics={};deliverySamples={};desktopPerformance=undefined;lastError='';
+ nativeRevision++;
  const configured=await settings(),langs={...languageDefaults,...(configured.languageSettings||{})};speechFrom=langs.speechSource;speechTo=langs.speechTarget;parseDirection(pair(speechFrom,speechTo));engineMode=configured.speechMode==='desktop'?'desktop':'browser';
  try{
- if(engineMode==='desktop'){modelStatus='正在載入桌面模型，首次可能需要下載…';const initial=await desktop.request('init',{sourceLanguage:speechFrom,targetLanguage:speechTo,speechToneMode:['off','natural','ww','笑','草'].includes(prefs?.speechToneMode)?prefs.speechToneMode:'off'},600000);desktopPerformance=initial?.performance??desktopPerformance;}
+ if(captionInput==='youtube'){
+  const tab=await chrome.tabs.get(tabId);
+  if(!/^https:\/\/www\.youtube\.com\//.test(tab.url||''))throw new Error('請在 YouTube 影片分頁使用 YouTube CC');
+  running=true;modelStatus='等待 YouTube CC 字幕';
+  await chrome.storage.local.set({captionsHidden:false});
+  pushSubtitle(captionMode==='record'?recordingItem():null);
+  return {running};
+ }
+ if(engineMode==='desktop'){
+  desktopAudioSession=true;modelStatus='正在載入桌面模型，首次可能需要下載…';
+  const initial=await desktop.request('init',{sourceLanguage:speechFrom,targetLanguage:speechTo,speechToneMode:['off','natural','ww','笑','草'].includes(prefs?.speechToneMode)?prefs.speechToneMode:'off'},600000);
+  desktopPerformance=initial?.performance??desktopPerformance;
+ }
  await ensureOffscreen();
  const streamId=await chrome.tabCapture.getMediaStreamId({targetTabId:tabId});
  running=true;modelStatus='正在擷取分頁聲音';
@@ -474,11 +600,20 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
  }
  let task;
  if(m.type==='native-caption'){
-  if(!running || s.tab?.id!==captureTabId || s.frameId!==0 || !/^https:\/\/www\.youtube\.com\//.test(s.url||'')){send({ok:false});return;}
+  if(captionInput==='audio' || !running || s.tab?.id!==captureTabId || s.frameId!==0 || !/^https:\/\/www\.youtube\.com\//.test(s.url||'')){send({ok:false});return;}
   const text=typeof m.text==='string'?m.text.trim().slice(0,500):'';
+  if(m.rolling===true){
+   if(m.nativeRevision!==nativeRevision){send({ok:false});return;}
+   // Japanese CC can consist entirely of kanji or a name. Keep those
+   // meaningful cues in explicit CC mode instead of requiring a kana match.
+   const valid=text&&(captionInput==='youtube'||speechFrom!=='ja'||/[\u3040-\u30ff]/.test(text));
+   const youtubeChannelId=isYoutubeChannelId(m.youtubeChannelId)?m.youtubeChannelId:undefined;
+   acceptRollingNativeCaption(valid?text:'',youtubeChannelId);
+   send({ok:true,text:{running}});return;
+  }
   if(text && (speechFrom!=='ja'||/[\u3040-\u30ff]/.test(text))){
    nativeUntil=Date.now()+1800;
-   chrome.runtime.sendMessage({type:'offscreen-native',session:gate.session}).catch(()=>{});
+   if(captionInput==='auto')chrome.runtime.sendMessage({type:'offscreen-native',session:gate.session}).catch(()=>{});
    if(text!==nativeText){if(captionMode==='record'){if(nativeText&&!text.startsWith(nativeText))recordTranscript({text:nativeText,source:'native'});nativeText=text;}else{if(!nativeText){cancelTranslations();items.length=0;pushSubtitle(null);}nativeText=text;addTranscript({session:gate.session,text,source:'native'});}}
    if(gate.latest?.source==='native')gate.latest.expiresAt=Date.now()/1000+1.8;
    modelStatus='使用 YouTube 日文字幕';
@@ -491,13 +626,16 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
  }
  else if(m.type==='recording-export')task=initRecording().then(()=>recording.entries);
  else if(m.type==='recording-retry')task=initRecording().then(()=>recording.retry()).then(()=>({pending:recording.pending}));
- else if(m.type==='make-draft')task=makeDraft(m.text,m.direction);
- else if(m.type==='translate')task=translate(m.text,m.direction,Boolean(m.priority),m.livestreamChat===true);
- else if(m.type==='subtitles')task=Promise.resolve({running:running&&s.tab?.id===captureTabId,items:s.tab?.id===captureTabId?(captionMode==='record'?[recordingItem()]:items.filter(fresh)):[]});
+ else if(m.type==='make-draft')task=youtubeGlossaryFromSender(s,m.direction).then(glossary=>makeDraft(m.text,m.direction,undefined,glossary));
+ else if(m.type==='translate')task=youtubeGlossaryFromSender(s,m.direction).then(glossary=>translate(m.text,m.direction,Boolean(m.priority),m.livestreamChat===true,glossary));
+ else if(m.type==='subtitles')task=Promise.resolve({running:running&&s.tab?.id===captureTabId,captionInput,nativeRevision,items:s.tab?.id===captureTabId?(captionMode==='record'?[recordingItem()]:items.filter(fresh)):[]});
  else if(m.type==='health')task=Promise.resolve({running,draining:!!drainingSession,lastError,modelStatus,controlBusy,controlAction,diagnostics,captureTabId,captionMode,recordingPending:recording.pending,recordingFailed:recording.failed});
  else if(m.type==='subtitle-reset'){
   if(s.tab?.id!==captureTabId)return;
-  task=resetCapture();
+  if(m.nativeRevision!==undefined&&(s.frameId!==0||!/^https:\/\/www\.youtube\.com\//.test(s.url||'')||!Number.isSafeInteger(m.nativeRevision)||m.nativeRevision<=nativeRevision)){
+   send({ok:false});return;
+  }
+  task=resetCapture(m.nativeRevision);
  } else if(m.type==='subtitle-control'){
   if(controlBusy||drainingSession){send({ok:false,error:'正在切換，請稍候'});return;}
   controlBusy=true;controlAction=m.action==='stop'?'stop':'start';task=(m.action==='stop'?stopCapture():startCapture(m.tabId||s.tab?.id)).finally(()=>{controlBusy=false;controlAction='';});

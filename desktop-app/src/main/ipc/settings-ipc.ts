@@ -105,7 +105,7 @@ export function registerSettingsIpc(ctx: AppContext): void {
     return {
       macEngines,
       speechToneMode: store.get('speechToneMode'),
-      translationEngine: macEngines && !macEngines.appleTranslate && savedTranslator === 'offline-apple' ? 'offline-hymt15' : savedTranslator,
+      translationEngine: macEngines && !macEngines.appleTranslate && savedTranslator === 'offline-apple' ? 'offline-plamo3' : savedTranslator,
       googleApiKey: store.get('googleApiKey'),
       deeplApiKey: store.get('deeplApiKey'),
       geminiApiKey: store.get('geminiApiKey'),

@@ -1,3 +1,4 @@
+import * as youtubeGlossary from '../youtube-glossary.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -20,7 +21,7 @@ function setup(speechMode='desktop') {
   return {ok:status===200,status,json:async()=>({choices:[{finish_reason:'stop',message:{content}}]})};
  };
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- const internals=vm.runInNewContext(source+'\n({translateCaption});',{...cloudApi,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch});
+ const internals=vm.runInNewContext(source+'\n({translateCaption});',{...cloudApi,...youtubeGlossary,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch});
  return {saved,calls,native,state,...internals,call:(message,sender={})=>new Promise(resolve=>listener(message,sender,resolve))};
 }
 

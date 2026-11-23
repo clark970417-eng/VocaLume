@@ -2,7 +2,7 @@ import type { UiLanguageChoice, UiLanguageState } from './ui-language'
 import type { CaptureSpeechEvidence } from './capture-speech-evidence'
 
 export interface ElectronAPI {
-  pipelineStart: (config: unknown) => Promise<{ success?: boolean; error?: string }>
+  pipelineStart: (config: unknown) => Promise<{ success?: boolean; error?: string; prepareTranslation?: boolean }>
   pipelineStop: () => Promise<{ logPath?: string }>
   processAudio: (audioData: number[]) => Promise<unknown>
   processAudioStreaming: (audioData: number[] | Float32Array, evidence?: CaptureSpeechEvidence) => Promise<unknown>
@@ -223,7 +223,10 @@ export interface ElectronAPI {
   updateInstall: () => Promise<{ success?: boolean; deferred?: boolean }>
   updateSetChannel: (channel: 'stable' | 'beta') => Promise<{ success?: boolean; error?: string }>
   updateGetStatus: () => Promise<{ state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }>
-  obsCaptionStatus: () => Promise<{ mode: 'off' | 'translation' | 'bilingual'; path: string; error: string; hideDesktopOverlay: boolean }>
+  obsCaptionStatus: () => Promise<{ mode: 'off' | 'translation' | 'bilingual'; path: string; error: string; browserUrl: string; hideDesktopOverlay: boolean }>
+  mobileCompanionStatus: () => Promise<{ url: string; pairingCode: string } | null>
+  setMobileCompanion: (enabled: boolean) => ReturnType<ElectronAPI['mobileCompanionStatus']>
+  openMobileCompanion: () => Promise<void>
   configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ReturnType<ElectronAPI['obsCaptionStatus']>
   setObsOnly: (enabled: boolean) => ReturnType<ElectronAPI['obsCaptionStatus']>
   exportDiagnostics: () => Promise<{ success?: boolean; canceled?: boolean; path?: string; error?: string }>

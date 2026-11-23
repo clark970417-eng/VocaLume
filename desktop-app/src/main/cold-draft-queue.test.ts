@@ -16,7 +16,7 @@ const fake = vi.hoisted(() => ({
   workers: [] as Array<{ model: string, killed: boolean, holdDispose: boolean, disposeRequested: boolean, releaseDispose: () => void }>,
   inits: [] as string[],
   translations: [] as Array<{ model: string, text: string }>,
-  pipelineTranslator: null as null | import('../engines/translator/HunyuanMT15Translator').HunyuanMT15Translator,
+  pipelineTranslator: null as null | import('../engines/translator/PLaMo3Translator').PLaMo3Translator,
   pipeline: null as null | { running: boolean, active: boolean },
   holdNextDispose: false
 }))
@@ -58,15 +58,15 @@ vi.mock('../engines/model-downloader', () => ({
   isGGUFDownloaded: () => false,
   downloadGGUF: async () => '',
   getLFM2Variants: () => ({ Q4_K_M: { filename: 'lfm2.gguf', url: '' } }),
-  getHunyuanMT15Variants: () => ({ Q4_K_M: { filename: 'hy15-1.8B.gguf', url: '' } })
+  PLAMO_3_VARIANTS: { Q4_K_M: { filename: 'plamo.gguf', url: '' } }
 }))
 
 vi.mock('./store', () => ({ store: { get: vi.fn((key: string) =>
   key === 'draftTranslationEngine' ? 'offline-hymt2' : key === 'translationEngine' ? 'offline-hymt15' : undefined) } }))
 
 vi.mock('./ipc/pipeline-ipc', () => ({ startPipeline: vi.fn(async () => {
-  const { HunyuanMT15Translator } = await import('../engines/translator/HunyuanMT15Translator')
-  const translator = new HunyuanMT15Translator()
+  const { PLaMo3Translator } = await import('../engines/translator/PLaMo3Translator')
+  const translator = new PLaMo3Translator()
   await translator.initialize()
   fake.pipelineTranslator = translator
   fake.pipeline!.running = true; fake.pipeline!.active = true

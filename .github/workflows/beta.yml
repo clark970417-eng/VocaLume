@@ -3,6 +3,7 @@ name: Build public beta
 on:
   workflow_dispatch:
   push:
+    branches: [codex/467-plamo-candidate]
     tags: ["beta-v*"]
 
 permissions:
@@ -35,7 +36,7 @@ jobs:
           zip -r ../beta/vocalume-extension.zip \
             manifest.json background.js offscreen.html offscreen.js audio-worklet.js \
             speech-worker.js vad-worker.js whisper-runtime.js desktop-worker.js native-client.mjs ui-language-sync.mjs \
-            cloud-api.mjs capture-status.mjs ui-language.mjs ui-messages.mjs ui-messages-zh-cn.mjs ui-messages-ja.mjs ui-messages-ko.mjs ui-messages-desktop-ja.mjs ui-messages-desktop-ko.mjs website-language.mjs website-language-content.js page-language.js popup-locale.mjs cue-cursor.mjs recording-queue.mjs streaming.mjs sentence-boundary.mjs stream-core.mjs token-stream.mjs preview-budget.mjs \
+            cloud-api.mjs capture-status.mjs ui-language.mjs ui-messages.mjs ui-messages-zh-cn.mjs ui-messages-ja.mjs ui-messages-ko.mjs ui-messages-desktop-ja.mjs ui-messages-desktop-ko.mjs website-language.mjs website-language-content.js page-language.js popup-locale.mjs youtube-glossary.mjs youtube-channel.js cue-cursor.mjs recording-queue.mjs streaming.mjs sentence-boundary.mjs stream-core.mjs token-stream.mjs preview-budget.mjs \
             translation-policy.mjs translation-guards.js translation-guards.mjs game-vocabulary.mjs streamer-vocabulary.js streamer-vocabulary.mjs popup.html popup.js popup.css content.js content.css \
             dom-changes.js x-content.js x-content.css social-content.js social-content.css \
             caption-window.js caption-window.css icons vendor ort \
@@ -90,12 +91,11 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: desktop-app/package-lock.json
-      - run: npm ci
-        if: runner.os != 'Windows'
       - run: npm ci --ignore-scripts
-        if: runner.os == 'Windows'
-      - run: node node_modules/electron/install.js
-        if: runner.os == 'Windows'
+      - name: Install Electron and FFmpeg before tests
+        run: |
+          node node_modules/electron/install.js
+          node node_modules/ffmpeg-static/install.js
       - run: node scripts/fix-whisper-addon.js
         if: runner.os == 'Windows'
       - name: Exclude unsupported Windows virtual microphone backend
@@ -118,6 +118,33 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: ${{ matrix.command }}
+      - name: Install the x64 exe and open the real app window
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = @(Get-ChildItem dist -Recurse -Filter '*.exe' | Where-Object Name -Match 'Setup.*4\.6\.7')
+          if ($setup.Count -ne 1) { throw 'Expected exactly one 4.6.7 installer' }
+          Write-Host "Installer SHA256: $((Get-FileHash $setup[0].FullName).Hash.ToLowerInvariant())"
+          $install = Join-Path $env:RUNNER_TEMP 'VocaLume-install-smoke'
+          $proc = Start-Process -FilePath $setup[0].FullName -ArgumentList "/S /D=$install" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "Installer failed ($($proc.ExitCode))" }
+          $exe = Join-Path $install 'VocaLume.exe'
+          if (!(Test-Path $exe)) { throw 'Installed VocaLume.exe not found' }
+          $version = (Get-Item $exe).VersionInfo.ProductVersion
+          if ($version -notmatch '^4\.6\.7(?:\.0)?$') { throw "Unexpected installed version: $version" }
+          Start-Process -FilePath $exe -ArgumentList "--user-data-dir=$env:RUNNER_TEMP\VocaLume-test-profile"
+          $deadline = (Get-Date).AddSeconds(85)
+          do {
+            Start-Sleep -Seconds 2
+            $window = Get-Process VocaLume -ErrorAction SilentlyContinue | Where-Object {
+              $_.Path -eq $exe -and $_.MainWindowHandle -ne 0
+            } | Select-Object -First 1
+          } until ($window -or (Get-Date) -gt $deadline)
+          if (!$window) { throw 'Installed app did not open a desktop window' }
+          Start-Sleep -Seconds 5
+          $window.Refresh()
+          if ($window.HasExited -or !$window.Responding) { throw 'App exited or stopped responding after launch' }
+          Write-Host "Verified version $version, responding app window: $($window.MainWindowTitle)"
       - name: Verify Mac package contents
         if: runner.os == 'macOS'
         env:

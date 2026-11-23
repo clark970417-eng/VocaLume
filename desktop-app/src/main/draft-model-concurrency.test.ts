@@ -32,7 +32,7 @@ vi.mock('./ipc/pipeline-ipc', () => ({ startPipeline: vi.fn(async () => {
   return { success: true }
 }) }))
 
-vi.mock('../engines/translator/HunyuanMT15Translator', () => ({ HunyuanMT15Translator: class {
+vi.mock('../engines/translator/PLaMo3Translator', () => ({ PLaMo3Translator: class {
   async initialize() {} async dispose() {}
   async translate() { return 'こんにちは' }
 } }))
