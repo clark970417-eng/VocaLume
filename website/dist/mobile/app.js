@@ -69,8 +69,10 @@ function browserLocale() {
 function setLocale(next) {
   locale = next
   document.documentElement.lang = next
+  let pairChanged = false
   if (!pairCustomized && Object.hasOwn(localeDefaultPairs, next)) {
     const [defaultSource, defaultTarget] = localeDefaultPairs[next]
+    pairChanged = sourceLanguage.value !== defaultSource || targetLanguage.value !== defaultTarget
     sourceLanguage.value = defaultSource
     targetLanguage.value = defaultTarget
   }
@@ -79,7 +81,8 @@ function setLocale(next) {
   for (const node of document.querySelectorAll('[data-copy]')) node.textContent = copy[node.dataset.copy]
   for (const node of document.querySelectorAll('[data-label]')) node.setAttribute('aria-label', copy[node.dataset.label])
   for (const node of document.querySelectorAll('[data-placeholder]')) node.placeholder = copy[node.dataset.placeholder]
-  update()
+  if (pairChanged) resetTranslation()
+  else update()
 }
 
 async function selectLocale(value) {
