@@ -1,0 +1,77 @@
+/** Validate a complete unsigned beta asset set, then generate provenance/checksums.
+ * Run from the checked-out repository. No credentials or machine paths are saved. */
+import {readFileSync, writeFileSync, statSync, existsSync, createReadStream} from 'node:fs';
+import {join, resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+
+const [directory, tag, commit, workflow] = process.argv.slice(2);
+const version = JSON.parse(readFileSync('extension/manifest.json')).version;
+if (!directory || ![`beta-v${version}`, version].includes(tag) || !/^[0-9a-f]{40}$/.test(commit || '') || !/^https:\/\/github\.com\/clark970417-eng\/VocaLume\/actions\/runs\/\d+$/.test(workflow || '')) throw new Error('Expected asset directory, matching beta tag, commit SHA and repository Actions URL');
+const root = resolve(directory);
+const universalExtension = 'vocalume-extension.zip';
+const windowsExtension = 'vocalume-extension-windows.zip';
+const names = [`VocaLume-${version}-arm64.dmg`, `VocaLume-${version}.dmg`,
+  `VocaLume-${version}-arm64-mac.zip`, `VocaLume-${version}-mac.zip`,
+  `VocaLume.Setup.${version}.exe`, universalExtension, windowsExtension];
+for (const name of names) if (statSync(join(root, name)).size < 1000) throw new Error(`Missing or empty package: ${name}`);
+const commonInstallerFiles = [
+  'cloud-api.mjs', 'ui-language-sync.mjs', 'ui-language.mjs', 'ui-messages.mjs',
+  'ui-messages-zh-cn.mjs', 'ui-messages-ja.mjs', 'ui-messages-ko.mjs',
+  'ui-messages-desktop-ja.mjs', 'ui-messages-desktop-ko.mjs', 'website-language.mjs',
+  'website-language-content.js', 'page-language.js', 'popup-locale.mjs',
+  'desktop/install-windows.ps1', 'desktop/windows-host.cjs', 'desktop/LIVE_TRANSLATE_LICENSE',
+  'INSTALL.md', 'PRIVACY.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE',
+];
+const macInstallerFiles = [
+  'desktop/install.py', 'desktop/relay.py', 'desktop/host.py', 'desktop/translation_support.py',
+  'desktop/install-mac.cjs', 'desktop/capture-lease.mjs', 'desktop/requirements.txt',
+];
+const python = process.env.VOCALUME_TEST_PYTHON || process.env.VOCALUME_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+// Python's standard ZIP reader works on all release runners, including Windows
+// installations without the external zip/unzip command-line tools.
+for (const name of [universalExtension, windowsExtension]) {
+  const archive = JSON.parse(execFileSync(python, ['-I', '-c', `
+import json, sys
+from zipfile import ZipFile
+with ZipFile(sys.argv[1]) as archive:
+    damaged = archive.testzip()
+    if damaged is not None:
+        raise ValueError(f"Damaged ZIP entry: {damaged}")
+    print(json.dumps({"manifest": json.loads(archive.read("manifest.json")), "entries": archive.namelist()}))
+`, join(root, name)], {encoding: 'utf8'}));
+  const { manifest } = archive;
+  if (manifest.version !== version || !manifest.name?.includes('VocaLume')) {
+    throw new Error(`Wrong extension manifest in ${name}`);
+  }
+  const entries = new Set(archive.entries);
+  for (const script of manifest.content_scripts ?? []) {
+    for (const file of [...(script.js ?? []), ...(script.css ?? [])]) {
+      if (!entries.has(file)) throw new Error(`Extension content script dependency missing in ${name}: ${file}`);
+    }
+  }
+  for (const file of commonInstallerFiles) {
+    if (!entries.has(file)) throw new Error(`Extension installer dependency missing in ${name}: ${file}`);
+  }
+  for (const file of macInstallerFiles) {
+    if (name === universalExtension && !entries.has(file)) {
+      throw new Error(`Extension installer dependency missing in ${name}: ${file}`);
+    }
+    if (name === windowsExtension && entries.has(file)) {
+      throw new Error(`Unexpected macOS installer dependency in ${name}: ${file}`);
+    }
+  }
+}
+const lab = `vocalume-dual-live-lab-mac-${version}`;
+if (existsSync(join(root, lab + '.zip'))) names.push(lab + '.zip', lab + '.sha256');
+const provenance = {tag, commit, builtAt:new Date().toISOString(), workflow, signed:false, channel:'beta', version,
+  assets:names, browserBridgeInstallers:['macOS','Windows'], physicalBrowserBridgeScope:'See platform-specific acceptance reports'};
+writeFileSync(join(root, 'release-manifest.json'), JSON.stringify(provenance, null, 2) + '\n');
+const checksums = [];
+for (const name of [...names, 'release-manifest.json'].sort()) {
+  const hash = createHash('sha256');
+  for await (const chunk of createReadStream(join(root, name))) hash.update(chunk);
+  checksums.push(`${hash.digest('hex')}  ${name}`);
+}
+writeFileSync(join(root, 'SHA256SUMS.txt'), checksums.join('\n') + '\n');
+console.log(`Verified ${names.length} packages and checksummed their provenance manifest`);

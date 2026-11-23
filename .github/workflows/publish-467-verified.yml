@@ -1,0 +1,99 @@
+name: Publish verified VocaLume 4.6.7
+on:
+  push:
+    branches: [codex/467-verified-publish]
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: publish-verified-467
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: '45198418610'
+      RELEASE_COMMIT: b72cdec6389fee9ce7933c83cc85c31d25629515
+      RELEASE_TAG: '4.6.7'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify build and installation checks for the exact source
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, time
+          names = ("desktop (macos-15,", "desktop (macos-15-intel,", "desktop (windows-2025,")
+          for attempt in range(40):
+              raw = subprocess.check_output(["gh", "run", "view", os.environ["RUN_ID"], "--json", "headSha,jobs"])
+              run = json.loads(raw)
+              if run["headSha"] != os.environ["RELEASE_COMMIT"]:
+                  raise SystemExit("The build is for another commit")
+              jobs = [job for job in run["jobs"] if job["name"] == "extension" or job["name"].startswith(names)]
+              if any(job["status"] == "completed" and job["conclusion"] != "success" for job in jobs):
+                  raise SystemExit("A requested platform or the extension failed")
+              if len(jobs) == 4 and all(job["conclusion"] == "success" for job in jobs):
+                  windows = next(job for job in jobs if job["name"].startswith("desktop (windows-2025,"))
+                  if not any(step["name"] == "Install the x64 exe and open the real app window" and step["conclusion"] == "success" for step in windows["steps"]):
+                      raise SystemExit("The installed Windows application was not opened")
+                  break
+              if attempt == 0:
+                  print("Waiting for the remaining package checks", flush=True)
+              time.sleep(15)
+          else:
+              raise SystemExit("A requested platform or the extension has not passed")
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: '45198418610'
+          pattern: desktop-macOS-*
+          path: verified
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: '45198418610'
+          name: desktop-Windows
+          path: verified/desktop-Windows
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: '45198418610'
+          pattern: browser-extension*
+          path: verified
+      - name: Check package contents, versions and SHA-256
+        run: |
+          mkdir release-assets
+          find verified -type f -print0 | while IFS= read -r -d '' file; do
+            name=${file##*/}
+            mv "$file" "release-assets/${name// /.}"
+          done
+          node scripts/verify-467-staged-assets.mjs release-assets "$RELEASE_TAG" "$RELEASE_COMMIT" "https://github.com/$GITHUB_REPOSITORY/actions/runs/$RUN_ID"
+      - name: Publish checked Win and Mac packages and the extension
+        run: |
+          if current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha 2>/dev/null); then
+            test "$current" = "$RELEASE_COMMIT"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="$RELEASE_COMMIT" --silent
+          fi
+          if draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+            test "$draft" = true
+          else
+            gh release create "$RELEASE_TAG" --draft --prerelease --verify-tag --title "VocaLume 4.6.7 — Public Beta" --notes-file docs/releases/4.6.7.md
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          gh release view "$RELEASE_TAG" --json assets > "$RUNNER_TEMP/uploaded.json"
+          python3 - "$RUNNER_TEMP/uploaded.json" <<'PY'
+          import hashlib, json, pathlib, sys
+          with open(sys.argv[1]) as source:
+              uploaded = {entry["name"]: entry for entry in json.load(source)["assets"]}
+          expected = {file.name: (file.stat().st_size, "uploaded") for file in pathlib.Path("release-assets").iterdir()}
+          if {name: (entry["size"], entry["state"]) for name, entry in uploaded.items()} != expected:
+              raise SystemExit("Uploaded asset names or sizes differ")
+          for name, entry in uploaded.items():
+              with open(pathlib.Path("release-assets") / name, "rb") as file:
+                  digest = "sha256:" + hashlib.file_digest(file, "sha256").hexdigest()
+              if entry["digest"] != digest:
+                  raise SystemExit(f"Uploaded asset SHA-256 differs: {name}")
+          PY
+          gh release edit "$RELEASE_TAG" --draft=false
+          gh release view "$RELEASE_TAG" --json url,isDraft,tagName
