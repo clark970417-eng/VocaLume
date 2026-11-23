@@ -190,6 +190,35 @@ test('Android Chrome: browser translation stays on device when available', async
   }, { deviceTranslation: '早安。' });
 });
 
+test('Android Chrome: a locale change clears results only when it changes the translation pair', async () => {
+  await phone(profiles.at(-1), async page => {
+    await openMobile(page);
+    const source = page.locator('#source-text');
+    const target = page.locator('#target-language');
+    const translate = page.locator('#translate-button');
+    const result = page.locator('#translation-result');
+    const locale = page.locator('#ui-language');
+
+    await source.fill('こんにちは！');
+    await translate.click();
+    await valueAppears(page, '#translation-result', '你好！');
+
+    await locale.selectOption('en');
+    assert.equal(await target.inputValue(), 'en');
+    assert.equal(await source.inputValue(), 'こんにちは！');
+    assert.equal(await result.inputValue(), '');
+    assert.equal(await result.getAttribute('lang'), null);
+    assert.equal(await page.locator('#copy-translation').isDisabled(), true);
+
+    await target.selectOption('zh-TW');
+    await translate.click();
+    await valueAppears(page, '#translation-result', '你好！');
+    await locale.selectOption('ko');
+    assert.equal(await target.inputValue(), 'zh-TW');
+    assert.equal(await result.inputValue(), '你好！');
+  });
+});
+
 test('iPhone Safari: automatic locale uses IP and all five interface choices preserve the draft', async () => {
   await phone(profiles[0], async (page, context) => {
     await context.route('**/api/site-language', route => route.fulfill({ json: { language: 'ko' } }));

@@ -288,7 +288,10 @@ function enhancePoster(video, locale, kind) {
     const original = document.createElement('img');
     original.src = video.poster;
     original.alt = '';
+    original.width = 1920;
+    original.height = 1080;
     original.loading = 'lazy';
+    original.decoding = 'async';
     button.append(original);
   }
 

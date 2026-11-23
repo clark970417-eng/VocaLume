@@ -33,6 +33,9 @@ button { border-radius: 8px; border: 1px solid var(--line); padding: 5px 8px; ba
 .quiet { font-size: .86rem; background: transparent; color: #355573; }
 .editor .quiet { border-color: transparent; }
 .editor textarea { display: block; width: 100%; min-height: 73px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; resize: vertical; }
+.editor-meta { display: flex; justify-content: flex-end; margin-top: 4px; }
+.char-count { font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.char-count.over-limit { color: #a6324d; font-weight: 650; }
 .result textarea { background: #f1f8f5; }
 .primary { background: #3b5577; border-color: #3b5577; color: #fff; }
 button:disabled { opacity: .5; cursor: default; }

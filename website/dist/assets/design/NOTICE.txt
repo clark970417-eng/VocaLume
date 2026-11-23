@@ -1,0 +1,2 @@
+Tabler Icons (MIT): https://github.com/tabler/tabler-icons
+Original VocaLume branding. WebP generated using Sharp.

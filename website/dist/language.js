@@ -1,3 +1,39 @@
+// Preserve the visible section rather than the URL's last clicked anchor when switching language.
+(() => {
+  try {
+    const raw = sessionStorage.getItem('vocalume-language-position');
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (Date.now() - state.savedAt > 15000) return;
+    sessionStorage.removeItem('vocalume-language-position');
+    if (typeof history !== 'undefined' && 'scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    const restore = () => {
+      const section = state.id && typeof document.getElementById === 'function'
+        ? document.getElementById(state.id)
+        : null;
+      const currentY = typeof scrollY === 'number' ? scrollY : 0;
+      const y = section
+        ? section.getBoundingClientRect().top + currentY - (state.offset || 0)
+        : state.y;
+      if (typeof y === 'number' && typeof window.scrollTo === 'function') {
+        window.scrollTo({ top: Math.max(0, y), left: 0, behavior: 'instant' });
+      }
+    };
+    restore();
+    window.addEventListener?.('load', () => {
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => requestAnimationFrame(restore));
+      } else {
+        restore();
+      }
+    }, { once: true });
+  } catch {
+    // Ignore restricted storage or sandboxed environments.
+  }
+})();
+
 (() => {
   const pages = {
     'zh-Hant': 'index.html',
@@ -9,6 +45,8 @@
   const storageKey = 'vocalume-site-language';
   const tabStorageKey = 'vocalume-site-tab-language';
   const pendingKey = 'vocalume-site-pending-language';
+  const positionKey = 'vocalume-language-position';
+  const cookieKey = 'vocalume-lang';
   const current = document.documentElement.lang;
   const directory = location.pathname === '/download' || location.pathname.startsWith('/download/')
     ? '/download/'
@@ -49,11 +87,46 @@
     }
   }
 
+  function syncCookie(language) {
+    try {
+      if (typeof document.cookie !== 'string') return;
+      const secure = location.protocol === 'https:' ? '; Secure' : '';
+      if (supports(language)) {
+        document.cookie = `${cookieKey}=${encodeURIComponent(language)}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+      } else {
+        document.cookie = `${cookieKey}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+      }
+    } catch {
+      // Ignore environments where cookies are unavailable.
+    }
+  }
+
   function savePreference(language) {
+    syncCookie(language);
     try {
       if (readPreference() !== language) localStorage.setItem(storageKey, language);
     } catch {
       // Direct navigation works when the browser blocks local storage.
+    }
+  }
+
+  function saveScrollPosition() {
+    try {
+      if (typeof document.querySelectorAll !== 'function') return;
+      const sections = [...document.querySelectorAll('.hero,#demo,#chat-demo,#obs-demo,.capabilities,#how,#questions,#updates')];
+      if (!sections.length) return;
+      const nav = document.querySelector('.nav');
+      const line = (nav?.getBoundingClientRect?.().bottom || 0) + 40;
+      let section = sections[0];
+      for (const candidate of sections) {
+        if (candidate.getBoundingClientRect().top <= line) section = candidate;
+      }
+      const id = section?.id || (section?.classList?.contains('hero') ? 'hero-section' : 'features-section');
+      const offset = section?.getBoundingClientRect?.().top ?? 0;
+      const y = typeof scrollY === 'number' ? scrollY : 0;
+      sessionStorage.setItem(positionKey, JSON.stringify({ id, offset, y, savedAt: Date.now() }));
+    } catch {
+      // Ignore if layout metrics or sessionStorage are unavailable.
     }
   }
 
@@ -62,7 +135,7 @@
     return path + (query ? '?' + query : '') + location.hash;
   }
 
-  function choose(language, {replace = false, fromLink = false} = {}) {
+  function choose(language, { replace = false, fromLink = false } = {}) {
     chosen = true;
     locationLookup?.abort();
     savePreference(language);
@@ -87,7 +160,7 @@
       search.delete('lang');
       history.replaceState(history.state, '', href(location.pathname, search));
     } else {
-      choose(explicitLanguage, {replace: true, fromLink: true});
+      choose(explicitLanguage, { replace: true, fromLink: true });
       if (explicitLanguage !== current) return;
     }
   } else if (supports(tabLanguage) && tabLanguage !== current) {
@@ -97,18 +170,18 @@
 
   window.addEventListener('message', event => {
     if (window.top !== window || event.source !== window || event.origin !== location.origin) return;
-    const {type, locale, preference = locale, live} = event.data || {};
+    const { type, locale, preference = locale, live } = event.data || {};
     if (type !== 'VOCALUME_UI_LANGUAGE' || !isPreference(preference)
         || (tabLanguage && live !== true)) return;
     if (tabLanguage) rememberTabLanguage(preference);
     if (preference === 'auto') chooseAuto();
-    else choose(preference, {replace: true});
+    else choose(preference, { replace: true });
   });
   window.addEventListener('storage', event => {
     if (event.key !== storageKey || !isPreference(event.newValue)) return;
     rememberTabLanguage(event.newValue);
     if (event.newValue === 'auto') chooseAuto();
-    else choose(event.newValue, {replace: true});
+    else choose(event.newValue, { replace: true });
   });
 
   const landing = location.pathname === directory || location.pathname === directory + pages['zh-Hant']
@@ -120,23 +193,23 @@
   }
 
   function browserLanguage() {
-      for (const language of navigator.languages || [navigator.language]) {
-        if (/^ko(?:-|$)/i.test(language)) return 'ko';
-        if (/^ja(?:-|$)/i.test(language)) return 'ja';
-        if (/^zh-(?:CN|SG|Hans)(?:-|$)/i.test(language)) return 'zh-Hans';
-        if (/^zh(?:-|$)/i.test(language)) return 'zh-Hant';
-        if (/^en(?:-|$)/i.test(language)) return 'en';
-      }
-      return 'en';
+    for (const language of navigator.languages || [navigator.language]) {
+      if (/^ko(?:-|$)/i.test(language)) return 'ko';
+      if (/^ja(?:-|$)/i.test(language)) return 'ja';
+      if (/^zh-(?:CN|SG|Hans)(?:-|$)/i.test(language)) return 'zh-Hans';
+      if (/^zh(?:-|$)/i.test(language)) return 'zh-Hant';
+      if (/^en(?:-|$)/i.test(language)) return 'en';
+    }
+    return 'en';
   }
 
-  function chooseAuto({persist = true} = {}) {
+  function chooseAuto({ persist = true } = {}) {
     if (persist) savePreference('auto');
     if (locationLookup && !locationLookup.signal.aborted) return;
     locationLookup = new AbortController();
     const lookup = locationLookup;
     const timer = setTimeout(() => lookup.abort(), 1500);
-    fetch('/api/site-language', {signal: lookup.signal, cache: 'no-store', credentials: 'omit'})
+    fetch('/api/site-language', { signal: lookup.signal, cache: 'no-store', credentials: 'omit' })
       .then(response => {
         if (!response.ok) throw new Error('Site language is unavailable');
         return response.json();
@@ -155,7 +228,7 @@
   }
 
   if (tabLanguage === 'auto' || (!tabLanguage && saved === 'auto')) chooseAuto();
-  else if (!chosen && landing && !saved && directory === '/') chooseAuto({persist: false});
+  else if (!chosen && landing && !saved && directory === '/') chooseAuto({ persist: false });
 
   const root = document.querySelector('[data-language-menu]');
   if (!root) return;
@@ -166,7 +239,7 @@
   function close(focus = false) {
     menu.hidden = true;
     trigger.setAttribute('aria-expanded', 'false');
-    if (focus) trigger.focus();
+    if (focus) trigger.focus({ preventScroll: true });
   }
 
   function open() {
@@ -174,7 +247,7 @@
     trigger.setAttribute('aria-expanded', 'true');
     const activePreference = (tabLanguage || readPreference()) === 'auto' ? 'auto' : current;
     for (const item of items) item.setAttribute?.('aria-checked', String(item.dataset.language === activePreference));
-    (items.find(item => item.dataset.language === activePreference) || items[0])?.focus();
+    (items.find(item => item.dataset.language === activePreference) || items[0])?.focus({ preventScroll: true });
   }
 
   trigger.addEventListener('click', () => menu.hidden ? open() : close());
@@ -191,14 +264,16 @@
       const language = item.dataset.language;
       if (!isPreference(language)) return;
       rememberTabLanguage(language);
-      const choice = {preference: language, changedAt: Date.now()};
+      const choice = { preference: language, changedAt: Date.now() };
       try { sessionStorage.setItem(pendingKey, JSON.stringify(choice)); } catch { /* The live message can still sync. */ }
-      window.postMessage?.({type: 'VOCALUME_SITE_UI_LANGUAGE', ...choice}, location.origin);
+      window.postMessage?.({ type: 'VOCALUME_SITE_UI_LANGUAGE', ...choice }, location.origin);
       if (language === 'auto') {
+        saveScrollPosition();
         chooseAuto();
         close(true);
         return;
       }
+      if (language !== current) saveScrollPosition();
       choose(language);
       if (language === current) close(true);
     });
@@ -216,7 +291,7 @@
     const offset = event.key === 'ArrowDown' ? 1 : -1;
     const index = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
       : (active + offset + items.length) % items.length;
-    items[index]?.focus();
+    items[index]?.focus({ preventScroll: true });
   });
   document.addEventListener('click', event => {
     if (!root.contains(event.target)) close();
