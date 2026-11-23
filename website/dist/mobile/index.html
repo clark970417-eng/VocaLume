@@ -5,9 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f4f7f9">
   <meta name="description" content="在手機上翻譯聊天訊息與回覆草稿。">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="referrer" content="no-referrer">
   <title>VocaLume · 手機文字翻譯</title>
+  <link rel="canonical" href="https://vocalume.vercel.app/mobile/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="VocaLume">
+  <meta property="og:title" content="VocaLume · 手機文字翻譯">
+  <meta property="og:description" content="在手機上翻譯聊天訊息與回覆草稿，支援離線裝置端翻譯與線上翻譯。">
+  <meta property="og:url" content="https://vocalume.vercel.app/mobile/">
+  <meta property="og:image" content="https://vocalume.vercel.app/assets/og-card.jpg">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="manifest" href="/mobile/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/mobile/apple-touch-icon.png">
   <link rel="icon" href="/mobile/icon-192.png">
@@ -48,6 +57,7 @@
           </div>
         </div>
         <textarea id="source-text" rows="3" dir="auto" autocomplete="off" data-placeholder="originalHint" placeholder="貼上或輸入訊息"></textarea>
+        <div class="editor-meta"><span id="char-count" class="char-count">0 / 1000</span></div>
       </div>
       <div class="online">
         <label><input type="checkbox" id="allow-network"> <span data-copy="allowOnline">允許線上翻譯</span></label>

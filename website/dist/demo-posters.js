@@ -289,6 +289,7 @@ function enhancePoster(video, locale, kind) {
     original.src = video.poster;
     original.alt = '';
     original.loading = 'lazy';
+    original.decoding = 'async';
     button.append(original);
   }
 

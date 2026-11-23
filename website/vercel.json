@@ -4,6 +4,29 @@
   "buildCommand": "",
   "installCommand": "",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=2592000, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/mobile/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+      ]
+    }
+  ],
   "redirects": [
     {
       "source": "/download/SHA256SUMS.txt",
@@ -13,6 +36,106 @@
     {
       "source": "/download",
       "destination": "https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "header", "key": "sec-fetch-dest", "value": "document" },
+        { "type": "cookie", "key": "vocalume-lang", "value": "en" }
+      ],
+      "missing": [
+        { "type": "query", "key": "lang" }
+      ],
+      "destination": "/en.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "header", "key": "sec-fetch-dest", "value": "document" },
+        { "type": "cookie", "key": "vocalume-lang", "value": "ja" }
+      ],
+      "missing": [
+        { "type": "query", "key": "lang" }
+      ],
+      "destination": "/ja.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "header", "key": "sec-fetch-dest", "value": "document" },
+        { "type": "cookie", "key": "vocalume-lang", "value": "ko" }
+      ],
+      "missing": [
+        { "type": "query", "key": "lang" }
+      ],
+      "destination": "/ko.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "header", "key": "sec-fetch-dest", "value": "document" },
+        { "type": "cookie", "key": "vocalume-lang", "value": "zh-Hans" }
+      ],
+      "missing": [
+        { "type": "query", "key": "lang" }
+      ],
+      "destination": "/zh-CN.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "header", "key": "sec-fetch-dest", "value": "document" },
+        { "type": "header", "key": "x-vercel-ip-country", "value": "KR" }
+      ],
+      "missing": [
+        { "type": "query", "key": "lang" },
+        { "type": "cookie", "key": "vocalume-lang" }
+      ],
+      "destination": "/ko.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "header", "key": "sec-fetch-dest", "value": "document" },
+        { "type": "header", "key": "x-vercel-ip-country", "value": "JP" }
+      ],
+      "missing": [
+        { "type": "query", "key": "lang" },
+        { "type": "cookie", "key": "vocalume-lang" }
+      ],
+      "destination": "/ja.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "header", "key": "sec-fetch-dest", "value": "document" },
+        { "type": "header", "key": "x-vercel-ip-country", "value": "(CN|SG)" }
+      ],
+      "missing": [
+        { "type": "query", "key": "lang" },
+        { "type": "cookie", "key": "vocalume-lang" }
+      ],
+      "destination": "/zh-CN.html",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        { "type": "header", "key": "sec-fetch-dest", "value": "document" },
+        { "type": "header", "key": "x-vercel-ip-country", "value": "(?!TW|HK|MO|CN|SG|JP|KR)[A-Z]{2}" }
+      ],
+      "missing": [
+        { "type": "query", "key": "lang" },
+        { "type": "cookie", "key": "vocalume-lang" }
+      ],
+      "destination": "/en.html",
       "permanent": false
     }
   ]

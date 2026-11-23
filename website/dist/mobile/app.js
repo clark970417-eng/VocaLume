@@ -7,19 +7,53 @@ const uiLanguage = element('ui-language')
 const sourceLanguage = element('source-language')
 const targetLanguage = element('target-language')
 const sourceText = element('source-text')
+const charCount = element('char-count')
 const result = element('translation-result')
 const allowNetwork = element('allow-network')
 const translateButton = element('translate-button')
 const copyButton = element('copy-translation')
 const status = element('translation-status')
 const siteLanguageKey = 'vocalume-site-language'
+const pairStorageKey = 'vocalume-mobile-pair'
 const languageLabels = { 'zh-TW': '繁體中文', 'zh-CN': '简体中文', en: 'English', ja: '日本語', ko: '한국어' }
+const localeDefaultPairs = {
+  'zh-Hant': ['ja', 'zh-TW'],
+  'zh-Hans': ['ja', 'zh-CN'],
+  en: ['ja', 'en'],
+  ja: ['en', 'ja'],
+  ko: ['ja', 'ko']
+}
 const normalize = value => ({ 'zh-TW': 'zh-Hant', 'zh-CN': 'zh-Hans' })[value] ?? value
 const supported = value => typeof value === 'string' && Object.hasOwn(strings, value)
-let locale = 'zh-Hant', statusKey = '', request = null, lookup = null, revision = 0
+let locale = 'zh-Hant', statusKey = '', request = null, lookup = null, revision = 0, pairCustomized = false
 
 function readPreference() {
   try { return localStorage.getItem(siteLanguageKey) } catch { return null }
+}
+
+function readSavedPair() {
+  try {
+    const raw = localStorage.getItem(pairStorageKey)
+    if (!raw) return null
+    const pair = JSON.parse(raw)
+    if (Array.isArray(pair) && pair.length === 2
+        && LANGUAGES.includes(pair[0]) && LANGUAGES.includes(pair[1]) && pair[0] !== pair[1]) {
+      return pair
+    }
+  } catch {
+    // Ignore storage errors or invalid JSON.
+  }
+  return null
+}
+
+function savePair() {
+  pairCustomized = true
+  if (sourceLanguage.value === targetLanguage.value) return
+  try {
+    localStorage.setItem(pairStorageKey, JSON.stringify([sourceLanguage.value, targetLanguage.value]))
+  } catch {
+    // Keep the active selection for this visit even if storage is blocked.
+  }
 }
 
 function browserLocale() {
@@ -35,6 +69,11 @@ function browserLocale() {
 function setLocale(next) {
   locale = next
   document.documentElement.lang = next
+  if (!pairCustomized && Object.hasOwn(localeDefaultPairs, next)) {
+    const [defaultSource, defaultTarget] = localeDefaultPairs[next]
+    sourceLanguage.value = defaultSource
+    targetLanguage.value = defaultTarget
+  }
   const copy = strings[next]
   document.title = `VocaLume · ${copy.title}`
   for (const node of document.querySelectorAll('[data-copy]')) node.textContent = copy[node.dataset.copy]
@@ -76,6 +115,10 @@ function update() {
   const invalid = validation()
   const key = invalid || statusKey
   status.textContent = key ? copy[key].replace('{max}', MAX_TEXT_LENGTH) : ''
+  if (charCount) {
+    charCount.textContent = `${sourceText.value.length} / ${MAX_TEXT_LENGTH}`
+    charCount.classList.toggle('over-limit', sourceText.value.length > MAX_TEXT_LENGTH)
+  }
   translateButton.textContent = request ? copy.translating : copy.translate
   translateButton.disabled = Boolean(request || invalid || !sourceText.value.trim())
   form.setAttribute('aria-busy', String(Boolean(request)))
@@ -99,10 +142,20 @@ function resetTranslation() {
 
 for (const select of [sourceLanguage, targetLanguage]) {
   for (const language of LANGUAGES) select.add(new Option(languageLabels[language], language))
-  select.addEventListener('change', resetTranslation)
+  select.addEventListener('change', () => {
+    savePair()
+    resetTranslation()
+  })
 }
-sourceLanguage.value = 'ja'
-targetLanguage.value = 'zh-TW'
+const savedPair = readSavedPair()
+if (savedPair) {
+  pairCustomized = true
+  sourceLanguage.value = savedPair[0]
+  targetLanguage.value = savedPair[1]
+} else {
+  sourceLanguage.value = 'ja'
+  targetLanguage.value = 'zh-TW'
+}
 
 const requested = normalize(new URLSearchParams(location.search).get('lang'))
 void selectLocale(requested === 'auto' || supported(requested) ? requested : readPreference())
@@ -124,9 +177,16 @@ element('swap-languages').addEventListener('click', () => {
   const source = sourceLanguage.value
   sourceLanguage.value = targetLanguage.value
   targetLanguage.value = source
+  savePair()
   resetTranslation()
 })
 sourceText.addEventListener('input', resetTranslation)
+sourceText.addEventListener('keydown', event => {
+  if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !translateButton.disabled) {
+    event.preventDefault()
+    form.requestSubmit()
+  }
+})
 allowNetwork.addEventListener('change', () => {
   if (!allowNetwork.checked && request) resetTranslation()
   else setStatus('')

@@ -59,13 +59,15 @@ windows_connection_labels = {
     'ko': 'Windows 브라우저에서 로컬 자막을 쓰려면 같은 버전의 Windows 앱과 확장 프로그램을 다운로드하세요. 연결 방법 보기',
 }
 
+site_origin = 'https://vocalume.vercel.app'
 alternate_links = '\n'.join(
-    f'<link rel="alternate" hreflang="{copy["lang"]}" href="/download/{filename}">'
+    f'<link rel="alternate" hreflang="{copy["lang"]}" href="{site_origin}/download/{filename}">'
     for filename, copy in texts.items()
-)
+) + f'\n<link rel="alternate" hreflang="x-default" href="{site_origin}/download/en.html">'
 
 for file, t in texts.items():
     beta_label, releases_label = release_labels[t['lang']]
+    canonical = f'{site_origin}/download/{file}'
     source = (dist / file).read_text(encoding='utf-8')
     skip = re.search(r'<a class="skip" href="#main">.*?</a>', source)[0]
     header = re.search(r'<header.*?</header>', source, re.S)[0]
@@ -87,13 +89,21 @@ for file, t in texts.items():
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
 <meta name="description" content="{e(t['need'])}">
 <title>{e(t['title'])} · 4.6.6</title>
-<link rel="icon" href="../assets/vocalume.png">
-<link rel="stylesheet" href="../style.css">
-<link rel="stylesheet" href="../mobile.css">
-<link rel="stylesheet" href="../download.css">
+<link rel="canonical" href="{canonical}">
 {alternate_links}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="VocaLume">
+<meta property="og:title" content="{e(t['title'])} · 4.6.6">
+<meta property="og:description" content="{e(t['need'])}">
+<meta property="og:url" content="{canonical}">
+<meta property="og:image" content="{site_origin}/assets/og-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../assets/vocalume.png">
+<link rel="stylesheet" href="../site.css?v=20261123">
+<link rel="stylesheet" href="../download.css?v=20261123">
 </head>
 <body>
 {skip}
@@ -128,7 +138,7 @@ for file, t in texts.items():
 <a class="text-link" href="../{file}">← {e(t['back'])}</a>
 </main>
 <footer class="footer wrap"><a class="brand" href="../{file}">VocaLume</a><p>4.6.6 · {e(beta_label)}</p></footer>
-<script src="../language.js"></script>
+<script src="../language.js?v=20261123"></script>
 </body>
 </html>
 '''
