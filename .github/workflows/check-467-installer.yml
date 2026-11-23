@@ -1,0 +1,47 @@
+name: Check 4.6.7 Windows installer
+on:
+  push:
+    branches: [codex/467-installer-check]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  install-and-launch:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - name: Download verified 4.6.7 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $sha = gh run view 42486209883 -R $env:GITHUB_REPOSITORY --json headSha --jq .headSha
+          if ($LASTEXITCODE -ne 0 -or $sha -ne '567bbdca48cdabe4f940fd79e9700d80b758b735') { throw 'Build provenance mismatch' }
+          gh run download 42486209883 -R $env:GITHUB_REPOSITORY -n desktop-Windows -D package
+          if ($LASTEXITCODE -ne 0) { throw 'Artifact download failed' }
+      - name: Install the x64 exe and open the real app window
+        shell: pwsh
+        run: |
+          $setup = @(Get-ChildItem package -Recurse -Filter '*.exe' | Where-Object Name -Match 'Setup.*4\.6\.7')
+          if ($setup.Count -ne 1) { throw 'Expected exactly one 4.6.7 installer' }
+          Write-Host "Installer SHA256: $((Get-FileHash $setup[0].FullName).Hash.ToLowerInvariant())"
+          $install = Join-Path $env:RUNNER_TEMP 'VocaLume-install-smoke'
+          $proc = Start-Process -FilePath $setup[0].FullName -ArgumentList "/S /D=$install" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) { throw "Installer failed ($($proc.ExitCode))" }
+          $exe = Join-Path $install 'VocaLume.exe'
+          if (!(Test-Path $exe)) { throw 'Installed VocaLume.exe not found' }
+          $version = (Get-Item $exe).VersionInfo.ProductVersion
+          if ($version -notmatch '^4\.6\.7(?:\.0)?$') { throw "Unexpected installed version: $version" }
+          Start-Process -FilePath $exe -ArgumentList "--user-data-dir=$env:RUNNER_TEMP\VocaLume-test-profile"
+          $deadline = (Get-Date).AddSeconds(85)
+          do {
+            Start-Sleep -Seconds 2
+            $window = Get-Process VocaLume -ErrorAction SilentlyContinue | Where-Object {
+              $_.Path -eq $exe -and $_.MainWindowHandle -ne 0
+            } | Select-Object -First 1
+          } until ($window -or (Get-Date) -gt $deadline)
+          if (!$window) { throw 'Installed app did not open a desktop window' }
+          Start-Sleep -Seconds 5
+          $window.Refresh()
+          if ($window.HasExited -or !$window.Responding) { throw 'App exited or stopped responding after launch' }
+          Write-Host "Verified version $version, responding app window: $($window.MainWindowTitle)"
