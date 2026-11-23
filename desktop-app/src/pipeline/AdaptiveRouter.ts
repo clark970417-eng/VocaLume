@@ -247,7 +247,7 @@ export class AdaptiveRouter {
     recognitionConfidence?: number
   ): Promise<{ translated: string; complexity: ComplexityScore; engineId: string; latencyMs: number }> {
     const complexity = this.scoreComplexity(text, recognitionConfidence)
-    const engine = this.selectEngine(complexity.tier)
+    const engine = this.selectEngine(complexity.tier, from, to)
 
     if (!engine) {
       throw new Error('No translation engine available for adaptive routing')
@@ -279,11 +279,9 @@ export class AdaptiveRouter {
   }
 
   /** Select engine based on routing tier with fallback */
-  private selectEngine(tier: RoutingTier): TranslatorEngine | null {
-    if (tier === 'quality') {
-      return this.qualityEngine ?? this.fastEngine
-    }
-    return this.fastEngine ?? this.qualityEngine
+  private selectEngine(tier: RoutingTier, from: Language, to: Language): TranslatorEngine | null {
+    const choices = tier === 'quality' ? [this.qualityEngine, this.fastEngine] : [this.fastEngine, this.qualityEngine]
+    return choices.find(engine => engine && engine.supportsDirection?.(from, to) !== false) ?? null
   }
 
   /** Record a telemetry entry, evicting oldest if over limit */

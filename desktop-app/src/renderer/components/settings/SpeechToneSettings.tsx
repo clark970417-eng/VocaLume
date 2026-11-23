@@ -26,6 +26,7 @@ export function SpeechToneSettings(): React.JSX.Element {
       <option value="off">{t("Off")}</option><option value="natural">{t("Natural laughter markers")}</option>
       <option value="ww">{t("ww")}</option><option value="笑">笑</option><option value="草">草</option>
     </select>
+    {/Windows/i.test(navigator.userAgent) && <p className="settings-note">{t('Windows detects laughter locally. The first use downloads about 11 MB of model data.')}</p>}
     {error && <p role="alert">{t(error)}</p>}
   </Section>
 }

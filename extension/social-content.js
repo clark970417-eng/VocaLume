@@ -166,8 +166,7 @@
   }
   const langLabel=code=>{const label=({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();return pageUi?.label(code,label)??label;};
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
-  const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
-  const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
+  const matchesLanguage=(text,lang)=>globalThis.VocaLumeTranslationGuards.shouldTranslateWriting(text,lang);
   const matchesReadLanguage=text=>globalThis.VocaLumeTranslationGuards.shouldTranslateReading(text,languageSettings.readSource,languageSettings.readTarget);
 
   const hasJapanese = text => /[\u3040-\u30ff]/.test(text);
@@ -290,14 +289,15 @@
     const auto = site === 'twitch' && streamerChatMode && !isTitle;
     if (!isTitle && !auto) node = messageTextNode(node);
     const detectionEpoch = epoch;
-    const source = clean(node.innerText || node.textContent);
+    const readText = () => String(node.innerText || node.textContent || '').trim();
+    const source = readText();
     const parent = node.parentElement;
     // The background translator safely splits long messages. Keep only a
     // generous guard against accidentally selecting an entire chat timeline.
     const readDirection = auto
       ? await globalThis.VocaLumeTranslationGuards.streamerChatDirection(source, languageSettings.readTarget, value => chrome.i18n.detectLanguage(value))
       : matchesReadLanguage(source) ? direction('read') : null;
-    if (detectionEpoch !== epoch || !node.isConnected || clean(node.innerText || node.textContent) !== source) return;
+    if (detectionEpoch !== epoch || !node.isConnected || readText() !== source) return;
     let line = parent?.querySelector(':scope > .jtl-social-translation');
     if (!source || source.length > 3000 || !readDirection) {
       if (translated.has(node)) {
@@ -317,7 +317,7 @@
     const owner = {};
     lineOwners.set(line, owner);
     const ownsLine = () => lineOwners.get(line) === owner;
-    const valid = () => ownsLine() && enabled && currentEpoch === epoch && node.isConnected && clean(node.innerText || node.textContent) === source;
+    const valid = () => ownsLine() && enabled && currentEpoch === epoch && node.isConnected && readText() === source;
     const discard = () => {
       if (currentEpoch === epoch && translated.get(node) === source) translated.delete(node);
       if (ownsLine()) line.remove();
@@ -664,19 +664,19 @@
   function renderSubtitles(data) {
     clearTimeout(subtitleExpiryTimer);
     if (document.hidden) return;
-    installCaptionBox();
-    if (!captionBox) return;
     const item = data.running ? data.items?.at(-1) : null;
     const expiresIn = ((item?.expiresAt ?? item?.updatedAt + 3) * 1000) - Date.now();
     const fresh = item && !item.expired && expiresIn > 0;
     const rows = data.running ? (item?.recordingRows || (fresh ? [item] : [])) : [];
+    if(rows.length)installCaptionBox();
+    if(!captionBox)return;
     const signature = JSON.stringify(rows);
     if (signature !== lastSubtitleSignature) {
       lastSubtitleSignature = signature;
       captionBox.controller.render(rows);
     }
     captionBox.hidden = !rows.length;
-    if (fresh && !item.recordingRows) subtitleExpiryTimer = setTimeout(() => renderSubtitles({running: false}), expiresIn);
+    if (fresh && !item.recordingRows) subtitleExpiryTimer = setTimeout(() => renderSubtitles({running: true}), expiresIn + 5);
   }
 
   async function refreshSubtitles() {
@@ -727,6 +727,7 @@
 
   function setEnabled(value) {
     enabled = value !== false;
+    pageObserver?.sync?.();
     epoch++;
     translated = new WeakMap();
     if (!enabled) {
@@ -745,7 +746,7 @@
   chrome.runtime.onMessage.addListener(payload => {
     if (payload.type === 'subtitle-update' && window.top === window) {
       subtitleRevision++;
-      renderSubtitles({running: payload.running !== false, items: [payload.item]});
+      renderSubtitles({running: payload.running??Boolean(payload.item), items: [payload.item]});
     }
   });
   chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','genericSiteAccess','streamerChatMode','captionsHidden']).then(settings => {

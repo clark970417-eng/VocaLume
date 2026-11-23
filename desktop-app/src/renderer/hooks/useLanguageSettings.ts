@@ -37,7 +37,7 @@ export function useLanguageSettings(): LanguageSettingsState {
       const available = (s.macEngines ?? null) as MacEngineAvailability | null
       setMacEngines(available)
       const savedStt = str(s.sttEngine, available?.appleSilicon ? 'mlx-whisper' : 'whisper-local')
-      if (p !== 'darwin' && ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber'].includes(savedStt)) {
+      if (p !== 'darwin' && ['mlx-whisper', 'kotoba-whisper', 'apple-speech-transcriber', 'qwen3-asr'].includes(savedStt)) {
         setSttEngine('whisper-local')
         setWhisperVariant('base')
       } else {

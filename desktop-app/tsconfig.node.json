@@ -17,6 +17,7 @@
     "src/logger/**/*",
     "electron.vite.config.ts",
     "src/engine-selection.ts",
-    "src/media-formats.ts"
+    "src/media-formats.ts",
+    "src/media-transcript.ts"
   ]
 }

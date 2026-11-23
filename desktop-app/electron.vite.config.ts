@@ -36,6 +36,7 @@ export default defineConfig({
           'gpu-probe': resolve(__dirname, 'src/main/gpu-probe.ts'),
           'whisper-worker': resolve(__dirname, 'src/main/whisper-worker.ts'),
           'sensevoice-worker': resolve(__dirname, 'src/main/sensevoice-worker.ts'),
+          'audio-analysis-worker': resolve(__dirname, 'src/main/audio-analysis-worker.ts'),
           'slm-worker': resolve(__dirname, 'src/main/slm-worker.ts')
         }
       },

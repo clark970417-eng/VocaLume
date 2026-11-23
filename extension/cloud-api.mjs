@@ -58,7 +58,11 @@ export function apiSettingsUpdate(saved, form) {
 }
 export function apiCacheScope(saved) {
   const profile = apiProfile(saved);
-  return JSON.stringify([profile.id, profile.model, profile.baseUrl, saved.cloudTranslation?.revision || 0]);
+  const fallbacks = profile.id === 'auto' ? ['nvidia', 'openrouter'].map(id => {
+    const candidate = apiProfile(saved, id);
+    return [candidate.id, candidate.model, candidate.baseUrl, Boolean(candidate.apiKey)];
+  }) : [];
+  return JSON.stringify([profile.id, profile.model, profile.baseUrl, saved.cloudTranslation?.revision || 0, fallbacks]);
 }
 export function apiRequest(profile, messages) {
   const p = validateApiProfile(profile);

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { DeepFilterNet3Core } from 'deepfilternet3-noise-filter'
+import type { DeepFilterNet3Core } from 'deepfilternet3-noise-filter'
 
 /**
  * DeepFilterNet3 noise suppression hook.
@@ -82,9 +82,8 @@ export function useNoiseSuppression(): UseNoiseSuppressionReturn {
     await destroy()
 
     try {
-      // Resample the microphone at the Web Audio boundary if the device
-      // supplies a different rate (e.g. a Bluetooth headset at 16 kHz).
-      // DeepFilterNet3 always receives the 48 kHz format its model expects.
+      const { DeepFilterNet3Core } = await import('deepfilternet3-noise-filter')
+      // Normalize the device audio to the model's required sample rate.
       const ctx = new AudioContext({ sampleRate: 48000 })
       audioCtxRef.current = ctx
 

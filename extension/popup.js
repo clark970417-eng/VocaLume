@@ -278,6 +278,7 @@ function renderEngine() {
   const desktop = $('#engineMode').value === 'desktop';
   $('#engineSummary').textContent = desktop ? '翻譯方式 · 本機 App' : '翻譯方式 · 瀏覽器';
   $('#desktopSettings').hidden = !desktop;
+  $('#browserSpeechOptions').hidden = desktop;
   $('#speechToneMode').disabled = !desktop;
 }
 listen('#engineMode', 'change', async () => {
@@ -285,6 +286,7 @@ listen('#engineMode', 'change', async () => {
   await savePreferences({speechMode: $('#engineMode').value}, '翻譯方式已儲存；下次開始時套用');
 });
 for (const id of ['writingStyle', 'writingQuality']) listen('#' + id, 'change', () => savePreferences({[id]: $('#' + id).value}));
+listen('#browserSpeechProfile','change',()=>savePreferences({browserSpeechProfile:$('#browserSpeechProfile').value},'翻譯方式已儲存；下次開始時套用'));
 
 function renderSpeech() {
   const d = lastHealth;
@@ -313,7 +315,7 @@ function renderDiagnostics(d) {
   const metric = name => { const m = x.metrics?.[name]; return m ? `${m.p50} / ${m.p95} ms` : '尚無資料'; };
   const delivery = name => { const m = x.deliveryMetrics?.[name]; return m ? `${m.p50} / ${m.p95} / ${m.p99} ms（${m.count} 句）` : '尚無資料'; };
   const time = value => Number.isFinite(value) && value >= 0 ? `${Math.round(value)} ms` : '尚無資料';
-  $('#diagnostics').textContent = `音訊：${x.frames || 0} 區塊\n音量 RMS：${(x.level || 0).toFixed(5)}\nVAD 樣本（最多 120）：${x.metrics?.vadMs?.count || 0}\n辨識模型：${x.model || '—'} ${x.dtype || ''}\n人聲機率：${Math.round((x.probability || 0) * 100)}%\n模型：${x.ready ? '就緒' : '尚未就緒'}\n單段處理（依模式可能不含譯文）：${time(x.decodeMs)}\n最近翻譯：${time(x.translationMs)}\n片段結束到最近譯文：${time(x.chineseLagMs)}\n首段暫定文字 P50/P95：${metric('firstTokenMs')}\n首段處理完成 P50/P95：${metric('firstJapaneseMs')}\n單段處理 P50/P95：${metric('decodeMs')}\n片段結束至開始處理 P50/P95：${metric('queueMs')}\n桌面模式最近 120 句，P50/P95/P99：\n片段結束至最終原文：${delivery('endToSourceMs')}\n最終原文至譯文（含排隊）：${delivery('sourceToTranslationMs')}\n片段結束至最終譯文：${delivery('endToTranslationMs')}\n節能調整：${x.performance?.coolingDown ? '冷卻恢復中' : x.performance?.thermalState || 'unknown'}\n${x.performance?.previewsPaused ? '暫停草稿，優先完成句子' : `草稿間隔 ${x.cadenceMs || 500} ms`}\n記憶體狀態：${({ nominal: '正常', warning: '偏高', critical: '很高', unknown: '未取得' })[x.performance?.memoryPressure] || '未取得'}\n節能略過草稿：${x.previewsSkipped || 0}\n待處理：${x.queueDepth || 0}\n略過過期音訊：${x.dropped || 0}\n不可靠結果：${x.rejected || 0}\n音訊重同步：${x.overruns || 0}${d.lastError ? '\n最近錯誤：' + d.lastError : ''}`;
+  $('#diagnostics').textContent = `音訊：${x.frames || 0} 區塊\n音量 RMS：${(x.level || 0).toFixed(5)}\nVAD 樣本（最多 120）：${x.metrics?.vadMs?.count || 0}\n辨識模型：${x.model || '—'} ${x.dtype || ''}\n人聲機率：${Math.round((x.probability || 0) * 100)}%\n模型：${x.ready ? '就緒' : '尚未就緒'}\n單段處理（依模式可能不含譯文）：${time(x.decodeMs)}\n最近翻譯：${time(x.translationMs)}\n片段結束到最近譯文：${time(x.chineseLagMs)}\n首段暫定文字 P50/P95：${metric('firstTokenMs')}\n首段處理完成 P50/P95：${metric('firstJapaneseMs')}\n單段處理 P50/P95：${metric('decodeMs')}\n片段結束至開始處理 P50/P95：${metric('queueMs')}\n最近 120 句正式字幕，P50/P95/P99：\n片段結束至最終原文：${delivery('endToSourceMs')}\n最終原文至譯文（含排隊）：${delivery('sourceToTranslationMs')}\n片段結束至最終譯文：${delivery('endToTranslationMs')}\n節能調整：${x.performance?.coolingDown ? '冷卻恢復中' : x.performance?.thermalState || 'unknown'}\n${x.performance?.previewsPaused ? '暫停草稿，優先完成句子' : `草稿間隔 ${x.cadenceMs || 500} ms`}\n記憶體狀態：${({ nominal: '正常', warning: '偏高', critical: '很高', unknown: '未取得' })[x.performance?.memoryPressure] || '未取得'}\n節能略過草稿：${x.previewsSkipped || 0}\n待處理：${x.queueDepth || 0}\n略過過期音訊：${x.dropped || 0}\n不可靠結果：${x.rejected || 0}\n音訊重同步：${x.overruns || 0}${d.lastError ? '\n最近錯誤：' + d.lastError : ''}`;
 }
 async function refresh() {
   if (refreshing) return;
@@ -441,7 +443,7 @@ listen('#retryRecording', 'click', async () => {
 
 async function initialize() {
   $('#extensionVersion').textContent = 'v' + chrome.runtime.getManifest().version;
-  const saved = await chrome.storage.local.get(['languageSettings', 'subtitleSettings', 'captionStyleV34', 'speechMode', 'writingStyle', 'writingQuality', 'websiteTextOptInEnabled', 'streamerChatMode', 'popupPanel']);
+  const saved = await chrome.storage.local.get(['languageSettings', 'subtitleSettings', 'captionStyleV34', 'speechMode', 'browserSpeechProfile', 'writingStyle', 'writingQuality', 'websiteTextOptInEnabled', 'streamerChatMode', 'popupPanel']);
   const languages = {...languageDefaults, ...saved.languageSettings};
   for (const id of languageIds) {
     if (id === 'syncTextLanguages') $('#' + id).checked = Boolean(languages[id]);
@@ -462,6 +464,7 @@ async function initialize() {
   $('#streamerChatMode').checked = saved.streamerChatMode === true;
   $('#websiteText').checked = saved.websiteTextOptInEnabled === true;
   $('#engineMode').value = saved.speechMode === 'desktop' ? 'desktop' : 'browser';
+  $('#browserSpeechProfile').value = saved.browserSpeechProfile==='small-fp16'?'small-fp16':'default';
   $('#writingStyle').value = ['general', 'viewer', 'polite'].includes(saved.writingStyle) ? saved.writingStyle : 'general';
   $('#writingQuality').value = saved.writingQuality === 'quality' ? 'quality' : 'fast';
   renderEngine();

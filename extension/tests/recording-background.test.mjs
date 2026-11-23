@@ -1,5 +1,6 @@
 import * as youtubeGlossary from '../youtube-glossary.mjs';
 import * as cloudApi from '../cloud-api.mjs';
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import fs from 'node:fs';
 import {RecordingQueue} from '../recording-queue.mjs';import {ResultGate} from '../stream-core.mjs';import {CueCursor} from '../cue-cursor.mjs';import * as policy from '../translation-policy.mjs';
 test('record mode receives following speech while translation waits and retains work after capture stops',async()=>{

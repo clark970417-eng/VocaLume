@@ -87,10 +87,27 @@
     return spans;
   }
 
+  const literalPattern = /https?:\/\/[^\s<>"'`「」『』（）【】。！？、，；]+|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b|`[^`\r\n]+`/giu;
+
+  function literalSpans(value) {
+    return [...value.matchAll(literalPattern)].map(match => {
+      let text = match[0];
+      if (/^https?:/iu.test(text)) {
+        text = text.replace(/[.,!?:;\]]+$/u, '');
+        while (text.endsWith(')') && (text.match(/\)/gu)?.length || 0) > (text.match(/\(/gu)?.length || 0)) {
+          text = text.slice(0, -1);
+        }
+      }
+      return {index: match.index, text};
+    });
+  }
+
   function stripLiterals(value) {
-    return String(value || '').replace(/https?:\/\/\S+/giu, '')
-      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/gu, '')
-      .replace(/(?:^|\s)[@#][A-Za-z0-9_]+\b/gu, '');
+    let text = String(value || '');
+    for (const literal of literalSpans(text).reverse()) {
+      text = text.slice(0, literal.index) + text.slice(literal.index + literal.text.length);
+    }
+    return text.replace(/(?<![\p{Script=Latin}\p{N}._%+\-@])[@＠#][A-Za-z0-9_]+\b/gu, '');
   }
 
   // Script evidence, not a language classifier: French and English share Latin.
@@ -117,10 +134,10 @@
       .map(match => ({start: match.index, end: match.index + entry.source.length, source: entry.source, target: entry.target})));
     const pattern = preserved.length ?
       new RegExp([...names,...preserved.map(entry => entry.source)].sort((a,b) => b.length-a.length).map(escape).join('|'), 'giu') : knownNamePattern;
-    const literals = [...text.matchAll(/https?:\/\/\S+|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/giu)];
+    const literals = literalSpans(text);
     const spans = [];
     function addName(start, nameEnd, end) {
-      if (literals.some(literal => literal.index < end && literal.index + literal[0].length > start)) return;
+      if (literals.some(literal => literal.index < end && literal.index + literal.text.length > start)) return;
       const source = text.slice(start,end);
       const custom = overrides.find(entry => entry.start < end && entry.end > start);
       // An exact name mapping can be enforced without guessing a spelling.
@@ -139,6 +156,9 @@
     }
     for (const {start,nameEnd,end} of inferredNames(text)) {
       if (!spans.some(span => start < span.end && end > span.start)) addName(start,nameEnd,end);
+    }
+    for (const {index, text: literal} of literals) {
+      spans.push({start:index,end:index+literal.length,source:literal,target:literal});
     }
     return spans.sort((a,b) => a.start-b.start);
   }
@@ -241,7 +261,17 @@
     const body = stripLiterals(withoutSpans(text,nameSpans(text)));
     if (matchesTargetLanguage(body,to)) return false;
     if (from === 'ja' && globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text)) return true;
-    return hasLanguageText(body,from);
+    // Kanji-only Japanese headlines and signs are common. Strong Chinese
+    // evidence still prevents translating target-language comments.
+    return hasLanguageText(body,from) || (from === 'ja' && han.test(body) && !chineseEvidence.test(body));
+  }
+
+  function shouldTranslateWriting(value, from) {
+    const text = String(value || '').trim();
+    if (!text) return false;
+    if (from !== 'ja') return hasLanguageText(text,from);
+    return !!globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text) ||
+      kana.test(stripLiterals(text)) || han.test(stripLiterals(text));
   }
   const chatDetections = new Map();
 
@@ -281,5 +311,5 @@
     }
     return source && source !== target ? source + '-' + target : null;
   }
-  globalThis.VocaLumeTranslationGuards = Object.freeze({protectNames,alreadyTargetLanguage,shouldTranslateReading,isNonLinguisticText,hasLanguageText,streamerChatDirection});
+  globalThis.VocaLumeTranslationGuards = Object.freeze({protectNames,alreadyTargetLanguage,shouldTranslateReading,shouldTranslateWriting,isNonLinguisticText,hasLanguageText,streamerChatDirection});
 })();

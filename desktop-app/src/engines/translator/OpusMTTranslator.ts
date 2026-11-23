@@ -26,6 +26,10 @@ export class OpusMTTranslator implements TranslatorEngine {
     this.onProgress = options?.onProgress
   }
 
+  supportsDirection(from: Language, to: Language): boolean {
+    return from === to || (from === 'ja' && to === 'en') || (from === 'en' && to === 'ja')
+  }
+
   async initialize(): Promise<void> {
     if (this.initPromise) return this.initPromise
     this.initPromise = this.doInitialize()
@@ -65,6 +69,7 @@ export class OpusMTTranslator implements TranslatorEngine {
   async translate(text: string, from: Language, to: Language, context?: TranslateContext): Promise<string> {
     if (!text.trim()) return ''
     if (from === to) return text
+    if (!this.supportsDirection(from, to)) throw new Error(`OPUS-MT does not support ${from}→${to}`)
 
     // Filter too-short input that causes hallucinations
     const trimmed = text.trim()

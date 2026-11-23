@@ -95,7 +95,7 @@ function pollingFixture() {
  const panel={isConnected:true,querySelector:s=>s==='button'?toggle:status};
  const captionBox={controller:{render(){renders++;}}};
  const api=vm.runInNewContext('let listening=false,subtitleSignature,subtitleRevision=0,subtitleExpiryTimer; let panel=initialPanel,captionBox=initialCaption;\n'+localize+source.slice(source.indexOf('  function renderSubtitles(data)'),source.indexOf('  const composerSelector'))+'\n({poll:refreshSubtitles,close(){panel.isConnected=false;panel=null;captionBox=null;},replace(value){panel=value;},getListening:()=>listening})',{
-  initialPanel:panel,initialCaption:captionBox,Date,JSON,clearTimeout(){},
+  initialPanel:panel,initialCaption:captionBox,document:{hidden:false},Date,JSON,clearTimeout(){},
   message:()=>new Promise((resolve,fail)=>{reply=resolve;reject=fail;})
  });
  return {api,panel,respond:data=>reply(data),reject:error=>reject(error),counts:()=>({renders,writes})};

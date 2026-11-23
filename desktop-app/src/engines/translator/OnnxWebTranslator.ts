@@ -4,6 +4,8 @@ import type { TranslatorEngine, Language, TranslateContext } from '../types'
 import { isHallucination } from './hallucination-filter'
 import { applyGlossary } from './glossary-utils'
 import { createLogger } from '../../main/logger'
+import { normalizeTaiwanChinese } from '../../../../extension/taiwan-chinese.mjs'
+import { validateTranslation } from '../../../../extension/translation-policy.mjs'
 
 const log = createLogger('onnx-web')
 
@@ -122,7 +124,7 @@ export class OnnxWebTranslator implements TranslatorEngine {
     }
 
     const srcLang = toNllbCode(from)
-    const tgtLang = toNllbCode(to)
+    const tgtLang = to === 'zh' ? 'zho_Hant' : toNllbCode(to)
     if (!srcLang || !tgtLang) {
       log.warn(`Unsupported language pair: ${from}→${to}`)
       return ''
@@ -143,7 +145,8 @@ export class OnnxWebTranslator implements TranslatorEngine {
         return ''
       }
 
-      return translated
+      const output = to === 'zh' ? normalizeTaiwanChinese(translated) : translated
+      return from === 'ja' && to === 'zh' ? validateTranslation(output, 'ja-zh', text, context?.glossary) : output
     } catch (err) {
       log.error('Translation error:', err instanceof Error ? err.message : err)
       return ''

@@ -28,8 +28,10 @@ export class HybridTranslator implements TranslatorEngine {
   private draftEngine: TranslatorEngine
   private refineEngine: TranslatorEngine
   private onDraft: OnDraftCallback | null = null
+  private draftSkipped = false
 
-  constructor(draftEngine: TranslatorEngine, refineEngine: TranslatorEngine) {
+  constructor(draftEngine: TranslatorEngine, refineEngine: TranslatorEngine,
+    private initialDirection?: () => readonly [Language, Language] | undefined) {
     this.draftEngine = draftEngine
     this.refineEngine = refineEngine
   }
@@ -40,14 +42,24 @@ export class HybridTranslator implements TranslatorEngine {
   }
 
   async initialize(): Promise<void> {
-    // Initialize both engines (draft first since it's faster to load)
-    await this.draftEngine.initialize()
+    const direction = this.initialDirection?.()
+    this.draftSkipped = !!direction && this.draftEngine.supportsDirection?.(...direction) === false
+    if (!this.draftSkipped) await this.draftEngine.initialize()
     await this.refineEngine.initialize()
   }
 
   async translate(text: string, from: Language, to: Language, context?: TranslateContext): Promise<string> {
     if (!text.trim()) return ''
     if (from === to) return text
+    if (this.draftEngine.supportsDirection?.(from, to) === false) {
+      // A restricted fast model must never expose the wrong language as a
+      // preview or fallback. Go straight to the compatible translator.
+      return this.refineEngine.translate(text, from, to, context)
+    }
+    if (this.draftSkipped) {
+      await this.draftEngine.initialize()
+      this.draftSkipped = false
+    }
 
     // Stage 1: Fast draft translation
     const draftText = await this.draftEngine.translate(text, from, to, context)

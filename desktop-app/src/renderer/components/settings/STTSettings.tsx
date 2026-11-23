@@ -38,7 +38,7 @@ export function STTSettings({
     : resolveSpeechEngine(sourceLanguage, sttEngine, platform === 'win32')
   const usesHaas = effectiveEngine.startsWith('haas-ja-')
   const usesSenseVoice = /^(zh|yue|en|ko)(?:-|$)/i.test(sourceLanguage)
-  const automaticEngine = usesHaas || usesSenseVoice || (macEngines?.appleSilicon && sourceLanguage === 'ja')
+  const automaticEngine = (usesHaas && platform !== 'win32') || usesSenseVoice || (macEngines?.appleSilicon && sourceLanguage === 'ja')
 
   return (
     <Section label={t("Speech Recognition")} helpText={t("Choose a speech recognition engine. Whisper Local is recommended for most users.")}>
@@ -97,17 +97,17 @@ export function STTSettings({
           )}
         </div>
       )}
-      {sttEngine === 'kotoba-whisper' && sourceLanguage !== 'ja' && (
+      {showKotobaWhisper && effectiveEngine === 'kotoba-whisper' && sourceLanguage !== 'ja' && (
         <p className="settings-notice">{t("Warning: this model only outputs Japanese. Set source language to JA for best results.")}</p>
       )}
-      {effectiveEngine === 'qwen3-asr' && (
+      {macEngines?.qwenAsr && effectiveEngine === 'qwen3-asr' && (
         <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Qwen3-ASR 0.6B: JA CER 6.8%, EN WER 1.9% — best combined JA+EN accuracy. Requires")}{' '}
           <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("speech-swift")}</span>
           {' '}(
           <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("brew tap soniqo/speech https://github.com/soniqo/speech-swift && brew install speech")} </span>{t("). Model (~600MB) auto-downloads on first use.")} <div style={{ marginTop: '2px', color: '#f59e0b' }}>{t("Latency: ~2.2s per chunk (65% slower than MLX Whisper ~1.3s). Best for accuracy over speed.")} </div>
         </div>
       )}
-      {effectiveEngine === 'apple-speech-transcriber' && (
+      {macEngines?.appleSpeech && effectiveEngine === 'apple-speech-transcriber' && (
         <div style={{ marginTop: '4px', fontSize: '11px', color: '#94a3b8' }}>{t("Apple SpeechTranscriber: zero model management, ANE-optimized, 2.2x faster than Whisper Turbo. 40+ languages. Requires")}{' '}
           <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("apple-stt")}</span>
           {' '}{t("CLI (")} <span style={{ fontFamily: 'monospace', fontSize: '10px' }}>{t("cd scripts/apple-stt && swift build -c release && cp .build/release/apple-stt /opt/homebrew/bin/")} </span>

@@ -56,3 +56,5 @@ __pycache__/
 /vendor
 /desktop
 /tests
+
+/desktop-app/resources/haas-ja-arm64/

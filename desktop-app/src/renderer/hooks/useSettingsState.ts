@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { MacEngineAvailability } from '../../engine-selection'
 import { AudioCaptureStartError, type UseAudioCaptureReturn } from './useAudioCapture'
+import { isNetworkCascadeTranslator } from '../../engine-selection'
 
 function friendlyError(err: unknown): string {
   if (err instanceof AudioCaptureStartError) return err.message
@@ -98,14 +99,18 @@ export interface SettingsState {
   subtitleFontSize: number
   setSubtitleFontSize: (v: number) => void
   subtitleSourceColor: string
+  lowPowerRendering: boolean
+  setLowPowerRendering: (v: boolean) => void
+  captionMode: 'realtime' | 'record'
+  setCaptionMode: (mode: 'realtime' | 'record') => void
+  hideOnHover: boolean
+  setHideOnHover: (v: boolean) => void
   setSubtitleSourceColor: (v: string) => void
   subtitleTranslatedColor: string
   setSubtitleTranslatedColor: (v: string) => void
   subtitleBgOpacity: number
   setSubtitleBgOpacity: (v: number) => void
   subtitlePosition: SubtitlePositionType
-  hideOnHover: boolean
-  setHideOnHover: (v: boolean) => void
   setSubtitlePosition: (v: SubtitlePositionType) => void
   showConfidenceIndicator: boolean
   setShowConfidenceIndicator: (v: boolean) => void
@@ -220,6 +225,7 @@ export function useSettingsState(): SettingsState {
         targetLanguage: language.targetLanguage,
         noiseSuppressionEnabled: session.noiseSuppression.enabled,
         audioSource: session.audio.audioSource,
+        systemLoopbackDeviceId: session.audio.systemLoopbackDeviceId,
         draftSttEnabled: language.draftSttEnabled,
         speakerDiarizationEnabled: language.speakerDiarizationEnabled,
         adaptiveRoutingEnabled: engine.adaptiveRoutingEnabled,
@@ -260,7 +266,7 @@ export function useSettingsState(): SettingsState {
         geminiLiveEnabled: options?.captureAudio === false ? false : engine.geminiLiveEnabled
       })
 
-      const result = await withIpcTimeout(window.api.pipelineStart({ ...config, mediaFileSession: options?.captureAudio === false }), 120_000, 'pipelineStart')
+      const result = await withIpcTimeout(window.api.pipelineStart({ ...config, mediaFileSession: options?.captureAudio === false }, options?.captureAudio !== false), 120_000, 'pipelineStart')
       if (result.error) {
         session.setStatus(`Error: ${result.error}`)
         session.setIsStarting(false)
@@ -271,7 +277,7 @@ export function useSettingsState(): SettingsState {
       // #721: cloud e2e pipelines consume a continuous 100ms PCM stream; cascade
       // pipelines use the VAD-segmented rolling buffer.
       if (options?.captureAudio !== false) {
-        await session.audio.start({ captureMode: config.mode === 'e2e' ? 'realtime' : 'cascade', prepareTranslation: result.prepareTranslation })
+        await session.audio.start({ captureMode: config.mode === 'e2e' ? 'realtime' : 'cascade', ...(result.prepareTranslation && { prepareTranslation: true }), ...(config.mode === 'cascade' && isNetworkCascadeTranslator(config.translatorEngineId) && { preferPauseBoundaries: true }) })
       }
       session.setIsRunning(true)
       session.startSessionTimer()
@@ -322,7 +328,7 @@ export function useSettingsState(): SettingsState {
       pipelineStarted = true
       // #721: preserve the resumed session's capture mode
       const resumeMode = (session.crashedSession.config as { mode?: string }).mode === 'e2e' ? 'realtime' : 'cascade'
-      await session.audio.start({ captureMode: resumeMode, prepareTranslation: result.prepareTranslation })
+      await session.audio.start({ captureMode: resumeMode, ...(result.prepareTranslation && { prepareTranslation: true }), ...(resumeMode === 'cascade' && isNetworkCascadeTranslator(session.crashedSession.config.translatorEngineId) && { preferPauseBoundaries: true }) })
       session.setIsRunning(true)
       session.setCrashedSession(null)
       session.startSessionTimer()
@@ -388,10 +394,12 @@ export function useSettingsState(): SettingsState {
     // Subtitle
     subtitleFontSize: subtitle.subtitleFontSize, setSubtitleFontSize: subtitle.setSubtitleFontSize,
     subtitleSourceColor: subtitle.subtitleSourceColor, setSubtitleSourceColor: subtitle.setSubtitleSourceColor,
+    lowPowerRendering: subtitle.lowPowerRendering, setLowPowerRendering: subtitle.setLowPowerRendering,
+    captionMode: subtitle.captionMode, setCaptionMode: subtitle.setCaptionMode,
+    hideOnHover: subtitle.hideOnHover, setHideOnHover: subtitle.setHideOnHover,
     subtitleTranslatedColor: subtitle.subtitleTranslatedColor, setSubtitleTranslatedColor: subtitle.setSubtitleTranslatedColor,
     subtitleBgOpacity: subtitle.subtitleBgOpacity, setSubtitleBgOpacity: subtitle.setSubtitleBgOpacity,
     subtitlePosition: subtitle.subtitlePosition, setSubtitlePosition: subtitle.setSubtitlePosition,
-    hideOnHover: subtitle.hideOnHover, setHideOnHover: subtitle.setHideOnHover,
     showConfidenceIndicator: subtitle.showConfidenceIndicator, setShowConfidenceIndicator: subtitle.setShowConfidenceIndicator,
     accessibility: subtitle.accessibility,
     pushSubtitleSettings: subtitle.pushSubtitleSettings,

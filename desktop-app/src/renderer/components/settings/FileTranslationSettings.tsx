@@ -1,16 +1,22 @@
 import React, { useRef } from 'react'
 import { t } from '../../ui-language'
 import { MEDIA_FILE_ACCEPT } from '../../../media-formats'
+import type { MediaTranscriptRow } from '../../../media-transcript'
 import { FileTranscript } from './FileTranscript'
 import { buttonStyle } from './shared'
 
-export function FileTranslationSettings({ disabled, jobId, watchFolder, onToggleWatchFolder, onTranslateFile, onCancel }: {
+export function FileTranslationSettings({ disabled, jobId, watchFolder, onToggleWatchFolder, onTranslateFile, onCancel,
+  rows, onEditCue, review, onReview }: {
   disabled: boolean
   jobId: string | null
   watchFolder: string | null
   onToggleWatchFolder: () => Promise<void>
   onTranslateFile: (file: File) => Promise<void>
   onCancel: () => Promise<void>
+  rows: readonly MediaTranscriptRow[]
+  onEditCue: (jobId: string, cueId: number, translatedText: string) => void
+  review: boolean
+  onReview: (enabled: boolean) => void
 }): React.JSX.Element {
   const fileInput = useRef<HTMLInputElement>(null)
   return <>
@@ -27,6 +33,10 @@ export function FileTranslationSettings({ disabled, jobId, watchFolder, onToggle
             if (file) void onTranslateFile(file)
           }} />
       </div>
+      <label className="settings-field">
+        <input type="checkbox" checked={review} disabled={disabled} onChange={event => onReview(event.target.checked)} />
+        {t('Review uncertain file segments')}
+      </label>
       {jobId && <button type="button" onClick={() => void onCancel()}
         style={{ ...buttonStyle, background: '#7f1d1d', color: '#fecaca' }}>{t("Cancel file translation")}</button>}
     <button type="button" style={buttonStyle} disabled={disabled && !watchFolder}
@@ -34,6 +44,6 @@ export function FileTranslationSettings({ disabled, jobId, watchFolder, onToggle
       {watchFolder ? t('Stop watching folder') : t('Watch folder and translate automatically')}
     </button>
     {watchFolder && <p className="settings-note">{watchFolder}</p>}
-    <FileTranscript jobId={jobId} />
+    <FileTranscript key={rows[0]?.jobId} rows={rows} onEditCue={onEditCue} />
   </>
 }

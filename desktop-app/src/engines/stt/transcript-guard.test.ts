@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest'
-import { isImplausibleTranscript, isOutroArtifact } from './transcript-guard'
+import { isDetachedJapaneseParticle, isImplausibleTranscript, isOutroArtifact } from './transcript-guard'
+it('rejects a detached particle without suppressing genuine brief reactions or words', () => {
+ for (const text of ['ど。', 'を', 'は']) expect(isDetachedJapaneseParticle(text)).toBe(true)
+ for (const text of ['はい', 'え？', 'うん', '雨', 'どうぞ']) expect(isDetachedJapaneseParticle(text)).toBe(false)
+})
 it('rejects the short-audio repetition that blocked translation for a minute', () => {
  expect(isImplausibleTranscript('北朝鮮の中での'+ '国民の'.repeat(70), .8)).toBe(true)
  expect(isImplausibleTranscript('北朝鮮の挑発行為に対する日本政府や他国の反応が注目されます', 5.47)).toBe(false)

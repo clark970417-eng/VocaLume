@@ -3,7 +3,7 @@ if(window.__jtlV3)return;window.__jtlV3=true;
 let translated = new WeakMap();
 const lineOwners = new WeakMap();
 let streamerChatMode=false;
-let websiteTextOptInEnabled=false, textEpoch=0, contextInvalid=false;
+let websiteTextOptInEnabled=false, textEpoch=0, contextInvalid=false,pageWork;
 let languageSettings={readSource:'ja',readTarget:'zh',typeSource:'zh',typeTarget:'ja',speechSource:'ja',speechTarget:'zh',syncTextLanguages:true};
 const pageUi = globalThis.VocaLumePageLanguage;
 const domChanges = globalThis.VocaLumeDomChanges;
@@ -55,8 +55,7 @@ function setUi(element, value, property = 'textContent') {
 }
 const langLabel=code=>{const label=({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();return pageUi?.label(code,label)??label;};
 const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
-const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
-const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
+const matchesLanguage=(text,lang)=>globalThis.VocaLumeTranslationGuards.shouldTranslateWriting(text,lang);
 const matchesReadLanguage=text=>globalThis.VocaLumeTranslationGuards.shouldTranslateReading(text,languageSettings.readSource,languageSettings.readTarget);
 const cache = new Map();
 const inFlight = new Map();
@@ -209,7 +208,7 @@ const semanticLeafSelector = 'span,p,div,yt-formatted-string';
 let currentTitle;
 
 function scan(scope) {
-  if(contextInvalid)return;
+  if(contextInvalid||document.hidden)return;
   if (!websiteTextOptInEnabled) return;
   if (window.top === window) {
     const titleCandidates = titleSelectors.flatMap(selector => scope
@@ -412,6 +411,7 @@ function renderSubtitle(item) {
   clearTimeout(subtitleExpiryTimer);
   const expiresAt=item?.expiresAt??(item?.updatedAt+3);
   if (!item || item.expired || Date.now()/1000 >= expiresAt) {
+    document.querySelector('#movie_player')?.classList.remove('jtl-native-active');
     document.querySelector("#jtl-subtitles")?.classList.remove("jtl-visible");
     document.querySelector('#jtl-subtitles')?.captionWindow?.render([]);
     lastSubtitleKey = "";
@@ -435,8 +435,8 @@ function renderSubtitle(item) {
   overlay.classList.toggle("jtl-visible", subtitleVisible);
 }
 async function pollSubtitles() {
-  if (window.top !== window || polling) return;
-  polling=true;const epoch=pollEpoch;
+  if (window.top !== window || document.hidden || contextInvalid) return;
+  const epoch=++pollEpoch;
   try {
     const data = await runtimeMessage({type: "subtitles"});
     if (epoch !== pollEpoch || !acceptSubtitleRevision(data,true)) return;
@@ -450,7 +450,7 @@ async function pollSubtitles() {
     }
     setCaptionRunning(Boolean(data.running));
     renderSubtitle(data.running ? data.items?.at(-1) : null);
-  } catch (error) {if(!chrome.runtime?.id){contextInvalid=true;setCaptionRunning(false);document.querySelector('#jtl-subtitles')?.remove();}} finally {polling=false;}
+  } catch (error) {if(!chrome.runtime?.id){contextInvalid=true;pageWork?.disconnect();setCaptionRunning(false);document.querySelector('#jtl-subtitles')?.remove();}}
 }
 function acceptSubtitleRevision(message,fromPoll=false){
  if(nativeResetPending||nativeNavigating)return false;
@@ -571,6 +571,7 @@ function installComposerButton(boxes) {
 
 function setWebsiteText(enabled){
  websiteTextOptInEnabled=enabled;textEpoch++;translated=new WeakMap();
+ pageWork?.sync();
  if(!enabled)document.querySelectorAll('.jtl-title,.jtl-translation,.jtl-comment-action,.jtl-composer-controls').forEach(el=>el.remove());
  else scan();
 }
@@ -580,7 +581,7 @@ chrome.storage.local.get(['websiteTextOptInEnabled','languageSettings','streamer
  setWebsiteText(s.websiteTextOptInEnabled === true);
  if(window.top===window && s.captionsHidden===false)void pollSubtitles();
 });
-domChanges.observe(scan, {active: () => websiteTextOptInEnabled && !contextInvalid});
+pageWork=domChanges.observe(scan, {active: () => websiteTextOptInEnabled && !contextInvalid && !document.hidden});
 document.addEventListener("focusin", event => {
   if (!websiteTextOptInEnabled || contextInvalid) return;
   const box=event.target?.closest?.(composerSelector);
@@ -602,7 +603,10 @@ if (window.top === window) {
  document.addEventListener('seeking',event=>{if(event.target===document.querySelector('#movie_player video'))resetCaptionTimeline();},true);
  document.addEventListener('seeked',event=>{if(event.target===document.querySelector('#movie_player video'))readNativeCaption();},true);
  document.addEventListener('fullscreenchange',()=>{if(document.querySelector('#jtl-subtitles'))installSubtitleOverlay();});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)void pollSubtitles();});
+ document.addEventListener('visibilitychange',()=>{
+  pollEpoch++;
+  if(!document.hidden){void pollSubtitles();scan();}
+ });
 }
 
 })();

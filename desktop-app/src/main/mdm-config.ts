@@ -1,4 +1,5 @@
-import { execSync } from 'child_process'
+import { execFileSync, execSync, spawnSync } from 'child_process'
+import { win32 } from 'node:path'
 import { createLogger } from './logger'
 
 const log = createLogger('mdm-config')
@@ -32,7 +33,14 @@ export interface MdmConfig {
 }
 
 const BUNDLE_ID = 'com.live-translate.app'
+const WINDOWS_POLICY_PATH = 'SOFTWARE\\Policies\\VocaLume'
 const MDM_READ_TIMEOUT_MS = 2000
+const WINDOWS_POLICY_NAMES = [
+  'lockedEngine', 'lockedSttEngine', 'telemetryDisabled', 'managedApiKey',
+  'managedDeeplApiKey', 'managedGeminiApiKey', 'managedMicrosoftApiKey',
+  'managedMicrosoftRegion', 'managedOpenaiApiKey', 'managedGeminiLiveApiKey',
+  'organizationName', 'autoUpdateDisabled'
+] as const satisfies readonly (keyof MdmConfig)[]
 
 /** Cached MDM config — loaded once at startup */
 let cachedConfig: MdmConfig | null = null
@@ -63,49 +71,75 @@ function readManagedPref(key: string): string | null {
   }
 }
 
-/**
- * Load MDM configuration from macOS managed preferences.
- *
- * This is a stub that reads from the standard macOS managed preferences domain.
- * An MDM admin would deploy a configuration profile with:
- *
- * ```xml
- * <dict>
- *   <key>PayloadType</key>
- *   <string>com.live-translate.app</string>
- *   <key>lockedEngine</key>
- *   <string>offline-opus</string>
- *   <key>lockedSttEngine</key>
- *   <string>mlx-whisper</string>
- *   <key>telemetryDisabled</key>
- *   <true/>
- *   <key>organizationName</key>
- *   <string>Acme Corp</string>
- *   <key>autoUpdateDisabled</key>
- *   <true/>
- * </dict>
- * ```
- *
- * On non-macOS platforms, returns all-null/false config (no MDM enforcement).
- */
+/** Read the machine policy without printing values or consulting user-writable keys. */
+function readWindowsPolicy(): Partial<Record<keyof MdmConfig, unknown>> {
+  const systemDir = win32.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
+  const options = { windowsHide: true, timeout: MDM_READ_TIMEOUT_MS }
+  try {
+    // Avoid starting PowerShell on the common path where there is no machine policy.
+    const probe = spawnSync(win32.join(systemDir, 'reg.exe'), [
+      'query', `HKLM\\${WINDOWS_POLICY_PATH}`, '/reg:64'
+    ], { ...options, stdio: 'ignore' })
+    if (probe.status !== 0) return {}
+
+    // Registry APIs preserve non-ASCII organization names and the original value types.
+    const script = `
+      $ErrorActionPreference = 'Stop'
+      [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+      $machine = [Microsoft.Win32.RegistryKey]::OpenBaseKey('LocalMachine', 'Registry64')
+      $key = $machine.OpenSubKey('${WINDOWS_POLICY_PATH}')
+      $values = @{}
+      if ($key) {
+        foreach ($name in @(${WINDOWS_POLICY_NAMES.map((name) => `'${name}'`).join(', ')})) {
+          $value = $key.GetValue($name, $null, 'DoNotExpandEnvironmentNames')
+          if ($null -eq $value) { continue }
+          $kind = $key.GetValueKind($name)
+          if ($kind -eq 'String' -or $kind -eq 'DWord') { $values[$name] = $value }
+        }
+        $key.Dispose()
+      }
+      $machine.Dispose()
+      $values | ConvertTo-Json -Compress
+    `
+    const json = execFileSync(win32.join(systemDir, 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
+      { ...options, encoding: 'utf-8', maxBuffer: 64 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+    const values: unknown = JSON.parse(json)
+    if (values && typeof values === 'object' && !Array.isArray(values)) return values
+  } catch {
+    log.warn('Unable to read Windows machine policy')
+  }
+  return {}
+}
+
+/** Load settings once from the operating system's managed policy source. */
 export function loadMdmConfig(): MdmConfig {
   if (cachedConfig) return cachedConfig
 
   log.info('Loading MDM managed preferences...')
 
+  const windows = process.platform === 'win32' ? readWindowsPolicy() : null
+  const readString = (key: keyof MdmConfig): string | null => {
+    if (!windows) return readManagedPref(key)
+    const value = windows[key]
+    return typeof value === 'string' ? value.trim() || null : null
+  }
+  const readBoolean = (key: keyof MdmConfig): boolean =>
+    windows ? windows[key] === 1 : readManagedPref(key) === '1'
+
   const config: MdmConfig = {
-    lockedEngine: readManagedPref('lockedEngine'),
-    lockedSttEngine: readManagedPref('lockedSttEngine'),
-    telemetryDisabled: readManagedPref('telemetryDisabled') === '1',
-    managedApiKey: readManagedPref('managedApiKey'),
-    managedDeeplApiKey: readManagedPref('managedDeeplApiKey'),
-    managedGeminiApiKey: readManagedPref('managedGeminiApiKey'),
-    managedMicrosoftApiKey: readManagedPref('managedMicrosoftApiKey'),
-    managedMicrosoftRegion: readManagedPref('managedMicrosoftRegion'),
-    managedOpenaiApiKey: readManagedPref('managedOpenaiApiKey'),
-    managedGeminiLiveApiKey: readManagedPref('managedGeminiLiveApiKey'),
-    organizationName: readManagedPref('organizationName'),
-    autoUpdateDisabled: readManagedPref('autoUpdateDisabled') === '1'
+    lockedEngine: readString('lockedEngine'),
+    lockedSttEngine: readString('lockedSttEngine'),
+    telemetryDisabled: readBoolean('telemetryDisabled'),
+    managedApiKey: readString('managedApiKey'),
+    managedDeeplApiKey: readString('managedDeeplApiKey'),
+    managedGeminiApiKey: readString('managedGeminiApiKey'),
+    managedMicrosoftApiKey: readString('managedMicrosoftApiKey'),
+    managedMicrosoftRegion: readString('managedMicrosoftRegion'),
+    managedOpenaiApiKey: readString('managedOpenaiApiKey'),
+    managedGeminiLiveApiKey: readString('managedGeminiLiveApiKey'),
+    organizationName: readString('organizationName'),
+    autoUpdateDisabled: readBoolean('autoUpdateDisabled')
   }
 
   // Log which settings are managed (without revealing sensitive values)

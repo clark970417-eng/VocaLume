@@ -29,7 +29,9 @@ export interface SubtitleSettings {
   translatedTextColor: string
   backgroundOpacity: number
   position: 'top' | 'bottom'
+  lowPowerRendering?: boolean
   hideOnHover?: boolean
+  captionMode?: 'realtime' | 'record'
   accessibility: AccessibilitySettings
 }
 
@@ -54,6 +56,9 @@ export interface CorrectionEntry {
 }
 
 export interface AppSettings {
+  obsCaptionMode: 'off' | 'translation' | 'bilingual'
+  obsCaptionTransport: 'file' | 'push'
+  obsCaptionSource: string
   uiLanguageChoice?: UiLanguageChoice
   speechToneMode: SpeechToneMode
   translationEngine: string
@@ -80,6 +85,7 @@ export interface AppSettings {
   selectedMicrophone: string
   sttEngine: string
   selectedDisplay: number
+  subtitlePositions: Record<string, { x: number; y: number }>
   quotaTracking: Record<string, QuotaRecord>
   activeSession: ActiveSession | null
   subtitleSettings: SubtitleSettings
@@ -124,6 +130,8 @@ export interface AppSettings {
   showConfidenceIndicator: boolean
   /** Audio source: microphone only, system audio (loopback), or both mixed */
   audioSource: 'microphone' | 'system' | 'both'
+  /** Opt-in Windows playback input. Empty uses display loopback. */
+  systemLoopbackDeviceId: string
   /** Whether the user has completed the Quick Start onboarding (#510) */
   hasCompletedSetup: boolean
   /** Enable text-to-speech for translated output (#508) */
@@ -174,6 +182,9 @@ export interface AppSettings {
 export const store = new Store<AppSettings>({
   encryptionKey: 'live-translate-v1',
   defaults: {
+    obsCaptionMode: 'off',
+    obsCaptionTransport: 'file',
+    obsCaptionSource: '',
     speechToneMode: 'off',
     hasCompletedSetup: false,
     translationEngine: 'auto',
@@ -189,6 +200,7 @@ export const store = new Store<AppSettings>({
     sttEngine: process.platform === 'darwin' && process.arch === 'arm64' ? 'mlx-whisper' : 'whisper-local',
     selectedMicrophone: '',
     selectedDisplay: 0,
+    subtitlePositions: {},
     quotaTracking: {},
     activeSession: null,
     obsHideDesktopOverlay: false,
@@ -198,6 +210,7 @@ export const store = new Store<AppSettings>({
       translatedTextColor: '#93c5fd',
       backgroundOpacity: 78,
       position: 'bottom',
+      lowPowerRendering: process.platform === 'win32',
       hideOnHover: false,
       accessibility: {
         highContrast: false,
@@ -226,6 +239,7 @@ export const store = new Store<AppSettings>({
     streamingIntervalMs: 800,
     showConfidenceIndicator: true,
     audioSource: 'microphone',
+    systemLoopbackDeviceId: '',
     ttsEnabled: false,
     ttsVoice: 'auto',
     ttsOutputDevice: '',

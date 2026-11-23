@@ -2,8 +2,12 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readFile,writeFile,mkdir,symlink,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {dirname,join} from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {createRequire} from 'node:module';
+import {claimMacCapture} from '../desktop/capture-lease.mjs';
+
+const {installMac}=createRequire(import.meta.url)('../desktop/install-mac.cjs');
 
 // Override the interpreter on Windows, where python3 may be a Store alias.
 const python = process.env.VOCALUME_TEST_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
@@ -105,4 +109,48 @@ if True:
   const result=spawnSync(python,['-I','-c',code,root],{cwd:process.cwd(),encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
  } finally {await rm(root,{recursive:true,force:true});}
+});
+
+test('Mac registration uses the installed App, supports custom names and preserves valid origins',async()=>{
+ const root=await mkdtemp(join(tmpdir(),"vocalume-mac-install-'"));
+ try{
+  const contents=join(root,'VocaLume (test).app','Contents');
+  const appDir=join(contents,'MacOS'),helpers=join(contents,'Resources','bridge-scripts','bin');
+  await mkdir(appDir,{recursive:true});await mkdir(helpers,{recursive:true});
+  const app=join(appDir,'VocaLume');
+  await writeFile(app,'fixture',{mode:0o700});
+  const extensionId='a'.repeat(32),secondId='b'.repeat(32);
+  assert.throws(()=>installMac({extensionId,app,home:root}),/matching VocaLume Mac App/);
+  await writeFile(join(helpers,'capture-claim-helper'),'fixture',{mode:0o700});
+  const launcher=installMac({extensionId,app,home:root});
+  assert.equal(installMac({extensionId:secondId,app,home:root}),launcher);
+  const script=await readFile(launcher,'utf8');
+  assert.match(script,/ELECTRON_RUN_AS_NODE=1 "\$executable"/);
+  assert.match(script,/native-host\.cjs/);
+  for(const browser of ['Google/Chrome','Google/ChromeForTesting','Microsoft Edge','com.operasoftware.OperaGX']){
+   const file=join(root,'Library/Application Support',browser,'NativeMessagingHosts','org.jtl.companion.json');
+   const manifest=JSON.parse(await readFile(file,'utf8'));
+   assert.equal(manifest.path,launcher);
+   assert.deepEqual(manifest.allowed_origins,[`chrome-extension://${extensionId}/`,`chrome-extension://${secondId}/`]);
+   const language=JSON.parse(await readFile(join(dirname(file),'org.jtl.ui_language.json'),'utf8'));
+   assert.deepEqual(language.allowed_origins,manifest.allowed_origins);
+   assert.match(await readFile(language.path,'utf8'),/--ui-language/);
+
+  }
+ }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('capture lease distinguishes busy and bad helpers, and returns a release handle',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'vocalume-capture-helper-'));
+ try{
+  const helper=join(root,'helper.cjs');
+  await writeFile(helper,'process.exit(75)');
+  assert.equal(await claimMacCapture(process.execPath,helper),null);
+  await writeFile(helper,'process.stdout.write("X");process.stdin.resume()');
+  await assert.rejects(claimMacCapture(process.execPath,helper),/Invalid VocaLume capture lock response/);
+  await writeFile(helper,'process.stdout.write("1");process.stdin.resume()');
+  const release=await claimMacCapture(process.execPath,helper);
+  assert.equal(typeof release,'function');
+  release();
+ }finally{await rm(root,{recursive:true,force:true});}
 });

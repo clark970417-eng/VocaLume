@@ -77,8 +77,11 @@ export function validateSubtitleSettings(data: unknown): string | null {
   if (!VALID_SUBTITLE_POSITIONS.includes(obj.position as (typeof VALID_SUBTITLE_POSITIONS)[number])) {
     return `position must be one of: ${VALID_SUBTITLE_POSITIONS.join(', ')}`
   }
-  if (obj.hideOnHover !== undefined && typeof obj.hideOnHover !== 'boolean') {
-    return 'hideOnHover must be a boolean'
+  if (obj.lowPowerRendering !== undefined && typeof obj.lowPowerRendering !== 'boolean') return 'lowPowerRendering must be a boolean'
+  if (obj.hideOnHover !== undefined && typeof obj.hideOnHover !== 'boolean') return 'hideOnHover must be a boolean'
+
+  if (obj.captionMode !== undefined && obj.captionMode !== 'realtime' && obj.captionMode !== 'record') {
+    return 'captionMode must be realtime or record'
   }
 
   // Accessibility settings are optional — validate only if present

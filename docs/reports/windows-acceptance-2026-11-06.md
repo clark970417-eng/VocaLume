@@ -1,5 +1,17 @@
 # Windows 4.6.6 本機功能補測與 Haas-JA 評估
 
+## Windows 從 4.6.6 升級到 4.6.7（2026-11-08）
+
+| 功能 | 公開 4.6.6 安裝包 | 更新後的 4.6.7 |
+| --- | --- | --- |
+| 桌面即時翻譯字幕 | 使用原有的浮動字幕 | 在「字幕與 OBS → 字幕顯示」可選單組完整譯文或最近四組正式雙語字幕。選擇會套用到即時翻譯。 |
+| 瀏覽器即時翻譯 | Release 提供通用擴充功能 | 可搭配 Windows 專用 ZIP 連接桌面 App。使用擴充功能的瀏覽器模式時，正式譯文優先並依原文順序送出。 |
+| OBS 即時字幕 | 可用字幕檔 | 可繼續使用字幕檔，也可透過本機 WebSocket 推送到指定的文字（GDI+）來源。 |
+
+若剛裝好 4.6.6，可從 [4.6.7 Release](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.7) 下載 Windows x64 安裝程式覆蓋更新。要使用瀏覽器本機連接，再更新至同版的 Windows 專用擴充功能。Windows 字幕功能來自 [PR #8](https://github.com/clark970417-eng/VocaLume/pull/8)，可另看 [4.6.6 到更新版的原始碼比較](https://github.com/clark970417-eng/VocaLume/compare/beta-v4.6.6...567bbdca48cdabe4f940fd79e9700d80b758b735)。
+
+下方保留 4.6.6 的實機驗收。4.6.7 的封裝驗證見 [GitHub Actions](https://github.com/clark970417-eng/VocaLume/actions/runs/42486209883)。這次沒有在使用者的 Windows 裝置重新量測翻譯速度，Mac 的雙路直播延遲不適用於 Windows。
+
 日期：2026-11-06。這份報告取代同日早期報告的「目前驗收狀態」；早期數據保留作歷史紀錄。分支 `codex/windows-performance-report` 已合併 main `6be9be6`（4.6.6），延續 PR #2。修補原始碼、測試通過、實機驗收及正式 release 是不同狀態。
 
 ## 已完成與仍未通過

@@ -2,6 +2,7 @@ import { globalShortcut, clipboard } from 'electron'
 import { store } from './store'
 import type { AppContext } from './app-context'
 import { createLogger } from './logger'
+import { toggleSubtitleEditMode } from './ipc/display-ipc'
 import type { Language, SourceLanguage } from '../engines/types'
 
 const log = createLogger('shortcuts')
@@ -169,19 +170,9 @@ export function registerGlobalShortcuts(ctx: AppContext): () => void {
   })
 
   // Toggle edit mode on subtitle overlay (#590)
-  let editModeEnabled = false
   tryRegister('toggle-edit-mode', shortcuts['toggle-edit-mode'], () => {
-    const win = ctx.subtitleWindow
-    if (!win) return
-
-    editModeEnabled = !editModeEnabled
-    if (editModeEnabled) {
-      win.setIgnoreMouseEvents(false)
-    } else {
-      win.setIgnoreMouseEvents(true, { forward: true })
-    }
-    win.webContents.send('edit-mode-changed', editModeEnabled)
-    ctx.mainWindow?.webContents.send('edit-mode-changed', editModeEnabled)
+    if (!ctx.subtitleWindow) return
+    const editModeEnabled = toggleSubtitleEditMode(ctx)
     ctx.mainWindow?.webContents.send('status-update',
       editModeEnabled ? 'Edit mode enabled — click translations to correct' : 'Edit mode disabled')
     log.info(`Edit mode ${editModeEnabled ? 'enabled' : 'disabled'} via shortcut`)

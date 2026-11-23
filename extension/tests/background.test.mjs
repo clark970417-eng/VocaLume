@@ -1,3 +1,4 @@
+import {NativeCueTimeline} from '../youtube-cue.mjs';
 import * as cloudApi from '../cloud-api.mjs';
 import * as youtubeGlossary from '../youtube-glossary.mjs';
 import {RecordingQueue} from '../recording-queue.mjs';
@@ -7,7 +8,7 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import {CueCursor} from '../cue-cursor.mjs';
 import {ResultGate} from '../stream-core.mjs';
-import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from '../translation-policy.mjs';
+import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from '../translation-policy.mjs';
 test('capture messages require active session and correct offscreen sender; stop clears subtitles',async()=>{
  let listener,session;const updates=[];
  let captionInput='auto',audioStarts=0;
@@ -25,14 +26,16 @@ test('capture messages require active session and correct offscreen sender; stop
  assert.equal((await call({type:'subtitles'},{tab:{id:7}})).text.items[0].translated,'你好！');
  assert.equal((await call({type:'subtitles'},{tab:{id:8}})).text.items.length,0);
  const sender={tab:{id:7},frameId:0,url:'https://www.youtube.com/watch?v=test'};
- await call({type:'native-caption',text:'今日はいい天気ですね'},sender);
+ const end=Date.now(),start=end-700;
+ const cue={key:'test-cue-1',language:'ja',text:'今日はいい天気ですね',startAt:start,observedAt:end};
+ await call({type:'native-caption',cue},sender);
  await new Promise(r=>setTimeout(r,0));
- listener({type:'speech-result',session,id:2,text:'古い音声結果'},{url:'chrome-extension://test/offscreen.html'},()=>{});
+ listener({type:'speech-result',session,id:2,text:'古い音声結果',speechAt:start,audioEndAt:end},{url:'chrome-extension://test/offscreen.html'},()=>{});
  assert.equal((await call({type:'subtitles'},{tab:{id:7}})).text.items[0].original,'今日はいい天気ですね');
- await call({type:'native-caption',text:'別のタブ'}, {...sender,tab:{id:8}});
+ await call({type:'native-caption',cue:{...cue,text:'別のタブ'}}, {...sender,tab:{id:8}});
  assert.equal((await call({type:'subtitles'},{tab:{id:7}})).text.items[0].original,'今日はいい天気ですね');
- await call({type:'native-caption',text:''},sender);
- listener({type:'speech-result',session,id:3,text:'音声に戻りました'},{url:'chrome-extension://test/offscreen.html'},()=>{});
+ await call({type:'native-caption',cue:null},sender);
+ listener({type:'speech-result',session,id:3,text:'音声に戻りました',speechAt:end-300,audioEndAt:end+300},{url:'chrome-extension://test/offscreen.html'},()=>{});
  await new Promise(r=>setTimeout(r,0));
  assert.equal((await call({type:'subtitles'},{tab:{id:7}})).text.items[0].original,'音声に戻りました');
  await call({type:'subtitle-control',action:'stop'});
@@ -64,7 +67,7 @@ test('failed capture startup cleans up and exposes an actionable error, then can
  assert.equal(failure.ok,false);assert.match(failure.error,/影片分頁/);
  const health=(await call({type:'health'})).text;
  assert.equal(health.running,false);assert.equal(health.captureTabId,null);assert.equal(health.lastError,failure.error);
- assert.equal(stopped.filter(t=>t==='offscreen-stop').length,2);
+ assert.equal(stopped.filter(t=>t==='offscreen-stop').length,1);
  fail=false;assert.equal((await call({type:'subtitle-control',action:'start',tabId:7})).ok,true);
  assert.equal((await call({type:'health'})).text.lastError,'');
  await call({type:'subtitle-control',action:'stop'});
@@ -111,7 +114,7 @@ test('multi-line chat translates at most two chunks concurrently and rejoins the
  pending[0].resolve({text:'第一行。'});for(let i=0;i<20;i++)await Promise.resolve();
  assert.equal(pending[2].text,'最後の行です');
  pending[1].resolve({text:'第二行。'});pending[2].resolve({text:'最後一行。'});
- assert.equal((await reply).text,'第一行。第二行。最後一行。');
+ assert.equal((await reply).text,'第一行。\n第二行。\n最後一行。');
 });
 
 test('YouTube terms follow channel and direction and do not reuse outdated translations', async () => {

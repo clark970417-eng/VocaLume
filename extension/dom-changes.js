@@ -1,5 +1,5 @@
 (() => {
-  const extensionUi = '[class^="jtl-"], [class*=" jtl-"], #jtl-subtitles';
+  const extensionUi = '[class^="jtl-"], [class*=" jtl-"], [id^="jtl-"]';
   const element = node => node?.nodeType === 1 ? node : node?.parentElement;
   const owned = node => Boolean(element(node)?.closest?.(extensionUi));
 
@@ -28,10 +28,11 @@
   }
 
   function observe(scan, { active = () => true, delay = 250, attributeFilter = ['contenteditable'] } = {}) {
-    let scheduled = false;
+    let timer, scheduled = false, observing = false, disconnected = false;
+    const shouldObserve = () => !disconnected && !document.hidden && active();
     let added = new Set(), changed = new Set(), removed = false;
     const observer = new MutationObserver(records => {
-      if (!active()) return;
+      if (!shouldObserve()) return;
       for (const record of records) {
         const target = element(record.target);
         if (!target || owned(target)) continue;
@@ -54,15 +55,34 @@
       }
       if (scheduled || (!added.size && !changed.size && !removed)) return;
       scheduled = true;
-      setTimeout(() => {
+      timer = setTimeout(() => {
         scheduled = false;
         const scope = { added, changed, removed };
         added = new Set(); changed = new Set(); removed = false;
-        if (active()) scan(scope);
+        if (shouldObserve()) scan(scope);
       }, delay);
     });
-    observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter });
-    return observer;
+    function sync() {
+      const next = shouldObserve();
+      if (next === observing) return;
+      observing = next;
+      if (next) {
+        observer.observe(document.documentElement, {subtree:true,childList:true,characterData:true,attributes:true,attributeFilter});
+      } else {
+        observer.disconnect();
+        if (scheduled) clearTimeout(timer);
+        scheduled = false;
+        added.clear(); changed.clear(); removed = false;
+      }
+    }
+    document.addEventListener?.('visibilitychange', sync);
+    sync();
+    return {sync, disconnect() {
+      disconnected = true;
+      sync();
+      document.removeEventListener?.('visibilitychange', sync);
+    }};
+
   }
 
   globalThis.VocaLumeDomChanges = { select, observe };

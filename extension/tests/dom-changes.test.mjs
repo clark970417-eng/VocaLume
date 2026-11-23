@@ -6,12 +6,12 @@ import vm from 'node:vm';
 const source = readFileSync(new URL('../dom-changes.js', import.meta.url), 'utf8');
 
 test('scan batches inspect only added subtrees and changed ancestors, skipping extension UI', () => {
-  let observe, active = true, pageQueries = 0, subtreeQueries = 0;
+  let observe, active = true, pageQueries = 0, subtreeQueries = 0, observing = false;
   const scheduled = [], scans = [];
   const document = { documentElement: {}, querySelectorAll() { pageQueries++; return []; } };
   const context = vm.createContext({
     document,
-    MutationObserver: class { constructor(callback) { observe = callback; } observe() {} },
+    MutationObserver: class { constructor(callback) { observe = callback; } observe() { observing = true; } disconnect() { observing = false; } },
     setTimeout: callback => scheduled.push(callback)
   });
   vm.runInContext(source, context);
@@ -32,7 +32,7 @@ test('scan batches inspect only added subtrees and changed ancestors, skipping e
   const translatorUi = element('our overlay', { parentElement: container, owned: true });
   added.descendants.push(newest);
   const children = (target, addedNodes = [], removedNodes = []) => ({ type: 'childList', target, addedNodes, removedNodes });
-  observePage(scope => scans.push(Array.from(select(scope, '.message'), node => node.name)), { active: () => active });
+  const watcher = observePage(scope => scans.push(Array.from(select(scope, '.message'), node => node.name)), { active: () => active });
   observe([children(container, [translatorUi]), children(container, [], [translatorUi]), {
     type: 'characterData', target: { nodeType: 3, parentElement: translatorUi }
   }]);
@@ -44,7 +44,10 @@ test('scan batches inspect only added subtrees and changed ancestors, skipping e
   assert.deepEqual(scans, [['recycled', 'new message']]);
   assert.equal(pageQueries, 0);
   assert.equal(subtreeQueries, 1, 'a child inserted with its parent is not searched twice');
+  assert.equal(observing,true);
   active = false;
+  watcher.sync();
+  assert.equal(observing,false,'disabled translation disconnects the observer');
   observe([children(container, [added])]);
   assert.equal(scheduled.length, 0, 'disabled translation does not queue page work');
 });

@@ -70,7 +70,7 @@ const record=async(name,evidence)=>{const gaps=await app.evaluate(()=>globalThis
  // UI imports stop the pipeline on completion. Hold a separate real IPC
  // session open until OBS has read and rendered its generated caption file.
  async function inspectCaption(media,sttEngineId,jobId,validate,previousImage){
-  const started=await page.evaluate(sttEngineId=>window.api.pipelineStart({mode:'cascade',sttEngineId,translatorEngineId:'hunyuan-mt-15'}),sttEngineId)
+  const started=await page.evaluate(sttEngineId=>window.api.pipelineStart({mode:'cascade',sttEngineId,translatorEngineId:'hunyuan-mt-15'},false),sttEngineId)
   assert.ok(started.success,JSON.stringify(started))
   let text,image
   try{
@@ -128,7 +128,7 @@ const record=async(name,evidence)=>{const gaps=await app.evaluate(()=>globalThis
  await record('real MP3/FLAC/OGG/M4A/MP4/WebM/MKV/AVI/TS files decode through production IPC',{formats:decodedFormats})
  const longFile=path.join(formatDir,'cancel-test.wav')
  execFileSync(require('ffmpeg-static'),['-y','-v','error','-stream_loop','30','-i',path.join(corpusRoot,'corpus',sample.id+'.wav'),'-t','180',longFile],{windowsHide:true})
- const started=await page.evaluate(()=>window.api.pipelineStart({mode:'cascade',sttEngineId:'haas-ja-fast',translatorEngineId:'hunyuan-mt-15'}));assert.ok(started.success,JSON.stringify(started))
+ const started=await page.evaluate(()=>window.api.pipelineStart({mode:'cascade',sttEngineId:'haas-ja-fast',translatorEngineId:'hunyuan-mt-15'},false));assert.ok(started.success,JSON.stringify(started))
  await page.evaluate(file=>{window.validationProgress=0;window.api.onMediaFileProgress(e=>{if(e.jobId==='cancel-validation')window.validationProgress=e.processedSeconds});window.validationJob=window.api.processMediaFile(file,'cancel-validation')},longFile)
  await expect.poll(()=>page.evaluate(()=>window.validationProgress),{timeout:120000}).toBeGreaterThan(0)
  assert.equal((await page.evaluate(()=>window.api.cancelMediaFile('cancel-validation'))).cancelled,true)

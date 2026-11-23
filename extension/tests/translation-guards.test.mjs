@@ -66,15 +66,18 @@ test('new names are inferred from names, handles and honorifics with clear conte
  assert.equal(shouldTranslateReading('月守澪さんは配信します','ja','zh'),true);
 });
 
-test('common honorific forms, ordinary quotes, emails and URLs stay unmasked',()=>{
+test('common honorific forms and ordinary quotes stay unmasked while email and URL literals are protected',()=>{
  for(const text of [
   '皆さん、たくさんのコメントありがとう！','お母さんとお父さんはねこちゃんを飼っています。',
   '配信者さんとお客さんが話しています。','「こんにちは」と言いました。','ゲームさんに会った。',
   '魚屋さんとパン屋さんに寄った。',
   '私の名前は秘密です。','名前はなんですか。','名前は読めないです。','こんにちはと申します。',
-  'Great Stream Today!','我叫外送。','我叫他去。','선생님과 시청자님 모두 감사합니다.',
-  'Write to someone@Discord.test or visit https://www.youtube.com/@blue_sora'
+  'Great Stream Today!','我叫外送。','我叫他去。','선생님과 시청자님 모두 감사합니다.'
  ])assert.equal(protectNames(text).entries.length,0,text);
+ const source='Write to someone@Discord.test or visit https://www.youtube.com/@blue_sora.';
+ const protectedText=protectNames(source);
+ assert.deepEqual(protectedText.entries.map(entry=>entry.source),['someone@Discord.test','https://www.youtube.com/@blue_sora']);
+ assert.equal(protectedText.restore(protectedText.text),source);
 });
 
 test('ambiguous unquoted introductions do not lock ordinary Chinese or Japanese words',()=>{

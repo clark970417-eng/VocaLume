@@ -1,5 +1,6 @@
 import * as youtubeGlossary from '../youtube-glossary.mjs';
 import * as cloudApi from '../cloud-api.mjs';
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {RecordingQueue} from '../recording-queue.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -75,4 +76,24 @@ test('rate-limited browser drafts fall back to the local translator',async()=>{
  assert.equal(result.text.draft,'今晩は');
  assert.match(result.text.mode,/本機翻譯草稿/);
  assert.deepEqual(calls.map(call=>call.op),['translate']);
+});
+
+test('Japanese quality draft selects the quality engine and keeps the source layout and literals',async()=>{
+ let listener;const calls=[];
+ const chrome={storage:{local:{get:async()=>({speechMode:'desktop',writingQuality:'quality'})}},
+  tabs:{onRemoved:{addListener(){}}},runtime:{onMessage:{addListener:f=>listener=f}}};
+ class NativeClient {
+  async request(op,data){
+   calls.push({op,data});
+   const markers=data.text.match(/\[NAME\d+\]/gu);
+   return {text:'明天開始 '+markers.join(' ')};
+  }
+ }
+ const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ vm.runInNewContext(source,{...cloudApi,...taiwanChinese,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,NativeCueTimeline,...policy,Date});
+ const text='> 本日休業\n\n- 明日開始 @viewer https://example.com/watch?v=1';
+ const reply=await new Promise(resolve=>listener({type:'make-draft',direction:'ja-zh',text},{},resolve));
+ assert.equal(reply.ok,true,reply.error);
+ assert.equal(reply.text.draft,'> 今天公休。\n\n- 明天開始 @viewer https://example.com/watch?v=1');
+ assert.deepEqual(calls.map(call=>[call.op,call.data.quality]),[['translate','quality']]);
 });

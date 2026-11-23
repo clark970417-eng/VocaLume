@@ -1,14 +1,22 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import type { SpeechEvidence, TTSPlaybackData } from '../engines/types'
+import type { MediaFileCue } from '../media-transcript'
 import type { UiLanguageState } from './ui-language'
-import type { CaptureSpeechEvidence } from './capture-speech-evidence'
+
+let ttsPlaybackListeners = 0
 
 contextBridge.exposeInMainWorld('api', {
   // Pipeline control
-  pipelineStart: (config: unknown) => ipcRenderer.invoke('pipeline-start', config),
+  pipelineStart: (config: unknown, captureAudio?: boolean) => ipcRenderer.invoke('pipeline-start', config, captureAudio),
   pipelineStop: () => ipcRenderer.invoke('pipeline-stop'),
   processAudio: (audioData: number[]) => ipcRenderer.invoke('process-audio', audioData),
-  processAudioStreaming: (audioData: number[] | Float32Array, evidence?: CaptureSpeechEvidence) => ipcRenderer.invoke('process-audio-streaming', audioData, evidence),
-  finalizeStreaming: (audioData: number[] | Float32Array, evidence?: CaptureSpeechEvidence) => ipcRenderer.invoke('finalize-streaming', audioData, evidence),
+  processAudioStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) =>
+    ipcRenderer.invoke('process-audio-streaming', audioData, evidence),
+  getAudioPreviewDelay: (): Promise<number> => ipcRenderer.invoke('get-audio-preview-delay'),
+  processAudioPreview: (audioData: Float32Array, evidence?: SpeechEvidence): Promise<number> =>
+    ipcRenderer.invoke('process-audio-preview', audioData, evidence),
+  finalizeStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) =>
+    ipcRenderer.invoke('finalize-streaming', audioData, evidence),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   decodeMediaFile: (path: string) => ipcRenderer.invoke('decode-media-file', path),
   exportFileTranscript: (contents: string) => ipcRenderer.invoke('export-file-transcript', contents),
@@ -22,13 +30,18 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('media-folder-changed', handler)
     return () => ipcRenderer.off('media-folder-changed', handler)
   },
-  processMediaFile: (path: string, jobId: string, expectedRevision?: string) =>
-    ipcRenderer.invoke('process-media-file', path, jobId, expectedRevision),
+  processMediaFile: (path: string, jobId: string, review = false, expectedRevision?: string) =>
+    ipcRenderer.invoke('process-media-file', path, jobId, review, expectedRevision),
   cancelMediaFile: (jobId: string) => ipcRenderer.invoke('cancel-media-file', jobId),
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: { jobId: string; processedSeconds: number }): void => callback(data)
     ipcRenderer.on('media-file-progress', handler)
     return () => ipcRenderer.off('media-file-progress', handler)
+  },
+  onMediaFileCue: (callback: (cue: MediaFileCue) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, cue: MediaFileCue): void => callback(cue)
+    ipcRenderer.on('media-file-cue', handler)
+    return () => ipcRenderer.off('media-file-cue', handler)
   },
   // Cloud realtime e2e streaming (#721)
   pushRealtimeAudio: (audioData: Float32Array | number[]) => ipcRenderer.invoke('push-realtime-audio', audioData),
@@ -49,6 +62,11 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_event: Electron.IpcRendererEvent, at: number): void => callback(at)
     ipcRenderer.on('subtitle-activity', handler)
     return () => ipcRenderer.off('subtitle-activity', handler)
+  },
+  onSubtitleClear: (callback: () => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('subtitle-clear', handler)
+    return () => ipcRenderer.off('subtitle-clear', handler)
   },
   // Draft result from hybrid translation (#235)
   onDraftResult: (callback: (data: unknown) => void) => {
@@ -186,9 +204,23 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('save-correction', correction),
   getCorrectionHistory: () => ipcRenderer.invoke('get-correction-history'),
   clearCorrectionHistory: () => ipcRenderer.invoke('clear-correction-history'),
-  moveSubtitleByDelta: (dx: number, dy: number) =>
-    ipcRenderer.send('move-subtitle-by-delta', dx, dy),
-  saveSubtitlePosition: () => ipcRenderer.invoke('save-subtitle-position'),
+  getSubtitleInteractionMode: () => ipcRenderer.invoke('get-subtitle-interaction-mode'),
+  setSubtitleCaptionArea: (area: Electron.Rectangle | null, hideOnHover: boolean) =>
+    ipcRenderer.send('set-subtitle-caption-area', area, hideOnHover),
+  setSubtitleCaptionHover: (hovered: boolean) =>
+    ipcRenderer.send('set-subtitle-caption-hover', hovered),
+  onSubtitleHoverHidden: (callback: (hidden: boolean) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, hidden: boolean): void => callback(hidden)
+    ipcRenderer.on('subtitle-hover-hidden', handler)
+    return () => ipcRenderer.off('subtitle-hover-hidden', handler)
+  },
+  subtitlePointerDrag: (phase: 'start' | 'move' | 'end', x: number, y: number) =>
+    ipcRenderer.send('subtitle-pointer-drag', phase, x, y),
+  onSubtitleDisplayChanged: (callback: (displayId: number) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, id: number): void => callback(id)
+    ipcRenderer.on('subtitle-display-changed', handler)
+    return () => ipcRenderer.off('subtitle-display-changed', handler)
+  },
   resetSubtitlePosition: () => ipcRenderer.invoke('reset-subtitle-position'),
   onDragModeChanged: (callback: (enabled: boolean) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled)
@@ -202,10 +234,28 @@ contextBridge.exposeInMainWorld('api', {
   ttsSetVolume: (volume: number) => ipcRenderer.invoke('tts-set-volume', volume),
   ttsSetOutputDevice: (deviceId: string) => ipcRenderer.invoke('tts-set-output-device', deviceId),
   ttsGetSettings: () => ipcRenderer.invoke('tts-get-settings'),
-  onTtsAudio: (callback: (data: { audio: number[]; sampleRate: number; volume: number; outputDevice: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, data: { audio: number[]; sampleRate: number; volume: number; outputDevice: string }): void => callback(data)
+  ttsGetVoices: () => ipcRenderer.invoke('tts-get-voices'),
+  onTtsError: (callback: (message: string) => void) => {
+    const handler = (_event: unknown, message: string): void => callback(message)
+    ipcRenderer.on('tts-error', handler)
+    return () => { ipcRenderer.off('tts-error', handler) }
+  },
+  onTtsAudio: (callback: (data: TTSPlaybackData) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: TTSPlaybackData): void => callback(data)
     ipcRenderer.on('tts-audio', handler)
-    return () => ipcRenderer.off('tts-audio', handler)
+    if (++ttsPlaybackListeners === 1) ipcRenderer.send('tts-playback-listener', true)
+    let subscribed = true
+    return () => {
+      if (!subscribed) return
+      subscribed = false
+      ipcRenderer.off('tts-audio', handler)
+      if (--ttsPlaybackListeners === 0) ipcRenderer.send('tts-playback-listener', false)
+    }
+  },
+  onTtsStop: (callback: () => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('tts-stop', handler)
+    return () => ipcRenderer.off('tts-stop', handler)
   },
 
   // Virtual Mic (#515)
@@ -267,6 +317,8 @@ contextBridge.exposeInMainWorld('api', {
   setMobileCompanion: (enabled: boolean) => ipcRenderer.invoke('set-mobile-companion', enabled),
   openMobileCompanion: () => ipcRenderer.invoke('open-mobile-companion'),
   configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ipcRenderer.invoke('configure-obs-captions', mode),
+  configureObsCaptionTransport: (transport: 'file' | 'push', source: string) =>
+    ipcRenderer.invoke('configure-obs-caption-transport', transport, source),
   setObsOnly: (enabled: boolean) => ipcRenderer.invoke('set-obs-only', enabled),
   exportDiagnostics: () => ipcRenderer.invoke('export-diagnostics'),
   openSupportUrl: (url: string) => ipcRenderer.invoke('open-support-url', url),

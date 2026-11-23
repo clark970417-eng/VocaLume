@@ -61,6 +61,7 @@ export interface EngineSettingsInit {
 
 export function useEngineSettings(init: EngineSettingsInit): EngineSettingsState {
   const [engineMode, setEngineMode] = useState<EngineMode>('auto')
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
   const [gpuInfo, setGpuInfo] = useState<{ hasGpu: boolean; gpuNames: string[] } | null>(null)
   const [apiKey, setApiKey] = useState('')
   const [deeplApiKey, setDeeplApiKey] = useState('')
@@ -118,11 +119,15 @@ export function useEngineSettings(init: EngineSettingsInit): EngineSettingsState
         init.setShowAdvanced(true)
         init.setShowApiOptions(true)
       }
-    })
+      setSettingsLoaded(true)
+    }).catch(() => setSettingsLoaded(true))
   }, [])
 
   // Detect GPU — show CPU-only status if no GPU
   useEffect(() => {
+    // Wait for the saved mode before starting a native GPU probe. Public/cloud
+    // translation does not need it; changing to a local mode probes on demand.
+    if (!settingsLoaded || engineMode === 'online-public' || API_ENGINE_MODES.includes(engineMode)) return
     window.api.detectGpu().then((info) => {
       setGpuInfo(info)
       if (!info.hasGpu) {
@@ -133,7 +138,7 @@ export function useEngineSettings(init: EngineSettingsInit): EngineSettingsState
         })
       }
     }).catch(() => setGpuInfo({ hasGpu: false, gpuNames: [] }))
-  }, [])
+  }, [settingsLoaded, engineMode])
 
   return {
     engineMode, setEngineMode,

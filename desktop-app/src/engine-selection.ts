@@ -1,4 +1,4 @@
-export type EngineMode = 'auto' | 'rotation' | 'online' | 'online-deepl' | 'online-gemini' | 'online-microsoft' | 'offline-hymt15' | 'offline-hymt2' | 'offline-hunyuan-mt' | 'offline-apple' | 'offline-plamo3'
+export type EngineMode = 'auto' | 'rotation' | 'online' | 'online-public' | 'online-deepl' | 'online-gemini' | 'online-microsoft' | 'offline-hymt15' | 'offline-hymt2' | 'offline-hunyuan-mt' | 'offline-apple' | 'offline-plamo3'
 export type SttEngineType = 'haas-ja-recommended' | 'haas-ja-fast' | 'whisper-local' | 'mlx-whisper' | 'kotoba-whisper' | 'qwen3-asr' | 'sensevoice-sherpa' | 'apple-speech-transcriber'
 
 export interface MacEngineAvailability {
@@ -28,6 +28,7 @@ export function resolveSpeechEngine(
   fallback: SttEngineType = 'whisper-local'
 ): SttEngineType {
   const usesHaas = selected === 'haas-ja-recommended' || selected === 'haas-ja-fast'
+  if (language === 'ja' && selected === 'sensevoice-sherpa') return selected
   if (language === 'ja' && supportsHaas) {
     return usesHaas ? selected : 'haas-ja-fast'
   }
@@ -35,6 +36,17 @@ export function resolveSpeechEngine(
   if (usesHaas || (selected === 'sensevoice-sherpa' && language !== 'auto' && language !== 'ja') ||
       (selected === 'kotoba-whisper' && language !== 'ja' && language !== 'auto')) return fallback
   return selected
+}
+
+/** Haas availability is checked before startup. On smaller Windows machines
+ * prefer the already-installed, measured low-latency fallback for Japanese. */
+export function resolveWindowsJapaneseFallback(resources: {
+  logicalCpus: number
+  totalMemoryBytes: number
+  senseVoiceInstalled: boolean
+}): 'sensevoice-sherpa' | 'whisper-local' {
+  const constrained = resources.logicalCpus <= 4 || resources.totalMemoryBytes <= 8 * 1024 ** 3
+  return constrained && resources.senseVoiceInstalled ? 'sensevoice-sherpa' : 'whisper-local'
 }
 
 /** Match the native Japanese fallback on Macs without the separately installed Haas runtime. */
@@ -53,6 +65,7 @@ export function resolveEngineMode(
   gpuInfo: { hasGpu: boolean } | null,
   platform?: string
 ): EngineMode {
+  if (mode === 'offline-apple' && platform === 'win32') return 'offline-hymt15'
   if (mode !== 'auto') return mode
   const hasKeys = !!(apiKeys.apiKey || apiKeys.deeplApiKey || apiKeys.geminiApiKey || (apiKeys.microsoftApiKey && apiKeys.microsoftRegion))
   if (hasKeys) return 'rotation'
@@ -110,6 +123,8 @@ export function buildEngineConfig(
   const base = { mode: 'cascade' as const, sttEngineId: sttEngine }
 
   switch (resolvedMode) {
+    case 'online-public':
+      return { ...base, translatorEngineId: 'google-public-translate' }
     case 'rotation':
       return {
         ...base,
@@ -144,4 +159,9 @@ export function buildEngineConfig(
     default:
       return { ...base, translatorEngineId: 'plamo-3' }
   }
+}
+/** Cascaded network translators that do not contend for the local model. */
+export function isNetworkCascadeTranslator(id: unknown): boolean {
+  return id === 'google-translate' || id === 'google-public-translate' ||
+    id === 'deepl-translate' || id === 'microsoft-translate' || id === 'gemini-translate'
 }

@@ -1,12 +1,15 @@
+import type { SpeechEvidence, TTSPlaybackData, TtsVoiceOption } from '../engines/types'
+import type { MediaFileCue } from '../media-transcript'
 import type { UiLanguageChoice, UiLanguageState } from './ui-language'
-import type { CaptureSpeechEvidence } from './capture-speech-evidence'
 
 export interface ElectronAPI {
-  pipelineStart: (config: unknown) => Promise<{ success?: boolean; error?: string; prepareTranslation?: boolean }>
+  pipelineStart: (config: unknown, captureAudio?: boolean) => Promise<{ success?: boolean; error?: string; prepareTranslation?: boolean }>
   pipelineStop: () => Promise<{ logPath?: string }>
   processAudio: (audioData: number[]) => Promise<unknown>
-  processAudioStreaming: (audioData: number[] | Float32Array, evidence?: CaptureSpeechEvidence) => Promise<unknown>
-  finalizeStreaming: (audioData: number[] | Float32Array, evidence?: CaptureSpeechEvidence) => Promise<unknown>
+  processAudioStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) => Promise<unknown>
+  getAudioPreviewDelay: () => Promise<number>
+  processAudioPreview: (audioData: Float32Array, evidence?: SpeechEvidence) => Promise<number>
+  finalizeStreaming: (audioData: number[] | Float32Array, evidence?: SpeechEvidence) => Promise<unknown>
   getPathForFile: (file: File) => string
   decodeMediaFile: (path: string) => Promise<Uint8Array>
   exportFileTranscript: (contents: string) => Promise<void>
@@ -15,14 +18,16 @@ export interface ElectronAPI {
   scanMediaFolder: () => Promise<{ files: { path: string; name: string; revision: string }[]; eventDriven: boolean } | null>
   stopMediaFolderWatch: () => Promise<void>
   onMediaFolderChanged: (callback: () => void) => (() => void)
-  processMediaFile: (path: string, jobId: string, expectedRevision?: string) => Promise<{ processedSeconds: number; cancelled: boolean }>
+  processMediaFile: (path: string, jobId: string, review?: boolean, expectedRevision?: string) => Promise<{ processedSeconds: number; cancelled: boolean }>
   cancelMediaFile: (jobId: string) => Promise<{ cancelled: boolean }>
   onMediaFileProgress: (callback: (data: { jobId: string; processedSeconds: number }) => void) => (() => void)
+  onMediaFileCue: (callback: (cue: MediaFileCue) => void) => (() => void)
   pushRealtimeAudio: (audioData: Float32Array | number[]) => Promise<unknown>
   speechBoundary: (boundary: 'start' | 'end') => Promise<unknown>
   onTranslationResult: (callback: (data: unknown) => void) => (() => void)
   onInterimResult: (callback: (data: unknown) => void) => (() => void)
   onSubtitleActivity: (callback: (at: number) => void) => (() => void)
+  onSubtitleClear: (callback: () => void) => (() => void)
   onDraftResult: (callback: (data: unknown) => void) => (() => void)
   onStatusUpdate: (callback: (message: string) => void) => (() => void)
   getSessionStartTime: () => Promise<number | null>
@@ -93,7 +98,10 @@ export interface ElectronAPI {
   ttsSetVolume: (volume: number) => Promise<void>
   ttsSetOutputDevice: (deviceId: string) => Promise<void>
   ttsGetSettings: () => Promise<{ enabled: boolean; voice: string; outputDevice: string; volume: number }>
-  onTtsAudio: (callback: (data: { audio: number[]; sampleRate: number; volume: number; outputDevice: string }) => void) => (() => void)
+  ttsGetVoices: () => Promise<TtsVoiceOption[]>
+  onTtsError: (callback: (message: string) => void) => (() => void)
+  onTtsAudio: (callback: (data: TTSPlaybackData) => void) => (() => void)
+  onTtsStop: (callback: () => void) => (() => void)
 
   // Virtual Mic (#515)
   virtualMicGetStatus: () => Promise<{
@@ -163,9 +171,13 @@ export interface ElectronAPI {
   enterpriseSetTelemetryConsent: (consent: boolean) => Promise<{ success: boolean; reason?: string }>
 
   // Subtitle drag mode (#509)
-  toggleSubtitleDragMode: (enabled: boolean) => Promise<boolean>
-  moveSubtitleByDelta: (dx: number, dy: number) => void
-  saveSubtitlePosition: () => Promise<void>
+  toggleSubtitleDragMode: (enabled: boolean) => Promise<void>
+  getSubtitleInteractionMode: () => Promise<'view' | 'drag' | 'edit'>
+  setSubtitleCaptionArea: (area: { x: number; y: number; width: number; height: number } | null, hideOnHover: boolean) => void
+  setSubtitleCaptionHover: (hovered: boolean) => void
+  onSubtitleHoverHidden: (callback: (hidden: boolean) => void) => (() => void)
+  subtitlePointerDrag: (phase: 'start' | 'move' | 'end', x: number, y: number) => void
+  onSubtitleDisplayChanged: (callback: (displayId: number) => void) => (() => void)
   resetSubtitlePosition: () => Promise<void>
   onDragModeChanged: (callback: (enabled: boolean) => void) => (() => void)
 
@@ -223,11 +235,12 @@ export interface ElectronAPI {
   updateInstall: () => Promise<{ success?: boolean; deferred?: boolean }>
   updateSetChannel: (channel: 'stable' | 'beta') => Promise<{ success?: boolean; error?: string }>
   updateGetStatus: () => Promise<{ state: string; version?: string; progress?: number; error?: string; currentVersion?: string; channel?: 'stable' | 'beta'; installMode?: 'automatic' | 'browser'; releaseUrl?: string }>
-  obsCaptionStatus: () => Promise<{ mode: 'off' | 'translation' | 'bilingual'; path: string; error: string; browserUrl: string; hideDesktopOverlay: boolean }>
+  obsCaptionStatus: () => Promise<{ mode: 'off' | 'translation' | 'bilingual'; path: string; error: string; browserUrl: string; transport: 'file' | 'push'; source: string; pushAvailable: boolean; hideDesktopOverlay: boolean }>
   mobileCompanionStatus: () => Promise<{ url: string; pairingCode: string } | null>
   setMobileCompanion: (enabled: boolean) => ReturnType<ElectronAPI['mobileCompanionStatus']>
   openMobileCompanion: () => Promise<void>
   configureObsCaptions: (mode: 'off' | 'translation' | 'bilingual') => ReturnType<ElectronAPI['obsCaptionStatus']>
+  configureObsCaptionTransport: (transport: 'file' | 'push', source: string) => ReturnType<ElectronAPI['obsCaptionStatus']>
   setObsOnly: (enabled: boolean) => ReturnType<ElectronAPI['obsCaptionStatus']>
   exportDiagnostics: () => Promise<{ success?: boolean; canceled?: boolean; path?: string; error?: string }>
   openSupportUrl: (url: string) => Promise<{ success?: boolean; error?: string }>

@@ -46,6 +46,11 @@ test.beforeAll(async () => {
   if (!settingsWindow) {
     settingsWindow = firstWin
   }
+
+  // The product may choose a different locale from the machine or IP region.
+  // These settings tests use English labels. Language selection has its own spec.
+  await settingsWindow.locator('.interface-language select').selectOption('en')
+  await expect(settingsWindow.locator('html')).toHaveAttribute('lang', 'en')
 })
 
 test.afterAll(async () => {
@@ -247,7 +252,7 @@ test.describe('Window management', () => {
     const hasOverlay = () => app.windows().some(window => window.url().endsWith('#/subtitle'))
     await openSection('Subtitles & OBS')
     await settingsWindow.getByText('OBS live captions', { exact: true }).click()
-    const output = settingsWindow.getByRole('combobox', { name: 'Caption file output', exact: true })
+    const output = settingsWindow.getByRole('combobox', { name: 'OBS caption output', exact: true })
     await output.selectOption('bilingual')
     const path = await settingsWindow.getByLabel('OBS caption file path').inputValue()
     expect(readFileSync(path, 'utf8')).toBe('')
@@ -262,6 +267,58 @@ test.describe('Window management', () => {
     await expect.poll(hasOverlay).toBe(true)
   })
 
+  test('caption modes hold one or rotate four completed translations', async () => {
+    test.skip(process.platform !== 'win32' && process.platform !== 'darwin', 'Desktop caption modes on Windows and macOS')
+    await openSection('Subtitles & OBS')
+    const mode = settingsWindow.getByRole('combobox', { name: 'Caption mode' })
+    await expect(mode).toHaveValue('realtime')
+    const overlay = app.windows().find(window => window.url().endsWith('#/subtitle'))!
+    await expect(overlay.getByRole('region', { name: 'Subtitles' })).toBeAttached()
+    const overlayHeight = () => app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!.getBounds().height
+    )
+    const singleHeight = await overlayHeight()
+    const send = async (number: number, channel = 'translation-result', complete = true): Promise<void> => {
+      await app.evaluate(({ BrowserWindow }, { number, channel, complete }) => {
+        const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
+        win.webContents.send(channel, { sourceText: 'Source ' + number, translatedText: complete ? 'Translation ' + number : '', timestamp: number })
+      }, { number, channel, complete })
+    }
+    const card = overlay.locator('[aria-live="polite"]').locator('..')
+    await send(1)
+    await expect(card.getByText('Translation 1', { exact: true })).toBeAttached()
+    await send(2, 'draft-result')
+    await send(2, 'interim-result', false)
+    await send(2, 'translation-result', false)
+    await expect(card.getByText('Source 2', { exact: true })).toHaveCount(0)
+    await expect(card.getByText('Translation 2', { exact: true })).toHaveCount(0)
+    await expect(card.getByText('Translation 1', { exact: true })).toBeAttached()
+    await expect(card).toHaveCSS('opacity', '0', { timeout: 6500 })
+
+    await mode.selectOption('record')
+    await expect.poll(() => settingsWindow.evaluate(async () =>
+      (await window.api.getSettings()).subtitleSettings
+    )).toMatchObject({ captionMode: 'record' })
+    await expect.poll(overlayHeight).toBeGreaterThan(singleHeight)
+    const recordHeight = await overlayHeight()
+    await expect(card).toHaveCSS('opacity', '1')
+    for (let number = 2; number <= 5; number++) await send(number)
+    await expect(card.getByText(/^Source [2-5]$/)).toHaveCount(4)
+    await expect(card.getByText(/^Translation [2-5]$/)).toHaveCount(4)
+    await expect(card.getByText('Translation 1', { exact: true })).toHaveCount(0)
+    if (process.platform === 'darwin') {
+      // No engine is needed to exercise the real desktop stop IPC.
+      await settingsWindow.evaluate(() => window.api.pipelineStop())
+      await expect(card.getByText(/^Translation [2-5]$/)).toHaveCount(0)
+      await send(5)
+      await expect(card.getByText(/^Translation [2-5]$/)).toHaveCount(1)
+    }
+    await mode.selectOption('realtime')
+    await expect.poll(overlayHeight).toBeLessThan(recordHeight)
+    await expect(card.getByText(/^Translation [1-5]$/)).toHaveCount(1)
+    await expect(card.getByText('Translation 5', { exact: true })).toBeAttached()
+  })
+
   test('optionally hides floating captions near the pointer and restores the latest text', async () => {
     await openSection('Subtitles & OBS')
     const toggle = settingsWindow.getByRole('checkbox', { name: 'Hide subtitles when the pointer is nearby' })
@@ -270,6 +327,7 @@ test.describe('Window management', () => {
 
     const overlay = app.windows().find(window => window.url().endsWith('#/subtitle'))!
     const card = overlay.locator('[aria-live="polite"]').locator('..')
+    await expect(card).toBeAttached()
     const restorePointer = await app.evaluateHandle(({ BrowserWindow, screen }) => {
       const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
       const origin = win.getContentBounds()
@@ -278,43 +336,47 @@ test.describe('Window management', () => {
       screen.getCursorScreenPoint = () => ({ x: origin.x, y: origin.y })
       // Keep the isolated overlay off the user's display.
       win.isVisible = () => true
-      win.webContents.send('translation-result', { sourceText: 'こんにちは', translatedText: '你好' })
+      win.emit('show')
+      win.webContents.send('translation-result', { sourceText: 'こんにちは', translatedText: '你好', timestamp: 100 })
       return () => {
         screen.getCursorScreenPoint = getCursorScreenPoint
         win.isVisible = isVisible
       }
     })
-    await expect(card).toHaveCSS('opacity', '1')
-    const bounds = (await card.boundingBox())!
-    const point = { x: bounds.x + bounds.width / 2, y: bounds.y - 5 }
-    const movePointer = (position: { x: number; y: number }) => app.evaluate(({ BrowserWindow, screen }, pos) => {
-      const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
-      const origin = win.getContentBounds()
-      const zoom = win.webContents.getZoomFactor()
-      screen.getCursorScreenPoint = () => ({ x: origin.x + pos.x * zoom, y: origin.y + pos.y * zoom })
-    }, position)
+    try {
+      await expect(card).toHaveCSS('opacity', '1')
+      const bounds = (await card.boundingBox())!
+      const point = { x: bounds.x + bounds.width / 2, y: bounds.y + (process.platform === 'win32' ? 5 : -5) }
+      const movePointer = (position: { x: number; y: number }) => app.evaluate(({ BrowserWindow, screen }, pos) => {
+        const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
+        const origin = win.getContentBounds()
+        const zoom = win.webContents.getZoomFactor()
+        screen.getCursorScreenPoint = () => ({ x: origin.x + pos.x * zoom, y: origin.y + pos.y * zoom })
+      }, position)
 
-    await movePointer(point)
-    await expect(card).toHaveCSS('opacity', '0')
-    await expect(card).toHaveCSS('pointer-events', 'none')
-    await app.evaluate(({ BrowserWindow }) => {
-      const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
-      win.webContents.send('translation-result', { sourceText: 'こんばんは', translatedText: '晚上好' })
-    })
-    await expect(card).toContainText('晚上好')
-    await expect(card).toHaveCSS('opacity', '0')
-    await movePointer({ x: 0, y: 0 })
-    await expect(card).toHaveCSS('opacity', '1')
-    await movePointer(point)
-    await expect(card).toHaveCSS('opacity', '0')
-    await overlay.evaluate(() => window.api.toggleSubtitleEditMode(true))
-    await expect(card).toHaveCSS('opacity', '1')
-    await overlay.evaluate(() => window.api.toggleSubtitleEditMode(false))
-    await expect(card).toHaveCSS('opacity', '0')
-    await toggle.uncheck()
-    await expect(card).toHaveCSS('opacity', '1')
-    await restorePointer.evaluate(restore => restore())
-    await restorePointer.dispose()
+      await movePointer(point)
+      await expect(card).toHaveCSS('visibility', 'hidden')
+      await expect(card).toHaveCSS('pointer-events', 'none')
+      await app.evaluate(({ BrowserWindow }) => {
+        const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith('#/subtitle'))!
+        win.webContents.send('translation-result', { sourceText: 'こんばんは', translatedText: '晚上好', timestamp: 101 })
+      })
+      await expect(card).toContainText('晚上好')
+      await expect(card).toHaveCSS('visibility', 'hidden')
+      await movePointer({ x: 0, y: 0 })
+      await expect(card).toHaveCSS('visibility', 'visible')
+      await movePointer(point)
+      await expect(card).toHaveCSS('visibility', 'hidden')
+      await overlay.evaluate(() => window.api.toggleSubtitleEditMode(true))
+      await expect(card).toHaveCSS('visibility', 'visible')
+      await overlay.evaluate(() => window.api.toggleSubtitleEditMode(false))
+      await expect(card).toHaveCSS('visibility', 'hidden')
+      await toggle.uncheck()
+      await expect(card).toHaveCSS('visibility', 'visible')
+    } finally {
+      await restorePointer.evaluate(restore => restore())
+      await restorePointer.dispose()
+    }
   })
 })
 

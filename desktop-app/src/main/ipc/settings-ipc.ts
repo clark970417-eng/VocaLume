@@ -1,13 +1,14 @@
-import { configureObsCaptions, obsCaptionStatus } from '../obs-captions'
+import { configureObsCaptions, configureObsCaptionTransport, obsCaptionStatus, setObsCaptionRecordMode } from '../obs-captions'
 import { app, ipcMain, dialog, shell } from 'electron'
 import { arch, platform, release, totalmem } from 'os'
 import { readFile, writeFile } from 'fs/promises'
 import { store } from '../store'
-import type { AppSettings, SubtitleSettings, CorrectionEntry } from '../store'
+import type { SubtitleSettings, CorrectionEntry } from '../store'
 import { validateSubtitleSettings } from '../ipc-validators'
 import type { AppContext } from '../app-context'
-import { syncDesktopSubtitleWindow } from '../window-manager'
+import { resizeSubtitleWindow, syncDesktopSubtitleWindow } from '../window-manager'
 import { createLogger } from '../logger'
+import { resetSubtitlePosition } from './display-ipc'
 import { isSpeechToneMode } from '../../pipeline/SpeechTone'
 import { normalizeMacSttEngine, type SttEngineType } from '../../engine-selection'
 import { getMacEngineAvailability } from '../mac-engine-availability'
@@ -42,18 +43,19 @@ export function registerSettingsIpc(ctx: AppContext): void {
       if (window && !window.isDestroyed()) window.webContents.send('ui-language-changed', state)
     }
   })
-  const obsStatus = () => ({ ...obsCaptionStatus(), hideDesktopOverlay: store.get('obsHideDesktopOverlay') })
-  ipcMain.handle('obs-caption-status', obsStatus)
+  ipcMain.handle('configure-obs-caption-transport', (_event, transport: unknown, source: unknown) =>
+    configureObsCaptionTransport(transport, source))
+  ipcMain.handle('obs-caption-status', obsCaptionStatus)
   ipcMain.handle('configure-obs-captions', async (_event, mode: unknown) => {
     await configureObsCaptions(mode)
     syncDesktopSubtitleWindow(ctx)
-    return obsStatus()
+    return obsCaptionStatus()
   })
   ipcMain.handle('set-obs-only', (_event, enabled: unknown) => {
     if (typeof enabled !== 'boolean') throw new Error('Invalid OBS overlay preference')
     store.set('obsHideDesktopOverlay', enabled)
     syncDesktopSubtitleWindow(ctx)
-    return obsStatus()
+    return obsCaptionStatus()
   })
   const supportUrls = new Set([
     'https://github.com/clark970417-eng/VocaLume/issues/new?template=bug-report.yml',
@@ -102,8 +104,10 @@ export function registerSettingsIpc(ctx: AppContext): void {
     const macEngines = await getMacEngineAvailability()
     const savedTranslator = store.get('translationEngine')
     const savedStt = store.get('sttEngine')
+    const snapshot = store.store
     return {
       macEngines,
+      audioSource: snapshot.audioSource,
       speechToneMode: store.get('speechToneMode'),
       translationEngine: macEngines && !macEngines.appleTranslate && savedTranslator === 'offline-apple' ? 'offline-plamo3' : savedTranslator,
       googleApiKey: store.get('googleApiKey'),
@@ -164,15 +168,27 @@ export function registerSettingsIpc(ctx: AppContext): void {
     }
     const validated = { ...settings } as unknown as SubtitleSettings
     validated.hideOnHover ??= store.get('subtitleSettings').hideOnHover ?? false
+    validated.captionMode ??= store.get('subtitleSettings').captionMode ?? 'realtime'
+    const previous = store.get('subtitleSettings')
     store.set('subtitleSettings', validated)
     ctx.subtitleWindow?.webContents.send('subtitle-settings-changed', validated)
+    if (validated.position !== previous?.position) resetSubtitlePosition(ctx)
+    if ((process.platform === 'win32' || process.platform === 'darwin') &&
+      (validated.captionMode === 'record') !== (previous?.captionMode === 'record')) {
+      if (validated.position === previous?.position) resizeSubtitleWindow(ctx)
+      setObsCaptionRecordMode(validated.captionMode === 'record')
+    }
   })
 
   ipcMain.handle('save-settings', (_event, settings: Record<string, unknown>) => {
     if ('speechToneMode' in settings && !isSpeechToneMode(settings.speechToneMode)) throw new Error('Invalid speech tone setting')
-    for (const [key, value] of Object.entries(settings)) {
-      store.set(key as keyof AppSettings, value as never)
+    if ('systemLoopbackDeviceId' in settings &&
+      (typeof settings.systemLoopbackDeviceId !== 'string' || settings.systemLoopbackDeviceId.length > 512)) {
+      throw new Error('Invalid system audio input')
     }
+    // Conf decrypts and writes the complete store on every set. Commit the
+    // renderer's settings together before starting the translation pipeline.
+    store.set(settings as Parameters<typeof store.set>[0])
     if ('speechToneMode' in settings) ctx.pipeline?.setSpeechToneMode(settings.speechToneMode)
   })
 

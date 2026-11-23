@@ -8,7 +8,7 @@ const source=['translation-guards.js','dom-changes.js','social-content.js'].map(
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
 function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,genericEnabled=false,languageSettings={},wrappedComposer=false,bilibiliPanelOnly=false){
- const requests=[], selectors=[], documentEvents={}, storageListeners=[], rendered=[];
+ const requests=[], statusRequests=[], selectors=[], documentEvents={}, storageListeners=[], rendered=[];
  let now=0, runtimeListener;
  const translationLines=[];
  const controls=[];
@@ -48,12 +48,12 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   },
   createElement:makeElement,addEventListener(name,fn){documentEvents[name]=fn;},createRange:()=>({selectNodeContents(){}})};
  const window={innerWidth:1200,innerHeight:800,getSelection:()=>({removeAllRanges(){},addRange(){}}),JtlCaptionWindow:class{constructor(){} render(rows){rendered.push(rows);} apply(){}}};window.top=window;
- const chrome={runtime:{lastError:null,onMessage:{addListener(fn){runtimeListener=fn;}},sendMessage(message,reply){requests.push({message,reply});}},
+ const chrome={runtime:{lastError:null,onMessage:{addListener(fn){runtimeListener=fn;}},sendMessage(message,reply){(message.type==='subtitles'?statusRequests:requests).push({message,reply});}},
   storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true,languageSettings,genericSiteAccess:genericEnabled?{[hostname]:true}:{}})},onChanged:{addListener(fn){storageListeners.push(fn);}}}};
  let scan,disconnected=false,expiry,intervalCount=0;
  const root={nodeType:1,isConnected:true,closest:()=>null,matches:()=>false,querySelectorAll:document.querySelectorAll};
  vm.runInNewContext(source,{Date:{now:()=>now},VocaLumeStreamerVocabulary:{isStandaloneGreeting},window,document,location:{hostname},chrome,MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){disconnected=true;}},setTimeout(fn,delay){if(delay===250||delay===350||delay===0)fn();else expiry=fn;return delay;},clearTimeout(){},setInterval(){intervalCount++;},Event:class{},InputEvent:class{}});
- return {requests,translationLines,controls,box,shell,selectors,rendered,node:japanese,
+ return {requests,statusRequests,translationLines,controls,box,shell,selectors,rendered,node:japanese,
   scan:()=>scan([{type:'childList',target:root,addedNodes:[root],removedNodes:[]}]),
   poll:()=>documentEvents.visibilitychange(), runtime:chrome.runtime,stopped:()=>disconnected,
   intervalCount:()=>intervalCount,expire:()=>expiry(),
@@ -79,25 +79,23 @@ test('a translation cannot overwrite a new draft that repeats the earlier text',
 test('idle social tabs do not poll, and pushed captions still expire',async()=>{
  const t=setup('example.com');await settle();
  assert.equal(t.intervalCount(),0);
- assert.equal(t.requests.length,0);
- t.visibility(true);t.advance(20_000);assert.equal(t.requests.length,0);
- t.visibility(false);assert.equal(t.requests.length,1,'returning to the tab refreshes immediately');
- t.requests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
+ assert.equal(t.statusRequests.length,0);
+ t.visibility(true);t.advance(20_000);assert.equal(t.statusRequests.length,0);
+ t.visibility(false);assert.equal(t.statusRequests.length,1,'returning to the tab refreshes immediately');
+ t.statusRequests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
  t.push({original:'こんにちは',translated:'你好',expiresAt:22},true);
  assert.equal(t.rendered.at(-1)[0].translated,'你好');
- t.advance(2000);t.expire();
+ t.advance(2005);t.expire();
  assert.equal(t.rendered.at(-1).length,0);
- assert.equal(t.requests.length,1,'display and expiry do not query the background worker');
+ assert.equal(t.statusRequests.length,1,'display and expiry do not query the background worker');
 });
 
 test('an older idle status response cannot erase a pushed caption',async()=>{
  const t=setup('example.com');await settle();void t.poll();
  t.push({original:'こんにちは',translated:'你好',expiresAt:20});
  assert.equal(t.rendered.at(-1)[0].translated,'你好');
- t.requests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
+ t.statusRequests[0].reply({ok:true,text:{running:false,items:[]}});await settle();
  assert.equal(t.rendered.at(-1)[0].translated,'你好');
- void t.poll();assert.equal(t.requests.length,2);
- t.requests[1].reply({ok:true,text:{running:false,items:[]}});await settle();
 });
 
 test('changing reading language cannot reuse an older request or let its cleanup forget newer work',async()=>{
@@ -231,7 +229,7 @@ test('Instagram reports a stale extension context clearly and stops invalid requ
  assert.equal(t.controls[0].children[0].disabled,true);
  assert.equal(t.box.value,'今天也很可愛');
  assert.equal(t.stopped(),true);
- t.scan();await t.poll();await settle();
+ t.scan();t.visibility(false);await settle();
  assert.equal(attempts,1);
 });
 
@@ -361,7 +359,7 @@ test('Discord translates the complete Korean message body, not its channel or me
  const requests=t.requests.filter(r=>r.message.type==='translate');
  assert.equal(requests.length,1);
  assert.equal(requests[0].message.direction,'ko-zh');
- assert.equal(requests[0].message.text,'안녕하세요. 오늘도 감사합니다.');
+ assert.equal(requests[0].message.text,'안녕하세요.\n오늘도 감사합니다.');
  assert.ok(!t.selectors.some(s=>s.includes('h1')||s.includes('aria-live')||s==='[role="log"]'));
  requests[0].reply({ok:true,text:'你好。今天也謝謝你。'});await settle();
 });

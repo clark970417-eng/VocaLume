@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://vocalume.vercel.app/</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/en.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/ja.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/ko.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/zh-CN.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/mobile/</loc>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/download/index.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/download/index.html"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/download/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/download/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/download/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/download/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/download/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/download/en.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/download/index.html"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/download/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/download/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/download/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/download/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/download/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/download/ja.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/download/index.html"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/download/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/download/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/download/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/download/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/download/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/download/ko.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/download/index.html"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/download/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/download/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/download/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/download/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/download/en.html"/>
+  </url>
+  <url>
+    <loc>https://vocalume.vercel.app/download/zh-CN.html</loc>
+    <xhtml:link rel="alternate" hreflang="zh-Hant" href="https://vocalume.vercel.app/download/index.html"/>
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://vocalume.vercel.app/download/zh-CN.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://vocalume.vercel.app/download/en.html"/>
+    <xhtml:link rel="alternate" hreflang="ja" href="https://vocalume.vercel.app/download/ja.html"/>
+    <xhtml:link rel="alternate" hreflang="ko" href="https://vocalume.vercel.app/download/ko.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://vocalume.vercel.app/download/en.html"/>
+  </url>
+</urlset>

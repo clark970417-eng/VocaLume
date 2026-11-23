@@ -44,6 +44,9 @@ test('packaged content scripts load the same catalogue before scanning and both 
   if(group.js.includes('website-language-content.js')){
    assert.deepEqual(group.matches,['https://vocalume.vercel.app/*']);
    assert.deepEqual(group.js,['website-language-content.js']);
+  }else if(group.world==='MAIN'){
+   assert.deepEqual(group.matches,['https://www.youtube.com/*']);
+   assert.deepEqual(group.js,['youtube-source.js']);
   }else{
    assert.equal(group.js[0],'streamer-vocabulary.js');
    assert.ok(group.js.indexOf('page-language.js') < group.js.indexOf('caption-window.js'));
@@ -52,4 +55,5 @@ test('packaged content scripts load the same catalogue before scanning and both 
  }
  const workflow=fs.readFileSync(new URL('../../.github/workflows/beta.yml',import.meta.url),'utf8');
  assert.match(workflow,/streamer-vocabulary\.js streamer-vocabulary\.mjs/);
+ assert.match(workflow,/youtube-source\.js youtube-cue\.mjs/);
 });

@@ -14,6 +14,7 @@ const AUDIO_SOURCE_OPTIONS: Array<{ value: AudioSource; label: string }> = [
 
 interface AudioSettingsProps {
   audio: UseAudioCaptureReturn
+  showLevel: boolean
   disabled: boolean
   /** #313: Noise suppression enabled state */
   noiseSuppressionEnabled: boolean
@@ -68,8 +69,10 @@ function InputLevelMeter({ level }: { level: InputLevel }): React.JSX.Element {
   )
 }
 
-export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange }: AudioSettingsProps): React.JSX.Element {
+export function AudioSettings({ audio, showLevel, disabled, noiseSuppressionEnabled, onNoiseSuppressionChange, platform, streamingIntervalMs, onStreamingIntervalChange }: AudioSettingsProps): React.JSX.Element {
   const showMicSelector = audio.audioSource !== 'system'
+  const showWindowsLoopback = platform === 'win32' && audio.audioSource !== 'microphone'
+  const loopbackInputs = audio.systemLoopbackInputs.filter(input => audio.audioSource !== 'both' || input.deviceId !== audio.selectedDevice)
 
   return (
     <Section label={t("Sound source")}>
@@ -89,6 +92,24 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
       </select>
       {audio.audioSource !== 'microphone' && platform === 'darwin' && (
         <p className="settings-notice">{t("Screen Recording permission is required.")}</p>
+      )}
+      {showWindowsLoopback && (
+        <label className="settings-field">
+          {t('Windows system audio input')}
+          <select
+            value={audio.systemLoopbackDeviceId}
+            onChange={event => audio.setSystemLoopbackDeviceId(event.target.value)}
+            style={selectStyle}
+            disabled={disabled}
+          >
+            <option value="">{t('Screen-sharing audio')}</option>
+            {audio.systemLoopbackDeviceId && !loopbackInputs.some(input => input.deviceId === audio.systemLoopbackDeviceId) && (
+              <option value={audio.systemLoopbackDeviceId}>{t('Previously selected audio input')}</option>
+            )}
+            {loopbackInputs.map(input => <option key={input.deviceId} value={input.deviceId}>{input.label}</option>)}
+          </select>
+          <span className="settings-note">{t('Use Stereo Mix or a routed virtual cable for audio-only capture. Screen sharing is used if the input is unavailable.')}</span>
+        </label>
       )}
       {/* Microphone device selector — hidden when system-only mode */}
       {showMicSelector && (
@@ -110,7 +131,7 @@ export function AudioSettings({ audio, disabled, noiseSuppressionEnabled, onNois
           )}
         </select>
       )}
-      <InputLevelMeter level={audio.inputLevel} />
+      {showLevel && <InputLevelMeter level={audio.inputLevel} />}
       <details className="settings-disclosure"><summary>{t("Audio options")}</summary>
       {/* #313: Noise suppression toggle — only relevant when microphone is active */}
       {showMicSelector && (

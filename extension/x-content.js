@@ -14,8 +14,7 @@
   }
   const langLabel=code=>{const label=({ja:'日',zh:'中',en:'英',ko:'韓',es:'西',fr:'法',de:'德',pt:'葡',it:'義',ru:'俄',th:'泰',vi:'越',id:'印尼',ar:'阿'})[code]||code.toUpperCase();return pageUi?.label(code,label)??label;};
   const direction=kind=>`${languageSettings[kind+'Source']}-${languageSettings[kind+'Target']}`;
-  const languagePattern={ja:/[\u3040-\u30ff]/,zh:/[\u3400-\u9fff]/,ko:/[\uac00-\ud7af]/,ru:/[\u0400-\u04ff]/,ar:/[\u0600-\u06ff]/,th:/[\u0e00-\u0e7f]/};
-  const matchesLanguage=(text,lang)=>(lang==='ja'&&globalThis.VocaLumeStreamerVocabulary?.isStandaloneGreeting(text))||(languagePattern[lang]?.test(text)??/[A-Za-zÀ-ž]/.test(text));
+  const matchesLanguage=(text,lang)=>globalThis.VocaLumeTranslationGuards.shouldTranslateWriting(text,lang);
   const matchesReadLanguage=text=>globalThis.VocaLumeTranslationGuards.shouldTranslateReading(text,languageSettings.readSource,languageSettings.readTarget);
   const composers = new WeakMap();
   function dispatchComposerKey(event) {
@@ -184,7 +183,7 @@
     if (!matchesReadLanguage(read(text))) {existing?.remove();postControls.delete(existing);posts.delete(text);return;}
     if(existing?.isConnected){if(text.nextElementSibling!==existing)text.insertAdjacentElement('afterend',existing);return;}
     const controls = document.createElement('div');
-    controls.className = 'jtl-x-controls';controls.jtlSource=text;
+    controls.className = 'jtl-x-controls';controls.jtlSource=text;postControls.add(controls);
     const result = document.createElement('div');
     result.setAttribute('role', 'status');
     const translate = button(() => `${langLabel(languageSettings.readSource)}/${langLabel(languageSettings.readTarget)}`, async () => {
@@ -277,8 +276,8 @@
       if (!panel?.isConnected) installPanel();
     } else if (panel?.isConnected) {
       subtitleRevision++; clearTimeout(subtitleExpiryTimer);
-      panel.remove();captionBox?.remove();captionBox=null;
-      panel = null;
+      panel.remove();captionBox?.controller.dispose();captionBox?.remove();captionBox=null;
+      panel = null;subtitleSignature=undefined;
       if (listening) {
         listening = false;
         message({type: 'subtitle-control', action: 'stop'}).catch(() => {});
@@ -288,7 +287,7 @@
 
   function renderSubtitles(data) {
     clearTimeout(subtitleExpiryTimer);
-    if (!panel?.isConnected) return;
+    if (!panel?.isConnected || document.hidden) return;
     listening = Boolean(data.running);
     setUi(panel.querySelector('button'), listening ? '停止語音字幕' : '開始語音字幕');
     const item = data.items?.at(-1);
@@ -301,11 +300,11 @@
       captionBox.hidden = !rows.length;
     }
     setUi(panel.querySelector('.jtl-x-live-status'), listening ? '正在接收分頁聲音' : '字幕已停止，可重新開始。');
-    if (fresh && !item.recordingRows) subtitleExpiryTimer = setTimeout(() => renderSubtitles({running: true}), expiresIn);
+    if (fresh && !item.recordingRows) subtitleExpiryTimer = setTimeout(() => renderSubtitles({running: true}), expiresIn + 5);
   }
 
   async function refreshSubtitles() {
-    if (!panel?.isConnected) return;
+    if (!panel?.isConnected || document.hidden) return;
     const currentPanel = panel;
     const revision = ++subtitleRevision;
     try {
@@ -344,7 +343,7 @@
   chrome.runtime.onMessage.addListener(message => {
     if (message.type !== 'subtitle-update' || !panel?.isConnected) return;
     subtitleRevision++;
-    renderSubtitles({running: message.running !== false, items: [message.item]});
+    renderSubtitles({running: message.running ?? Boolean(message.item), items: [message.item]});
   });
   domChanges.observe(scan, {delay: 400, attributeFilter: ['contenteditable', 'data-testid', 'role', 'aria-modal']});
   document.addEventListener("focusin", event => {
@@ -352,6 +351,7 @@
     const box = event.target?.closest?.(composerSelector);
     if (box) addComposer(box);
   });
+  document.addEventListener('visibilitychange',()=>{subtitleRevision++;if(!document.hidden){scan();void refreshSubtitles();}});
   window.addEventListener('popstate', () => syncSpacePanel());
   scan();
 })();

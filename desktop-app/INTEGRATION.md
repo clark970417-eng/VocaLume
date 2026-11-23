@@ -20,7 +20,7 @@ caption events and segment identifiers. This is repeated decoding of growing aud
 windows, not stateful incremental acoustic decoding or zero latency. Desktop and
 browser startup share saved engine settings, glossary, routing, and logging.
 The extension can open the complete desktop settings interface; saving does not
-require starting desktop audio capture. New users should follow the [installation manual](../docs/user-guide.md); the native relay installer currently covers macOS Opera GX / Chrome, not Windows or Linux browser registration.
+require starting desktop audio capture. New users should follow the [installation manual](../docs/user-guide.md); the matching Mac and Windows packages provide their own browser registration commands.
 
 Local changes add Traditional Chinese target prompts, friendly Japanese reply
 style, retryable translator initialization, bounded local requests, disconnection
@@ -29,11 +29,12 @@ failure. The macOS 26 PortAudio crash guard remains enabled.
 
 Build: `npm install`, `npm run typecheck`, `npm test`, `npm run build`.
 For a local arm64 app, run `CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder
---mac dir --publish never`. This produces an unsigned local build, not a notarized
-public distribution. Register `desktop/install.py --extension-id ID --app EXECUTABLE`
-using Python 3 (no optional inference packages are required for the relay). Start the app with `--jtl-companion` to
-use the browser companion route. Update metadata points to this fork; unsigned beta updates open the GitHub download page. The packaged extension includes the native installer and relay.
+--mac dir --publish never`. This produces an unsigned local build. Run the
+[Mac registration command](../docs/installation.md#connect-the-mac-app) with the
+matching extension. It uses the App runtime and the capture lock helper bundled
+during packaging. Windows uses its PowerShell registration command. The browser
+starts the App with `--jtl-companion` when desktop functionality is requested.
+Unsigned beta updates open the GitHub download page.
 
-The legacy Python inference host remains available by reinstalling without `--app`.
-Browser WebGPU mode also remains available. Retain these fallbacks until longer
-live-audio testing validates the new backend.
+The legacy Python inference host remains available through `desktop/install.py
+--extension-id ID`. Browser WebGPU mode also remains available.

@@ -10,7 +10,7 @@ for (const saved of [{}, {websiteTextEnabled:true}, {websiteTextOptInEnabled:fal
  const window={};window.top=window;
  const chrome={storage:{local:{get:()=>Promise.resolve(saved)},onChanged:{addListener:f=>change=f}},runtime:{onMessage:{addListener(){}},sendMessage:(m,cb)=>{messages.push(m);reply=cb;}}};
  const src=['translation-guards.js','dom-changes.js','content.js'].map(file=>fs.readFileSync(new URL(`../${file}`,import.meta.url),'utf8')).join('\n');
- vm.runInNewContext(src,{chrome,window,document,MutationObserver:class{observe(){}},setInterval(){},setTimeout(){},clearTimeout(){},console});
+ vm.runInNewContext(src,{chrome,window,document,MutationObserver:class{observe(){}disconnect(){}},setInterval(){},setTimeout(){},clearTimeout(){},console});
  await Promise.resolve();assert.equal(messages.length,0);
  change({websiteTextOptInEnabled:{newValue:true}},'local');assert.equal(messages.length,1);
  change({websiteTextOptInEnabled:{newValue:false}},'local');reply({ok:true,text:'今天玩得很開心'});await Promise.resolve();assert.equal(lines.filter(x=>!x.removed).length,0);

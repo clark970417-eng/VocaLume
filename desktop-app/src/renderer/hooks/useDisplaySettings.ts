@@ -47,7 +47,11 @@ export function useDisplaySettings(): DisplaySettingsState {
     }
     refreshDisplays()
     const unsubscribe = window.api.onDisplaysChanged(refreshDisplays)
-    return () => unsubscribe?.()
+    const unsubscribeSelection = window.api.onSubtitleDisplayChanged?.((id) => {
+      setSelectedDisplay(id)
+      selectedDisplayRef.current = id
+    })
+    return () => { unsubscribe?.(); unsubscribeSelection?.() }
   }, [])
 
   const handleDisplayChange = (displayId: number): void => {

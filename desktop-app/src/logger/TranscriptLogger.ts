@@ -50,6 +50,7 @@ export class TranscriptLogger {
 
     const time = new Date(result.timestamp).toLocaleTimeString('ja-JP')
     const entry = [
+      ...(result.captionRevision ? [`[Revision ${result.captionRevision} for cue ${result.timestamp}]`] : []),
       `[${time}] [${result.sourceLanguage.toUpperCase()}] ${result.sourceText}`,
       `[${time}] [${result.targetLanguage.toUpperCase()}] ${result.translatedText}`,
       ''

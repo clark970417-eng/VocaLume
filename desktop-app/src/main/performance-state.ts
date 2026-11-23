@@ -10,6 +10,7 @@ export interface PerformanceState {
   previewFloorMs: number
   previewDutyCycle: number
   previewsPaused: boolean
+  optionalAnalysisAllowed: boolean
   auxiliaryWorkPaused: boolean
   speculativeTranslationPaused: boolean
   coolingDown: boolean
@@ -24,6 +25,7 @@ export class PerformanceMonitor {
   private level = 0
   private targetLevel = 0
   private recoverAt = 0
+  private analysisHealthySince = -Infinity
 
   update(update: PerformanceUpdate, now = performance.now()): PerformanceState {
     if (['unknown', 'nominal', 'fair', 'serious', 'critical'].includes(update.thermalState || '')) this.thermalState = update.thermalState!
@@ -40,6 +42,8 @@ export class PerformanceMonitor {
   snapshot(now = performance.now()): PerformanceState {
     const target = this.thermalState === 'critical' || this.speedLimit < 50 || this.memoryPressure === 'critical' ? 3
       : this.thermalState === 'serious' || this.speedLimit < 80 || this.memoryPressure === 'warning' ? 2 : (this.thermalState === 'fair' || this.lowPowerMode === true) ? 1 : 0
+    if (target > 0) this.analysisHealthySince = Infinity
+    else if (this.analysisHealthySince === Infinity) this.analysisHealthySince = now
     if (target >= this.level) {
       this.level = target
     } else if (target !== this.targetLevel) {
@@ -62,18 +66,29 @@ export class PerformanceMonitor {
       previewsPaused: this.level === 3,
       auxiliaryWorkPaused: this.level >= 1,
       speculativeTranslationPaused: this.level >= 2,
-      coolingDown: this.level > target
+      coolingDown: this.level > target,
+      // Explicit cue analysis is occasional. Wait for stable recovery without
+      // lifting the longer cadence cooldown for rolling previews.
+      optionalAnalysisAllowed: now - this.analysisHealthySince >= 4000
     }
   }
 }
 const monitor = new PerformanceMonitor()
+const optionalAnalysisStops = new Set<() => void>()
+export function onOptionalAnalysisPause(stop: () => void): () => void {
+  optionalAnalysisStops.add(stop)
+  return () => { optionalAnalysisStops.delete(stop) }
+}
+
 const subscribers = new Set<(state: PerformanceState) => void>()
 let published = monitor.snapshot()
 let recoveryTimer: ReturnType<typeof setTimeout> | undefined
 let scheduledRecoveryAt: number | undefined
 
 export function updatePerformanceState(update: PerformanceUpdate): void {
-  publishPerformanceState(monitor.update(update))
+  const state = monitor.update(update)
+  if (!state.optionalAnalysisAllowed) for (const stop of optionalAnalysisStops) stop()
+  publishPerformanceState(state)
 }
 
 function publishPerformanceState(state: PerformanceState): void {

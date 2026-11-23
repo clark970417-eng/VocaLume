@@ -4,7 +4,7 @@ This preview is intended for people who agree to test unfinished software and re
 
 ## Download and install
 
-Download the package for your computer and `vocalume-extension.zip` from [4.6.0 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.0). New users can follow the [English quick start](../README.md) or [完整中文使用手冊](user-guide.md).
+Download the installer for your computer from [4.6.6 Beta](https://github.com/clark970417-eng/VocaLume/releases/tag/beta-v4.6.6). For browser features, use `vocalume-extension-windows.zip` on Windows Chrome or Edge, or use the universal `vocalume-extension.zip`. New users can follow the [English quick start](../README.md) or [完整中文使用手冊](user-guide.md).
 
 ### Verify the download
 
@@ -29,18 +29,12 @@ Each release includes `SHA256SUMS.txt` and `release-manifest.json`. Verify the i
 
 ### Browser extension
 
-1. Unzip `vocalume-extension.zip`.
-2. Open `opera://extensions`, `chrome://extensions`, or `edge://extensions`.
+1. Extract the extension ZIP to a permanent folder.
+2. Open `chrome://extensions`, `edge://extensions` or `opera://extensions`.
 3. Turn on Developer mode, choose **Load unpacked**, and select the unzipped folder.
 4. Keep the desktop app open when using desktop recognition or local writing translation.
 
-**Mac local captions need a one-time native connection registration.** With Python 3 installed, open a terminal in the extracted extension folder, replace the ID below with the extension's ID from the browser's extension manager, and run:
-
-```sh
-python3 desktop/install.py --extension-id YOUR_EXTENSION_ID --app '/Applications/VocaLume.app/Contents/MacOS/VocaLume'
-```
-
-Reload the extension and the video page afterward. The ZIP includes the installer and relay. This connection installer currently supports macOS Opera GX and Chrome. The [Windows test packages](installation.md#connect-the-windows-app) include a separate connection installer. Linux users can use the standalone App or browser-only mode. Browser-only mode requires WebGPU and network text translation.
+Local captions need a one-time connection registration with the matching App and extension. Follow the [Mac registration steps](installation.md#connect-the-mac-app) or the [Windows registration steps](installation.md#connect-the-windows-app), then reload the extension and the video page. Linux users can use the standalone App or browser-only mode. Browser-only mode requires WebGPU and network text translation.
 
 Do not delete or move the extracted extension directory. To update, overwrite that same directory, reload the extension, and refresh open pages so the extension ID and settings stay associated.
 

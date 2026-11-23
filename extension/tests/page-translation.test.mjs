@@ -200,36 +200,36 @@ test('an older subtitle poll cannot clear a newly pushed caption',async()=>{
  t.poll();
  const caption={id:2,original:'今',translated:'新字幕',expiresAt:Date.now()/1000+30};
  t.push(caption);
- t.requests[0].reply({ok:true,text:{running:false,items:[]}});
+ t.statusRequests[0].reply({ok:true,text:{running:false,items:[]}});
  await settle();
  assert.equal(t.rendered.length,1);
  assert.equal(t.rendered[0][0],caption);
 });
 
-test('YouTube native cue notifications renew only as needed and clear once on pause',async()=>{
+test('YouTube native cue timing reaches the caption worker and clears once on pause',async()=>{
  const t=setup();await settle();
  assert.equal(t.intervals.size,0);
  t.push(null,true);
- assert.deepEqual([...t.intervals.keys()],[700,350]);
+ assert.deepEqual([...t.intervals.keys()],[350]);
  t.native('配信ありがとう',0);
- t.native('配信ありがとう',350);
- t.native('配信ありがとう',350);
  t.native('配信ありがとう',350);
  t.native('またね',350);
  t.native('またね',350,true);
  t.native('またね',350,true);
- assert.deepEqual(t.requests.map(entry=>entry.message.text),['配信ありがとう','配信ありがとう','またね','']);
+ assert.deepEqual(t.requests.map(entry=>entry.message.cue?.text),['配信ありがとう','配信ありがとう','またね',undefined]);
+ const [first,second]=t.requests.map(entry=>entry.message.cue);
+ assert.equal(first.startAt,second.startAt);
+ assert.equal(second.observedAt-first.observedAt,350);
  t.push(null,false);
  assert.equal(t.intervals.size,0);
 });
 
-test('YouTube native caption heartbeats are halved for an unchanged cue',async()=>{
+test('YouTube shared capture disables local native cue work',async()=>{
  const t=setup();await settle();
- t.push(null,true);
- const ticks=120;
- for(let tick=0;tick<ticks;tick++) t.native('配信ありがとう',350);
- assert.equal(t.requests.length,60);
- t.push(null,false);
+ t.push(null,true,false);
+ assert.equal(t.intervals.size,0);
+ t.native('配信ありがとう',350);
+ assert.equal(t.requests.length,0);
 });
 
 test('seeking clears the overlay immediately and rejects late pushes and stale player text',async()=>{

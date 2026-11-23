@@ -2,6 +2,14 @@
 
 This file records user-facing changes. Public preview builds use `beta-vX.Y.Z` tags; stable builds use `vX.Y.Z` tags.
 
+## 4.6.7 - 2026-11-08
+
+- Combine the Windows local browser connection and OBS push support with Mac package and caption performance updates.
+- Add Japanese and Korean interface languages, language synchronization, cursor-aware captions, and desktop text translation.
+- Improve file translation and folder watching, YouTube caption handling, live chat and reply drafts, and release verification for each platform.
+
+See the [4.6.7 release notes](docs/releases/4.6.7.md) for downloads, setup and the full list of changes.
+
 ## Unreleased - 2026-10-28
 
 - Add a remembered English / Traditional Chinese interface selector to the desktop App and extension popup, independent of translation language pairs. Localize desktop settings, onboarding, accessible labels and common status messages; keep spoken captions, drafts, personal terms and API values unchanged. Add visible Chinese quick-start instructions to the English README and retain the full Chinese guide.

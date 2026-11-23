@@ -64,7 +64,7 @@ export class GoogleTranslator implements TranslatorEngine {
       const params = new URLSearchParams({
         q: source,
         source: from,
-        target: to,
+        target: to === 'zh' ? 'zh-TW' : to,
         key: this.apiKey,
         format: 'text'
       })
@@ -73,12 +73,13 @@ export class GoogleTranslator implements TranslatorEngine {
         url: `${GOOGLE_TRANSLATE_URL}?${params}`,
         init: { method: 'POST' },
         timeoutMs: this.timeoutMs,
+        signal: context?.signal,
         serviceName: 'Google Translation API',
         errorMappings: ERROR_MAPPINGS,
         classifyErrorBody: classifyGoogleError
       })
       return data?.data?.translations?.[0]?.translatedText
-    })
+    }, { from, to, sourceContext: context?.sourceContext })
   }
 
   async dispose(): Promise<void> {

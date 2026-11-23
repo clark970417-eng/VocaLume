@@ -14,7 +14,7 @@ export class WhisperWorkerClient<Options = WhisperOptions, Result = WhisperResul
   private rejectInit: ((error: Error) => void) | null = null
   constructor(private readonly options: {
     workerFile?: string; name?: string; initPayload?: Record<string, unknown>
-    initTimeoutMs?: number; onProgress?: (message: string) => void
+    initTimeoutMs?: number; requestTimeoutMs?: number; onProgress?: (message: string) => void
   } = {}) {}
   private get name(): string { return this.options.name || 'Whisper' }
 
@@ -56,7 +56,7 @@ export class WhisperWorkerClient<Options = WhisperOptions, Result = WhisperResul
     if (!worker) throw new Error(`${this.name} worker was stopped`)
     const id = ++this.sequence
     return new Promise<Result>((resolve, reject) => {
-      const timer = setTimeout(() => this.stop(new Error(`${this.name} transcription timed out`)), 120_000)
+      const timer = setTimeout(() => this.stop(new Error(`${this.name} transcription timed out`)), this.options.requestTimeoutMs ?? 120_000)
       this.pending.set(id, {resolve,reject,timer})
       try { worker.postMessage({type:'transcribe',id,options}) }
       catch (error) { this.stop(error instanceof Error ? error : new Error(String(error))) }

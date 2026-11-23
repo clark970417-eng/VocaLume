@@ -106,6 +106,18 @@ test('new popup keeps opt-in off, all languages, saved captions and engine setti
   assert.equal(h.writes.length, 0, 'opening the redesigned popup must not rewrite existing settings');
 });
 
+test('caption hover hiding defaults off, persists as a boolean, and resets with appearance', async () => {
+  const popup = await harness();
+  assert.equal(popup.get('#hideOnHover').checked, false);
+  await popup.change('hideOnHover', true, 'input');
+  assert.equal(popup.state.saved.subtitleSettings.hideOnHover, true);
+  const reopened = await harness({saved: popup.state.saved});
+  assert.equal(reopened.get('#hideOnHover').checked, true);
+  await reopened.click('#reset');
+  assert.equal(reopened.get('#hideOnHover').checked, false);
+  assert.equal(reopened.state.saved.subtitleSettings.hideOnHover, false);
+});
+
 test('the caption hover option persists as a boolean and resets to off', async () => {
   const h = await harness({ saved: { subtitleSettings: { hideOnHover: true, captionMode: 'record' } } });
   assert.equal(h.get('#hideOnHover').checked, true);

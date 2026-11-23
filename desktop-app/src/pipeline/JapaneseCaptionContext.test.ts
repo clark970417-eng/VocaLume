@@ -74,6 +74,30 @@ describe('Japanese caption continuation', () => {
     context.reset();expect(context.referenceFor('好了。','zh','ja',current)).toBeUndefined()
   })
 
+  it('passes one nearby original referent only to capable engines and drops it on a pause or speaker change', () => {
+    const context = new JapaneseCaptionContext()
+    const prior = {segment:'previous',speechSeconds:1,captureStartSample:96000,captureEndSample:112000,speechEndSample:14400}
+    const next = {segment:'next',speechSeconds:1,captureStartSample:113000,captureEndSample:129000}
+    const source = '会場には臨時の入口があります。'
+    context.remember(source, 'ja', 'zh', prior, 0)
+    expect(context.referenceFor('それは夜も使えます。','ja','zh',next,0,true)).toBe(source)
+    expect(context.referenceFor('それは夜も使えます。','ja','zh',next,0)).toBeUndefined()
+    expect(context.referenceFor('夜も使えます。','ja','zh',next,0,true)).toBeUndefined()
+    expect(context.referenceFor('それは夜も使えます。','ja','zh',next,1,true)).toBeUndefined()
+    expect(context.referenceFor('それは夜も使えます。','ja','zh',{...next,captureStartSample:128000},0,true)).toBeUndefined()
+    context.remember('別件です。'+source, 'ja', 'zh', prior, 0)
+    expect(context.referenceFor('それは夜も使えます。','ja','zh',next,0,true)).toBeUndefined()
+  })
+
+  it('recovers only the spoken object of a hard-cut comparison', () => {
+    const prior='就業者数は前の月から十六万五千人増加し市場の予想を大きく'
+    expect(joinJapaneseCaption(prior,'上回りました',true)).toBe('市場の予想を大きく上回りました')
+    expect(joinJapaneseCaption(prior,'下回りました。',true)).toBe('市場の予想を大きく下回りました。')
+    expect(joinJapaneseCaption(prior.slice(0, -1),'上回りました',true)).toBe('市場の予想を大きく上回りました')
+    expect(joinJapaneseCaption(prior.slice(0, -1),'く上回りました',true)).toBe('市場の予想を大きく上回りました')
+    expect(joinJapaneseCaption(prior,'上回りました',false)).toBe('上回りました')
+  })
+
   it('joins a bare verb ending only at a proven, adjacent capture cut', () => {
     const context = new JapaneseCaptionContext()
     context.remember('薬は飲み', 'ja', 'zh', {speechSeconds:7,segment:'a',captureStartSample:0,captureEndSample:128000,continuationExpected:true})

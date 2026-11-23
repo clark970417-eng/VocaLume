@@ -38,6 +38,8 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
   const [sourceLanguage, setSourceLanguage] = useState<SourceLanguage>('auto')
   const [targetLanguage, setTargetLanguage] = useState<Language>('en')
   const [error, setError] = useState<string | null>(null)
+  const legacyWindowsTranslation = systemInfo?.platform === 'win32' &&
+    ['offline-opus', 'offline-lfm2'].includes(recommendation?.translationEngine ?? '')
 
   // Load hardware recommendation on mount
   useEffect(() => {
@@ -131,7 +133,9 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
         <div style={infoCardStyle}>
           <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '8px', fontWeight: 600 }}>{t("Recommended Configuration")} </div>
           <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '8px', lineHeight: '1.5' }}>
-            {recommendation.reason}
+            {legacyWindowsTranslation
+              ? t('Setup prepares the speech model for this PC. You can select the translation engine in Settings.')
+              : recommendation.reason}
           </div>
           {recommendation.needsDownload && (
             <div style={downloadInfoStyle}>
@@ -145,7 +149,7 @@ export function QuickStartPanel({ onSetupComplete }: QuickStartPanelProps): Reac
               </span>
             </div>
           )}
-          {recommendation.needsDownload && recommendation.fallbackEngine && (
+          {!legacyWindowsTranslation && recommendation.needsDownload && recommendation.fallbackEngine && (
             <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px' }}>{t("Translation will start immediately using a lightweight fallback while models download.")} </div>
           )}
         </div>

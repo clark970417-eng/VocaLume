@@ -12,6 +12,7 @@ interface UpdateState {
   channel?: 'stable' | 'beta'
   installMode?: 'automatic' | 'browser'
   releaseUrl?: string
+  managedDisabled?: boolean
 }
 
 export function UpdateStatus(): React.JSX.Element {
@@ -60,6 +61,10 @@ export function UpdateStatus(): React.JSX.Element {
     const result = await window.api.updateSetChannel(channel)
     if (result.error) setUpdate((previous) => ({ ...previous, state: 'error', error: result.error }))
   }, [])
+
+  if (update.managedDisabled) {
+    return <Section label={t("App Updates")}><p role="status">{t("Auto-updates managed by organization")}</p></Section>
+  }
 
   const channelControl = (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px' }}>

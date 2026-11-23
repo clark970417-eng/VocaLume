@@ -24,7 +24,7 @@ export function registerAudioIpc(ctx: AppContext): void {
       // Forward received audio to the pipeline
       ctx.wsAudioServer.on('audio', async (chunk: Float32Array) => {
         const pipeline = ctx.pipeline
-        if (!pipeline?.running || processing || work.mediaSession || ctx.extensionConnected) return
+        if (!pipeline?.running || processing || ctx.pipelineStarting || ctx.pipelineInputOwner === 'file' || work.mediaSession || ctx.extensionConnected) return
         const epoch = pipeline.sessionStartTime
         processing = true
         try {

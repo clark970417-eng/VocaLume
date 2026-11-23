@@ -98,7 +98,7 @@ it('a continued negation cancels preparation and translates the entire final sou
   const pending=await f.processor.prepareFinalStreaming(finalAudio,16000,{...evidence,speechSeconds:1.3,speechEndSample:28000})
   expect(f.signal()?.aborted).toBe(true)
   expect((await pending?.completion)?.translatedText).toBe('今天不玩遊戲。')
-  expect(f.translateFinal).toHaveBeenCalledWith('今日は遊びませんと言ったけど、少しだけ遊びます。','ja','zh',undefined,undefined)
+  expect(f.translateFinal).toHaveBeenCalledWith('今日は遊びませんと言ったけど、少しだけ遊びます。','ja','zh',undefined,undefined,undefined)
   f.finish('過期的候選譯文');await Promise.resolve();await Promise.resolve()
   expect(f.events.some(r=>r.translatedText==='過期的候選譯文')).toBe(false)
  } finally {f.processor.reset()}
@@ -178,7 +178,7 @@ it('discards a PLaMo desktop preparation when later speech changes the original'
   f.setSource('今日は遊びませんと言ったけど、少しだけ遊びます。')
   await f.processor.finalizeStreaming(finalAudio, 16000, { ...checkpoint, captureEndSample:finalAudio.length })
   expect(f.signal()?.aborted).toBe(true)
-  expect(f.translateFinal).toHaveBeenCalledWith('今日は遊びませんと言ったけど、少しだけ遊びます。','ja','zh',undefined,undefined)
+  expect(f.translateFinal).toHaveBeenCalledWith('今日は遊びませんと言ったけど、少しだけ遊びます。','ja','zh',undefined,undefined,undefined)
   f.finish('過期的候選譯文')
   expect(f.events.some(result => result.translatedText === '過期的候選譯文')).toBe(false)
  } finally { f.processor.reset() }

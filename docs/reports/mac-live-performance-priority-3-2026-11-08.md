@@ -61,4 +61,4 @@
 - 同音檔輸入及分段時間見 [第一階段報告](./mac-live-performance-2026-11-08.md)，主音檔 SHA-256 為 `8237a45f8a22e564cc461f50b7b439570f43848164c7b68454a8ae9ba7435216`。短 OBS 音檔 SHA-256 為 `94f8c91815fa435eb71874e5801f0b7c630484e887e8f5ff1ed75839c0fdfa32`。
 - 桌面基準主程式 SHA-256 為 `8f933fb1567b7c4fc07c6216a32aabd1d1686cad544d32b9150397789717a6d3`，新版為 `5ac3bc32492dfc044ac334f6e3a37a8dd807c861336b34a094b91add8b97b2ba`。
 - 使用 `desktop-app/scripts/benchmark-mac-live.mjs`。正式相鄰對照開啟 `VOCALUME_CAPTION_TIMING=1 JTL_BENCH_PRESSURE=1 JTL_BENCH_GPU=1 JTL_BENCH_TEXT=1`。OBS 連測以 `JTL_BENCH_OBS_FRAME_READER` 指向 libobs 測試程式。
-- 本機原始資料位於 `/tmp/vocalume-mac-p3.IH80JCok/`。相鄰資料為 `before2.json` 和 `after2.json`，OBS 資料為 `obs-before.json` 和 `obs-after.json`。libobs 測試程式原始碼為 `obs-render.c`，Retina 短測則保存 `overlay-gpu.cjs` 和 `overlay-gpu.json`。
+- [第三階段量測資料](data/mac-live-performance-2026-11-08.json)的 `priority3` 收錄兩組前後對照、Retina 樣式取樣及 OBS 字幕檔與畫格的時間、像素數和雜湊。

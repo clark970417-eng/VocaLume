@@ -21,7 +21,6 @@
     "https://cdn-lfs-us-1.hf.co/*",
     "https://cdn-lfs.huggingface.co/*",
     "https://huggingface.co/*",
-    "https://api.mymemory.translated.net/*",
     "https://translate.googleapis.com/*",
     "https://integrate.api.nvidia.com/*",
     "https://openrouter.ai/*"
@@ -45,6 +44,12 @@
     "type": "module"
   },
   "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["youtube-source.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
     {
       "matches": ["https://vocalume.vercel.app/*"],
       "js": ["website-language-content.js"],

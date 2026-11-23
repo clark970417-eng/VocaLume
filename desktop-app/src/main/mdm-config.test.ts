@@ -11,8 +11,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
  * `defaults` behavior (which exits non-zero when a key is absent).
  */
 let prefFixture: Record<string, string> = {}
+const readRegistry = vi.hoisted(() => vi.fn<() => string>())
+const probeRegistry = vi.hoisted(() => vi.fn<() => { status: number }>())
 
 vi.mock('child_process', () => ({
+  execFileSync: readRegistry,
+  spawnSync: probeRegistry,
   execSync: vi.fn((cmd: string) => {
     // Extract the trailing key argument (after the quoted path).
     // Format: defaults read "<path>" <key> 2>/dev/null
@@ -43,6 +47,8 @@ function setPlatform(platform: NodeJS.Platform): void {
 describe('mdm-config', () => {
   beforeEach(async () => {
     prefFixture = {}
+    readRegistry.mockReset().mockReturnValue('{}')
+    probeRegistry.mockReset().mockReturnValue({ status: 1 })
     const mod = await import('./mdm-config')
     mod.clearMdmConfigCache()
   })
@@ -51,7 +57,7 @@ describe('mdm-config', () => {
     setPlatform(originalPlatform)
   })
 
-  describe('on non-macOS platforms', () => {
+  describe('on Linux', () => {
     beforeEach(() => {
       setPlatform('linux')
     })
@@ -61,6 +67,52 @@ describe('mdm-config', () => {
       const cfg = loadMdmConfig()
       expect(cfg.managedMicrosoftApiKey).toBeNull()
       expect(cfg.managedMicrosoftRegion).toBeNull()
+    })
+  })
+
+  describe('on Windows', () => {
+    beforeEach(() => {
+      setPlatform('win32')
+    })
+
+    it('uses defaults without starting PowerShell when machine policy is absent', async () => {
+      const { loadMdmConfig } = await import('./mdm-config')
+      expect(loadMdmConfig()).toMatchObject({ organizationName: null, telemetryDisabled: false })
+      expect(probeRegistry).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/\\reg\.exe$/i),
+        ['query', 'HKLM\\SOFTWARE\\Policies\\VocaLume', '/reg:64'],
+        expect.objectContaining({ stdio: 'ignore', windowsHide: true, timeout: 2000 }))
+      expect(readRegistry).not.toHaveBeenCalled()
+    })
+
+    it('reads typed machine policy once, preserving a Unicode organization name', async () => {
+      probeRegistry.mockReturnValue({ status: 0 })
+      readRegistry.mockReturnValue(JSON.stringify({
+        lockedEngine: 'rotation-controller', lockedSttEngine: 'whisper',
+        telemetryDisabled: 1, autoUpdateDisabled: 1, organizationName: '字幕團隊',
+        managedApiKey: 'fixture', managedOpenaiApiKey: 'fixture'
+      }))
+      const { loadMdmConfig, getMdmConfig } = await import('./mdm-config')
+      const config = loadMdmConfig()
+      expect(config).toMatchObject({
+        lockedEngine: 'rotation-controller', lockedSttEngine: 'whisper',
+        telemetryDisabled: true, autoUpdateDisabled: true, organizationName: '字幕團隊',
+        managedApiKey: 'fixture', managedOpenaiApiKey: 'fixture'
+      })
+      expect(getMdmConfig()).toBe(config)
+      expect(readRegistry).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/\\powershell\.exe$/i),
+        ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', expect.stringContaining("OpenBaseKey('LocalMachine', 'Registry64')")],
+        expect.objectContaining({ encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }))
+    })
+
+    it('ignores fields with the wrong registry types and malformed output', async () => {
+      probeRegistry.mockReturnValue({ status: 0 })
+      readRegistry.mockReturnValueOnce('{"lockedEngine":12,"telemetryDisabled":"1","autoUpdateDisabled":2}')
+        .mockReturnValueOnce('not JSON')
+      const { loadMdmConfig, clearMdmConfigCache } = await import('./mdm-config')
+      const defaults = { lockedEngine: null, telemetryDisabled: false, autoUpdateDisabled: false }
+      expect(loadMdmConfig()).toMatchObject(defaults)
+      clearMdmConfigCache()
+      expect(loadMdmConfig()).toMatchObject(defaults)
     })
   })
 

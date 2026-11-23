@@ -3,7 +3,7 @@ name: Build public beta
 on:
   workflow_dispatch:
   push:
-    branches: [codex/467-plamo-candidate]
+    branches: [codex/467-plamo-integrated]
     tags: ["beta-v*"]
 
 permissions:
@@ -41,7 +41,7 @@ jobs:
             dom-changes.js x-content.js x-content.css social-content.js social-content.css \
             caption-window.js caption-window.css icons vendor ort \
             desktop/install.py desktop/relay.py desktop/host.py desktop/translation_support.py \
-            desktop/install-windows.ps1 desktop/windows-host.cjs \
+            desktop/install-windows.ps1 desktop/windows-host.cjs desktop/install-mac.cjs desktop/capture-lease.mjs \
             desktop/requirements.txt desktop/LIVE_TRANSLATE_LICENSE
           cd ..
           node scripts/package-guides.mjs beta
@@ -52,6 +52,13 @@ jobs:
         with:
           name: browser-extension
           path: beta/vocalume-extension.zip
+      - name: Package Windows Chromium extension
+        run: python3 scripts/package-windows-extension.py beta/vocalume-extension.zip beta/vocalume-extension-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-extension-Windows
+          path: beta/vocalume-extension-windows.zip
+          if-no-files-found: error
 
   desktop:
     strategy:
@@ -113,6 +120,9 @@ jobs:
       - name: Build the Intel Mac speech engine
         if: matrix.os == 'macos-15-intel'
         run: node scripts/rebuild-whisper-mac-x64.cjs
+      - name: Stage bundled Haas-ja for Apple Silicon
+        if: matrix.artifact == 'macOS-Apple-Silicon'
+        run: bash scripts/stage-haas-mac.sh
       - run: npm run build
       - name: Build unsigned beta package
         env:
@@ -149,7 +159,12 @@ jobs:
         if: runner.os == 'macOS'
         env:
           MAC_APP: ${{ matrix.mac_app }}
-        run: node scripts/verify-mac-package.cjs "$MAC_APP"
+        run: |
+          node scripts/verify-mac-package.cjs "$MAC_APP"
+          node scripts/verify-mac-companion.cjs "$MAC_APP"
+          if [[ "${{ matrix.artifact }}" == macOS-Apple-Silicon ]]; then
+            bash scripts/verify-bundled-haas-mac.sh "$MAC_APP"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.artifact }}
@@ -169,7 +184,7 @@ jobs:
         with:
           path: beta
           merge-multiple: true
-      - name: Publish prerelease
+      - name: Prepare prerelease draft
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -178,7 +193,7 @@ jobs:
             mv "$file" "${file// /.}"
           done
           cd ..
-          node scripts/verify-release-assets.mjs beta "${GITHUB_REF_NAME}" "${GITHUB_SHA}" \
+          node scripts/verify-release-assets.mjs beta "${GITHUB_REF_NAME}" "$(git rev-parse HEAD)" \
             "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           VERSION="${GITHUB_REF_NAME#beta-v}"
           if test -f "docs/releases/${VERSION}.md"; then
@@ -190,18 +205,15 @@ jobs:
           Verify downloads with \`SHA256SUMS.txt\`. These packages are not code-signed, so the operating system will show a security warning. Report results through the repository issue forms.
           EOF
           fi
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
-            -f tag_name="${GITHUB_REF_NAME}" --jq .body > generated-notes.md
-          printf '\n## Changes\n\n' >> beta-notes.md
-          cat generated-notes.md >> beta-notes.md
-          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+          if DRAFT=$(gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq .isDraft); then
+            test "$DRAFT" = true || { echo 'The prerelease has already been published.' >&2; exit 1; }
             gh release upload "${GITHUB_REF_NAME}" beta/* --repo "${GITHUB_REPOSITORY}" --clobber
             gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" \
               --prerelease --notes-file beta-notes.md
           else
             gh release create "${GITHUB_REF_NAME}" beta/* \
               --repo "${GITHUB_REPOSITORY}" \
-              --prerelease \
+              --verify-tag --draft --prerelease \
               --title "VocaLume ${VERSION} — Public Beta" \
               --notes-file beta-notes.md
           fi

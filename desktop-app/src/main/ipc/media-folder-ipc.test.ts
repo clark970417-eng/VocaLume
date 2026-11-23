@@ -30,9 +30,10 @@ it('notifies the owning window of real folder changes and rejects a revision cha
     expect(files).toHaveLength(1)
     expect(files[0]).toMatchObject({ path, name: 'voice.wav' })
     await writeFile(path, 'longer synthetic file')
-    ctx.pipeline = { running: true } as AppContext['pipeline']
+    ctx.pipeline = Object.assign(new EventEmitter(), { running: true }) as unknown as AppContext['pipeline']
+    ctx.pipelineInputOwner = 'file'
     liveWork(ctx).beginMediaSession()
-    await expect(handler('process-media-file')({ sender: owner }, path, 'test', files[0].revision))
+    await expect(handler('process-media-file')({ sender: owner }, path, 'test', false, files[0].revision))
       .rejects.toThrow('watched file changed')
     owner.emit('destroyed')
     expect(await scan({ sender: owner })).toBeNull()

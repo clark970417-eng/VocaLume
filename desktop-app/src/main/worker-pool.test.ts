@@ -122,7 +122,7 @@ it('cancels a timed out inference and keeps the next request blocked until ackno
   await vi.advanceTimersByTimeAsync(0)
   const id=worker.messages.find(m=>m.type==='translate')!.id
   const second=pool.sendRequest({type:'translate'},'translate',{modelPath:'a'})
-  await vi.advanceTimersByTimeAsync(30_000)
+  await vi.advanceTimersByTimeAsync(process.platform === 'win32' ? 60_000 : 30_000)
   expect(worker.messages.some(m=>m.type==='cancel' && m.id===id)).toBe(true)
   expect(worker.messages.filter(m=>m.type==='translate')).toHaveLength(1)
   worker.hold=false

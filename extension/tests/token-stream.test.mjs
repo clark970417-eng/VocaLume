@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import {CaptionTokenStream} from '../token-stream.mjs';
 import {Agreement,DecodeQueue} from '../streaming.mjs';
 test('Japanese tokens emit before end, skip prompt, throttle and avoid broken characters',()=>{
- let clock=0;const output=[];
- const tokenizer={decode:tokens=>tokens.map(n=>({1:'こんに',2:'ちは',3:'、皆',4:'さん',5:'\ufffd'})[n]).join('')};
+ let clock=0,decodes=0;const output=[];
+ const tokenizer={decode:tokens=>{decodes++;return tokens.map(n=>({1:'こんに',2:'ちは',3:'、皆',4:'さん',5:'\ufffd'})[n]).join('');}};
  const s=new CaptionTokenStream(tokenizer,t=>output.push(t),()=>clock);
  s.put([[999]]);s.put([[1]]);assert.equal(output.length,0);
  s.put([[2]]);assert.deepEqual(output,['こんにちは']);
- s.put([[3]]);assert.equal(output.length,1);
+ s.put([[3]]);assert.equal(output.length,1);assert.equal(decodes,2);
  clock=301;s.put([[4]]);assert.equal(output.at(-1),'こんにちは、皆さん');
  s.put([[5]]);s.end();assert.equal(output.length,2);
 });

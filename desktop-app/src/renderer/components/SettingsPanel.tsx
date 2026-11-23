@@ -21,7 +21,6 @@ import {
   TranslatorSettings,
   SubtitleSettings,
   TTSSettings,
-  VirtualMicSettings,
   SessionControls,
   UpdateStatus,
   SupportSettings,
@@ -49,7 +48,7 @@ function SettingsPanel(): React.JSX.Element {
   const [gerEnabled, setGerEnabled] = useState(false)
   useEffect(() => { window.api.getSettings().then(v => setGerEnabled(!!v.gerEnabled)) }, [])
   const disabled = s.isRunning || s.isStarting
-  const { mediaJobId, translatePath, cancelMediaFile, watchFolder, toggleWatchFolder } =
+  const { mediaJobId, translatePath, cancelMediaFile, watchFolder, toggleWatchFolder, rows, editCue, reviewFile, setReviewFile } =
     useFileTranslation({ disabled, handleStart: s.handleStart, handleStop: s.handleStop, setStatus: s.setStatus })
 
   const [showOnboarding, setShowOnboarding] = useState(false)
@@ -99,6 +98,24 @@ function SettingsPanel(): React.JSX.Element {
     )
   }
 
+  const captionModeControl = (
+    <>
+          {(s.platform === 'win32' || s.platform === 'darwin') && (
+            <label>
+              {t('字幕顯示')}{' '}
+              <select value={s.captionMode} onChange={event => {
+                const mode = event.target.value === 'record' ? 'record' : 'realtime'
+                s.setCaptionMode(mode)
+                s.pushSubtitleSettings({ captionMode: mode })
+              }}>
+                <option value="realtime">{t('單組字幕 · 等待完整譯文')}</option>
+                <option value="record">{t('四組字幕 · 保留完整記錄')}</option>
+              </select>
+            </label>
+          )}
+    </>
+  )
+
   return (
     <div className="settings-shell">
       <header className="settings-header">
@@ -122,6 +139,7 @@ function SettingsPanel(): React.JSX.Element {
 
         <section id="settings-panel-translate" role="tabpanel" aria-labelledby="settings-tab-translate" tabIndex={0} hidden={selectedTab !== 'translate'}>
           <h2>{t("What would you like to translate?")}</h2>
+          {captionModeControl}
           <LanguageSettings
             sourceLanguage={s.sourceLanguage}
             onSourceLanguageChange={s.setSourceLanguage}
@@ -131,6 +149,7 @@ function SettingsPanel(): React.JSX.Element {
           />
 
       <AudioSettings
+        showLevel={selectedTab === 'translate'}
         audio={s.audio}
         disabled={disabled}
         noiseSuppressionEnabled={s.noiseSuppression.enabled}
@@ -160,11 +179,16 @@ function SettingsPanel(): React.JSX.Element {
             onToggleWatchFolder={toggleWatchFolder}
             onTranslateFile={file => translatePath(window.api.getPathForFile(file), file.name)}
             onCancel={cancelMediaFile}
+            rows={rows}
+            onEditCue={editCue}
+            review={reviewFile}
+            onReview={setReviewFile}
           />}
         </section>
         <section id="settings-panel-subtitles" role="tabpanel" aria-labelledby="settings-tab-subtitles" tabIndex={0} hidden={selectedTab !== 'subtitles'}>
           {visited.subtitles && <>
             <h2>{t("Subtitles & OBS")}</h2>
+          {captionModeControl}
           <SubtitleSettings
             fontSize={s.subtitleFontSize}
             onFontSizeChange={(v) => { s.setSubtitleFontSize(v); s.pushSubtitleSettings({ fontSize: v }) }}
@@ -176,6 +200,9 @@ function SettingsPanel(): React.JSX.Element {
             onBgOpacityChange={(v) => { s.setSubtitleBgOpacity(v); s.pushSubtitleSettings({ backgroundOpacity: v }) }}
             position={s.subtitlePosition}
             onPositionChange={(v) => { s.setSubtitlePosition(v); s.pushSubtitleSettings({ position: v }) }}
+            lowPowerRendering={s.lowPowerRendering}
+            onLowPowerRenderingChange={(v) => { s.setLowPowerRendering(v); s.pushSubtitleSettings({ lowPowerRendering: v }) }}
+            supportsHideOnHover={s.platform === 'win32' || s.platform === 'darwin'}
             hideOnHover={s.hideOnHover}
             onHideOnHoverChange={(v) => { s.setHideOnHover(v); s.pushSubtitleSettings({ hideOnHover: v }) }}
             showConfidenceIndicator={s.showConfidenceIndicator}
@@ -289,7 +316,8 @@ function SettingsPanel(): React.JSX.Element {
           <SpeakerSettings
             speakerDiarizationEnabled={s.speakerDiarizationEnabled}
             onSpeakerDiarizationEnabledChange={s.setSpeakerDiarizationEnabled}
-            available={Boolean(s.macEngines?.speakerIdentification)}
+            available={s.platform === 'win32' || Boolean(s.macEngines?.speakerIdentification)}
+            platform={s.platform}
             disabled={disabled}
           />
 
@@ -301,7 +329,7 @@ function SettingsPanel(): React.JSX.Element {
             <h2>{t("More settings")}</h2>
             <details className="settings-disclosure"><summary>{t("Copyright & use")}</summary><p>© 2026 Clark · VocaLume</p><p>{t("Free for noncommercial use. Commercial use and resale require permission. Derivative versions must credit VocaLume in their README and About interface. Third-party licenses remain unchanged.")}</p><a href="https://github.com/clark970417-eng/VocaLume/blob/main/LICENSE" target="_blank" rel="noreferrer">{t("License")} ↗</a></details>
             <details className="settings-disclosure"><summary>{t("Tone & laughter")}</summary><SpeechToneSettings /></details>
-            <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} /><VirtualMicSettings disabled={disabled} /></details>
+            {s.platform && <details className="settings-disclosure"><summary>{t("Voice playback & virtual microphone")}</summary><TTSSettings disabled={disabled} platform={s.platform} /></details>}
             <details className="settings-disclosure"><summary>{t("Saved sessions & summaries")}</summary>
       <SessionControls view="history"
         isRunning={s.isRunning}

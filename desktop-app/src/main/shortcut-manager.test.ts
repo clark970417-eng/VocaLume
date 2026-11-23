@@ -36,6 +36,7 @@ vi.mock('./logger', () => ({
     debug: vi.fn()
   })
 }))
+vi.mock('./ipc/display-ipc', () => ({ toggleSubtitleEditMode: vi.fn() }))
 
 describe('shortcut-manager', () => {
   beforeEach(() => {

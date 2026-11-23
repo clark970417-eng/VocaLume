@@ -1,5 +1,6 @@
 import * as youtubeGlossary from '../youtube-glossary.mjs';
 import * as cloudApi from '../cloud-api.mjs';
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {RecordingQueue} from '../recording-queue.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,7 +8,7 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import {CueCursor} from '../cue-cursor.mjs';
 import {ResultGate} from '../stream-core.mjs';
-import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from '../translation-policy.mjs';
+import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,translateFormatted,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from '../translation-policy.mjs';
 test('slow translation still publishes paired captions; queue coalesces and stop aborts',async()=>{
  let listener,session;const requests=[];
  const chrome={storage:{local:{set:async()=>{},get:async()=>({subtitleSettings:{captionMode:'realtime'}})}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start')session=m.session;return{ok:true};}}};

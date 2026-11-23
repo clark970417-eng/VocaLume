@@ -13,7 +13,11 @@
    root.addEventListener('pointerdown',e=>this.begin(e));
    root.addEventListener('click',e=>e.stopPropagation());
    root.addEventListener('dblclick',e=>e.stopPropagation());
-   chrome.storage.local.get(['subtitleSettings','captionStyleV34',key]).then(s=>{let prefs=s.subtitleSettings||{};if(!s.captionStyleV34){prefs={...prefs,fontSize:22,japaneseColor:'#ffffff',chineseColor:'#ffffff',outlineWidth:1,backgroundColor:'#000000',backgroundOpacity:60};chrome.storage.local.set({subtitleSettings:prefs,captionStyleV34:true});}this.apply(prefs);if(s[key])this.place(s[key]);});
+   chrome.storage.local.get(['subtitleSettings','captionStyleV34',key]).then(s=>{if(this.disposed)return;let prefs=s.subtitleSettings||{};if(!s.captionStyleV34){prefs={...prefs,fontSize:22,japaneseColor:'#ffffff',chineseColor:'#ffffff',outlineWidth:1,backgroundColor:'#000000',backgroundOpacity:60};chrome.storage.local.set({subtitleSettings:prefs,captionStyleV34:true});}this.apply(prefs);if(s[key])this.place(s[key]);});
+  }
+  dispose(){
+   this.disposed=true;
+   this.stopPointerTracking();
   }
   place(rect){const r=this.root;r.style.left=(rect.x*100)+'%';r.style.top=(rect.y*100)+'%';r.style.width=(rect.w*100)+'%';r.style.height=(rect.h*100)+'%';r.style.right='auto';r.style.bottom='auto';r.style.transform='none';this.pointerTracking?.refresh();}
   apply(raw={}){const s={fontSize:22,captionOpacity:100,showOutline:true,outlineColor:'#000000',backgroundColor:'#000000',backgroundOpacity:60,japaneseColor:'#ffffff',chineseColor:'#ffffff',outlineWidth:1,...raw};const width=Math.max(0,Number(s.outlineWidth)||0),outline=s.showOutline===true&&width>0,color=/^#[0-9a-f]{6}$/i.test(s.outlineColor)?s.outlineColor:'#000000';this.root.classList?.toggle?.('jtl-has-outline',outline);this.root.style.setProperty('opacity',String(Math.max(0,Math.min(100,Number(s.captionOpacity)))/100));this.root.style.setProperty('--jtl-size',s.fontSize+'px');this.root.style.setProperty('--jtl-ja',s.japaneseColor);this.root.style.setProperty('--jtl-zh',s.chineseColor);this.root.style.setProperty('--jtl-outline',outline?width+'px':'0px');this.root.style.setProperty('--jtl-stroke',outline?'.4px':'0px');this.root.style.setProperty('--jtl-outline-color',outline?color:'transparent');const hex=/^#[0-9a-f]{6}$/i.test(s.backgroundColor)?s.backgroundColor:'#000000';const rgb=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));this.root.style.setProperty('--jtl-bg',`rgba(${rgb.join(',')},${Math.max(0,Math.min(100,Number(s.backgroundOpacity)))/100})`);

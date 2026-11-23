@@ -12,6 +12,11 @@ const appArchitectures = execFileSync('lipo', ['-archs', executable], { encoding
 const arch = { arm64: 'arm64', x86_64: 'x64' }[appArchitectures]
 assert(arch, `Expected a single supported Mac architecture, received ${appArchitectures}`)
 const resources = path.join(app, 'Contents/Resources')
+for (const name of ['voice-tone-helper', 'capture-claim-helper']) {
+  const helper = path.join(resources, 'bridge-scripts/bin', name)
+  const architectures = execFileSync('lipo', ['-archs', helper], { encoding: 'utf8' }).trim()
+  assert.equal(architectures, appArchitectures, `Mismatched helper architecture: ${name}`)
+}
 const archive = path.join(resources, 'app.asar')
 const entries = asar.listPackage(archive)
 const provenance = verifyBuild(path.dirname(build))
@@ -63,8 +68,7 @@ const ffmpeg = path.join(nodeModules, 'ffmpeg-static/ffmpeg')
 const bridgeBin = path.join(resources, 'bridge-scripts/bin')
 const diarizer = path.join(bridgeBin, 'fluid-audio-bridge')
 assert.equal(fs.existsSync(diarizer), arch === 'arm64', 'FluidAudio must only ship with the Apple Silicon package')
-for (const binary of [ortBinding, addon, ffmpeg, path.join(bridgeBin, 'voice-tone-helper'),
-  ...(arch === 'arm64' ? [diarizer] : [])]) {
+for (const binary of [ortBinding, addon, ffmpeg, ...(arch === 'arm64' ? [diarizer] : [])]) {
   const architectures = execFileSync('lipo', ['-archs', binary], { encoding: 'utf8' }).trim().split(/\s+/)
   assert(architectures.includes(appArchitectures), `Native architecture mismatch: ${binary} (${architectures.join(', ')})`)
 }
