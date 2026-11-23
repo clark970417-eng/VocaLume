@@ -99,7 +99,15 @@ describe('mobile companion', () => {
       stopMobileCompanion()
       expect(getMobileCompanionStatus()).toBeNull()
       const restarted = await startMobileCompanion(async () => 'unused')
-      expect((await fetch(new URL('events', restarted.url), { headers: auth(token) })).status).toBe(401)
+      // A restarted companion can reuse the same port. Check it over a fresh
+      // socket so a pooled connection to the just-stopped server is never reused.
+      const restartedStatus = await new Promise<number | undefined>((resolve, reject) => {
+        get(new URL('events', restarted.url), { headers: auth(token), agent: false }, response => {
+          response.resume()
+          resolve(response.statusCode)
+        }).on('error', reject)
+      })
+      expect(restartedStatus).toBe(401)
     } finally {
       controller.abort()
     }
