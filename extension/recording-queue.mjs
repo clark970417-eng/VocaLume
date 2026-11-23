@@ -198,8 +198,8 @@ export class RecordingQueue {
     if(!entry||entry.state!=='pending')continue;
     this.changeState(entry,'working');this.onChange();
     let timer;
-    try{entry.translated=await Promise.race([this.translate(entry.original,entry),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('翻譯逾時，可重試')),this.timeoutMs);})]);entry.state='done';delete entry.error;}
-    catch(error){entry.state='failed';entry.error=String(error.message||error);}
+    try{entry.translated=await Promise.race([this.translate(entry.original,entry),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('翻譯逾時，可重試')),this.timeoutMs);})]);delete entry.error;this.changeState(entry,'done');}
+    catch(error){entry.error=String(error.message||error);this.changeState(entry,'failed');}
     finally{clearTimeout(timer);}
     try{await this.persist([entry]);this.compact(entry);}catch(error){this.onError(error);break;}
     this.onChange();

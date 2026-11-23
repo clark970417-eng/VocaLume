@@ -1,3 +1,5 @@
+import * as taiwanChinese from '../taiwan-chinese.mjs';
+import * as youtubeGlossary from '../youtube-glossary.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -32,7 +34,7 @@ function setup(speechMode, respond, lifecycle={}) {
   close(){this.port=null;nativeClosed++;}
  }
  const source=readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloud,...policy,...taiwan,NativeClient,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,
+ vm.runInNewContext(source,{...cloud,...youtubeGlossary,...policy,...taiwan,NativeClient,RecordingQueue,ResultGate,CueCursor,NativeCueTimeline,
   chrome,AbortSignal,AbortController,URLSearchParams,Date,console,setTimeout:captureTimer,clearTimeout:timer=>timers.delete(timer),
   fetch:async()=>{requests++;return {ok:true,json:async()=>[[['明天的廣播將於晚上9點開始。']]]};}});
  return {

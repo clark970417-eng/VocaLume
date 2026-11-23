@@ -15,7 +15,7 @@ test('identical ASR does not extend expiry; later utterance can repeat; native e
  const chrome={storage:{local:{set:async()=>{},get:async()=>({subtitleSettings:{holdSeconds:3,captionMode:'realtime'}})}},tabs:{sendMessage:async(id,m)=>updates.push(m),onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start')session=m.session;return{ok:true};}}};
  const fetch=()=>new Promise(resolve=>finish=()=>resolve({ok:true,json:async()=>[[['今天的天氣']]]}));
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,...youtubeGlossary,RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock,console,fetch});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,...youtubeGlossary,RecordingQueue,chrome,ResultGate,CueCursor,...policy,URLSearchParams,AbortSignal,AbortController,Date:Clock,console,fetch});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));const flush=()=>new Promise(r=>setTimeout(r,0));
  const say=id=>listener({type:'speech-result',session,id,text:'こんにちは'},{url:'chrome-extension://test/offscreen.html'},()=>{});
  const current=async()=> (await call({type:'subtitles'},{tab:{id:7}})).text.items;
@@ -49,7 +49,7 @@ test('browser token drafts do not compete with finals, including an identical pr
   signal.addEventListener('abort',()=>reject(signal.reason),{once:true});
  });
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloudApi,...taiwanChinese,RecordingQueue,chrome,ResultGate,CueCursor,NativeCueTimeline,
+ vm.runInNewContext(source,{...cloudApi,...youtubeGlossary,...taiwanChinese,RecordingQueue,chrome,ResultGate,CueCursor,
   ...policy,URLSearchParams,AbortSignal:signalTools,AbortController,Date,console,fetch});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  const tick=()=>new Promise(resolve=>setImmediate(resolve));

@@ -6,7 +6,7 @@ import fs from 'node:fs';
 /** Live chat and comment translation with a recyclable node, as a virtualized
  * list gives us: the same element object is reused for a different message. */
 function setup(semanticOnly=false,titleConfig=null){
- const chat=[], requests=[], rendered=[], intervals=new Map(), selectors=[], events={}, listeners=[]; let change, navigate;
+ const chat=[], requests=[], statusRequests=[], rendered=[], intervals=new Map(), selectors=[], events={}, listeners=[]; let change, navigate;
  let now=Date.now(), nativeText='';
  const video={tagName:'VIDEO',paused:false,seeking:false};
  const makeLine=()=>({className:'',textContent:'',dataset:{},children:[],isConnected:false,
@@ -44,17 +44,18 @@ function setup(semanticOnly=false,titleConfig=null){
  const window={location};window.top=window;
  const chrome={storage:{local:{get:()=>Promise.resolve({websiteTextOptInEnabled:true})},
    onChanged:{addListener:f=>change=f}},
-  runtime:{onMessage:{addListener:f=>listeners.push(f)},sendMessage:(message,reply)=>requests.push({message,reply})}};
+  runtime:{onMessage:{addListener:f=>listeners.push(f)},sendMessage:(message,reply)=>(message.type==='subtitles'?statusRequests:requests).push({message,reply})}};
  let scan;
  const root={nodeType:1,isConnected:true,closest:()=>null,matches:()=>false,querySelectorAll:document.querySelectorAll};
  vm.runInNewContext(['translation-guards.js','dom-changes.js','content.js'].map(file=>fs.readFileSync(new URL(`../${file}`,import.meta.url),'utf8')).join('\n'),
-  {chrome,window,location,document,Date:{now:()=>now},MutationObserver:class{constructor(fn){scan=fn;}observe(){}},
+  {chrome,window,location,document,Date:{now:()=>now},MutationObserver:class{constructor(fn){scan=fn;}observe(){}disconnect(){}},
    setInterval(fn,delay){intervals.set(delay,fn);return delay;},clearInterval(id){intervals.delete(id);},setTimeout(fn,delay){if(delay===250)fn();return 0;},clearTimeout(){},console});
- return {chat,title,requests,makeNode,selectors,intervals,mutate:records=>scan(records),
+ return {chat,title,requests,statusRequests,makeNode,selectors,intervals,mutate:records=>scan(records),
   scan:()=>scan([{type:'childList',target:root,addedNodes:[root],removedNodes:[]}]),navigate:href=>{if(href)window.location.href=href;navigate?.();},runtime:chrome.runtime,
   rendered,poll:()=>events.visibilitychange(),
   changeVideo(id){location.searchParams.set('v',id);},
-  push:(item,running,nativeRevision)=>listeners.forEach(receive=>receive({type:'subtitle-update',item,running,nativeRevision},{})),
+  push:(item,running,revisionOrNative)=>listeners.forEach(receive=>receive({type:'subtitle-update',item,running,
+   ...(typeof revisionOrNative==='boolean'?{nativeCaptions:revisionOrNative}:{nativeRevision:revisionOrNative})},{})),
   seek(seeking){video.seeking=seeking;events[seeking?'seeking':'seeked']?.({target:video});},
   native(text,time,isPaused=false){nativeText=text;now+=time;video.paused=isPaused;intervals.get(350)?.();},
   toggle:v=>change({websiteTextOptInEnabled:{newValue:v}},'local')};
@@ -210,16 +211,15 @@ test('YouTube native cue timing reaches the caption worker and clears once on pa
  const t=setup();await settle();
  assert.equal(t.intervals.size,0);
  t.push(null,true);
- assert.deepEqual([...t.intervals.keys()],[350]);
+ assert.ok(t.intervals.has(350));
  t.native('配信ありがとう',0);
+ t.native('配信ありがとう',350);
  t.native('配信ありがとう',350);
  t.native('またね',350);
  t.native('またね',350,true);
  t.native('またね',350,true);
- assert.deepEqual(t.requests.map(entry=>entry.message.cue?.text),['配信ありがとう','配信ありがとう','またね',undefined]);
- const [first,second]=t.requests.map(entry=>entry.message.cue);
- assert.equal(first.startAt,second.startAt);
- assert.equal(second.observedAt-first.observedAt,350);
+ assert.deepEqual(t.requests.map(entry=>entry.message.text),['配信ありがとう','配信ありがとう','またね','']);
+ assert.equal(t.requests.every(entry=>entry.message.rolling),true);
  t.push(null,false);
  assert.equal(t.intervals.size,0);
 });
@@ -227,7 +227,7 @@ test('YouTube native cue timing reaches the caption worker and clears once on pa
 test('YouTube shared capture disables local native cue work',async()=>{
  const t=setup();await settle();
  t.push(null,true,false);
- assert.equal(t.intervals.size,0);
+ assert.equal(t.intervals.has(350),false);
  t.native('配信ありがとう',350);
  assert.equal(t.requests.length,0);
 });
@@ -281,7 +281,7 @@ test('a new content document resets an old running capture before rendering its 
  const t=setup();await settle();
  const old={id:1,original:'前の動画です',translated:'上一部影片',expiresAt:Date.now()/1000+30};
  t.poll();
- t.requests[0].reply({ok:true,text:{running:true,nativeRevision:3,items:[old]}});
+ t.statusRequests[0].reply({ok:true,text:{running:true,nativeRevision:3,items:[old]}});
  await settle();
  assert.equal(t.rendered.at(-1).length,0);
  const reset=t.requests.at(-1);

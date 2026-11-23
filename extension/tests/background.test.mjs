@@ -1,3 +1,4 @@
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {NativeCueTimeline} from '../youtube-cue.mjs';
 import * as cloudApi from '../cloud-api.mjs';
 import * as youtubeGlossary from '../youtube-glossary.mjs';
@@ -8,13 +9,13 @@ import vm from 'node:vm';
 import fs from 'node:fs';
 import {CueCursor} from '../cue-cursor.mjs';
 import {ResultGate} from '../stream-core.mjs';
-import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from '../translation-policy.mjs';
+import {phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,normalizeLivestreamChat,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames} from '../translation-policy.mjs';
 test('capture messages require active session and correct offscreen sender; stop clears subtitles',async()=>{
  let listener,session;const updates=[];
  let captionInput='auto',audioStarts=0;
  const chrome={storage:{local:{get:async()=>({subtitleSettings:{captionMode:'realtime',captionInput}}),set:async()=>{}}},tabs:{get:async()=>({url:'https://www.youtube.com/watch?v=test'}),sendMessage:async(id,m)=>updates.push(m),onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=> 'stream'},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{if(m.type==='offscreen-start'){session=m.session;audioStarts++;}return{ok:true};}}};
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,...youtubeGlossary,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console,fetch:async()=>({ok:true,json:async()=>([[['大家好','こんにちは']]])})});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,...youtubeGlossary,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,normalizeLivestreamChat,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console,fetch:async()=>({ok:true,json:async()=>([[['大家好','こんにちは']]])})});
  const call=(m,s={})=>new Promise(resolve=>listener(m,s,resolve));
  await call({type:'subtitle-control',action:'start',tabId:7});
  assert.equal(updates.at(-1).running,true);
@@ -61,7 +62,7 @@ test('failed capture startup cleans up and exposes an actionable error, then can
  let listener,fail=true;const stopped=[];
  const chrome={storage:{local:{get:async()=>({subtitleSettings:{captionMode:'realtime'}}),set:async()=>{}}},tabs:{sendMessage:async()=>{},onRemoved:{addListener(){}}},offscreen:{hasDocument:async()=>true},tabCapture:{getMediaStreamId:async()=>{if(fail)throw Error('Extension has not been invoked (activeTab)');return 'stream';}},runtime:{getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:f=>listener=f},sendMessage:async m=>{stopped.push(m.type);return{ok:true};}}};
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,...youtubeGlossary,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,...youtubeGlossary,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,normalizeLivestreamChat,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console});
  const call=m=>new Promise(resolve=>listener(m,{},resolve));
  const failure=await call({type:'subtitle-control',action:'start',tabId:7});
  assert.equal(failure.ok,false);assert.match(failure.error,/影片分頁/);
@@ -78,7 +79,7 @@ test('frequent chat cheers bypass both desktop inference and network translation
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop'}),set:async()=>{}}},tabs:{onRemoved:{addListener(){}}},runtime:{onMessage:{addListener:f=>listener=f}}};
  class NativeClient{request(){inference++;throw Error('Unexpected inference');}}
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,...youtubeGlossary,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console,fetch:async()=>{network++;throw Error('Unexpected network');}});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,...youtubeGlossary,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,normalizeLivestreamChat,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console,fetch:async()=>{network++;throw Error('Unexpected network');}});
  const replies=await Promise.all(Array.from({length:40},(_,i)=>new Promise(resolve=>listener({type:'translate',text:['ないすー','頑張れー！','ファイト','おしい'][i%4],direction:'ja-zh'}, {},resolve))));
  assert(replies.every(r=>r.ok));assert.deepEqual([...new Set(replies.map(r=>r.text))],['漂亮！','加油！','可惜了！']);
  const greetings=await Promise.all(['こんまほ','Konmaho','おつかの～','おつぺこ','こんこよ'].map(text=>new Promise(resolve=>listener({type:'translate',text,direction:'ja-zh'},{},resolve))));
@@ -92,7 +93,7 @@ test('live desktop captions keep ordinary chat on the selected local HY-MT path'
  class NativeClient{request(op){nativeOps.push(op);return Promise.resolve(op==='translate'?{text:'這是一般聊天訊息'}:{model:'local'});}}
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
  const fetch=async()=>{network++;return {ok:true,json:async()=>[[['這是一般聊天訊息']]]};};
- vm.runInNewContext(src,{...cloudApi,...youtubeGlossary,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console,fetch});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,...youtubeGlossary,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,normalizeLivestreamChat,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console,fetch});
  const call=m=>new Promise(resolve=>listener(m,{},resolve));
  assert.equal((await call({type:'subtitle-control',action:'start',tabId:7})).ok,true);
  const translated=await call({type:'translate',text:'これは普通のチャットメッセージです',direction:'ja-zh'});
@@ -107,7 +108,7 @@ test('multi-line chat translates at most two chunks concurrently and rejoins the
  const chrome={storage:{local:{get:async()=>({speechMode:'desktop'}),set:async()=>{}}},tabs:{onRemoved:{addListener(){}}},runtime:{onMessage:{addListener:f=>listener=f}}};
  class NativeClient{request(op,{text}){assert.equal(op,'translate');return new Promise(resolve=>pending.push({text,resolve}));}}
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,...youtubeGlossary,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,...youtubeGlossary,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,normalizeLivestreamChat,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console});
  const reply=new Promise(resolve=>listener({type:'translate',text:'最初の行です\n二番目の行です\n最後の行です',direction:'ja-zh'}, {},resolve));
  for(let i=0;i<20;i++)await Promise.resolve();
  assert.deepEqual(pending.map(item=>item.text),['最初の行です','二番目の行です']);
@@ -143,7 +144,7 @@ test('YouTube terms follow channel and direction and do not reuse outdated trans
   runtime:{onMessage:{addListener:fn=>listener=fn}},
  };
  const src=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(src,{...cloudApi,...youtubeGlossary,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console});
+ vm.runInNewContext(src,{...cloudApi,...taiwanChinese,...youtubeGlossary,NativeClient,RecordingQueue,chrome,ResultGate,CueCursor,phraseTranslation,viewerPrompt,chinesePrompt,validateTranslation,normalizeLivestreamChat,translateFormatted,splitTranslationText,TranslationMemo,firstTranslation,polishChinese,normalizeGreetingSource,gameTerminologyPrompt,protectNames,URLSearchParams,AbortSignal,AbortController,Date,console});
  const translate=(url,text,direction='ja-zh')=>new Promise(resolve=>listener({type:'translate',text,direction},{url,tab:{id:1,url}},resolve));
  owner=channelA;
  assert.equal((await translate('https://www.youtube.com/watch?v=a','今日カノが配信します')).text,'鹿乃今天有直播。');

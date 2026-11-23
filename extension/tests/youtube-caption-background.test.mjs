@@ -1,3 +1,6 @@
+import * as taiwanChinese from '../taiwan-chinese.mjs';
+import * as youtubeGlossary from '../youtube-glossary.mjs';
+import {translateFormatted} from '../translation-policy.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {test} from 'node:test';

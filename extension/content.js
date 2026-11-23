@@ -320,13 +320,13 @@ let lastSubtitleKey = "", subtitleExpiryTimer;
 let pollEpoch=0;
 let polling=false,pollTimer,nativeTimer;
 let lastNativeCaption = "", nativeNotifiedAt=0, captionRunning=false;
-let activeCaptionInput='auto';
+let activeCaptionInput='auto', nativeCaptionsAllowed=true;
 let nativeRevision=0, nativeResetPending=false, nativeNavigating=false;
 let nativePlayerVideo=null, nativeVideoKey='', blockedNativeCaption='', nativeChannelAttempted=false;
 let subtitleVisible=false;
 function updateNativeVisibility() {
  const language=languageSettings.speechSource||'ja';
- const hide=subtitleVisible&&Boolean(lastNativeCaption)&&activeCaptionInput!=='audio'&&
+ const hide=nativeCaptionsAllowed&&subtitleVisible&&Boolean(lastNativeCaption)&&activeCaptionInput!=='audio'&&
   (activeCaptionInput==='youtube'||matchesLanguage(lastNativeCaption,language));
  document.querySelector('#movie_player')?.classList.toggle('jtl-native-active',hide);
 }
@@ -354,7 +354,7 @@ function resetCaptionTimeline(){
  });
 }
 function readNativeCaption(){
- if(!captionRunning||nativeResetPending||nativeNavigating)return;
+ if(!captionRunning||!nativeCaptionsAllowed||nativeResetPending||nativeNavigating)return;
  const video=document.querySelector('#movie_player video');
  const videoKey=currentNativeVideoKey();
  if((video&&nativePlayerVideo&&nativePlayerVideo!==video)||(nativeVideoKey&&nativeVideoKey!==videoKey)){
@@ -387,17 +387,29 @@ function readNativeCaption(){
  updateNativeVisibility();
 }
 function setCaptionRunning(running,readImmediately=true){
- if(captionRunning===running)return;
+ if(captionRunning===running){
+  if(running)syncNativeCaptionPolling(readImmediately);
+  return;
+ }
  captionRunning=running;
  if(running){
-  if(readImmediately)readNativeCaption();
   pollTimer=setInterval(pollSubtitles,700);
-  nativeTimer=setInterval(readNativeCaption,350);
+  syncNativeCaptionPolling(readImmediately);
  }else{
-  clearInterval(pollTimer);clearInterval(nativeTimer);
+  clearInterval(pollTimer);clearInterval(nativeTimer);nativeTimer=undefined;
   lastNativeCaption='';nativeNotifiedAt=0;nativePlayerVideo=null;nativeVideoKey='';blockedNativeCaption='';nativeResetPending=false;nativeChannelAttempted=false;
   document.querySelector('#movie_player')?.classList.remove('jtl-native-active');
  }
+}
+function syncNativeCaptionPolling(readImmediately){
+ if(!nativeCaptionsAllowed||activeCaptionInput==='audio'){
+  clearInterval(nativeTimer);nativeTimer=undefined;
+  updateNativeVisibility();
+  return;
+ }
+ if(nativeTimer!==undefined)return;
+ if(readImmediately)readNativeCaption();
+ nativeTimer=setInterval(readNativeCaption,350);
 }
 function renderSubtitle(item) {
   if(item?.recordingRows){
@@ -441,6 +453,7 @@ async function pollSubtitles() {
     const data = await runtimeMessage({type: "subtitles"});
     if (epoch !== pollEpoch || !acceptSubtitleRevision(data,true)) return;
     activeCaptionInput=data.captionInput||'auto';
+    nativeCaptionsAllowed=data.nativeCaptions!==false;
     // A reloaded page can attach to capture still running in the same tab.
     // Invalidate captions from the old content document before displaying one.
     if(data.running&&!captionRunning&&data.items?.some(item=>item.original||item.recordingRows?.length)){
@@ -465,6 +478,7 @@ chrome.runtime.onMessage.addListener(message => {
   if (message.type === "subtitle-update" && window.top === window && acceptSubtitleRevision(message)) {
     pollEpoch++;
     activeCaptionInput=message.captionInput||'auto';
+    nativeCaptionsAllowed=message.nativeCaptions!==false;
     if (typeof message.running === 'boolean') setCaptionRunning(message.running);
     renderSubtitle(message.item);
   }

@@ -1,6 +1,6 @@
+import * as taiwanChinese from '../taiwan-chinese.mjs';
 import * as youtubeGlossary from '../youtube-glossary.mjs';
 import * as cloudApi from '../cloud-api.mjs';
-import * as taiwanChinese from '../taiwan-chinese.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -18,7 +18,7 @@ function setup(languageSettings={}, translateResult=fields=>fields.text.includes
   close(){}
  }
  const source=fs.readFileSync(new URL('../background.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(source,{...cloudApi,...youtubeGlossary,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch:async()=>{throw Error('offline');}});
+ vm.runInNewContext(source,{...cloudApi,...taiwanChinese,...youtubeGlossary,...policy,NativeClient,RecordingQueue,ResultGate,CueCursor,chrome,URLSearchParams,AbortSignal,AbortController,Date,console,setTimeout,clearTimeout,fetch:async()=>{throw Error('offline');}});
  return {requests,call:message=>new Promise(resolve=>listener(message,{},resolve))};
 }
 

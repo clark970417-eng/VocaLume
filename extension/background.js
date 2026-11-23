@@ -89,7 +89,7 @@ const fixedGlossaryTranslation = (text, glossary) => glossary.find(entry => entr
 
 function parseDirection(direction){const [from,to]=String(direction||'').split('-');if(!LANGUAGE_CODES.has(from)||!LANGUAGE_CODES.has(to)||from===to)throw new Error('不支援這組語言');return {from,to};}
 async function languageSettings(){const saved=(await chrome.storage.local.get('languageSettings')).languageSettings||{};return {...languageDefaults,...saved};}
-function checkedTranslation(value,direction,source,glossary){parseDirection(direction);return validateTranslation(value,direction,source,glossary);}
+function checkedTranslation(value,direction,source,glossary=[],liveCaption=false){parseDirection(direction);return validateTranslation(value,direction,source,glossary,liveCaption);}
 const deadline=(signal,ms)=>signal?AbortSignal.any([signal,AbortSignal.timeout(ms)]):AbortSignal.timeout(ms);
 function taiwanProviderOutput(text,direction,output,reference){
  if(!direction.endsWith('-zh')||typeof output!=='string')return output;
@@ -143,7 +143,7 @@ const textMemo=new TranslationMemo();
 const localTranslationMemo=new TranslationMemo();
 async function localTranslation(text,direction,timeout=60000,glossary=[],liveCaption=false){
  const configured=await settings(),style=configured.writingStyle||'general';
- const quality=direction==='zh-ja'&&configured.writingQuality==='quality'?'quality':'fast';
+ const quality=!liveCaption&&['zh-ja','ja-zh'].includes(direction)&&configured.writingQuality==='quality'?'quality':'fast';
  const terms=matchingYoutubeGlossary(text,glossary);
  const key=JSON.stringify([direction,style,quality,text.trim(),terms,liveCaption]);
  return localTranslationMemo.run(key,async()=>{
@@ -154,7 +154,7 @@ async function localTranslation(text,direction,timeout=60000,glossary=[],liveCap
   const request=async budget=>{
    const result=await desktop.request('translate',fields,budget);
    received=true;
-   const translated=checkedTranslation(protectedText.restore(result?.text),direction,text,terms);
+   const translated=checkedTranslation(protectedText.restore(taiwanProviderOutput(text,direction,result?.text)),direction,text,terms);
    if(!translated)throw new Error('翻譯回應為空');
    return translated;
   };
@@ -200,7 +200,7 @@ async function makeSingleDraft(text,direction,configured,glossary){
   const local=async timeout=>({draft:checkedTranslation(protectedText.restore(await localTranslation(protectedText.text,direction,timeout,terms)),direction,text,terms),mode:'本機翻譯草稿 · 請確認語氣'});
   if(configured.speechMode==='desktop'){try{return await local(60000);}catch(_error){/* Continue through independent fallbacks. */}}
   const publicDraft=async signal=>({draft:await freeTranslate(text,direction,signal,protectedText,terms),mode:'一般機翻：請確認措辭'});
-  const styledDraft=async signal=>({draft:await styledTranslation(text,direction,signal,configured,terms),mode:'自然語氣'});
+  const styledDraft=async signal=>({draft:await styledTranslation(text,direction,signal,configured,terms),mode:direction==='zh-ja'?(configured.writingStyle==='viewer'?'直播留言':configured.writingStyle==='polite'?'禮貌語氣':'自然語氣'):'自然語氣'});
   const hasLegacyProvider=Boolean(apiProfile(configured,'nvidia').apiKey||apiProfile(configured,'openrouter').apiKey);
   try{
    if(hasLegacyProvider&&direction==='ja-zh'&&configured.speechMode!=='desktop'){
@@ -316,7 +316,6 @@ const cueCursor=new CueCursor();
 let captionInput='auto';
 let nativeUntil=0, nativeText='', outputSequence=0, lastSpeechId=-1;
 let nativeRevision=0, nativeCaptionBuffer, nativeChannelId;
-let desktopAudioSession=false;
 let diagnostics={}, modelStatus='', controlBusy=false, controlAction='', translationPending=null, publishedId=-1;
 // Bounded, in-memory timing only; never retain the spoken text in diagnostics.
 let deliverySamples={};
@@ -358,7 +357,7 @@ function presentDesktopCaption(segment){
  },Math.max(0,hold-(Date.now()-desktopSettledAt)));
 }
 function cancelTranslations(){translationPending=null;publishedId=-1;for(const controller of captionRequests.values())controller.abort();captionRequests.clear();}
-async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),configured,glossary=[],liveCaption=true,reference){
+async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),configured,glossary=[],liveCaption=true,reference,final=false){
  const terms=matchingYoutubeGlossary(text,glossary);
  const phrase=fixedGlossaryTranslation(text,terms)??(!terms.length&&phraseTranslation(text,direction));if(phrase)return phrase;
  if(direction==='ja-zh'&&!terms.length)text=normalizeGreetingSource(text);
@@ -368,7 +367,14 @@ async function translateCaption(text,signal,direction=pair(speechFrom,speechTo),
  if(selectedApi(configured)!=='auto')return styledTranslation(text,direction,signal,configured,terms,reference);
  const primary=activeSignal=>freeTranslate(text,direction,activeSignal,protectNames(text,terms,terms),terms,reference);
  try{
-  if(!apiProfile(configured,'nvidia').apiKey&&!apiProfile(configured,'openrouter').apiKey)return await primary(deadline(signal,3000));
+  if(!apiProfile(configured,'nvidia').apiKey&&!apiProfile(configured,'openrouter').apiKey){
+   try{return await primary(deadline(signal,3000));}
+   catch(error){
+    signal?.throwIfAborted();
+    if(!final||coordinatedCapture||error.name!=='TimeoutError')throw error;
+    return await primary(deadline(signal,2000));
+   }
+  }
   return await firstTranslation(primary,s=>styledTranslation(text,direction,s,configured,terms,reference),deadline(signal,3000),400);
  }catch(networkError){
   signal?.throwIfAborted();
@@ -412,7 +418,7 @@ function desktopEvent(event){
  let translated=String(result.translated||'').trim(),error=result.error||'';
  const {sourceLanguage,targetLanguage}=meta;
  if(result.targetLanguage&&result.targetLanguage!==targetLanguage){translated='';error='翻譯語言不符';}
- if(translated){try{translated=checkedTranslation(translated,pair(sourceLanguage,targetLanguage),original,true);}catch(e){translated='';error=e.message;}}
+ if(translated){try{translated=checkedTranslation(translated,pair(sourceLanguage,targetLanguage),original,[],true);}catch(e){translated='';error=e.message;}}
  const previous=meta.caption;
  const revision=Number.isSafeInteger(result.revision)&&result.revision>=0 ? result.revision : null;
  if(result.correction&&revision!==null&&revision<=(meta.revision??0))return;
@@ -426,6 +432,7 @@ function desktopEvent(event){
   const completed=Date.now();meta.deliveryRecorded=true;
   recordDeliveryTime('endToTranslationMs',completed-meta.audioEndAt);
   if(meta.finalSourceAt)recordDeliveryTime('sourceToTranslationMs',completed-meta.finalSourceAt);
+  recordDeliveryTime('speechEndToTranslationMs',completed-meta.speechEndAt);
  }
  if(previous?.final&&!previous.translated&&translated&&desktopOrder[0]===event.segment){
   if(desktopAdvanceTimer!==null)clearTimeout(desktopAdvanceTimer);
@@ -506,7 +513,7 @@ function settleBrowserFinal(item,outcome){
  recordDeliveryTime('endToTranslationMs',completed-item.audioEndAt);
  recordDeliveryTime('speechEndToTranslationMs',completed-item.speechEndAt);
 }
-function pushSubtitle(item){if(captureTabId)chrome.tabs.sendMessage(captureTabId,{type:'subtitle-update',running,captionInput,nativeRevision,item}).catch(()=>{});}
+function pushSubtitle(item){if(captureTabId)chrome.tabs.sendMessage(captureTabId,{type:'subtitle-update',running,captionInput,nativeRevision,nativeCaptions:running&&captureRole!=='shared',item}).catch(()=>{});}
 function failCaptionTranslation(job,error){
  const {item,session}=job;
  if(gate.session!==session)return;
@@ -544,7 +551,7 @@ async function translateItem(job){
   const terms=matchingYoutubeGlossary(job.item.original,glossary);
   if(controller.signal.aborted)return;
   const key=apiCacheScope(configured)+`:${speechFrom}-${speechTo}:`+JSON.stringify([terms,job.item.original,job.reference]);
-  const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,undefined,configured,terms,true,job.reference);
+  const result=translationCache.get(key)||await translateCaption(job.item.original,controller.signal,undefined,configured,terms,true,job.reference,job.item.final);
   if(controller.signal.aborted)return;
   translationCache.set(key,result);if(translationCache.size>200)translationCache.delete(translationCache.keys().next().value);
   if(job.item.finalSourceAt){
@@ -623,6 +630,7 @@ function addTranscript(m){
  const item=gate.accept(m.session,++outputSequence,m.text);if(!item)return;
  if(reference)cueReferences.set(item,reference);
  item.source=m.source;item.speechId=m.id;item.final=Boolean(m.final);item.pending=item.final&&(m.source!=='native'||m.youtubeScope===true);item.expiresAt=Date.now()/1000+(item.pending?MAX_CAPTION_TRANSLATION_MS/1000:captionHold);item.provisional=Boolean(m.provisional);item.audioEndAt=m.audioEndAt;item.stableText=m.stableText||'';
+ markBrowserFinal(item,m);
  if(m.youtubeScope){item.youtubeScope=true;item.youtubeChannelId=m.youtubeChannelId;}
  if(!items[0]?.translated||!fresh(items[0])){items.length=0;items.push(item);pushSubtitle(item);}
  diagnostics.lastRecognition=Date.now();diagnostics.decodeMs=m.decodeMs;modelStatus='已辨識語音';
@@ -684,6 +692,8 @@ function acceptRollingNativeCaption(text,youtubeChannelId) {
 function stopCapture(){
  if(stopPromise)return stopPromise;
  stopPromise=(async()=>{
+  const role=captureRole,subscription=gate.session,wasCoordinated=coordinatedCapture;
+  captureRole=null;coordinatedCapture=false;sharedTimestamp=0;sharedRevisions.clear();pendingSharedEvents=[];
   if(captionMode==='record'){
    if(nativeText){const text=nativeText;nativeText='';emitNativeCaption(text,nativeChannelId);}
    for(const text of nativeCaptionBuffer?.flush()||[])emitNativeCaption(text,nativeChannelId);
@@ -694,11 +704,19 @@ function stopCapture(){
   running=false;items.length=0;translationPending=null;pushSubtitle(null);
   try{
    await chrome.storage.local.set({captionsHidden:true});
-   const response=captionInput==='youtube'?undefined:await chrome.runtime.sendMessage({type:'offscreen-stop',drain:!!drainingSession});
-   if(response?.ok===false)lastError=response.error||'部分字幕未完成，請檢查記錄';
-   if(desktopAudioSession)await desktop.request('stop',{},60000);
+   if(role==='desktop'||role==='browser'){
+    try {
+     const response=await chrome.runtime.sendMessage({type:'offscreen-stop',drain:!!drainingSession});
+     if(response?.ok===false)lastError=response.error||'部分字幕未完成，請檢查記錄';
+    }finally{
+     if(role==='desktop'&&desktopClient)await desktop.request('stop',{},60000);
+     else if(wasCoordinated&&desktopClient)await desktop.request('release-capture',{subscription,launch:false},4000);
+    }
+   }else if((role==='shared'||role==='negotiating')&&desktopClient){
+    await desktop.request('release-capture',{subscription,launch:false},4000);
+   }
   }catch(error){lastError='停止收音後的字幕未全部完成：'+error.message;}
-  finally{drainingSession=null;desktopAudioSession=false;gate.reset();modelStatus='已停止';}
+  finally{drainingSession=null;gate.reset();modelStatus='已停止';scheduleOffscreenIdle();scheduleNativeIdle();}
   return{running};
  })().finally(()=>{stopPromise=null;});
  return stopPromise;
@@ -748,23 +766,41 @@ async function browserCaptureClaim(fields){
 async function startCapture(tabId){
  if(!Number.isInteger(tabId))throw new Error('請先選擇影片分頁');
  if(running||captureTabId!==null||stopPromise)await stopCapture();
- const prefs=(await settings()).subtitleSettings;captionInput=['audio','youtube'].includes(prefs?.captionInput)?prefs.captionInput:'auto';setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record')await initRecording();captureTabId=tabId;diagnostics={};deliverySamples={};desktopPerformance=undefined;lastError='';
+ const prefs=(await settings()).subtitleSettings;captionInput=['audio','youtube'].includes(prefs?.captionInput)?prefs.captionInput:'auto';setHold(prefs?.holdSeconds);captionMode=prefs?.captionMode==='realtime'?'realtime':'record';if(captionMode==='record'){await initRecording();recording.beginSession(gate.session);}captureTabId=tabId;diagnostics={};deliverySamples={};desktopPerformance=undefined;lastError='';
  nativeRevision++;
  const configured=await settings(),langs={...languageDefaults,...(configured.languageSettings||{})};speechFrom=langs.speechSource;speechTo=langs.speechTarget;parseDirection(pair(speechFrom,speechTo));engineMode=configured.speechMode==='desktop'?'desktop':'browser';
  try{
  if(captionInput==='youtube'){
   const tab=await chrome.tabs.get(tabId);
   if(!/^https:\/\/www\.youtube\.com\//.test(tab.url||''))throw new Error('請在 YouTube 影片分頁使用 YouTube CC');
-  running=true;modelStatus='等待 YouTube CC 字幕';
+  captureRole='youtube';running=true;modelStatus='等待 YouTube CC 字幕';
   await chrome.storage.local.set({captionsHidden:false});
   pushSubtitle(captionMode==='record'?recordingItem():null);
   return {running};
  }
+ captureRole='negotiating';
+ const fields={subscription:gate.session,sourceLanguage:speechFrom,targetLanguage:speechTo};
+ let selected;
  if(engineMode==='desktop'){
-  desktopAudioSession=true;modelStatus='正在載入桌面模型，首次可能需要下載…';
-  const initial=await desktop.request('init',{sourceLanguage:speechFrom,targetLanguage:speechTo,speechToneMode:['off','natural','ww','笑','草'].includes(prefs?.speechToneMode)?prefs.speechToneMode:'off'},600000);
-  desktopPerformance=initial?.performance??desktopPerformance;
+  modelStatus='正在載入桌面模型，首次可能需要下載…';
+  selected=await negotiateCapture('init',{...fields,speechToneMode:['off','natural','ww','笑','草'].includes(prefs?.speechToneMode)?prefs.speechToneMode:'off'},600000);
+  desktopPerformance=selected?.performance??desktopPerformance;
+ }else selected=await browserCaptureClaim(fields);
+ if(selected?.role==='incompatible'){
+  throw new Error(selected.reason==='audio-source'?'桌面 App 正在使用其他音訊來源。請在 App 選系統音訊，或先停止桌面字幕。':'桌面 App 的字幕語言和 Chrome 設定不同。請選相同語言，或先停止桌面字幕。');
  }
+ if(selected?.role==='busy')throw new Error('另一個字幕工作已經開始。請先停止該工作，再啟動分頁字幕。');
+ if(selected?.role==='shared'){
+  if(selected.subscription!==gate.session)throw new Error('桌面字幕工作已變更，請重新開始');
+  captureRole='shared';engineMode='desktop';running=true;modelStatus='正在顯示 VocaLume 桌面字幕';
+  pushSubtitle(null);
+  const queued=pendingSharedEvents;pendingSharedEvents=[];
+  queued.forEach(sharedEvent);
+  await chrome.storage.local.set({captionsHidden:!running});
+  return {running,role:'shared'};
+ }
+ captureRole=engineMode;coordinatedCapture=engineMode==='browser'&&selected?.coordinated===true;
+ pendingSharedEvents=[];
  await ensureOffscreen();
  const streamId=await chrome.tabCapture.getMediaStreamId({targetTabId:tabId});
  running=true;modelStatus='正在擷取分頁聲音';
@@ -820,7 +856,7 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
   if(m.op==='decode'){
    diagnostics.captionPhase='recognizing';diagnostics.captionPhaseAt=m.speechAt;
    const previous=desktopSegments.get(segment);
-   desktopSegments.set(segment,{...previous,session:gate.session,mode:captionMode,group:segment,createdAt:m.speechAt,audioEndAt:m.audioEndAt,final:m.final,sourceLanguage:speechFrom,targetLanguage:speechTo});
+   desktopSegments.set(segment,{...previous,session:gate.session,mode:captionMode,group:segment,createdAt:m.speechAt,audioEndAt:m.audioEndAt,speechEndAt:m.speechEndAt,final:m.final,sourceLanguage:speechFrom,targetLanguage:speechTo});
    if(captionMode==='realtime'&&!desktopOrder.includes(segment)&&!desktopDelivered.has(segment))desktopOrder.push(segment);
    // Recording results can still arrive after seek or stop. Keep unresolved
    // segments across sessions so their eventual translations reach the journal.
@@ -878,8 +914,8 @@ chrome.runtime.onMessage.addListener((m,s,send)=>{
  else if(m.type==='recording-retry')task=initRecording().then(()=>recording.retry()).then(()=>({pending:recording.pending}));
  else if(m.type==='make-draft')task=youtubeGlossaryFromSender(s,m.direction).then(glossary=>makeDraft(m.text,m.direction,undefined,glossary));
  else if(m.type==='translate')task=youtubeGlossaryFromSender(s,m.direction).then(glossary=>translate(m.text,m.direction,Boolean(m.priority),m.livestreamChat===true,glossary));
- else if(m.type==='subtitles')task=Promise.resolve({running:running&&s.tab?.id===captureTabId,captionInput,nativeRevision,items:s.tab?.id===captureTabId?(captionMode==='record'?[recordingItem()]:items.filter(fresh)):[]});
- else if(m.type==='health')task=Promise.resolve({running,draining:!!drainingSession,lastError,modelStatus,controlBusy,controlAction,diagnostics,captureTabId,captionMode,recordingPending:recording.pending,recordingFailed:recording.failed});
+ else if(m.type==='subtitles')task=Promise.resolve({running:running&&s.tab?.id===captureTabId,captionInput,nativeRevision,nativeCaptions:running&&captureRole!=='shared',items:s.tab?.id===captureTabId?(captionMode==='record'?[recordingItem()]:items.filter(fresh)):[]});
+ else if(m.type==='health')task=Promise.resolve({running,draining:!!drainingSession,lastError,modelStatus,controlBusy,controlAction,diagnostics,captureTabId,captionMode,captureRole,recordingPending:recording.pending,recordingFailed:recording.failed});
  else if(m.type==='subtitle-reset'){
   if(s.tab?.id!==captureTabId)return;
   if(m.nativeRevision!==undefined&&(s.frameId!==0||!/^https:\/\/www\.youtube\.com\//.test(s.url||'')||!Number.isSafeInteger(m.nativeRevision)||m.nativeRevision<=nativeRevision)){
