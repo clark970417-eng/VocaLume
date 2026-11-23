@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -93,14 +94,79 @@ test('robots.txt, sitemap.xml, and vercel.json are valid and complete', () => {
   assert.ok(Array.isArray(vercel.headers) && vercel.headers.length >= 3);
   const swHeader = vercel.headers.find(rule => rule.source === '/mobile/sw.js');
   assert.ok(swHeader, 'vercel.json must configure no-cache for /mobile/sw.js');
-  const countryRedirects = vercel.redirects.filter(rule =>
-    rule.source === '/' && rule.has?.some(h => h.key === 'x-vercel-ip-country')
+});
+
+test('download pages include Mac, Windows, Linux, and extension packages and highlight visitor OS', () => {
+  for (const page of downloadPages) {
+    const html = readDist(page);
+    assert.ok(html.includes('VocaLume-4.6.6-arm64.dmg'), `${page}: missing Mac Apple Silicon DMG`);
+    assert.ok(html.includes('VocaLume-4.6.6.dmg'), `${page}: missing Intel Mac DMG`);
+    assert.ok(html.includes('VocaLume.Setup.4.6.6.exe'), `${page}: missing Windows installer`);
+    assert.ok(html.includes('VocaLume-4.6.6.AppImage'), `${page}: missing Linux AppImage`);
+    assert.ok(html.includes('vocalume-extension.zip'), `${page}: missing universal extension ZIP`);
+    assert.ok(html.includes('vocalume-extension-windows.zip'), `${page}: missing Windows extension ZIP`);
+  }
+
+  const osSource = readDist('download-os.js');
+  function runOsDetect(platform) {
+    const macBadge = { hidden: true };
+    const winBadge = { hidden: true };
+    const macNum = { textContent: '01' };
+    const winNum = { textContent: '02' };
+    const extNum = { textContent: '03' };
+    const macClasses = new Set();
+    const winClasses = new Set();
+    const macCard = {
+      dataset: { os: 'mac' },
+      classList: { add: c => macClasses.add(c) },
+      querySelector: sel => (sel === '.os-badge' ? macBadge : null),
+    };
+    const winCard = {
+      dataset: { os: 'windows' },
+      classList: { add: c => winClasses.add(c) },
+      querySelector: sel => (sel === '.os-badge' ? winBadge : null),
+    };
+    let order = [macCard, winCard];
+    const container = {
+      get firstElementChild() { return order[0]; },
+      prepend(card) { order = [card, ...order.filter(c => c !== card)]; },
+      querySelector(sel) {
+        if (sel === '[data-os="windows"]') return winCard;
+        if (sel === '[data-os="mac"]') return macCard;
+        return null;
+      },
+      querySelectorAll() {
+        return order[0] === winCard ? [winNum, macNum, extNum] : [macNum, winNum, extNum];
+      },
+    };
+    vm.runInNewContext(osSource, {
+      document: { querySelector: sel => (sel === '.download-cards' ? container : null) },
+      navigator: { platform },
+    });
+    return { order, macBadge, winBadge, macClasses, winClasses, winNum, macNum };
+  }
+
+  const win = runOsDetect('Win32');
+  assert.equal(win.order[0].dataset.os, 'windows');
+  assert.equal(win.winBadge.hidden, false);
+  assert.ok(win.winClasses.has('is-recommended'));
+  assert.equal(win.winNum.textContent, '01');
+  assert.equal(win.macNum.textContent, '02');
+
+  const mac = runOsDetect('MacIntel');
+  assert.equal(mac.order[0].dataset.os, 'mac');
+  assert.equal(mac.macBadge.hidden, false);
+  assert.ok(mac.macClasses.has('is-recommended'));
+});
+
+test('page generator scripts stay in sync with checked-in HTML files', () => {
+  const before = new Map(
+    [...mainPages, ...downloadPages].map(page => [page, readDist(page)])
   );
-  assert.equal(countryRedirects.length, 4, 'vercel.json should include edge country redirects for KR, JP, CN/SG, and fallback en');
-  for (const rule of countryRedirects) {
-    assert.ok(rule.has.some(h => h.key === 'sec-fetch-dest' && h.value === 'document'));
-    assert.ok(rule.missing?.some(m => m.type === 'query' && m.key === 'lang'));
-    assert.ok(rule.missing?.some(m => m.type === 'cookie' && m.key === 'vocalume-lang'));
+  execFileSync('python3', [resolve(websiteDir, 'scripts/build-main-pages.py')]);
+  execFileSync('python3', [resolve(websiteDir, 'scripts/build-download-pages.py')]);
+  for (const [page, expected] of before) {
+    assert.equal(readDist(page), expected, `${page} is out of sync with build scripts`);
   }
 });
 

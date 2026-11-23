@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:pages": "python3 scripts/build-main-pages.py && python3 scripts/build-download-pages.py",
     "preview": "python3 -m http.server 52135 --bind 127.0.0.1 --directory dist",
     "test": "node --test tests/*.test.mjs"
   }
