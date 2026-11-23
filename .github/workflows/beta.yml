@@ -127,6 +127,8 @@ jobs:
       - name: Build unsigned beta package
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          # The optional PortAudio binding's Linux header uses std::string without including it.
+          CXXFLAGS: ${{ runner.os == 'Linux' && '-include string' || '' }}
         run: ${{ matrix.command }}
       - name: Install the x64 exe and open the real app window
         if: runner.os == 'Windows'

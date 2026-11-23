@@ -24,6 +24,9 @@ try {
   execFileSync('git', ['-C', source, 'fetch', '--quiet', '--depth=1',
     'https://github.com/Kutalia/whisper.cpp.git', revision], { stdio: 'inherit' })
   execFileSync('git', ['-C', source, 'checkout', '--quiet', '--detach', revision], { stdio: 'inherit' })
+  // The pinned Whisper example predates the C++17 N-API headers in this build.
+  const addonCMake = path.join(source, 'examples', 'addon.node', 'CMakeLists.txt')
+  fs.appendFileSync(addonCMake, '\ntarget_compile_features(addon.node PRIVATE cxx_std_17)\n')
   execFileSync(cmake, [
     'build', '--directory', source, '--out', path.join(workspace, 'build'),
     '--target', 'addon.node', '--config', 'Release', '--runtime', 'electron',
