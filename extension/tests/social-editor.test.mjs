@@ -121,17 +121,17 @@ test('React textarea insertion bypasses the value tracker so the submission stat
 });
 
 for (const site of ['discord','twitch']) {
-  test(`${site}: controls reserve a separate row before the composer and never mount over Send`, () => {
+  test(`${site}: controls stay outside the native composer`, () => {
     const t = editor(site), nativeSend = {};
     const anchor = {parentElement:{},send:nativeSend,insertAdjacentElement(position,controls){this.position = position;this.controls = controls;controls.isConnected = true;}};
     t.box.closest = selector => selector === (site === 'discord' ? 'form' : '.chat-input') ? anchor : null;
     let portal = false; t.document.body.append = ()=>{portal = true;};
     const controls = {dataset:{},style:{}};
     t.mountComposerControls(t.box,controls);
-    assert.equal(controls.dataset.placement,'inline');
-    assert.equal(anchor.position,'beforebegin');
+    assert.equal(controls.dataset.placement,site === 'discord' ? 'floating' : 'inline');
+    assert.equal(anchor.position,site === 'discord' ? undefined : 'beforebegin');
     assert.equal(anchor.send,nativeSend);
-    assert.equal(portal,false);
+    assert.equal(portal,site === 'discord');
   });
 }
 
