@@ -129,6 +129,7 @@
   const composerSelectors = [...config.composer, editableSelector];
   let translated = new WeakMap();
   const lineOwners = new WeakMap();
+  const discordLines = new WeakMap();
   const composers = new WeakMap();
   const composing = new WeakSet();
   let activeComposer;
@@ -298,7 +299,8 @@
       ? await globalThis.VocaLumeTranslationGuards.streamerChatDirection(source, languageSettings.readTarget, value => chrome.i18n.detectLanguage(value))
       : matchesReadLanguage(source) ? direction('read') : null;
     if (detectionEpoch !== epoch || !node.isConnected || readText() !== source) return;
-    let line = parent?.querySelector(':scope > .jtl-social-translation');
+    let line = site === 'discord' ? discordLines.get(node) : parent?.querySelector(':scope > .jtl-social-translation');
+    if (line && !line.isConnected) line = undefined;
     if (!source || source.length > 3000 || !readDirection) {
       if (translated.has(node)) {
         translated.delete(node);
@@ -312,6 +314,10 @@
     if (!line) {
       line = document.createElement('div');
       line.className = `jtl-social-translation${isTitle ? ' jtl-social-title' : ''}`;
+      if (site === 'discord') {
+        line.dataset.site = 'discord';
+        discordLines.set(node, line);
+      }
       node.insertAdjacentElement('afterend', line);
     }
     const owner = {};
@@ -445,7 +451,8 @@
       return;
     }
     const editorRect = box.getBoundingClientRect();
-    const hostRect = composerHost(box)?.getBoundingClientRect?.();
+    const host = site === 'discord' ? box.closest('[class*="channelTextArea"]') || box.closest('form') : composerHost(box);
+    const hostRect = host?.getBoundingClientRect?.();
     const rect = hostRect && hostRect.height < window.innerHeight * .65 && hostRect.top <= editorRect.top && hostRect.bottom >= editorRect.bottom
       ? hostRect : editorRect;
     if (!Number.isFinite(rect.top)) return;
@@ -474,8 +481,10 @@
   }
 
   function mountComposerControls(box, controls) {
-    const anchor = composerPosition ? null : site === 'discord' ? box.closest('form') || box.closest('[class*="channelTextArea"]') || composerHost(box)
-      : site === 'twitch' ? box.closest('.chat-input') || box.closest('form') || composerHost(box) : null;
+    // Discord's composer wrapper can clip siblings and move the message list.
+    // Mount the controls outside it and position them from its visible bounds.
+    const anchor = !composerPosition && site === 'twitch'
+      ? box.closest('.chat-input') || box.closest('form') || composerHost(box) : null;
     if (anchor?.parentElement && anchor.insertAdjacentElement) {
       controls.dataset.placement = 'inline';
       // A separate row before the native composer leaves its Send area free.

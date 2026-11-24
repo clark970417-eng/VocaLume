@@ -57,6 +57,7 @@ function setup(hostname,japaneseOverride,composerDistractor,semanticOnly=false,g
   scan:()=>scan([{type:'childList',target:root,addedNodes:[root],removedNodes:[]}]),
   poll:()=>documentEvents.visibilitychange(), runtime:chrome.runtime,stopped:()=>disconnected,
   intervalCount:()=>intervalCount,expire:()=>expiry(),
+  focusComposer:()=>documentEvents.focusin({composedPath:()=>[box]}),
   edit(value){box.value=value;documentEvents.input({composedPath:()=>[box]});},
   advance:ms=>now+=ms, visibility:hidden=>{document.hidden=hidden;documentEvents.visibilitychange();}, push:(item,running)=>runtimeListener({type:'subtitle-update',item,running}),
   languages:value=>storageListeners.forEach(fn=>fn({languageSettings:{newValue:value}},'local')),
@@ -405,4 +406,28 @@ test('Bilibili live finds the danmaku editor inside its chat panel without a pla
  draft.reply({ok:true,text:{draft:'今日もとても可愛いですね！'}});
  await settle();
  assert.equal(t.box.value,'今日もとても可愛いですね！');
+});
+
+test('Discord groups keep a separate translation for each message and float composer controls',async()=>{
+ const lines=[];
+ const parent={querySelector:()=>lines.find(line=>line.isConnected)};
+ const message=text=>({textContent:text,innerText:text,isConnected:true,parentElement:parent,closest:()=>null,
+  insertAdjacentElement(position,line){assert.equal(position,'afterend');line.isConnected=true;lines.push(line);}});
+ const t=setup('discord.com',[message('오늘도 감사합니다'),message('내일 또 만나요')],null,false,false,{readSource:'ko',readTarget:'zh'});
+ await settle();
+ assert.equal(lines.length,2);
+ assert.ok(lines.every(line=>line.dataset.site==='discord'));
+ for(const r of t.requests.filter(r=>r.message.type==='translate')){
+  r.reply({ok:true,text:r.message.text.startsWith('오늘')?'今天也謝謝你':'明天再見'});
+ }
+ await settle();
+ assert.ok(lines.some(line=>line.textContent.includes('今天也謝謝你')));
+ assert.ok(lines.some(line=>line.textContent.includes('明天再見')));
+ t.scan();await settle();
+ assert.equal(lines.length,2);
+ const anchor={parentElement:{},insertAdjacentElement(){throw Error('Discord controls must stay outside the composer');}};
+ t.box.closest=selector=>selector.includes('.jtl-social-controls')?null:anchor;
+ t.scan();await settle();
+ t.focusComposer();await settle();
+ assert.equal(t.controls.at(-1).dataset.placement,'floating');
 });

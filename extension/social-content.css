@@ -6,6 +6,15 @@
   overflow-wrap: anywhere !important;
 }
 
+/* Keep each Discord translation on its own line without widening the message. */
+.jtl-social-translation[data-site="discord"] {
+  display: block !important;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  white-space: pre-wrap !important;
+}
+
 .jtl-social-title {
   display: block !important;
   font-size: 0.72em !important;
